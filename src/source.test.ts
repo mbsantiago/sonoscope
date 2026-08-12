@@ -12,6 +12,12 @@ function makeBuffer(): AudioBuffer {
 }
 
 describe('DecodedAudioSource', () => {
+  it('uses the decoded AudioBuffer sample rate', () => {
+    const source = new DecodedAudioSource({ ...makeBuffer(), sampleRate: 96_000 } as AudioBuffer, 'fixture');
+
+    expect(source.sampleRate).toBe(96_000);
+  });
+
   it('reads a time range as a copied Float32Array', () => {
     const source = new DecodedAudioSource(makeBuffer(), 'fixture');
     expect(Array.from(source.read({ channel: 0, startTime: 0.2, endTime: 0.5 }))).toEqual([2, 3, 4]);

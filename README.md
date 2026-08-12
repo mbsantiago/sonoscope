@@ -25,6 +25,8 @@ await viewer.render();
 
 If `source` is omitted, the viewer decodes `audio.currentSrc || audio.src` into a `DecodedAudioSource` automatically. Provide an explicit `source` when samples come from somewhere other than the playback element, or when you already have decoded audio data.
 
+`DecodedAudioSource` uses browser `AudioContext.decodeAudioData`. Browsers decode into the `AudioContext` sample rate, so `source.sampleRate` is the decoded buffer rate and may differ from the file's original sample rate. The default spectrogram viewport uses the decoded source Nyquist frequency (`source.sampleRate / 2`) when a source is available.
+
 ```ts
 import { DecodedAudioSource, SpectrogramViewer } from 'spectrogram-js';
 

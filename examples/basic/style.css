@@ -70,3 +70,8 @@ pre {
   background: #020617;
   border: 1px solid #334155;
 }
+
+.note {
+  width: min(100%, 960px);
+  color: #cbd5e1;
+}

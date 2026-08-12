@@ -19,6 +19,8 @@
       <label>Hop size <input name="hopSize" type="number" value="256" min="32" step="32" /></label>
       <label>Window <select name="window"><option>hann</option><option>hamming</option><option>blackman</option><option>rectangular</option></select></label>
       <label>Frequency scale <select name="frequencyScale"><option>linear</option><option>log</option><option>mel</option></select></label>
+      <label>Min frequency <input name="minFrequency" type="number" value="0" min="0" step="100" /></label>
+      <label>Max frequency <input name="maxFrequency" type="number" min="1" step="1000" placeholder="decoded Nyquist" /></label>
       <label>Value mode <select name="mode"><option>db</option><option>magnitude</option><option>power</option></select></label>
       <label>Min <input name="min" type="number" value="-100" step="1" /></label>
       <label>Max <input name="max" type="number" value="0" step="1" /></label>
@@ -27,6 +29,7 @@
       <button type="button" data-action="apply">Apply config</button>
       <span data-status></span>
     </div>
+    <p class="note">The default frequency range extends to the decoded source Nyquist. Browser decoding may resample to the AudioContext sample rate, so the visible ceiling depends on the decoded sample rate.</p>
     <audio controls crossorigin="anonymous"></audio>
     <div class="stage"><canvas></canvas></div>
     <script type="module" src="./controls.ts"></script>

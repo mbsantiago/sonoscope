@@ -41,18 +41,21 @@ export async function createViewer(options: {
     playback: { showPlayhead: true, follow: options.follow ?? true, followMargin: 0.2, renderOnSeek: true },
     ...(options.stft === undefined ? {} : { stft: options.stft }),
     valueScale: { mode: 'db', min: -100, max: 0, ...options.valueScale },
-    viewport: { startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 12_000, frequencyScale: 'linear', ...options.viewport },
+    viewport: { startTime: 0, endTime: 10, minFrequency: 0, frequencyScale: 'linear', ...options.viewport },
   });
 
   const source = viewer.getConfig().source;
-  const maxFrequency = Math.min(12_000, source ? source.sampleRate / 2 : 12_000);
-  viewer.setViewport({ startTime: 0, endTime: Math.min(10, source?.duration ?? 10), minFrequency: 0, maxFrequency });
+  const minFrequency = options.viewport?.minFrequency ?? 0;
+  const maxFrequency = options.viewport?.maxFrequency ?? (source ? source.sampleRate / 2 : viewer.getViewport().maxFrequency);
+  viewer.setViewport({ startTime: 0, endTime: Math.min(10, source?.duration ?? 10), minFrequency, maxFrequency });
   return viewer;
 }
 
 export function viewportStatus(viewer: SpectrogramViewer): string {
   const viewport = viewer.getViewport();
-  return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz, ${viewport.frequencyScale}`;
+  const source = viewer.getConfig().source;
+  const sampleRate = source ? `, decoded sample rate ${Math.round(source.sampleRate)}Hz` : '';
+  return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz, ${viewport.frequencyScale}${sampleRate}`;
 }
 
 export function fullBounds(viewer: SpectrogramViewer) {

@@ -26,12 +26,13 @@ export class SpectrogramViewer {
   }
 
   static async create(input: SpectrogramConfig & { backend?: SpectrogramComputeBackend }): Promise<SpectrogramViewer> {
-    let config = resolveConfig(input);
-    if (!config.source && config.audio) {
-      const url = config.audio.currentSrc || config.audio.src;
+    if (!input.source && input.audio) {
+      const url = input.audio.currentSrc || input.audio.src;
       if (!url) throw new Error('SpectrogramViewer requires audio.currentSrc or audio.src when source is omitted');
-      config = { ...config, source: await DecodedAudioSource.fromUrl(url) };
+      const config = resolveConfig({ ...input, source: await DecodedAudioSource.fromUrl(url) });
+      return new SpectrogramViewer(config, input.backend ?? new MainThreadComputeBackend());
     }
+    const config = resolveConfig(input);
     return new SpectrogramViewer(config, input.backend ?? new MainThreadComputeBackend());
   }
 

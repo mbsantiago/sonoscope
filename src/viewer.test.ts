@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DecodedAudioSource } from './source';
 import { SpectrogramViewer } from './viewer';
 import type { AudioSource } from './types';
 
@@ -50,7 +51,46 @@ const source: AudioSource = {
   read: () => Float32Array.from({ length: 1024 }, (_, i) => Math.sin(2 * Math.PI * 128 * (i / 1024))),
 };
 
+const highRateSource: AudioSource = {
+  ...source,
+  id: 'high-rate',
+  sampleRate: 192_000,
+};
+
 describe('SpectrogramViewer', () => {
+  it('defaults audio-only viewport max frequency to decoded source Nyquist', async () => {
+    const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockResolvedValue(highRateSource as DecodedAudioSource);
+    const audio = { src: 'test.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
+
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), audio });
+
+    expect(fromUrl).toHaveBeenCalledWith('test.wav');
+    expect(viewer.getConfig().source).toBe(highRateSource);
+    expect(viewer.getViewport().maxFrequency).toBe(96_000);
+    fromUrl.mockRestore();
+  });
+
+  it('allows audio-only min frequency above fallback Nyquist when decoded source supports it', async () => {
+    const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockResolvedValue(highRateSource as DecodedAudioSource);
+    const audio = { src: 'test.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
+
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), audio, viewport: { minFrequency: 30_000 } });
+
+    expect(viewer.getViewport().minFrequency).toBe(30_000);
+    expect(viewer.getViewport().maxFrequency).toBe(96_000);
+    fromUrl.mockRestore();
+  });
+
+  it('preserves explicit audio-only viewport max frequency after decoding', async () => {
+    const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockResolvedValue(highRateSource as DecodedAudioSource);
+    const audio = { src: 'test.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
+
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), audio, viewport: { maxFrequency: 24_000 } });
+
+    expect(viewer.getViewport().maxFrequency).toBe(24_000);
+    fromUrl.mockRestore();
+  });
+
   it('renders and emits progress', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const progress: number[] = [];
