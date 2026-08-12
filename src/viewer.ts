@@ -114,8 +114,7 @@ export class SpectrogramViewer {
       this.events.emit('renderstart', { requestId, total: tiles.length });
       profile.record('render.visibleTiles', performance.now(), 0, { total: tiles.length });
 
-      await Promise.all(
-        tiles.map(async (tile) => {
+      const jobs = tiles.map(async (tile) => {
           const matrix = await this.getTile(tile.channel, tile.timeStart, tile.timeEnd, profile);
           completed += 1;
           matrices.set(`${tile.channel}:${tile.timeStart}:${tile.timeEnd}`, matrix);
@@ -136,15 +135,15 @@ export class SpectrogramViewer {
               lastPaintedTileCount = matrices.size;
             }
           }
-        }),
-      );
+        });
+      this.prefetchAroundViewport();
+      await Promise.all(jobs);
       if (generation !== this.renderGeneration) return;
 
       if (lastPaintedTileCount !== matrices.size) this.paintPartial(Array.from(matrices.values()), profile);
       this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
       this.status = { state: 'ready' };
       this.events.emit('rendercomplete', { requestId, renderedTiles: matrices.size, missingTiles: tiles.length - matrices.size });
-      this.prefetchAroundViewport();
     });
 
     if (generation === this.renderGeneration) {

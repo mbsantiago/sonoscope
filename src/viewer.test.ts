@@ -228,6 +228,31 @@ describe('SpectrogramViewer', () => {
     expect(requested).toHaveLength(4);
   });
 
+  it('starts prefetching surrounding tiles during the first visible render', async () => {
+    const requested: Array<[number, number]> = [];
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        requested.push([request.timeStart, request.timeEnd]);
+        return new Promise(() => undefined);
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 10 },
+      cache: { tileDurationSeconds: 1, maxCachedTiles: 6, prefetchTiles: 2 },
+      viewport: { startTime: 3, endTime: 5, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+
+    void viewer.render();
+    await Promise.resolve();
+
+    expect(requested).toContainEqual([3, 4]);
+    expect(requested).toContainEqual([4, 5]);
+    expect(requested).toContainEqual([2, 3]);
+    expect(requested).toContainEqual([5, 6]);
+  });
+
   it('does not prefetch when cached and pending tiles reach maxCachedTiles', async () => {
     let release: (() => void) | undefined;
     const requested: Array<[number, number]> = [];
