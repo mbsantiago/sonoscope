@@ -23,6 +23,8 @@ type BaseFrame = {
   width: number;
   height: number;
   dpr: number;
+  deviceWidth: number;
+  deviceHeight: number;
   viewport: ViewportConfig;
   image: ImageData;
 };
@@ -61,8 +63,10 @@ export class CanvasSpectrogramRenderer {
     const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
     const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
     const dpr = globalThis.devicePixelRatio || 1;
-    input.canvas.width = Math.round(width * dpr);
-    input.canvas.height = Math.round(height * dpr);
+    const deviceWidth = Math.max(1, Math.round(width * dpr));
+    const deviceHeight = Math.max(1, Math.round(height * dpr));
+    input.canvas.width = deviceWidth;
+    input.canvas.height = deviceHeight;
 
     const context = input.canvas.getContext('2d');
     if (!context) throw new Error('Unable to get 2D canvas context');
@@ -71,10 +75,10 @@ export class CanvasSpectrogramRenderer {
     context.clearRect(0, 0, width, height);
 
     const colors = buildColorMap(input.colorMap);
-    const image = context.createImageData(width, height);
-    for (const tile of input.tiles) this.paintTile(image, width, height, tile, input.viewport, input.valueScale, colors);
+    const image = context.createImageData(deviceWidth, deviceHeight);
+    for (const tile of input.tiles) this.paintTile(image, deviceWidth, deviceHeight, tile, input.viewport, input.valueScale, colors);
     context.putImageData(image, 0, 0);
-    this.baseFrame = { canvas: input.canvas, width, height, dpr, viewport: { ...input.viewport }, image };
+    this.baseFrame = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, image };
 
     if (input.playheadTime !== undefined) this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
   }
@@ -87,7 +91,9 @@ export class CanvasSpectrogramRenderer {
     const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
     const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
     const dpr = globalThis.devicePixelRatio || 1;
-    if (frame.width !== width || frame.height !== height || frame.dpr !== dpr) return false;
+    const deviceWidth = Math.max(1, Math.round(width * dpr));
+    const deviceHeight = Math.max(1, Math.round(height * dpr));
+    if (frame.width !== width || frame.height !== height || frame.dpr !== dpr || frame.deviceWidth !== deviceWidth || frame.deviceHeight !== deviceHeight) return false;
 
     const context = input.canvas.getContext('2d');
     if (!context) throw new Error('Unable to get 2D canvas context');

@@ -22,6 +22,26 @@ function canvas(): HTMLCanvasElement {
   } as unknown as HTMLCanvasElement;
 }
 
+function sizedCanvas(cssWidth: number, cssHeight: number, backingWidth = cssWidth, backingHeight = cssHeight): HTMLCanvasElement {
+  return {
+    width: backingWidth,
+    height: backingHeight,
+    getBoundingClientRect: () => ({ width: cssWidth, height: cssHeight }),
+    getContext: () => ({
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+      putImageData: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+    }),
+  } as unknown as HTMLCanvasElement;
+}
+
 const source: AudioSource = {
   id: 'test',
   sampleRate: 1024,
@@ -44,5 +64,18 @@ describe('SpectrogramViewer', () => {
     const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });
     expect(spectrum.values.frequency.length).toBeGreaterThan(0);
     expect(spectrum.values.magnitude?.length).toBe(spectrum.values.frequency.length);
+  });
+
+  it('converts queryCanvasPoint from CSS pixels, not high-DPR backing pixels', async () => {
+    const viewer = await SpectrogramViewer.create({
+      canvas: sizedCanvas(250, 100, 500, 200),
+      source,
+      viewport: { startTime: 7.5, endTime: 9, minFrequency: 0, maxFrequency: 500 },
+    });
+    const queryPoint = vi.spyOn(viewer, 'queryPoint').mockResolvedValue({ time: 8.25, frequency: 250, frameIndex: 0, binIndex: 0, channel: 0 });
+
+    await viewer.queryCanvasPoint({ x: 125, y: 50, channel: 0 });
+
+    expect(queryPoint).toHaveBeenCalledWith({ time: 8.25, frequency: 250, channel: 0 });
   });
 });
