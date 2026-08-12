@@ -180,6 +180,28 @@ describe('SpectrogramViewer', () => {
     expect(maxRunning).toBeGreaterThan(1);
   });
 
+  it('batches same-tick partial paints into a single render', async () => {
+    const backend: SpectrogramComputeBackend = {
+      computeTile: async (request) => {
+        await Promise.resolve();
+        return matrix(request.timeStart, request.timeEnd);
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 4 },
+      cache: { tileDurationSeconds: 1 },
+      viewport: { startTime: 0, endTime: 4, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+    const renderer = (viewer as unknown as { renderer: { render: (input: unknown) => void } }).renderer;
+    const render = vi.spyOn(renderer, 'render');
+
+    await viewer.render();
+
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
   it('queries a spectrum at a time point', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });

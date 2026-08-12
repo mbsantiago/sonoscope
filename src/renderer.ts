@@ -122,14 +122,20 @@ export class CanvasSpectrogramRenderer {
     valueScale: Required<ValueScaleConfig>,
     colors: Rgba[],
   ): void {
-    for (let x = 0; x < width; x++) {
+    const startX = Math.max(0, Math.floor(((tile.timeStart - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
+    const endX = Math.min(width, Math.ceil(((tile.timeEnd - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
+    const rowBins = Array.from({ length: height }, (_, y) => {
+      const { frequency } = canvasToTimeFrequency(0, y, width, height, viewport);
+      return pickNearestBin(tile.frequencies, frequency);
+    });
+
+    for (let x = startX; x < endX; x++) {
       const time = viewport.startTime + (x / width) * (viewport.endTime - viewport.startTime);
       if (time < tile.timeStart || time > tile.timeEnd || tile.frameCount === 0) continue;
 
       const frame = pickNearestFrame(tile.times, time);
       for (let y = 0; y < height; y++) {
-        const { frequency } = canvasToTimeFrequency(x, y, width, height, viewport);
-        const bin = pickNearestBin(tile.frequencies, frequency);
+        const bin = rowBins[y]!;
         const matrixIndex = frame * tile.binCount + bin;
         const normalized = normalizeValue(selectedValue(tile, matrixIndex, valueScale.mode), valueScale);
         const color = colors[Math.max(0, Math.min(255, Math.round(normalized * 255)))]!;
