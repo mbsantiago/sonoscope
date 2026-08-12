@@ -36,7 +36,7 @@ export function resolveConfig(input: SpectrogramConfig): ResolvedSpectrogramConf
     valueScale: { mode: 'db', min: -100, max: 0, gamma: 1, clamp: true, ...input.valueScale },
     colorMap: input.colorMap ?? 'viridis',
     playback: { showPlayhead: true, follow: false, followMargin: 0.2, renderOnSeek: true, ...input.playback },
-    cache: { tileDurationSeconds: 5, maxCachedTiles: 64, ...input.cache },
+    cache: { tileDurationSeconds: 5, maxCachedTiles: 64, prefetchTiles: 8, ...input.cache },
     transforms: input.transforms ?? [],
   };
 }

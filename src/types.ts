@@ -46,6 +46,7 @@ export type PlaybackConfig = {
 export type CacheConfig = {
   tileDurationSeconds: number;
   maxCachedTiles: number;
+  prefetchTiles: number;
 };
 
 export type SpectrogramMatrix = {

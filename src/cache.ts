@@ -26,6 +26,14 @@ export class SpectrogramCache {
     return value;
   }
 
+  has(key: string): boolean {
+    return this.tiles.has(key);
+  }
+
+  size(): number {
+    return this.tiles.size;
+  }
+
   set(key: string, matrix: SpectrogramMatrix): void {
     this.tiles.set(key, matrix);
     while (this.tiles.size > this.options.maxCachedTiles) {

@@ -133,6 +133,7 @@ export class SpectrogramViewer {
       this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
       this.status = { state: 'ready' };
       this.events.emit('rendercomplete', { requestId, renderedTiles: matrices.size, missingTiles: tiles.length - matrices.size });
+      this.prefetchAroundViewport();
     });
 
     if (generation === this.renderGeneration) {
@@ -286,11 +287,22 @@ export class SpectrogramViewer {
     const margin = duration * this.config.playback.followMargin;
     if (audio.currentTime < this.config.viewport.endTime - margin * 1.5) return;
 
-    const lookaheadStart = this.config.viewport.endTime;
-    const lookaheadEnd = Math.min(source.duration, lookaheadStart + margin + this.config.cache.tileDurationSeconds);
-    if (lookaheadEnd <= lookaheadStart) return;
+    this.prefetchAroundViewport('forward', margin + this.config.cache.tileDurationSeconds);
+  }
 
-    for (const tile of this.tileRangesForTimeRange(lookaheadStart, lookaheadEnd)) {
+  private prefetchAroundViewport(direction: 'both' | 'forward' = 'both', seconds = this.config.cache.tileDurationSeconds * this.config.cache.prefetchTiles): void {
+    if (!this.config.source || this.config.cache.prefetchTiles <= 0) return;
+    const before = direction === 'forward' ? [] : this.tileRangesForTimeRange(Math.max(0, this.config.viewport.startTime - seconds), this.config.viewport.startTime).reverse();
+    const after = this.tileRangesForTimeRange(this.config.viewport.endTime, Math.min(this.config.source.duration, this.config.viewport.endTime + seconds));
+    const candidates = direction === 'forward' ? after : interleave(before, after);
+
+    let started = 0;
+    for (const tile of candidates) {
+      if (started >= this.config.cache.prefetchTiles) return;
+      if (this.cache.size() + this.pendingTiles.size >= this.config.cache.maxCachedTiles) return;
+      const key = this.tileKey(tile.channel, tile.timeStart, tile.timeEnd);
+      if (this.cache.has(key) || this.pendingTiles.has(key)) continue;
+      started += 1;
       void this.getTile(tile.channel, tile.timeStart, tile.timeEnd).catch((error) => {
         this.events.emit('error', { error: error instanceof Error ? error : new Error(String(error)), recoverable: true, phase: 'compute' });
       });
@@ -331,14 +343,7 @@ export class SpectrogramViewer {
     const source = this.config.source;
     const stft = this.config.stft;
     const transforms = this.config.transforms;
-    const key = createTileKey({
-      sourceId: source.id,
-      channel,
-      timeStart,
-      timeEnd,
-      stftHash: stableHash(stft),
-      transformHash: stableHash(transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config }))),
-    });
+    const key = this.tileKey(channel, timeStart, timeEnd);
     const cached = profile ? profile.measure('tile.cache.lookup', { channel, timeStart, timeEnd }, () => this.cache.get(key)) : this.cache.get(key);
     if (cached) return cached;
     const pending = this.pendingTiles.get(key);
@@ -362,4 +367,26 @@ export class SpectrogramViewer {
     promise.finally(() => this.pendingTiles.delete(key));
     return promise;
   }
+
+  private tileKey(channel: number, timeStart: number, timeEnd: number): string {
+    if (!this.config.source) throw new Error('Cannot key tile without an AudioSource');
+    return createTileKey({
+      sourceId: this.config.source.id,
+      channel,
+      timeStart,
+      timeEnd,
+      stftHash: stableHash(this.config.stft),
+      transformHash: stableHash(this.config.transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config }))),
+    });
+  }
+}
+
+function interleave<T>(left: T[], right: T[]): T[] {
+  const result: T[] = [];
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i++) {
+    if (left[i] !== undefined) result.push(left[i]!);
+    if (right[i] !== undefined) result.push(right[i]!);
+  }
+  return result;
 }

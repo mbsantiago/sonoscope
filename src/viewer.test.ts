@@ -202,6 +202,57 @@ describe('SpectrogramViewer', () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 
+  it('prefetches bounded tiles around the viewport after rendering visible tiles', async () => {
+    const requested: Array<[number, number]> = [];
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        requested.push([request.timeStart, request.timeEnd]);
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 10 },
+      cache: { tileDurationSeconds: 1, maxCachedTiles: 6, prefetchTiles: 2 },
+      viewport: { startTime: 3, endTime: 5, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+
+    await viewer.render();
+    await Promise.resolve();
+
+    expect(requested).toContainEqual([3, 4]);
+    expect(requested).toContainEqual([4, 5]);
+    expect(requested).toContainEqual([2, 3]);
+    expect(requested).toContainEqual([5, 6]);
+    expect(requested).toHaveLength(4);
+  });
+
+  it('does not prefetch when cached and pending tiles reach maxCachedTiles', async () => {
+    let release: (() => void) | undefined;
+    const requested: Array<[number, number]> = [];
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        requested.push([request.timeStart, request.timeEnd]);
+        if (request.timeStart >= 2) return new Promise((resolve) => { release = () => resolve(matrix(request.timeStart, request.timeEnd)); });
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 10 },
+      cache: { tileDurationSeconds: 1, maxCachedTiles: 2, prefetchTiles: 4 },
+      viewport: { startTime: 0, endTime: 2, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+
+    await viewer.render();
+    await Promise.resolve();
+
+    expect(requested).toEqual([[0, 1], [1, 2]]);
+    release?.();
+  });
+
   it('queries a spectrum at a time point', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });

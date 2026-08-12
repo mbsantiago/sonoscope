@@ -138,7 +138,7 @@ describe('playback sync', () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 
-  it('prefetches upcoming tiles while following playback before the viewport shifts', async () => {
+  it('has upcoming follow tiles prefetched before the viewport shifts', async () => {
     const element = audio();
     let frame: FrameRequestCallback | undefined;
     globalThis.requestAnimationFrame = () => 0;
@@ -164,6 +164,7 @@ describe('playback sync', () => {
       backend,
     });
     await viewer.render();
+    expect(requested).toContainEqual([2, 3]);
     requested.length = 0;
     element.currentTime = 1.55;
 
@@ -172,7 +173,7 @@ describe('playback sync', () => {
     await Promise.resolve();
 
     expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 2 });
-    expect(requested).toContainEqual([2, 3]);
+    expect(requested).toEqual([]);
   });
 
   it('removes playback listeners on destroy', async () => {
