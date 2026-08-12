@@ -11,10 +11,13 @@ const viewportElement = requiredElement<HTMLDivElement>('.minimap-viewport');
 
 let viewer: SpectrogramViewer | undefined;
 let minimapFrame: number | undefined;
+let renderFrame: number | undefined;
 let renderRunning = false;
 let renderAgain = false;
 let lastPaintSummary = 'paint passes: none yet';
+let lastRenderStart = 0;
 const wheelZoomStep = 0.02;
+const minRenderIntervalMs = 180;
 
 async function load(url: string): Promise<void> {
   cancelScheduledWork();
@@ -45,14 +48,20 @@ function scheduleMinimapUpdate(): void {
 function requestRender(): void {
   if (!viewer) return;
   renderAgain = true;
-  if (renderRunning) return;
-  void renderLatestViewport();
+  if (renderRunning || renderFrame !== undefined) return;
+  const delay = Math.max(0, minRenderIntervalMs - (performance.now() - lastRenderStart));
+  renderFrame = window.setTimeout(() => {
+    renderFrame = undefined;
+    void renderLatestViewport();
+  }, delay);
 }
 
 async function renderLatestViewport(): Promise<void> {
+  if (renderRunning || !renderAgain) return;
   renderRunning = true;
   while (renderAgain) {
     renderAgain = false;
+    lastRenderStart = performance.now();
     await viewer?.render();
   }
   renderRunning = false;
@@ -99,6 +108,7 @@ function panTime(delta: number): void {
   const duration = viewport.endTime - viewport.startTime;
   const startTime = clamp(viewport.startTime + delta, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
+  scheduleMinimapUpdate();
   requestRender();
 }
 
@@ -113,6 +123,7 @@ function zoomTimeAt(centerTime: number, factor: number): void {
   const ratio = (centerTime - viewport.startTime) / currentDuration;
   const startTime = clamp(centerTime - duration * ratio, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
+  scheduleMinimapUpdate();
   requestRender();
 }
 
@@ -133,7 +144,9 @@ function viewportDurationLimits(target: SpectrogramViewer): { minDuration: numbe
 
 function cancelScheduledWork(): void {
   if (minimapFrame !== undefined) cancelAnimationFrame(minimapFrame);
+  if (renderFrame !== undefined) clearTimeout(renderFrame);
   minimapFrame = undefined;
+  renderFrame = undefined;
   renderAgain = false;
   renderRunning = false;
 }
