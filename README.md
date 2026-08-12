@@ -65,3 +65,7 @@ npm run dev:example
 ```
 
 The basic example expects an audio file at `examples/basic/example.wav`. Add your own file there for local manual testing.
+
+## Performance Profiling
+
+Run `npm run dev:example` and open `/performance.html` to compare the main-thread and worker compute backends on synthetic audio. The page listens for `renderprofile` events and summarizes tile compute and paint timings.

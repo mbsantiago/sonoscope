@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>spectrogram-js performance</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Performance profile</h1>
+      <p class="note">Compare main-thread and worker tile computation on synthetic audio.</p>
+      <div class="controls">
+        <button id="main">Render main-thread backend</button>
+        <button id="worker">Render worker backend</button>
+        <button id="pan">Pan viewport</button>
+      </div>
+      <canvas id="spectrogram"></canvas>
+      <pre id="profile">Rendering initial worker profile...</pre>
+    </main>
+    <script type="module" src="./performance.ts"></script>
+  </body>
+</html>
