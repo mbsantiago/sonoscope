@@ -94,6 +94,7 @@ describe('playback sync', () => {
     const viewer = await SpectrogramViewer.create({ audio: element, canvas: canvas(), source, playback: { renderOnSeek: true } });
     const render = vi.spyOn(viewer, 'render').mockResolvedValue();
     element.emit('seeked');
+    await Promise.resolve();
     expect(render).toHaveBeenCalledTimes(1);
   });
 
@@ -103,6 +104,18 @@ describe('playback sync', () => {
     const render = vi.spyOn(viewer, 'render').mockResolvedValue();
 
     element.emit('seeking');
+    await Promise.resolve();
+
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces repeated requested renders', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source });
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue();
+
+    viewer.requestRender();
+    viewer.requestRender();
+    await Promise.resolve();
 
     expect(render).toHaveBeenCalledTimes(1);
   });
@@ -146,6 +159,7 @@ describe('playback sync', () => {
 
     element.emit('play');
     frame?.(0);
+    await Promise.resolve();
 
     expect(render).toHaveBeenCalledTimes(1);
   });

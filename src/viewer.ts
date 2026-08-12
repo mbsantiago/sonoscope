@@ -15,7 +15,9 @@ export class SpectrogramViewer {
   private readonly renderer = new CanvasSpectrogramRenderer();
   private playbackCleanup: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
-  private sourceRenderQueued = false;
+  private renderQueued = false;
+  private renderRunning = false;
+  private renderAgain = false;
   private animationFrame: number | undefined;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
   private requestCounter = 0;
@@ -165,6 +167,14 @@ export class SpectrogramViewer {
     }
   }
 
+  requestRender(): void {
+    if (this.status.state === 'destroyed') return;
+    this.renderAgain = true;
+    if (this.renderQueued || this.renderRunning) return;
+    this.renderQueued = true;
+    void Promise.resolve().then(() => this.renderRequested());
+  }
+
   private paintPartial(matrices: SpectrogramMatrix[], placeholders: Array<{ timeStart: number; timeEnd: number }>, profile: PerformanceProfiler): void {
     this.renderer.render({
       canvas: this.config.canvas,
@@ -279,15 +289,26 @@ export class SpectrogramViewer {
   }
 
   private queueSourceRangeRender(): void {
-    if (this.sourceRenderQueued || this.status.state === 'destroyed') return;
-    this.sourceRenderQueued = true;
-    void Promise.resolve().then(() => {
-      this.sourceRenderQueued = false;
-      if (this.status.state === 'destroyed') return;
-      void this.render().catch((error) => {
-        this.events.emit('error', { error: error instanceof Error ? error : new Error(String(error)), recoverable: true, phase: 'source' });
-      });
-    });
+    this.requestRender();
+  }
+
+  private async renderRequested(): Promise<void> {
+    this.renderQueued = false;
+    if (this.renderRunning || this.isDestroyed()) return;
+    this.renderRunning = true;
+    while (this.renderAgain && !this.isDestroyed()) {
+      this.renderAgain = false;
+      try {
+        await this.render();
+      } catch (error) {
+        this.events.emit('error', { error: error instanceof Error ? error : new Error(String(error)), recoverable: true, phase: 'render' });
+      }
+    }
+    this.renderRunning = false;
+  }
+
+  private isDestroyed(): boolean {
+    return this.status.state === 'destroyed';
   }
 
   private attachPlaybackSync(): void {
@@ -295,11 +316,11 @@ export class SpectrogramViewer {
     if (!audio) return;
     const onSeeked = () => {
       this.followPlayheadIfNeeded();
-      if (this.config.playback.renderOnSeek) void this.render();
+      if (this.config.playback.renderOnSeek) this.requestRender();
     };
     const onSeeking = () => {
       this.followPlayheadIfNeeded();
-      if (this.config.playback.renderOnSeek) void this.render();
+      if (this.config.playback.renderOnSeek) this.requestRender();
     };
     const onTimeUpdate = () => {
       this.followPlayheadIfNeeded();
@@ -322,7 +343,7 @@ export class SpectrogramViewer {
   private startPlaybackLoop(): void {
     const tick = () => {
       const viewportChanged = this.followPlayheadIfNeeded();
-      if (viewportChanged || !this.renderPlaybackPlayhead()) void this.render();
+      if (viewportChanged || !this.renderPlaybackPlayhead()) this.requestRender();
       this.prefetchPlaybackLookahead();
       this.animationFrame = requestAnimationFrame(tick);
     };
