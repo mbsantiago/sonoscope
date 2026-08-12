@@ -17,7 +17,7 @@ let renderAgain = false;
 let lastPaintSummary = 'paint passes: none yet';
 let lastRenderStart = 0;
 const wheelZoomStep = 0.02;
-const minRenderIntervalMs = 180;
+const minRenderIntervalMs = 50;
 
 async function load(url: string): Promise<void> {
   cancelScheduledWork();
