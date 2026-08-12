@@ -106,8 +106,9 @@ function viewportDurationLimits(target: SpectrogramViewer): { minDuration: numbe
   const source = target.getConfig().source;
   const channels = target.getConfig().source?.channelCount ?? 1;
   const visibleTileBudget = Math.max(1, Math.floor(maxCachedTiles / Math.max(1, channels * 4)));
+  const cachedDuration = (maxCachedTiles / Math.max(1, channels)) * tileDurationSeconds;
   const minDuration = Math.max(tileDurationSeconds, tileDurationSeconds * visibleTileBudget * 0.25);
-  const maxDuration = Math.max(minDuration, Math.min(source?.duration ?? minDuration, tileDurationSeconds * visibleTileBudget));
+  const maxDuration = Math.max(minDuration, Math.min(source?.duration ?? minDuration, cachedDuration));
   return { minDuration, maxDuration };
 }
 
