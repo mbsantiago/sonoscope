@@ -1,2 +1,5 @@
 export const version = '0.0.0';
-export type { FrequencyScale, Rgba, ValueMode, WindowName } from './types';
+export { resolveConfig, stableHash } from './config';
+export { TypedEventEmitter } from './events';
+export { DecodedAudioSource } from './source';
+export type * from './types';
