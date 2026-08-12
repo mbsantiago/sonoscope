@@ -15,6 +15,7 @@ export class SpectrogramViewer {
   private readonly renderer = new CanvasSpectrogramRenderer();
   private playbackCleanup: Array<() => void> = [];
   private animationFrame: number | undefined;
+  private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
   private requestCounter = 0;
   private renderGeneration = 0;
   private status: SpectrogramStatus = { state: 'idle' };
@@ -52,6 +53,7 @@ export class SpectrogramViewer {
     this.config = resolveConfig({ ...this.config, ...input, viewport, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
     this.renderGeneration += 1;
     this.cache.clear();
+    this.pendingTiles.clear();
     this.renderer.invalidate();
     this.events.emit('configchange', { config: this.config });
   }
@@ -240,6 +242,7 @@ export class SpectrogramViewer {
     const tick = () => {
       const viewportChanged = this.followPlayheadIfNeeded();
       if (viewportChanged || !this.renderPlaybackPlayhead()) void this.render();
+      this.prefetchPlaybackLookahead();
       this.animationFrame = requestAnimationFrame(tick);
     };
     this.stopPlaybackLoop();
@@ -264,6 +267,26 @@ export class SpectrogramViewer {
     return false;
   }
 
+  private prefetchPlaybackLookahead(): void {
+    const audio = this.config.audio;
+    const source = this.config.source;
+    if (!audio || !source || !this.config.playback.follow) return;
+
+    const duration = this.config.viewport.endTime - this.config.viewport.startTime;
+    const margin = duration * this.config.playback.followMargin;
+    if (audio.currentTime < this.config.viewport.endTime - margin * 1.5) return;
+
+    const lookaheadStart = this.config.viewport.endTime;
+    const lookaheadEnd = Math.min(source.duration, lookaheadStart + margin + this.config.cache.tileDurationSeconds);
+    if (lookaheadEnd <= lookaheadStart) return;
+
+    for (const tile of this.tileRangesForTimeRange(lookaheadStart, lookaheadEnd)) {
+      void this.getTile(tile.channel, tile.timeStart, tile.timeEnd).catch((error) => {
+        this.events.emit('error', { error: error instanceof Error ? error : new Error(String(error)), recoverable: true, phase: 'compute' });
+      });
+    }
+  }
+
   private renderPlaybackPlayhead(): boolean {
     const audio = this.config.audio;
     if (!audio || !this.config.playback.showPlayhead) return true;
@@ -272,10 +295,15 @@ export class SpectrogramViewer {
 
   private visibleTileRanges(): Array<{ channel: number; timeStart: number; timeEnd: number }> {
     if (!this.config.source) throw new Error('Cannot render without an AudioSource');
+    return this.tileRangesForTimeRange(this.config.viewport.startTime, this.config.viewport.endTime);
+  }
+
+  private tileRangesForTimeRange(startTime: number, endTime: number): Array<{ channel: number; timeStart: number; timeEnd: number }> {
+    if (!this.config.source) throw new Error('Cannot compute tile ranges without an AudioSource');
     const ranges: Array<{ channel: number; timeStart: number; timeEnd: number }> = [];
-    const firstStart = Math.floor(this.config.viewport.startTime / this.config.cache.tileDurationSeconds) * this.config.cache.tileDurationSeconds;
+    const firstStart = Math.floor(startTime / this.config.cache.tileDurationSeconds) * this.config.cache.tileDurationSeconds;
     for (let channel = 0; channel < this.config.source.channelCount; channel++) {
-      for (let start = firstStart; start < this.config.viewport.endTime; start += this.config.cache.tileDurationSeconds) {
+      for (let start = firstStart; start < endTime; start += this.config.cache.tileDurationSeconds) {
         ranges.push({ channel, timeStart: Math.max(0, start), timeEnd: Math.min(this.config.source.duration, start + this.config.cache.tileDurationSeconds) });
       }
     }
@@ -303,17 +331,25 @@ export class SpectrogramViewer {
     });
     const cached = profile ? profile.measure('tile.cache.lookup', { channel, timeStart, timeEnd }, () => this.cache.get(key)) : this.cache.get(key);
     if (cached) return cached;
-    const raw = await this.backend.computeTile({ source, channel, timeStart, timeEnd, stft, ...(profile ? { profile } : {}) });
-    const transform = async () =>
-      applyTransforms(raw, transforms, {
-        requestedTimeStart: timeStart,
-        requestedTimeEnd: timeEnd,
-        sampleRate: source.sampleRate,
-        stft,
-      });
-    const transformed = profile ? await profile.measureAsync('tile.transforms.apply', { channel, timeStart, timeEnd }, transform) : await transform();
-    this.cache.set(key, transformed);
-    this.events.emit('tileload', { tileId: key, timeStart, timeEnd, channel });
-    return transformed;
+    const pending = this.pendingTiles.get(key);
+    if (pending) return pending;
+
+    const promise = (async () => {
+      const raw = await this.backend.computeTile({ source, channel, timeStart, timeEnd, stft, ...(profile ? { profile } : {}) });
+      const transform = async () =>
+        applyTransforms(raw, transforms, {
+          requestedTimeStart: timeStart,
+          requestedTimeEnd: timeEnd,
+          sampleRate: source.sampleRate,
+          stft,
+        });
+      const transformed = profile ? await profile.measureAsync('tile.transforms.apply', { channel, timeStart, timeEnd }, transform) : await transform();
+      this.cache.set(key, transformed);
+      this.events.emit('tileload', { tileId: key, timeStart, timeEnd, channel });
+      return transformed;
+    })();
+    this.pendingTiles.set(key, promise);
+    promise.finally(() => this.pendingTiles.delete(key));
+    return promise;
   }
 }

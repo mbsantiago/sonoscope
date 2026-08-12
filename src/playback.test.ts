@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SpectrogramViewer } from './viewer';
-import type { AudioSource } from './types';
+import type { SpectrogramComputeBackend } from './backend';
+import type { AudioSource, SpectrogramMatrix } from './types';
 
 type AudioFixture = HTMLAudioElement & {
   emit(name: string): void;
@@ -49,6 +50,21 @@ const source: AudioSource = {
   channelCount: 1,
   read: () => new Float32Array(100),
 };
+
+function matrix(timeStart: number, timeEnd: number): SpectrogramMatrix {
+  return {
+    channel: 0,
+    timeStart,
+    timeEnd,
+    frameStart: 0,
+    frameCount: 1,
+    binCount: 1,
+    sampleRate: 100,
+    times: Float32Array.from([timeStart]),
+    frequencies: Float32Array.from([0]),
+    magnitude: Float32Array.from([1]),
+  };
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -120,6 +136,43 @@ describe('playback sync', () => {
     frame?.(0);
 
     expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('prefetches upcoming tiles while following playback before the viewport shifts', async () => {
+    const element = audio();
+    let frame: FrameRequestCallback | undefined;
+    globalThis.requestAnimationFrame = () => 0;
+    globalThis.cancelAnimationFrame = () => undefined;
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const requested: Array<[number, number]> = [];
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        requested.push([request.timeStart, request.timeEnd]);
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      audio: element,
+      canvas: canvas(),
+      source: { ...source, duration: 10 },
+      cache: { tileDurationSeconds: 1 },
+      viewport: { startTime: 0, endTime: 2, minFrequency: 0, maxFrequency: 50 },
+      playback: { follow: true },
+      backend,
+    });
+    await viewer.render();
+    requested.length = 0;
+    element.currentTime = 1.55;
+
+    element.emit('play');
+    frame?.(0);
+    await Promise.resolve();
+
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 2 });
+    expect(requested).toContainEqual([2, 3]);
   });
 
   it('removes playback listeners on destroy', async () => {
