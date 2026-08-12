@@ -30,6 +30,21 @@ const matrix: SpectrogramMatrix = {
   magnitude: Float32Array.from([0, 1, 0.5, 0.25]),
 };
 
+function constantMatrix(timeStart: number, timeEnd: number, magnitude: number): SpectrogramMatrix {
+  return {
+    channel: 0,
+    timeStart,
+    timeEnd,
+    frameStart: 0,
+    frameCount: 1,
+    binCount: 1,
+    sampleRate: 10,
+    times: Float32Array.from([timeStart]),
+    frequencies: Float32Array.from([0]),
+    magnitude: Float32Array.from([magnitude]),
+  };
+}
+
 describe('renderer helpers', () => {
   it('picks nearest frame and bin indexes', () => {
     expect(pickNearestFrame(Float32Array.from([0, 0.5, 1]), 0.6)).toBe(1);
@@ -125,5 +140,40 @@ describe('renderer helpers', () => {
     expect(rendered).toBe(true);
     expect(context.createImageData).toHaveBeenCalledWith(152, 80);
     expect(context.moveTo).toHaveBeenCalledWith(25.25, 0);
+  });
+
+  it('renders adjacent tile boundaries independent of tile order', () => {
+    function renderData(tiles: SpectrogramMatrix[]): number[] {
+      let data: Uint8ClampedArray | undefined;
+      const context = {
+        setTransform: vi.fn(),
+        clearRect: vi.fn(),
+        createImageData: vi.fn((w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4), colorSpace: 'srgb' as const })),
+        putImageData: vi.fn((image: ImageData) => {
+          data = new Uint8ClampedArray(image.data);
+        }),
+        save: vi.fn(),
+        restore: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+      };
+
+      new CanvasSpectrogramRenderer().render({
+        canvas: canvas(10, 1, context),
+        viewport: { startTime: 0, endTime: 3, minFrequency: 0, maxFrequency: 1, frequencyScale: 'linear' },
+        valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+        colorMap: 'gray',
+        tiles,
+      });
+
+      return Array.from(data!);
+    }
+
+    const dark = constantMatrix(0, 1, 0);
+    const bright = constantMatrix(1, 2, 1);
+
+    expect(renderData([dark, bright])).toEqual(renderData([bright, dark]));
   });
 });

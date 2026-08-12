@@ -108,6 +108,7 @@ export class SpectrogramViewer {
     let completed = 0;
     let partialPaintQueued = false;
     let lastPaintedTileCount = 0;
+    let paintCount = 0;
 
     await profile.measureAsync('render.total', { tiles: tiles.length }, async () => {
       this.status = { state: 'rendering' };
@@ -131,6 +132,8 @@ export class SpectrogramViewer {
             await Promise.resolve();
             partialPaintQueued = false;
             if (generation === this.renderGeneration) {
+              profile.record('render.paint.partial', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
+              paintCount += 1;
               this.paintPartial(Array.from(matrices.values()), profile);
               lastPaintedTileCount = matrices.size;
             }
@@ -140,7 +143,12 @@ export class SpectrogramViewer {
       await Promise.all(jobs);
       if (generation !== this.renderGeneration) return;
 
-      if (lastPaintedTileCount !== matrices.size) this.paintPartial(Array.from(matrices.values()), profile);
+      if (lastPaintedTileCount !== matrices.size) {
+        profile.record('render.paint.final', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
+        paintCount += 1;
+        this.paintPartial(Array.from(matrices.values()), profile);
+      }
+      profile.record('render.paint.count', performance.now(), 0, { count: paintCount });
       this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
       this.status = { state: 'ready' };
       this.events.emit('rendercomplete', { requestId, renderedTiles: matrices.size, missingTiles: tiles.length - matrices.size });

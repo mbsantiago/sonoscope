@@ -126,6 +126,7 @@ describe('SpectrogramViewer', () => {
     expect(profiles[0]!.generation).toBeGreaterThan(0);
     expect(profiles[0]!.names).toContain('render.total');
     expect(profiles[0]!.names).toContain('renderer.paint');
+    expect(profiles[0]!.names).toContain('render.paint.count');
   });
 
   it('does not let an older render complete after a newer viewport render', async () => {
