@@ -1,4 +1,4 @@
-import { DecodedAudioSource, SpectrogramViewer, type CacheConfig, type FrequencyScale, type SpectrogramComputeBackend, type ValueMode, type WindowName } from '../../src';
+import { SpectrogramViewer, createAudioSourceFromUrl, type CacheConfig, type FrequencyScale, type SpectrogramComputeBackend, type ValueMode, type WindowName } from '../../src';
 
 export const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
 
@@ -36,7 +36,8 @@ export async function createViewer(options: {
   backend?: SpectrogramComputeBackend;
 }): Promise<SpectrogramViewer> {
   options.audio.src = options.url;
-  const source = await DecodedAudioSource.fromUrl(options.url);
+  SpectrogramViewer.renderLoading(options.canvas, 'Decoding audio...');
+  const source = await createAudioSourceFromUrl(options.url);
   const viewer = await SpectrogramViewer.create({
     audio: options.audio,
     canvas: options.canvas,
