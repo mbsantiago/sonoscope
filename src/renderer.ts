@@ -1,6 +1,7 @@
 import { buildColorMap } from './colormap';
 import { canvasToTimeFrequency, timeFrequencyToCanvas } from './frequency-scale';
 import { normalizeValue } from './value-scale';
+import type { PerformanceProfiler } from './performance';
 import type { ColorMapConfig, Rgba, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from './types';
 
 export type RenderInput = {
@@ -10,6 +11,7 @@ export type RenderInput = {
   colorMap: ColorMapConfig;
   tiles: SpectrogramMatrix[];
   playheadTime?: number;
+  profile?: PerformanceProfiler;
 };
 
 export type PlayheadRenderInput = {
@@ -59,28 +61,36 @@ export class CanvasSpectrogramRenderer {
   }
 
   render(input: RenderInput): void {
-    const rect = input.canvas.getBoundingClientRect();
-    const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
-    const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
-    const dpr = globalThis.devicePixelRatio || 1;
-    const deviceWidth = Math.max(1, Math.round(width * dpr));
-    const deviceHeight = Math.max(1, Math.round(height * dpr));
-    input.canvas.width = deviceWidth;
-    input.canvas.height = deviceHeight;
+    const paint = () => {
+      const rect = input.canvas.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
+      const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
+      const dpr = globalThis.devicePixelRatio || 1;
+      const deviceWidth = Math.max(1, Math.round(width * dpr));
+      const deviceHeight = Math.max(1, Math.round(height * dpr));
+      input.canvas.width = deviceWidth;
+      input.canvas.height = deviceHeight;
 
-    const context = input.canvas.getContext('2d');
-    if (!context) throw new Error('Unable to get 2D canvas context');
+      const context = input.canvas.getContext('2d');
+      if (!context) throw new Error('Unable to get 2D canvas context');
 
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    context.clearRect(0, 0, width, height);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, width, height);
 
-    const colors = buildColorMap(input.colorMap);
-    const image = context.createImageData(deviceWidth, deviceHeight);
-    for (const tile of input.tiles) this.paintTile(image, deviceWidth, deviceHeight, tile, input.viewport, input.valueScale, colors);
-    context.putImageData(image, 0, 0);
-    this.baseFrame = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, image };
+      const colors = buildColorMap(input.colorMap);
+      const image = context.createImageData(deviceWidth, deviceHeight);
+      for (const tile of input.tiles) this.paintTile(image, deviceWidth, deviceHeight, tile, input.viewport, input.valueScale, colors);
+      context.putImageData(image, 0, 0);
+      this.baseFrame = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, image };
 
-    if (input.playheadTime !== undefined) this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
+      if (input.playheadTime !== undefined) this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
+    };
+
+    if (input.profile) {
+      input.profile.measure('renderer.paint', { tiles: input.tiles.length }, paint);
+      return;
+    }
+    paint();
   }
 
   renderPlayhead(input: PlayheadRenderInput): boolean {

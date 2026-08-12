@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
 import type { SpectrogramMatrix } from './types';
 
@@ -66,6 +67,38 @@ describe('renderer helpers', () => {
     expect(context.createImageData).toHaveBeenCalledWith(300, 160);
     expect(context.moveTo).toHaveBeenCalledWith(75, 0);
     expect(context.lineTo).toHaveBeenCalledWith(75, 80);
+  });
+
+  it('records paint timing when a profiler is provided', () => {
+    let clock = 0;
+    const profiler = new PerformanceProfiler(() => clock);
+    const context = {
+      setTransform: vi.fn(),
+      clearRect: vi.fn(() => {
+        clock += 1;
+      }),
+      createImageData: vi.fn((w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4), colorSpace: 'srgb' as const })),
+      putImageData: vi.fn(() => {
+        clock += 2;
+      }),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+    };
+
+    new CanvasSpectrogramRenderer().render({
+      canvas: canvas(10, 10, context),
+      viewport: { startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 100, frequencyScale: 'linear' },
+      valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+      colorMap: 'gray',
+      tiles: [matrix],
+      profile: profiler,
+    });
+
+    expect(profiler.measures().map((measure) => measure.name)).toContain('renderer.paint');
   });
 
   it('reuses high-DPR base frames only when CSS and device dimensions still match', () => {
