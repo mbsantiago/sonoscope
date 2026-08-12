@@ -181,7 +181,7 @@ describe('SpectrogramViewer', () => {
     expect(maxRunning).toBeGreaterThan(1);
   });
 
-  it('batches same-tick partial paints into a single render', async () => {
+  it('paints each render request once after all visible tiles are ready', async () => {
     const backend: SpectrogramComputeBackend = {
       computeTile: async (request) => {
         await Promise.resolve();
