@@ -28,7 +28,7 @@
     <pre data-output>Loading...</pre>
 
     <script type="module">
-      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+      import { SpectrogramViewer } from '../../src';
 
       const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
       const form = document.querySelector('form');
@@ -46,10 +46,7 @@
         viewer?.destroy();
         audio.src = url;
         output.textContent = 'Loading and rendering...';
-        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
-        const source = await createAudioSourceFromUrl(url);
-        viewer = await SpectrogramViewer.create({ audio, canvas, source, backend: new WorkerComputeBackend() });
-        viewer.setViewport({ startTime: 0, endTime: Math.min(10, source.duration), minFrequency: 0, maxFrequency: source.sampleRate / 2 });
+        viewer = await SpectrogramViewer.fromUrl({ audio, canvas, url });
         await viewer.render();
         write({ instruction: 'Click the canvas to query values.', viewport: viewer.getViewport() });
       }

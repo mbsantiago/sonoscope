@@ -38,7 +38,7 @@
     <div class="stage"><canvas></canvas></div>
 
     <script type="module">
-      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+      import { SpectrogramViewer } from '../../src';
 
       const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
       const form = document.querySelector('form');
@@ -56,7 +56,7 @@
       function config() {
         return {
           stft: { windowSize: Number(value('windowSize')), fftSize: Number(value('fftSize')), hopSize: Number(value('hopSize')), window: 'hann' },
-          viewport: { minFrequency: 0, maxFrequency: source.sampleRate / 2, frequencyScale: value('frequencyScale') },
+          viewport: { minFrequency: 0, ...(source ? { maxFrequency: source.sampleRate / 2 } : {}), frequencyScale: value('frequencyScale') },
           valueScale: { mode: value('mode'), min: -100, max: 0, gamma: 1, clamp: true },
           colorMap: value('colorMap'),
         };
@@ -71,16 +71,13 @@
         viewer?.destroy();
         audio.src = url;
         status.textContent = 'Loading and rendering...';
-        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
-        source = await createAudioSourceFromUrl(url);
-        viewer = await SpectrogramViewer.create({
+        viewer = await SpectrogramViewer.fromUrl({
           audio,
           canvas,
-          source,
-          backend: new WorkerComputeBackend(),
+          url,
           ...config(),
-          viewport: { ...config().viewport, startTime: 0, endTime: Math.min(10, source.duration) },
         });
+        source = viewer.getConfig().source;
         await viewer.render();
         status.textContent = statusText();
       }

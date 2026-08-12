@@ -5,9 +5,10 @@ import { TypedEventEmitter } from './events';
 import { canvasToTimeFrequency as mapCanvasToTimeFrequency, timeFrequencyToCanvas as mapTimeFrequencyToCanvas } from './frequency-scale';
 import { PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer } from './renderer';
-import { DecodedAudioSource } from './source';
+import { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 import { applyTransforms } from './transforms';
 import type { ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
+import { WorkerComputeBackend } from './worker-backend';
 
 export class SpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
@@ -43,6 +44,19 @@ export class SpectrogramViewer {
     }
     const config = resolveConfig(input);
     return new SpectrogramViewer(config, input.backend ?? new MainThreadComputeBackend());
+  }
+
+  static async fromUrl(input: Omit<SpectrogramConfig, 'audio' | 'source'> & { audio: HTMLAudioElement; url: string; backend?: SpectrogramComputeBackend }): Promise<SpectrogramViewer> {
+    input.audio.src = input.url;
+    SpectrogramViewer.renderLoading(input.canvas, 'Decoding audio...');
+    const source = await createAudioSourceFromUrl(input.url);
+    const viewer = await SpectrogramViewer.create({
+      ...input,
+      source,
+      backend: input.backend ?? new WorkerComputeBackend(),
+      viewport: { startTime: 0, endTime: Math.min(10, source.duration), minFrequency: 0, maxFrequency: source.sampleRate / 2, ...input.viewport },
+    });
+    return viewer;
   }
 
   static renderLoading(canvas: HTMLCanvasElement, text?: string): void {

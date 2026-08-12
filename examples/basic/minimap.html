@@ -53,7 +53,7 @@
     </main>
 
     <script type="module">
-      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+      import { SpectrogramViewer } from '../../src';
 
       const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
       const form = document.querySelector('form');
@@ -155,16 +155,12 @@
         viewer?.destroy();
         audio.src = url;
         status.textContent = 'Loading and rendering...';
-        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
-        const source = await createAudioSourceFromUrl(url);
-        viewer = await SpectrogramViewer.create({
+        viewer = await SpectrogramViewer.fromUrl({
           audio,
           canvas,
-          source,
-          backend: new WorkerComputeBackend(),
+          url,
           cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 16 },
           playback: { follow: true, renderOnSeek: true },
-          viewport: { startTime: 0, endTime: Math.min(10, source.duration), minFrequency: 0, maxFrequency: source.sampleRate / 2 },
         });
         viewer.on('tileload', scheduleMinimapUpdate);
         viewer.on('renderprogress', scheduleMinimapUpdate);

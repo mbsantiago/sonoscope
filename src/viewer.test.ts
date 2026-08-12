@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DecodedAudioSource } from './source';
 import { SpectrogramViewer } from './viewer';
 import type { SpectrogramComputeBackend } from './backend';
 import type { AudioSource, SpectrogramMatrix } from './types';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete (globalThis as Partial<typeof globalThis>).fetch;
+  delete (globalThis as Partial<typeof globalThis>).AudioContext;
+});
 
 function canvas(): HTMLCanvasElement {
   return {
@@ -103,6 +109,26 @@ describe('SpectrogramViewer', () => {
     release!();
     await created;
     fromUrl.mockRestore();
+    renderLoading.mockRestore();
+  });
+
+  it('creates a worker-backed viewer from a URL with decoded viewport defaults', async () => {
+    const renderLoading = vi.spyOn(SpectrogramViewer, 'renderLoading');
+    const audio = { src: '', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, body: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(Uint8Array.from([1, 2, 3, 4])); controller.close(); } }) })
+      .mockResolvedValueOnce({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }) as typeof fetch;
+    globalThis.AudioContext = vi.fn(function AudioContext(this: { decodeAudioData: () => Promise<AudioBuffer> }) {
+      this.decodeAudioData = () => Promise.resolve(highRateSource as unknown as AudioBuffer);
+    }) as unknown as typeof AudioContext;
+    const backend: SpectrogramComputeBackend = { computeTile: (request) => Promise.resolve(matrix(request.timeStart, request.timeEnd)) };
+
+    const viewer = await SpectrogramViewer.fromUrl({ canvas: canvas(), audio, url: 'test.wav', backend });
+
+    expect(audio.src).toBe('test.wav');
+    expect(renderLoading).toHaveBeenCalledWith(expect.any(Object), 'Decoding audio...');
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 96_000 });
     renderLoading.mockRestore();
   });
 
