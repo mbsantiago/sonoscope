@@ -9,6 +9,7 @@ export { TypedEventEmitter } from './events';
 export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFrequencyToCanvas } from './frequency-scale';
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
 export type { RenderInput } from './renderer';
+export type { PerformanceDetail, PerformanceMeasure } from './performance';
 export { DecodedAudioSource } from './source';
 export { computeStftMatrix, createWindow } from './stft';
 export { applyTransforms, getTransformPadding } from './transforms';

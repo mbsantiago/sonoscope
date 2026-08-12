@@ -1,3 +1,5 @@
+import type { PerformanceMeasure } from './performance';
+
 export type FrequencyScale = 'linear' | 'log' | 'mel';
 export type ValueMode = 'magnitude' | 'power' | 'db';
 export type WindowName = 'hann' | 'hamming' | 'blackman' | 'rectangular';
@@ -88,6 +90,7 @@ export type SpectrogramEvents = {
   renderstart: { requestId: string; total: number };
   renderprogress: { requestId: string; completed: number; total: number; progress: number; phase: 'computing' | 'rendering' };
   rendercomplete: { requestId: string; renderedTiles: number; missingTiles: number };
+  renderprofile: { requestId: string; generation: number; measures: PerformanceMeasure[] };
   tileload: { tileId: string; timeStart: number; timeEnd: number; channel: number };
   error: { error: Error; recoverable: boolean; phase: 'decode' | 'source' | 'compute' | 'transform' | 'render' | 'playback' };
 };
