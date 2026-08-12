@@ -1,4 +1,4 @@
-import { SpectrogramViewer, type CacheConfig, type FrequencyScale, type SpectrogramComputeBackend, type ValueMode, type WindowName } from '../../src';
+import { DecodedAudioSource, SpectrogramViewer, type CacheConfig, type FrequencyScale, type SpectrogramComputeBackend, type ValueMode, type WindowName } from '../../src';
 
 export const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
 
@@ -36,9 +36,11 @@ export async function createViewer(options: {
   backend?: SpectrogramComputeBackend;
 }): Promise<SpectrogramViewer> {
   options.audio.src = options.url;
+  const source = await DecodedAudioSource.fromUrl(options.url, new AudioContext({ sampleRate: 192_000 }));
   const viewer = await SpectrogramViewer.create({
     audio: options.audio,
     canvas: options.canvas,
+    source,
     ...(options.backend === undefined ? {} : { backend: options.backend }),
     colorMap: options.colorMap ?? 'viridis',
     playback: { showPlayhead: true, follow: options.follow ?? true, followMargin: 0.2, renderOnSeek: true },
@@ -48,7 +50,6 @@ export async function createViewer(options: {
     viewport: { startTime: 0, endTime: 10, minFrequency: 0, frequencyScale: 'linear', ...options.viewport },
   });
 
-  const source = viewer.getConfig().source;
   const minFrequency = options.viewport?.minFrequency ?? 0;
   const maxFrequency = options.viewport?.maxFrequency ?? (source ? source.sampleRate / 2 : viewer.getViewport().maxFrequency);
   viewer.setViewport({ startTime: 0, endTime: Math.min(10, source?.duration ?? 10), minFrequency, maxFrequency });

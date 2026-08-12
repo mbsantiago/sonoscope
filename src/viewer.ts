@@ -242,12 +242,24 @@ export class SpectrogramViewer {
       this.followPlayheadIfNeeded();
       if (this.config.playback.renderOnSeek) void this.render();
     };
+    const onSeeking = () => {
+      this.followPlayheadIfNeeded();
+      if (this.config.playback.renderOnSeek) void this.render();
+    };
+    const onTimeUpdate = () => {
+      this.followPlayheadIfNeeded();
+      void this.renderPlaybackPlayhead();
+    };
     const onPlay = () => this.startPlaybackLoop();
     const onPause = () => this.stopPlaybackLoop();
     audio.addEventListener('seeked', onSeeked);
+    audio.addEventListener('seeking', onSeeking);
+    audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
     this.playbackCleanup.push(() => audio.removeEventListener('seeked', onSeeked));
+    this.playbackCleanup.push(() => audio.removeEventListener('seeking', onSeeking));
+    this.playbackCleanup.push(() => audio.removeEventListener('timeupdate', onTimeUpdate));
     this.playbackCleanup.push(() => audio.removeEventListener('play', onPlay));
     this.playbackCleanup.push(() => audio.removeEventListener('pause', onPause));
   }

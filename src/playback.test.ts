@@ -95,6 +95,16 @@ describe('playback sync', () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 
+  it('renders when seeking fires before seeked', async () => {
+    const element = audio();
+    const viewer = await SpectrogramViewer.create({ audio: element, canvas: canvas(), source, playback: { renderOnSeek: true } });
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue();
+
+    element.emit('seeking');
+
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
   it('refreshes the playhead during playback and stops on pause', async () => {
     const element = audio();
     let frame: FrameRequestCallback | undefined;
@@ -181,7 +191,7 @@ describe('playback sync', () => {
     globalThis.cancelAnimationFrame = () => undefined;
     const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => undefined);
     const viewer = await SpectrogramViewer.create({ audio: element, canvas: canvas(), source });
-    expect(element.listenerCount()).toBe(3);
+    expect(element.listenerCount()).toBe(5);
     viewer.destroy();
     expect(element.listenerCount()).toBe(0);
     expect(cancel).not.toHaveBeenCalled();

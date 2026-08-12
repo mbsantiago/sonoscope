@@ -16,14 +16,22 @@ let renderRunning = false;
 let renderAgain = false;
 let lastPaintSummary = 'paint passes: none yet';
 let lastRenderStart = 0;
+let loadGeneration = 0;
 const wheelZoomStep = 0.02;
 const minRenderIntervalMs = 50;
 
 async function load(url: string): Promise<void> {
+  const generation = ++loadGeneration;
   cancelScheduledWork();
   viewer?.destroy();
+  viewer = undefined;
   status.textContent = 'Loading and rendering...';
-  viewer = await createViewer({ audio, canvas, url, follow: true, backend: new WorkerComputeBackend(), cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 16 } });
+  const nextViewer = await createViewer({ audio, canvas, url, follow: true, backend: new WorkerComputeBackend(), cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 16 } });
+  if (generation !== loadGeneration) {
+    nextViewer.destroy();
+    return;
+  }
+  viewer = nextViewer;
   viewer.on('tileload', scheduleMinimapUpdate);
   viewer.on('renderprogress', scheduleMinimapUpdate);
   viewer.on('rendercomplete', scheduleMinimapUpdate);
