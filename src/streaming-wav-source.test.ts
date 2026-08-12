@@ -165,4 +165,46 @@ describe('StreamingWavSource sequential decode', () => {
     resolveEarlierRange!(bytes.slice(44, 48));
     expect(Array.from(await earlier).map((value) => Number(value.toFixed(4)))).toEqual([0, 1]);
   });
+
+  it('falls back to sequential decode when a range returns too many bytes', async () => {
+    const bytes = wavBytes([0, 32767, -32768, 16384]);
+    const byteSource: SeekableByteSource = {
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 44));
+            controller.enqueue(bytes.slice(44));
+            controller.close();
+          },
+        }),
+      readRange: async () => bytes,
+    };
+    const source = await StreamingWavSource.fromByteSource(byteSource);
+
+    const values = await source.read({ channel: 0, startTime: 0.5, endTime: 1 });
+
+    expect(Array.from(values).map((value) => Number(value.toFixed(4)))).toEqual([-1, 0.5]);
+  });
+
+  it('falls back to sequential decode when a seekable range fails', async () => {
+    const bytes = wavBytes([0, 32767, -32768, 16384]);
+    const byteSource: SeekableByteSource = {
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 44));
+            controller.enqueue(bytes.slice(44));
+            controller.close();
+          },
+        }),
+      readRange: async () => {
+        throw new Error('Server ignored byte range request: 200');
+      },
+    };
+    const source = await StreamingWavSource.fromByteSource(byteSource);
+
+    const values = await source.read({ channel: 0, startTime: 0.5, endTime: 1 });
+
+    expect(Array.from(values).map((value) => Number(value.toFixed(4)))).toEqual([-1, 0.5]);
+  });
 });

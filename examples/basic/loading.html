@@ -73,7 +73,7 @@
         url: audio.src,
       });
 
-      await spectrogram.render();
+      spectrogram.requestRender();
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();

@@ -1,6 +1,8 @@
 import { buildColorMap } from './colormap';
 import { canvasToTimeFrequency, timeFrequencyToCanvas } from './frequency-scale';
 import { normalizeValue } from './value-scale';
+export { pickNearestBin, pickNearestFrame } from './spectrogram-sampling';
+import { sampleSpectrogramValue } from './spectrogram-sampling';
 import type { PerformanceProfiler } from './performance';
 import type { ColorMapConfig, Rgba, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from './types';
 
@@ -36,28 +38,6 @@ type BaseFrame = {
   viewport: ViewportConfig;
   image: ImageData;
 };
-
-export function pickNearestFrame(times: Float32Array, time: number): number {
-  let best = 0;
-  for (let i = 1; i < times.length; i++) {
-    if (Math.abs(times[i]! - time) < Math.abs(times[best]! - time)) best = i;
-  }
-  return best;
-}
-
-export function pickNearestBin(frequencies: Float32Array, frequency: number): number {
-  let best = 0;
-  for (let i = 1; i < frequencies.length; i++) {
-    if (Math.abs(frequencies[i]! - frequency) < Math.abs(frequencies[best]! - frequency)) best = i;
-  }
-  return best;
-}
-
-function selectedValue(tile: SpectrogramMatrix, index: number, mode: ValueScaleConfig['mode']): number {
-  if (mode === 'power') return tile.power?.[index] ?? tile.magnitude[index]! ** 2;
-  if (mode === 'db') return tile.db?.[index] ?? 20 * Math.log10(Math.max(1e-12, Math.abs(tile.magnitude[index]!)));
-  return tile.magnitude[index]!;
-}
 
 export class CanvasSpectrogramRenderer {
   private baseFrame: BaseFrame | undefined;
@@ -154,20 +134,17 @@ export class CanvasSpectrogramRenderer {
   ): void {
     const startX = Math.max(0, Math.floor(((tile.timeStart - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
     const endX = Math.min(width, Math.ceil(((tile.timeEnd - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
-    const rowBins = Array.from({ length: height }, (_, y) => {
+    const rowFrequencies = Array.from({ length: height }, (_, y) => {
       const { frequency } = canvasToTimeFrequency(0, y, width, height, viewport);
-      return pickNearestBin(tile.frequencies, frequency);
+      return frequency;
     });
 
     for (let x = startX; x < endX; x++) {
       const time = viewport.startTime + (x / width) * (viewport.endTime - viewport.startTime);
       if (time < tile.timeStart || time > tile.timeEnd || tile.frameCount === 0) continue;
 
-      const frame = pickNearestFrame(tile.times, time);
       for (let y = 0; y < height; y++) {
-        const bin = rowBins[y]!;
-        const matrixIndex = frame * tile.binCount + bin;
-        const normalized = normalizeValue(selectedValue(tile, matrixIndex, valueScale.mode), valueScale);
+        const normalized = normalizeValue(sampleSpectrogramValue(tile, time, rowFrequencies[y]!, valueScale.mode), valueScale);
         const color = colors[Math.max(0, Math.min(255, Math.round(normalized * 255)))]!;
         const pixelIndex = (y * width + x) * 4;
         image.data[pixelIndex] = color[0];

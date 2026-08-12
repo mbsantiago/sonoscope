@@ -75,6 +75,7 @@ export class FetchByteSource implements SeekableByteSource {
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) throw new Error('Invalid byte range');
     const response = await fetch(this.url, { headers: { Range: `bytes=${start}-${end - 1}` } });
     if (!response.ok) throw new Error(`Failed to fetch byte range: ${response.status}`);
+    if (response.status !== 206) throw new Error(`Server ignored byte range request: ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
   }
 }

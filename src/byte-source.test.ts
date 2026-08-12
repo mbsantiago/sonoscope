@@ -36,7 +36,7 @@ describe('FetchByteSource', () => {
   });
 
   it('reads byte ranges with a Range header', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(Uint8Array.from([7, 8]).buffer) }) as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 206, arrayBuffer: () => Promise.resolve(Uint8Array.from([7, 8]).buffer) }) as typeof fetch;
     const source = FetchByteSource.fromUrl('audio.wav');
     expect(isSeekableByteSource(source)).toBe(true);
     expect(Array.from(await source.readRange(10, 12))).toEqual([7, 8]);
