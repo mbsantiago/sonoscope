@@ -3,3 +3,5 @@ dist/
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.d.ts.map
+/.agents/skills
+/skills-lock.json
