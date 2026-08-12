@@ -15,4 +15,6 @@ export { computeStftMatrix, createWindow } from './stft';
 export { applyTransforms, getTransformPadding } from './transforms';
 export { dbFromMagnitude, deriveDb, derivePower, deriveValueArrays, normalizeValue } from './value-scale';
 export { SpectrogramViewer } from './viewer';
+export { WorkerComputeBackend, createDefaultWorker } from './worker-backend';
+export type { SpectrogramWorkerLike, WorkerComputeBackendOptions } from './worker-backend';
 export type * from './types';
