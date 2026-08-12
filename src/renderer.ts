@@ -10,6 +10,7 @@ export type RenderInput = {
   valueScale: Required<ValueScaleConfig>;
   colorMap: ColorMapConfig;
   tiles: SpectrogramMatrix[];
+  placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
   profile?: PerformanceProfiler;
 };
@@ -86,6 +87,7 @@ export class CanvasSpectrogramRenderer {
       const image = context.createImageData(deviceWidth, deviceHeight);
       for (const tile of input.tiles) this.paintTile(image, deviceWidth, deviceHeight, tile, input.viewport, input.valueScale, colors);
       context.putImageData(image, 0, 0);
+      for (const placeholder of input.placeholders ?? []) this.drawPlaceholder(context, width, height, input.viewport, placeholder.timeStart, placeholder.timeEnd);
       this.baseFrame = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, image };
 
       if (input.playheadTime !== undefined) this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
@@ -187,6 +189,25 @@ export class CanvasSpectrogramRenderer {
     context.moveTo(x, 0);
     context.lineTo(x, height);
     context.stroke();
+    context.restore();
+  }
+
+  private drawPlaceholder(context: CanvasRenderingContext2D, width: number, height: number, viewport: ViewportConfig, timeStart: number, timeEnd: number): void {
+    const startX = Math.max(0, Math.floor(((timeStart - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
+    const endX = Math.min(width, Math.ceil(((timeEnd - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
+    if (endX <= startX) return;
+
+    context.save();
+    context.fillStyle = 'rgba(15,23,42,0.72)';
+    context.fillRect(startX, 0, endX - startX, height);
+    context.strokeStyle = 'rgba(148,163,184,0.35)';
+    context.lineWidth = 1;
+    for (let x = startX - height; x < endX; x += 12) {
+      context.beginPath();
+      context.moveTo(x, height);
+      context.lineTo(x + height, 0);
+      context.stroke();
+    }
     context.restore();
   }
 }

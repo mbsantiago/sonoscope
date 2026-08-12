@@ -201,4 +201,33 @@ describe('renderer helpers', () => {
     expect(context.fillRect).toHaveBeenCalled();
     expect(context.fillText).toHaveBeenCalledWith('Loading spectrogram...', 75, 40);
   });
+
+  it('draws placeholders for missing tile ranges', () => {
+    const context = {
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      createImageData: vi.fn((w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4), colorSpace: 'srgb' as const })),
+      putImageData: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+    };
+
+    new CanvasSpectrogramRenderer().render({
+      canvas: canvas(100, 20, context),
+      viewport: { startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 100, frequencyScale: 'linear' },
+      valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+      colorMap: 'gray',
+      tiles: [matrix],
+      placeholders: [{ timeStart: 2, timeEnd: 4 }],
+    });
+
+    expect(context.fillRect).toHaveBeenCalledWith(20, 0, 20, 20);
+    expect(context.stroke).toHaveBeenCalled();
+  });
 });

@@ -104,8 +104,9 @@ function summarizeStates(target: SpectrogramViewer): string {
 
 function summarizePaints(measures: PerformanceMeasure[]): string {
   const count = measures.findLast((measure) => measure.name === 'render.paint.count')?.detail?.count ?? 0;
+  const partials = measures.filter((measure) => measure.name === 'render.paint.partial').map((measure) => `${measure.detail?.tiles}/${measure.detail?.total}`);
   const finals = measures.filter((measure) => measure.name === 'render.paint.final').map((measure) => `${measure.detail?.tiles}/${measure.detail?.total}`);
-  return `paint passes: ${count}; final [${finals.join(', ') || 'none'}]`;
+  return `paint passes: ${count}; partial [${partials.join(', ') || 'none'}]; final [${finals.join(', ') || 'none'}]`;
 }
 
 function panTime(delta: number): void {

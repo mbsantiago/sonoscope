@@ -185,26 +185,34 @@ describe('SpectrogramViewer', () => {
     expect(maxRunning).toBeGreaterThan(1);
   });
 
-  it('paints each render request once after all visible tiles are ready', async () => {
+  it('paints placeholders while visible tiles are still loading', async () => {
+    let releaseSecond: (() => void) | undefined;
     const backend: SpectrogramComputeBackend = {
       computeTile: async (request) => {
+        if (request.timeStart === 1) await new Promise<void>((resolve) => { releaseSecond = resolve; });
         await Promise.resolve();
         return matrix(request.timeStart, request.timeEnd);
       },
     };
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
-      source: { ...source, duration: 4 },
+      source: { ...source, duration: 2 },
       cache: { tileDurationSeconds: 1 },
-      viewport: { startTime: 0, endTime: 4, minFrequency: 0, maxFrequency: 512 },
+      viewport: { startTime: 0, endTime: 2, minFrequency: 0, maxFrequency: 512 },
       backend,
     });
     const renderer = (viewer as unknown as { renderer: { render: (input: unknown) => void } }).renderer;
     const render = vi.spyOn(renderer, 'render');
 
-    await viewer.render();
+    const rendered = viewer.render();
+    await Promise.resolve();
+    releaseSecond!();
+    await rendered;
 
-    expect(render).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(2);
+    expect(render.mock.calls[0]![0]).toMatchObject({ placeholders: expect.any(Array) });
+    expect((render.mock.calls[0]![0] as { placeholders: unknown[] }).placeholders.length).toBeGreaterThan(0);
+    expect(render.mock.calls[1]![0]).toMatchObject({ placeholders: [] });
   });
 
   it('shows a loading overlay while visible tiles are computing', async () => {

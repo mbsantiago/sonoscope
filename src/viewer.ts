@@ -106,6 +106,7 @@ export class SpectrogramViewer {
     const tiles = this.visibleTileRanges();
     const matrices = new Map<string, SpectrogramMatrix>();
     let completed = 0;
+    let partialPaintQueued = false;
     let paintCount = 0;
 
     await profile.measureAsync('render.total', { tiles: tiles.length }, async () => {
@@ -126,6 +127,16 @@ export class SpectrogramViewer {
             progress: tiles.length === 0 ? 1 : completed / tiles.length,
             phase: 'computing',
           });
+          if (!partialPaintQueued) {
+            partialPaintQueued = true;
+            await Promise.resolve();
+            partialPaintQueued = false;
+            if (generation === this.renderGeneration && matrices.size < tiles.length) {
+              profile.record('render.paint.partial', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
+              paintCount += 1;
+              this.paintPartial(Array.from(matrices.values()), this.missingPlaceholders(tiles, matrices), profile);
+            }
+          }
         });
       this.prefetchAroundViewport();
       await Promise.all(jobs);
@@ -133,7 +144,7 @@ export class SpectrogramViewer {
 
       profile.record('render.paint.final', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
       paintCount += 1;
-      this.paintPartial(Array.from(matrices.values()), profile);
+      this.paintPartial(Array.from(matrices.values()), [], profile);
       profile.record('render.paint.count', performance.now(), 0, { count: paintCount });
       this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
       this.status = { state: 'ready' };
@@ -145,16 +156,21 @@ export class SpectrogramViewer {
     }
   }
 
-  private paintPartial(matrices: SpectrogramMatrix[], profile: PerformanceProfiler): void {
+  private paintPartial(matrices: SpectrogramMatrix[], placeholders: Array<{ timeStart: number; timeEnd: number }>, profile: PerformanceProfiler): void {
     this.renderer.render({
       canvas: this.config.canvas,
       viewport: this.config.viewport,
       valueScale: this.config.valueScale,
       colorMap: this.config.colorMap,
       tiles: matrices,
+      placeholders,
       profile,
       ...(this.config.playback.showPlayhead && this.config.audio ? { playheadTime: this.config.audio.currentTime } : {}),
     });
+  }
+
+  private missingPlaceholders(tiles: Array<{ channel: number; timeStart: number; timeEnd: number }>, matrices: Map<string, SpectrogramMatrix>): Array<{ timeStart: number; timeEnd: number }> {
+    return tiles.filter((tile) => !matrices.has(`${tile.channel}:${tile.timeStart}:${tile.timeEnd}`)).map((tile) => ({ timeStart: tile.timeStart, timeEnd: tile.timeEnd }));
   }
 
   async queryPoint(input: { time: number; frequency: number; channel?: number }): Promise<{
