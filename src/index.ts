@@ -1,8 +1,11 @@
 export const version = '0.0.0';
+export { MainThreadComputeBackend } from './backend';
+export type { ComputeTileRequest, SpectrogramComputeBackend } from './backend';
 export { buildColorMap, parseColor } from './colormap';
 export { resolveConfig, stableHash } from './config';
 export { TypedEventEmitter } from './events';
 export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFrequencyToCanvas } from './frequency-scale';
 export { DecodedAudioSource } from './source';
+export { computeStftMatrix, createWindow } from './stft';
 export { dbFromMagnitude, deriveDb, derivePower, deriveValueArrays, normalizeValue } from './value-scale';
 export type * from './types';
