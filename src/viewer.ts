@@ -12,6 +12,8 @@ export class SpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
   private readonly cache: SpectrogramCache;
   private readonly renderer = new CanvasSpectrogramRenderer();
+  private playbackCleanup: Array<() => void> = [];
+  private animationFrame: number | undefined;
   private requestCounter = 0;
   private status: SpectrogramStatus = { state: 'idle' };
 
@@ -20,6 +22,7 @@ export class SpectrogramViewer {
     private readonly backend: SpectrogramComputeBackend,
   ) {
     this.cache = new SpectrogramCache({ maxCachedTiles: config.cache.maxCachedTiles });
+    this.attachPlaybackSync();
   }
 
   static async create(input: SpectrogramConfig & { backend?: SpectrogramComputeBackend }): Promise<SpectrogramViewer> {
@@ -172,10 +175,56 @@ export class SpectrogramViewer {
   }
 
   destroy(): void {
+    this.stopPlaybackLoop();
+    for (const cleanup of this.playbackCleanup) cleanup();
+    this.playbackCleanup = [];
     this.cache.clear();
     this.backend.destroy?.();
     this.events.clear();
     this.status = { state: 'destroyed' };
+  }
+
+  private attachPlaybackSync(): void {
+    const audio = this.config.audio;
+    if (!audio) return;
+    const onSeeked = () => {
+      this.followPlayheadIfNeeded();
+      if (this.config.playback.renderOnSeek) void this.render();
+    };
+    const onPlay = () => this.startPlaybackLoop();
+    const onPause = () => this.stopPlaybackLoop();
+    audio.addEventListener('seeked', onSeeked);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    this.playbackCleanup.push(() => audio.removeEventListener('seeked', onSeeked));
+    this.playbackCleanup.push(() => audio.removeEventListener('play', onPlay));
+    this.playbackCleanup.push(() => audio.removeEventListener('pause', onPause));
+  }
+
+  private startPlaybackLoop(): void {
+    const tick = () => {
+      this.followPlayheadIfNeeded();
+      void this.render();
+      this.animationFrame = requestAnimationFrame(tick);
+    };
+    this.stopPlaybackLoop();
+    this.animationFrame = requestAnimationFrame(tick);
+  }
+
+  private stopPlaybackLoop(): void {
+    if (this.animationFrame !== undefined) cancelAnimationFrame(this.animationFrame);
+    this.animationFrame = undefined;
+  }
+
+  private followPlayheadIfNeeded(): void {
+    const audio = this.config.audio;
+    if (!audio || !this.config.playback.follow) return;
+    const duration = this.config.viewport.endTime - this.config.viewport.startTime;
+    const margin = duration * this.config.playback.followMargin;
+    if (audio.currentTime < this.config.viewport.startTime + margin || audio.currentTime > this.config.viewport.endTime - margin) {
+      const startTime = Math.max(0, audio.currentTime - duration * this.config.playback.followMargin);
+      this.setViewport({ startTime, endTime: startTime + duration });
+    }
   }
 
   private visibleTileRanges(): Array<{ channel: number; timeStart: number; timeEnd: number }> {
