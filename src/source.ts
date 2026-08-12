@@ -1,4 +1,7 @@
+import { FetchByteSource, readPrefix } from './byte-source';
+import { StreamingWavSource } from './streaming-wav-source';
 import type { AudioSource } from './types';
+import { isWavBytes } from './wav';
 
 export class DecodedAudioSource implements AudioSource {
   readonly sampleRate: number;
@@ -28,6 +31,19 @@ export class DecodedAudioSource implements AudioSource {
     const end = Math.min(this.buffer.length, Math.ceil(options.endTime * this.sampleRate));
     return this.buffer.getChannelData(options.channel).slice(start, end);
   }
+}
+
+export async function createAudioSourceFromUrl(url: string, options?: AudioContext | { audioContext?: AudioContext; sampleRate?: number }): Promise<AudioSource> {
+  const byteSource = FetchByteSource.fromUrl(url);
+  const prefix = await readPrefix(byteSource, 64);
+  if (isWavBytes(prefix)) {
+    try {
+      return await StreamingWavSource.fromByteSource(byteSource, { id: url });
+    } catch {
+      return DecodedAudioSource.fromUrl(url, options);
+    }
+  }
+  return DecodedAudioSource.fromUrl(url, options);
 }
 
 function resolveAudioContext(data: ArrayBuffer, options?: AudioContext | { audioContext?: AudioContext; sampleRate?: number }): AudioContext {

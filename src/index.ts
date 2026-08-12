@@ -12,7 +12,7 @@ export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFreq
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
 export type { RenderInput } from './renderer';
 export type { PerformanceDetail, PerformanceMeasure } from './performance';
-export { DecodedAudioSource } from './source';
+export { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 export { computeStftMatrix, createWindow } from './stft';
 export { StreamingWavSource } from './streaming-wav-source';
 export { applyTransforms, getTransformPadding } from './transforms';
