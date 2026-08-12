@@ -1,5 +1,5 @@
 import { createViewer, getUrlFromPage, requiredElement, viewportStatus } from './demo-utils';
-import { WorkerComputeBackend, type SpectrogramViewer, type TileState } from '../../src';
+import { WorkerComputeBackend, type PerformanceMeasure, type SpectrogramViewer, type TileState } from '../../src';
 
 const form = requiredElement<HTMLFormElement>('form');
 const input = requiredElement<HTMLInputElement>('input[name="url"]');
@@ -12,6 +12,7 @@ const viewportElement = requiredElement<HTMLDivElement>('.minimap-viewport');
 let viewer: SpectrogramViewer | undefined;
 let minimapFrame: number | undefined;
 let renderTimer: ReturnType<typeof setTimeout> | undefined;
+let lastPaintSummary = 'paint passes: none yet';
 const wheelZoomStep = 0.02;
 
 async function load(url: string): Promise<void> {
@@ -22,6 +23,10 @@ async function load(url: string): Promise<void> {
   viewer.on('tileload', scheduleMinimapUpdate);
   viewer.on('renderprogress', scheduleMinimapUpdate);
   viewer.on('rendercomplete', scheduleMinimapUpdate);
+  viewer.on('renderprofile', (event) => {
+    lastPaintSummary = summarizePaints(event.measures);
+    scheduleMinimapUpdate();
+  });
   viewer.on('viewportchange', scheduleMinimapUpdate);
   updateMinimap();
   await viewer.render();
@@ -55,7 +60,7 @@ function updateMinimap(): void {
   const viewport = viewer.getViewport();
   viewportElement.style.left = `${(viewport.startTime / source.duration) * 100}%`;
   viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / source.duration) * 100}%`;
-  status.textContent = `${viewportStatus(viewer)}\n${summarizeStates(viewer)}`;
+  status.textContent = `${viewportStatus(viewer)}\n${summarizeStates(viewer)}\n${lastPaintSummary}`;
 }
 
 function tileSegment(state: TileState, left: number, width: number): HTMLDivElement {
@@ -70,6 +75,13 @@ function summarizeStates(target: SpectrogramViewer): string {
   const counts = { computed: 0, computing: 0, uncomputed: 0 };
   for (const tile of target.getTileStates()) counts[tile.state] += 1;
   return `tiles: ${counts.computed} computed, ${counts.computing} computing, ${counts.uncomputed} uncomputed`;
+}
+
+function summarizePaints(measures: PerformanceMeasure[]): string {
+  const count = measures.findLast((measure) => measure.name === 'render.paint.count')?.detail?.count ?? 0;
+  const partials = measures.filter((measure) => measure.name === 'render.paint.partial').map((measure) => `${measure.detail?.tiles}/${measure.detail?.total}`);
+  const finals = measures.filter((measure) => measure.name === 'render.paint.final').map((measure) => `${measure.detail?.tiles}/${measure.detail?.total}`);
+  return `paint passes: ${count}; partial [${partials.join(', ') || 'none'}]; final [${finals.join(', ') || 'none'}]`;
 }
 
 function panTime(delta: number): void {
