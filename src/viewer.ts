@@ -47,6 +47,7 @@ export class SpectrogramViewer {
     const source = input.source ?? this.config.source;
     this.config = resolveConfig({ ...this.config, ...input, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
     this.cache.clear();
+    this.renderer.invalidate();
     this.events.emit('configchange', { config: this.config });
   }
 
@@ -203,8 +204,8 @@ export class SpectrogramViewer {
 
   private startPlaybackLoop(): void {
     const tick = () => {
-      this.followPlayheadIfNeeded();
-      void this.render();
+      const viewportChanged = this.followPlayheadIfNeeded();
+      if (viewportChanged || !this.renderPlaybackPlayhead()) void this.render();
       this.animationFrame = requestAnimationFrame(tick);
     };
     this.stopPlaybackLoop();
@@ -216,15 +217,23 @@ export class SpectrogramViewer {
     this.animationFrame = undefined;
   }
 
-  private followPlayheadIfNeeded(): void {
+  private followPlayheadIfNeeded(): boolean {
     const audio = this.config.audio;
-    if (!audio || !this.config.playback.follow) return;
+    if (!audio || !this.config.playback.follow) return false;
     const duration = this.config.viewport.endTime - this.config.viewport.startTime;
     const margin = duration * this.config.playback.followMargin;
     if (audio.currentTime < this.config.viewport.startTime + margin || audio.currentTime > this.config.viewport.endTime - margin) {
       const startTime = Math.max(0, audio.currentTime - duration * this.config.playback.followMargin);
       this.setViewport({ startTime, endTime: startTime + duration });
+      return true;
     }
+    return false;
+  }
+
+  private renderPlaybackPlayhead(): boolean {
+    const audio = this.config.audio;
+    if (!audio || !this.config.playback.showPlayhead) return true;
+    return this.renderer.renderPlayhead({ canvas: this.config.canvas, viewport: this.config.viewport, playheadTime: audio.currentTime });
   }
 
   private visibleTileRanges(): Array<{ channel: number; timeStart: number; timeEnd: number }> {

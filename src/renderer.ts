@@ -12,6 +12,21 @@ export type RenderInput = {
   playheadTime?: number;
 };
 
+export type PlayheadRenderInput = {
+  canvas: HTMLCanvasElement;
+  viewport: ViewportConfig;
+  playheadTime: number;
+};
+
+type BaseFrame = {
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  dpr: number;
+  viewport: ViewportConfig;
+  image: ImageData;
+};
+
 export function pickNearestFrame(times: Float32Array, time: number): number {
   let best = 0;
   for (let i = 1; i < times.length; i++) {
@@ -35,6 +50,12 @@ function selectedValue(tile: SpectrogramMatrix, index: number, mode: ValueScaleC
 }
 
 export class CanvasSpectrogramRenderer {
+  private baseFrame: BaseFrame | undefined;
+
+  invalidate(): void {
+    this.baseFrame = undefined;
+  }
+
   render(input: RenderInput): void {
     const rect = input.canvas.getBoundingClientRect();
     const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
@@ -53,8 +74,27 @@ export class CanvasSpectrogramRenderer {
     const image = context.createImageData(width, height);
     for (const tile of input.tiles) this.paintTile(image, width, height, tile, input.viewport, input.valueScale, colors);
     context.putImageData(image, 0, 0);
+    this.baseFrame = { canvas: input.canvas, width, height, dpr, viewport: { ...input.viewport }, image };
 
     if (input.playheadTime !== undefined) this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
+  }
+
+  renderPlayhead(input: PlayheadRenderInput): boolean {
+    const frame = this.baseFrame;
+    if (!frame || frame.canvas !== input.canvas || !sameViewport(frame.viewport, input.viewport)) return false;
+
+    const rect = input.canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
+    const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
+    const dpr = globalThis.devicePixelRatio || 1;
+    if (frame.width !== width || frame.height !== height || frame.dpr !== dpr) return false;
+
+    const context = input.canvas.getContext('2d');
+    if (!context) throw new Error('Unable to get 2D canvas context');
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.putImageData(frame.image, 0, 0);
+    this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
+    return true;
   }
 
   private paintTile(
@@ -99,4 +139,14 @@ export class CanvasSpectrogramRenderer {
     context.stroke();
     context.restore();
   }
+}
+
+function sameViewport(left: ViewportConfig, right: ViewportConfig): boolean {
+  return (
+    left.startTime === right.startTime &&
+    left.endTime === right.endTime &&
+    left.minFrequency === right.minFrequency &&
+    left.maxFrequency === right.maxFrequency &&
+    left.frequencyScale === right.frequencyScale
+  );
 }

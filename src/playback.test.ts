@@ -79,7 +79,7 @@ describe('playback sync', () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 
-  it('rerenders during playback and stops on pause', async () => {
+  it('refreshes the playhead during playback and stops on pause', async () => {
     const element = audio();
     let frame: FrameRequestCallback | undefined;
     globalThis.requestAnimationFrame = () => 0;
@@ -90,6 +90,7 @@ describe('playback sync', () => {
     });
     const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => undefined);
     const viewer = await SpectrogramViewer.create({ audio: element, canvas: canvas(), source });
+    await viewer.render();
     const render = vi.spyOn(viewer, 'render').mockResolvedValue();
 
     element.emit('play');
@@ -97,8 +98,28 @@ describe('playback sync', () => {
     element.emit('pause');
 
     expect(request).toHaveBeenCalledTimes(2);
-    expect(render).toHaveBeenCalledTimes(1);
+    expect(render).not.toHaveBeenCalled();
     expect(cancel).toHaveBeenCalledWith(1);
+  });
+
+  it('rerenders during playback after config changes invalidate the cached frame', async () => {
+    const element = audio();
+    let frame: FrameRequestCallback | undefined;
+    globalThis.requestAnimationFrame = () => 0;
+    globalThis.cancelAnimationFrame = () => undefined;
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const viewer = await SpectrogramViewer.create({ audio: element, canvas: canvas(), source });
+    await viewer.render();
+    viewer.setConfig({ colorMap: 'magma' });
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue();
+
+    element.emit('play');
+    frame?.(0);
+
+    expect(render).toHaveBeenCalledTimes(1);
   });
 
   it('removes playback listeners on destroy', async () => {
