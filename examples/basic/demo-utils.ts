@@ -1,4 +1,4 @@
-import { SpectrogramViewer, type FrequencyScale, type ValueMode, type WindowName } from '../../src';
+import { SpectrogramViewer, type CacheConfig, type FrequencyScale, type SpectrogramComputeBackend, type ValueMode, type WindowName } from '../../src';
 
 export const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
 
@@ -32,13 +32,17 @@ export async function createViewer(options: {
   valueScale?: { mode?: ValueMode; min?: number; max?: number; gamma?: number; clamp?: boolean };
   colorMap?: 'gray' | 'viridis' | 'magma' | 'inferno' | 'plasma' | 'turbo';
   follow?: boolean;
+  cache?: Partial<CacheConfig>;
+  backend?: SpectrogramComputeBackend;
 }): Promise<SpectrogramViewer> {
   options.audio.src = options.url;
   const viewer = await SpectrogramViewer.create({
     audio: options.audio,
     canvas: options.canvas,
+    ...(options.backend === undefined ? {} : { backend: options.backend }),
     colorMap: options.colorMap ?? 'viridis',
     playback: { showPlayhead: true, follow: options.follow ?? true, followMargin: 0.2, renderOnSeek: true },
+    ...(options.cache === undefined ? {} : { cache: options.cache }),
     ...(options.stft === undefined ? {} : { stft: options.stft }),
     valueScale: { mode: 'db', min: -100, max: 0, ...options.valueScale },
     viewport: { startTime: 0, endTime: 10, minFrequency: 0, frequencyScale: 'linear', ...options.viewport },

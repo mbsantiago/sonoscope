@@ -1,5 +1,5 @@
 import { createViewer, getUrlFromPage, requiredElement, viewportStatus } from './demo-utils';
-import type { SpectrogramViewer, TileState } from '../../src';
+import { WorkerComputeBackend, type SpectrogramViewer, type TileState } from '../../src';
 
 const form = requiredElement<HTMLFormElement>('form');
 const input = requiredElement<HTMLInputElement>('input[name="url"]');
@@ -16,14 +16,15 @@ async function load(url: string): Promise<void> {
   stopMinimapLoop();
   viewer?.destroy();
   status.textContent = 'Loading and rendering...';
-  viewer = await createViewer({ audio, canvas, url, follow: true });
+  viewer = await createViewer({ audio, canvas, url, follow: true, backend: new WorkerComputeBackend(), cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 24 } });
   viewer.on('tileload', updateMinimap);
   viewer.on('renderprogress', updateMinimap);
   viewer.on('rendercomplete', updateMinimap);
   viewer.on('viewportchange', updateMinimap);
-  await viewer.render();
   updateMinimap();
   startMinimapLoop();
+  await viewer.render();
+  updateMinimap();
 }
 
 function updateMinimap(): void {
