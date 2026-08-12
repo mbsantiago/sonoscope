@@ -11,7 +11,8 @@ const viewportElement = requiredElement<HTMLDivElement>('.minimap-viewport');
 
 let viewer: SpectrogramViewer | undefined;
 let minimapFrame: number | undefined;
-let renderTimer: ReturnType<typeof setTimeout> | undefined;
+let renderRunning = false;
+let renderAgain = false;
 let lastPaintSummary = 'paint passes: none yet';
 const wheelZoomStep = 0.02;
 
@@ -41,13 +42,20 @@ function scheduleMinimapUpdate(): void {
   });
 }
 
-function scheduleRender(): void {
+function requestRender(): void {
   if (!viewer) return;
-  if (renderTimer !== undefined) clearTimeout(renderTimer);
-  renderTimer = setTimeout(() => {
-    renderTimer = undefined;
-    void viewer?.render();
-  }, 80);
+  renderAgain = true;
+  if (renderRunning) return;
+  void renderLatestViewport();
+}
+
+async function renderLatestViewport(): Promise<void> {
+  renderRunning = true;
+  while (renderAgain) {
+    renderAgain = false;
+    await viewer?.render();
+  }
+  renderRunning = false;
 }
 
 function updateMinimap(): void {
@@ -91,7 +99,7 @@ function panTime(delta: number): void {
   const duration = viewport.endTime - viewport.startTime;
   const startTime = clamp(viewport.startTime + delta, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
-  scheduleRender();
+  requestRender();
 }
 
 function zoomTimeAt(centerTime: number, factor: number): void {
@@ -105,7 +113,7 @@ function zoomTimeAt(centerTime: number, factor: number): void {
   const ratio = (centerTime - viewport.startTime) / currentDuration;
   const startTime = clamp(centerTime - duration * ratio, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
-  scheduleRender();
+  requestRender();
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -125,9 +133,9 @@ function viewportDurationLimits(target: SpectrogramViewer): { minDuration: numbe
 
 function cancelScheduledWork(): void {
   if (minimapFrame !== undefined) cancelAnimationFrame(minimapFrame);
-  if (renderTimer !== undefined) clearTimeout(renderTimer);
   minimapFrame = undefined;
-  renderTimer = undefined;
+  renderAgain = false;
+  renderRunning = false;
 }
 
 form.addEventListener('submit', (event) => {
