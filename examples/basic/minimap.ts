@@ -10,21 +10,38 @@ const tilesElement = requiredElement<HTMLDivElement>('.minimap-tiles');
 const viewportElement = requiredElement<HTMLDivElement>('.minimap-viewport');
 
 let viewer: SpectrogramViewer | undefined;
-let animationFrame: number | undefined;
+let minimapFrame: number | undefined;
+let renderTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function load(url: string): Promise<void> {
-  stopMinimapLoop();
+  cancelScheduledWork();
   viewer?.destroy();
   status.textContent = 'Loading and rendering...';
-  viewer = await createViewer({ audio, canvas, url, follow: true, backend: new WorkerComputeBackend(), cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 24 } });
-  viewer.on('tileload', updateMinimap);
-  viewer.on('renderprogress', updateMinimap);
-  viewer.on('rendercomplete', updateMinimap);
-  viewer.on('viewportchange', updateMinimap);
+  viewer = await createViewer({ audio, canvas, url, follow: true, backend: new WorkerComputeBackend(), cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 16 } });
+  viewer.on('tileload', scheduleMinimapUpdate);
+  viewer.on('renderprogress', scheduleMinimapUpdate);
+  viewer.on('rendercomplete', scheduleMinimapUpdate);
+  viewer.on('viewportchange', scheduleMinimapUpdate);
   updateMinimap();
-  startMinimapLoop();
   await viewer.render();
   updateMinimap();
+}
+
+function scheduleMinimapUpdate(): void {
+  if (minimapFrame !== undefined) return;
+  minimapFrame = requestAnimationFrame(() => {
+    minimapFrame = undefined;
+    updateMinimap();
+  });
+}
+
+function scheduleRender(): void {
+  if (!viewer) return;
+  if (renderTimer !== undefined) clearTimeout(renderTimer);
+  renderTimer = setTimeout(() => {
+    renderTimer = undefined;
+    void viewer?.render();
+  }, 80);
 }
 
 function updateMinimap(): void {
@@ -62,7 +79,7 @@ function panTime(delta: number): void {
   const duration = viewport.endTime - viewport.startTime;
   const startTime = clamp(viewport.startTime + delta, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
-  void viewer.render();
+  scheduleRender();
 }
 
 function zoomTimeAt(centerTime: number, factor: number): void {
@@ -75,24 +92,18 @@ function zoomTimeAt(centerTime: number, factor: number): void {
   const ratio = (centerTime - viewport.startTime) / currentDuration;
   const startTime = clamp(centerTime - duration * ratio, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
-  void viewer.render();
+  scheduleRender();
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function startMinimapLoop(): void {
-  const tick = () => {
-    updateMinimap();
-    animationFrame = requestAnimationFrame(tick);
-  };
-  animationFrame = requestAnimationFrame(tick);
-}
-
-function stopMinimapLoop(): void {
-  if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
-  animationFrame = undefined;
+function cancelScheduledWork(): void {
+  if (minimapFrame !== undefined) cancelAnimationFrame(minimapFrame);
+  if (renderTimer !== undefined) clearTimeout(renderTimer);
+  minimapFrame = undefined;
+  renderTimer = undefined;
 }
 
 form.addEventListener('submit', (event) => {
