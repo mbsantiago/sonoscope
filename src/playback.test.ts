@@ -31,6 +31,8 @@ function canvas(): HTMLCanvasElement {
     getContext: () => ({
       setTransform: vi.fn(),
       clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
       createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
       putImageData: vi.fn(),
       save: vi.fn(),

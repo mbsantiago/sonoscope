@@ -112,6 +112,7 @@ export class SpectrogramViewer {
       this.status = { state: 'rendering' };
       this.events.emit('renderstart', { requestId, total: tiles.length });
       profile.record('render.visibleTiles', performance.now(), 0, { total: tiles.length });
+      this.renderer.renderLoading({ canvas: this.config.canvas });
 
       const jobs = tiles.map(async (tile) => {
           const matrix = await this.getTile(tile.channel, tile.timeStart, tile.timeEnd, profile);

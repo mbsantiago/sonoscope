@@ -20,6 +20,11 @@ export type PlayheadRenderInput = {
   playheadTime: number;
 };
 
+export type LoadingRenderInput = {
+  canvas: HTMLCanvasElement;
+  text?: string;
+};
+
 type BaseFrame = {
   canvas: HTMLCanvasElement;
   width: number;
@@ -111,6 +116,29 @@ export class CanvasSpectrogramRenderer {
     context.putImageData(frame.image, 0, 0);
     this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
     return true;
+  }
+
+  renderLoading(input: LoadingRenderInput): void {
+    const rect = input.canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
+    const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
+    const dpr = globalThis.devicePixelRatio || 1;
+    input.canvas.width = Math.max(1, Math.round(width * dpr));
+    input.canvas.height = Math.max(1, Math.round(height * dpr));
+
+    const context = input.canvas.getContext('2d');
+    if (!context) throw new Error('Unable to get 2D canvas context');
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+    context.save();
+    context.fillStyle = 'rgba(15,23,42,0.78)';
+    context.fillRect(0, 0, width, height);
+    context.fillStyle = 'rgba(248,250,252,0.92)';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.font = '14px system-ui, sans-serif';
+    context.fillText(input.text ?? 'Loading spectrogram...', width / 2, height / 2);
+    context.restore();
   }
 
   private paintTile(

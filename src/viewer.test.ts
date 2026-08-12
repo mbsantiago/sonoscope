@@ -12,6 +12,8 @@ function canvas(): HTMLCanvasElement {
     getContext: () => ({
       setTransform: vi.fn(),
       clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
       createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
       putImageData: vi.fn(),
       save: vi.fn(),
@@ -32,6 +34,8 @@ function sizedCanvas(cssWidth: number, cssHeight: number, backingWidth = cssWidt
     getContext: () => ({
       setTransform: vi.fn(),
       clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
       createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
       putImageData: vi.fn(),
       save: vi.fn(),
@@ -201,6 +205,26 @@ describe('SpectrogramViewer', () => {
     await viewer.render();
 
     expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a loading overlay while visible tiles are computing', async () => {
+    const backend: SpectrogramComputeBackend = {
+      computeTile: () => new Promise(() => undefined),
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 1 },
+      cache: { tileDurationSeconds: 1, prefetchTiles: 0 },
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+    const renderer = (viewer as unknown as { renderer: { renderLoading: (input: unknown) => void } }).renderer;
+    const renderLoading = vi.spyOn(renderer, 'renderLoading');
+
+    void viewer.render();
+    await Promise.resolve();
+
+    expect(renderLoading).toHaveBeenCalledTimes(1);
   });
 
   it('prefetches bounded tiles around the viewport after rendering visible tiles', async () => {
