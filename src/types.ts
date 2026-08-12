@@ -65,6 +65,15 @@ export type SpectrogramMatrix = {
   normalized?: Uint8Array | Float32Array;
 };
 
+export type TileState = 'computed' | 'computing' | 'uncomputed';
+
+export type TileStateInfo = {
+  channel: number;
+  timeStart: number;
+  timeEnd: number;
+  state: TileState;
+};
+
 export type TransformContext = {
   readonly requestedTimeStart: number;
   readonly requestedTimeEnd: number;

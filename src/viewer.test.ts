@@ -253,6 +253,33 @@ describe('SpectrogramViewer', () => {
     release?.();
   });
 
+  it('reports computed, computing, and uncomputed tile states', async () => {
+    let release: (() => void) | undefined;
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        if (request.timeStart === 0) return new Promise((resolve) => { release = () => resolve(matrix(request.timeStart, request.timeEnd)); });
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 3 },
+      cache: { tileDurationSeconds: 1, maxCachedTiles: 4, prefetchTiles: 0 },
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+
+    expect(viewer.getTileStates().map((tile) => tile.state)).toEqual(['uncomputed', 'uncomputed', 'uncomputed']);
+
+    const render = viewer.render();
+    await Promise.resolve();
+    expect(viewer.getTileStates().map((tile) => tile.state)).toEqual(['computing', 'uncomputed', 'uncomputed']);
+
+    release!();
+    await render;
+    expect(viewer.getTileStates().map((tile) => tile.state)).toEqual(['computed', 'uncomputed', 'uncomputed']);
+  });
+
   it('queries a spectrum at a time point', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });

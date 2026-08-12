@@ -75,3 +75,70 @@ pre {
   width: min(100%, 960px);
   color: #cbd5e1;
 }
+
+.minimap {
+  position: relative;
+  width: min(100%, 960px);
+  height: 2rem;
+  margin: 1rem 0;
+  overflow: hidden;
+  background: #1e293b;
+  border: 1px solid #334155;
+}
+
+.minimap-tiles,
+.minimap-tile,
+.minimap-viewport {
+  position: absolute;
+  inset-block: 0;
+}
+
+.minimap-tiles {
+  inset-inline: 0;
+}
+
+.minimap-tile.computed {
+  background: #22c55e;
+}
+
+.minimap-tile.computing {
+  background: #f59e0b;
+}
+
+.minimap-tile.uncomputed {
+  background: #475569;
+}
+
+.minimap-viewport {
+  border: 2px solid #f8fafc;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: #cbd5e1;
+}
+
+.legend i {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.25rem;
+  vertical-align: -0.05rem;
+}
+
+.legend .computed {
+  background: #22c55e;
+}
+
+.legend .computing {
+  background: #f59e0b;
+}
+
+.legend .uncomputed {
+  background: #475569;
+}

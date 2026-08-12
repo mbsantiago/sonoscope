@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>spectrogram-js tile minimap</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Tile minimap</h1>
+      <p class="note">The bar shows the whole recording. Green tiles are computed, amber tiles are computing, and gray tiles are not computed.</p>
+      <form>
+        <label>Audio URL <input name="url" type="url" /></label>
+        <button>Load</button>
+      </form>
+      <audio controls></audio>
+      <div class="stage">
+        <canvas></canvas>
+      </div>
+      <div class="minimap" aria-label="Tile state minimap">
+        <div class="minimap-tiles"></div>
+        <div class="minimap-viewport"></div>
+      </div>
+      <div class="legend">
+        <span><i class="computed"></i> computed</span>
+        <span><i class="computing"></i> computing</span>
+        <span><i class="uncomputed"></i> uncomputed</span>
+      </div>
+      <pre data-status></pre>
+    </main>
+    <script type="module" src="./minimap.ts"></script>
+  </body>
+</html>

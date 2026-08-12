@@ -7,7 +7,7 @@ import { PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer } from './renderer';
 import { DecodedAudioSource } from './source';
 import { applyTransforms } from './transforms';
-import type { ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus } from './types';
+import type { ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
 
 export class SpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
@@ -75,6 +75,17 @@ export class SpectrogramViewer {
 
   getStatus(): SpectrogramStatus {
     return this.status;
+  }
+
+  getTileStates(): TileStateInfo[] {
+    if (!this.config.source) return [];
+    return this.tileRangesForTimeRange(0, this.config.source.duration).map((tile) => {
+      const key = this.tileKey(tile.channel, tile.timeStart, tile.timeEnd);
+      return {
+        ...tile,
+        state: this.cache.has(key) ? 'computed' : this.pendingTiles.has(key) ? 'computing' : 'uncomputed',
+      };
+    });
   }
 
   canvasToTimeFrequency(x: number, y: number): { time: number; frequency: number } {

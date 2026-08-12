@@ -69,3 +69,7 @@ The basic example expects an audio file at `examples/basic/example.wav`. Add you
 ## Performance Profiling
 
 Run `npm run dev:example` and open `/performance.html` to compare the main-thread and worker compute backends on synthetic audio. The page listens for `renderprofile` events and summarizes tile compute and paint timings.
+
+## Tile State Minimap
+
+Use `viewer.getTileStates()` to inspect which full-recording tiles are `computed`, `computing`, or `uncomputed`. Run `npm run dev:example` and open `/minimap.html` for an example that renders those states as a full-recording minimap bar.
