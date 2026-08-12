@@ -35,11 +35,16 @@ export class SpectrogramViewer {
     if (!input.source && input.audio) {
       const url = input.audio.currentSrc || input.audio.src;
       if (!url) throw new Error('SpectrogramViewer requires audio.currentSrc or audio.src when source is omitted');
+      SpectrogramViewer.renderLoading(input.canvas, 'Decoding audio...');
       const config = resolveConfig({ ...input, source: await DecodedAudioSource.fromUrl(url) });
       return new SpectrogramViewer(config, input.backend ?? new MainThreadComputeBackend());
     }
     const config = resolveConfig(input);
     return new SpectrogramViewer(config, input.backend ?? new MainThreadComputeBackend());
+  }
+
+  static renderLoading(canvas: HTMLCanvasElement, text?: string): void {
+    new CanvasSpectrogramRenderer().renderLoading({ canvas, ...(text === undefined ? {} : { text }) });
   }
 
   on<Name extends keyof SpectrogramEvents>(name: Name, handler: (event: SpectrogramEvents[Name]) => void): () => void {

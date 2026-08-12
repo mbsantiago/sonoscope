@@ -90,6 +90,22 @@ describe('SpectrogramViewer', () => {
     fromUrl.mockRestore();
   });
 
+  it('shows a loading overlay while audio-only sources decode', async () => {
+    let release: (() => void) | undefined;
+    const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockReturnValue(new Promise((resolve) => { release = () => resolve(highRateSource as DecodedAudioSource); }));
+    const renderLoading = vi.spyOn(SpectrogramViewer, 'renderLoading');
+    const audio = { src: 'test.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
+
+    const created = SpectrogramViewer.create({ canvas: canvas(), audio });
+    await Promise.resolve();
+
+    expect(renderLoading).toHaveBeenCalledWith(expect.any(Object), 'Decoding audio...');
+    release!();
+    await created;
+    fromUrl.mockRestore();
+    renderLoading.mockRestore();
+  });
+
   it('allows audio-only min frequency above fallback Nyquist when decoded source supports it', async () => {
     const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockResolvedValue(highRateSource as DecodedAudioSource);
     const audio = { src: 'test.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
