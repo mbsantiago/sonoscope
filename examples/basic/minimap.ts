@@ -54,6 +54,34 @@ function summarizeStates(target: SpectrogramViewer): string {
   return `tiles: ${counts.computed} computed, ${counts.computing} computing, ${counts.uncomputed} uncomputed`;
 }
 
+function panTime(delta: number): void {
+  if (!viewer) return;
+  const source = viewer.getConfig().source;
+  if (!source) return;
+  const viewport = viewer.getViewport();
+  const duration = viewport.endTime - viewport.startTime;
+  const startTime = clamp(viewport.startTime + delta, 0, Math.max(0, source.duration - duration));
+  viewer.setViewport({ startTime, endTime: startTime + duration });
+  void viewer.render();
+}
+
+function zoomTimeAt(centerTime: number, factor: number): void {
+  if (!viewer) return;
+  const source = viewer.getConfig().source;
+  if (!source) return;
+  const viewport = viewer.getViewport();
+  const currentDuration = viewport.endTime - viewport.startTime;
+  const duration = clamp(currentDuration * factor, 0.05, source.duration);
+  const ratio = (centerTime - viewport.startTime) / currentDuration;
+  const startTime = clamp(centerTime - duration * ratio, 0, Math.max(0, source.duration - duration));
+  viewer.setViewport({ startTime, endTime: startTime + duration });
+  void viewer.render();
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function startMinimapLoop(): void {
   const tick = () => {
     updateMinimap();
@@ -71,6 +99,19 @@ form.addEventListener('submit', (event) => {
   event.preventDefault();
   const url = input.value.trim();
   if (url) void load(url);
+});
+
+canvas.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  if (!viewer) return;
+  const viewport = viewer.getViewport();
+  if (event.shiftKey) {
+    const rect = canvas.getBoundingClientRect();
+    const { time } = viewer.canvasToTimeFrequency(event.clientX - rect.left, event.clientY - rect.top);
+    zoomTimeAt(time, event.deltaY < 0 ? 0.8 : 1.25);
+    return;
+  }
+  panTime((event.deltaY / 600) * (viewport.endTime - viewport.startTime));
 });
 
 await load(getUrlFromPage(input));
