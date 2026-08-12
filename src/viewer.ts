@@ -7,7 +7,7 @@ import { PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer } from './renderer';
 import { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 import { applyTransforms } from './transforms';
-import type { ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
+import type { AudioSource, ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
 import { WorkerComputeBackend } from './worker-backend';
 
 export class SpectrogramViewer {
@@ -81,6 +81,25 @@ export class SpectrogramViewer {
     this.renderer.invalidate();
     this.attachSourceRangeSync();
     this.events.emit('configchange', { config: this.config });
+  }
+
+  setSource(source: AudioSource, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): void {
+    this.setConfig({
+      source,
+      viewport: {
+        startTime: 0,
+        endTime: Math.min(10, source.duration),
+        minFrequency: 0,
+        maxFrequency: source.sampleRate / 2,
+        ...options?.viewport,
+      },
+    });
+  }
+
+  async setSourceUrl(url: string, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): Promise<void> {
+    if (this.config.audio) this.config.audio.src = url;
+    SpectrogramViewer.renderLoading(this.config.canvas, 'Decoding audio...');
+    this.setSource(await createAudioSourceFromUrl(url), options);
   }
 
   getViewport(): ResolvedSpectrogramConfig['viewport'] {

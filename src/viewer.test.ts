@@ -132,6 +132,37 @@ describe('SpectrogramViewer', () => {
     renderLoading.mockRestore();
   });
 
+  it('sets a new source on an existing viewer and resets source state', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0.2, endTime: 0.5, minFrequency: 100, maxFrequency: 400 } });
+    const nextSource = { ...source, id: 'next', sampleRate: 2_000, duration: 20 };
+
+    viewer.setSource(nextSource);
+
+    expect(viewer.getConfig().source).toBe(nextSource);
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 1_000 });
+    expect(viewer.getTileStates().every((tile) => tile.state === 'uncomputed')).toBe(true);
+  });
+
+  it('loads a new source URL into an existing viewer', async () => {
+    const audio = { src: 'old.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), audio, source });
+    const renderLoading = vi.spyOn(SpectrogramViewer, 'renderLoading');
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, body: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(Uint8Array.from([1, 2, 3, 4])); controller.close(); } }) })
+      .mockResolvedValueOnce({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }) as typeof fetch;
+    globalThis.AudioContext = vi.fn(function AudioContext(this: { decodeAudioData: () => Promise<AudioBuffer> }) {
+      this.decodeAudioData = () => Promise.resolve(highRateSource as unknown as AudioBuffer);
+    }) as unknown as typeof AudioContext;
+
+    await viewer.setSourceUrl('next.wav');
+
+    expect(audio.src).toBe('next.wav');
+    expect(renderLoading).toHaveBeenCalledWith(expect.any(Object), 'Decoding audio...');
+    expect(viewer.getConfig().source?.sampleRate).toBe(192_000);
+    renderLoading.mockRestore();
+  });
+
   it('allows audio-only min frequency above fallback Nyquist when decoded source supports it', async () => {
     const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockResolvedValue(highRateSource as DecodedAudioSource);
     const audio = { src: 'test.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;

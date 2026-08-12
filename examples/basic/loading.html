@@ -67,20 +67,19 @@
       const audio = document.querySelector("audio");
       const canvas = document.querySelector("canvas");
 
-      let spectrogram;
+      const spectrogram = await SpectrogramViewer.fromUrl({
+        audio,
+        canvas,
+        url: audio.src,
+      });
 
-      async function load(url) {
-        spectrogram?.destroy();
-        audio.src = url;
-        spectrogram = await SpectrogramViewer.fromUrl({ audio, canvas, url });
-        await spectrogram.render();
-      }
+      await spectrogram.render();
 
-      await load(audio.src);
-
-      form.addEventListener("submit", (event) => {
+      form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (input.value.trim()) void load(input.value.trim());
+        if (!input.value.trim()) return;
+        await spectrogram.setSourceUrl(input.value.trim());
+        spectrogram.requestRender();
       });
     </script>
   </body>

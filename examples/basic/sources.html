@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio source switching demo</title>
+    <style>
+      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      a { color: #93c5fd; }
+      audio, canvas, .stage, .controls { width: min(100%, 960px); }
+      .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+      audio { margin-bottom: 1rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; }
+      [data-title] { color: #cbd5e1; }
+    </style>
+  </head>
+  <body>
+    <p><a href="./index.html">Back to demos</a></p>
+    <h1>Audio source switching demo</h1>
+    <p>Reuse one viewer and quickly swap between different recordings.</p>
+    <div class="controls">
+      <button type="button" data-action="previous">Previous</button>
+      <button type="button" data-action="next">Next</button>
+      <span data-title></span>
+    </div>
+    <audio controls crossorigin="anonymous"></audio>
+    <div class="stage"><canvas></canvas></div>
+
+    <script type="module">
+      import { SpectrogramViewer } from '../../src';
+
+      const recordings = [
+        ['https://xeno-canto.org/944837/download', 'XC944837 · Western Barbastelle · Barbastella barbastellus'],
+        ['https://xeno-canto.org/380406/download', 'XC380406 · Night Parrot · Pezoporus occidentalis'],
+        ['https://xeno-canto.org/1148089/download', 'XC1148089 · New Ireland Friarbird · Philemon eichhorni'],
+        ['https://xeno-canto.org/958336/download', 'XC958336 · House cricket · Acheta domesticus'],
+        ['https://xeno-canto.org/934741/download', 'XC934741 · Brilliant-thighed Poison Frog · Allobates femoralis'],
+      ];
+
+      const audio = document.querySelector('audio');
+      const canvas = document.querySelector('canvas');
+      const title = document.querySelector('[data-title]');
+      let index = 0;
+
+      const spectrogram = await SpectrogramViewer.fromUrl({
+        audio,
+        canvas,
+        url: recordings[index][0],
+      });
+
+      async function showRecording(nextIndex) {
+        index = (nextIndex + recordings.length) % recordings.length;
+        const [url, label] = recordings[index];
+        title.textContent = label;
+        await spectrogram.setSourceUrl(url);
+        spectrogram.requestRender();
+      }
+
+      document.querySelector('[data-action="previous"]').addEventListener('click', () => void showRecording(index - 1));
+      document.querySelector('[data-action="next"]').addEventListener('click', () => void showRecording(index + 1));
+
+      title.textContent = recordings[index][1];
+      await spectrogram.render();
+    </script>
+  </body>
+</html>
