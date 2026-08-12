@@ -5,6 +5,8 @@ export { createTileKey, SpectrogramCache } from './cache';
 export type { TileKeyParts } from './cache';
 export { buildColorMap, parseColor } from './colormap';
 export { resolveConfig, stableHash } from './config';
+export { FetchByteSource, concatChunks, isSeekableByteSource, readPrefix } from './byte-source';
+export type { ByteStreamSource, SeekableByteSource } from './byte-source';
 export { TypedEventEmitter } from './events';
 export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFrequencyToCanvas } from './frequency-scale';
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
