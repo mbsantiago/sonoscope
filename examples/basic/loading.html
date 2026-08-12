@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Loading demo</title>
-    <link rel="stylesheet" href="./style.css" />
+    <style>
+      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      a { color: #93c5fd; }
+      form, audio, canvas, .stage { width: min(100%, 960px); }
+      form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+      input[type='url'] { flex: 1; min-width: 16rem; }
+      audio { margin-bottom: 1rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; }
+    </style>
   </head>
   <body>
     <p><a href="./index.html">Back to demos</a></p>
@@ -16,6 +24,55 @@
     <audio controls crossorigin="anonymous"></audio>
     <div class="stage"><canvas></canvas></div>
     <p data-status></p>
-    <script type="module" src="./loading.ts"></script>
+
+    <script type="module">
+      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+
+      const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
+      const form = document.querySelector('form');
+      const input = document.querySelector('input[name="url"]');
+      const audio = document.querySelector('audio');
+      const canvas = document.querySelector('canvas');
+      const status = document.querySelector('[data-status]');
+      let viewer;
+
+      function audioUrl() {
+        const url = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
+        input.value = url;
+        return url;
+      }
+
+      function describeViewport() {
+        const viewport = viewer.getViewport();
+        const source = viewer.getConfig().source;
+        return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, 0-${Math.round(viewport.maxFrequency)}Hz, decoded at ${Math.round(source.sampleRate)}Hz`;
+      }
+
+      async function load(url) {
+        viewer?.destroy();
+        audio.src = url;
+        status.textContent = 'Decoding audio...';
+        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
+
+        const source = await createAudioSourceFromUrl(url);
+        viewer = await SpectrogramViewer.create({
+          audio,
+          canvas,
+          source,
+          backend: new WorkerComputeBackend(),
+          viewport: { startTime: 0, endTime: Math.min(10, source.duration), minFrequency: 0, maxFrequency: source.sampleRate / 2 },
+        });
+
+        await viewer.render();
+        status.textContent = describeViewport();
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (input.value.trim()) void load(input.value.trim());
+      });
+
+      await load(audioUrl());
+    </script>
   </body>
 </html>

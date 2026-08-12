@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Controls demo</title>
-    <link rel="stylesheet" href="./style.css" />
+    <style>
+      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      a { color: #93c5fd; }
+      form, audio, canvas, .stage, .controls, .note { width: min(100%, 960px); }
+      form, .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+      label { display: inline-flex; gap: 0.25rem; align-items: center; }
+      input[type='url'] { flex: 1; min-width: 16rem; }
+      audio { margin-bottom: 1rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; }
+      .note { color: #cbd5e1; }
+    </style>
   </head>
   <body>
     <p><a href="./index.html">Back to demos</a></p>
@@ -17,21 +27,77 @@
       <label>Window size <input name="windowSize" type="number" value="1024" min="128" step="128" /></label>
       <label>FFT size <input name="fftSize" type="number" value="1024" min="128" step="128" /></label>
       <label>Hop size <input name="hopSize" type="number" value="256" min="32" step="32" /></label>
-      <label>Window <select name="window"><option>hann</option><option>hamming</option><option>blackman</option><option>rectangular</option></select></label>
-      <label>Frequency scale <select name="frequencyScale"><option>linear</option><option>log</option><option>mel</option></select></label>
-      <label>Min frequency <input name="minFrequency" type="number" value="0" min="0" step="100" /></label>
-      <label>Max frequency <input name="maxFrequency" type="number" min="1" step="1000" placeholder="decoded Nyquist" /></label>
-      <label>Value mode <select name="mode"><option>db</option><option>magnitude</option><option>power</option></select></label>
-      <label>Min <input name="min" type="number" value="-100" step="1" /></label>
-      <label>Max <input name="max" type="number" value="0" step="1" /></label>
-      <label>Gamma <input name="gamma" type="number" value="1" min="0.1" max="4" step="0.1" /></label>
+      <label>Scale <select name="frequencyScale"><option>linear</option><option>log</option><option>mel</option></select></label>
+      <label>Mode <select name="mode"><option>db</option><option>magnitude</option><option>power</option></select></label>
       <label>Color <select name="colorMap"><option>viridis</option><option>gray</option><option>magma</option><option>inferno</option><option>plasma</option><option>turbo</option></select></label>
       <button type="button" data-action="apply">Apply config</button>
       <span data-status></span>
     </div>
-    <p class="note">The default frequency range extends to the decoded source Nyquist. Browser decoding may resample to the AudioContext sample rate, so the visible ceiling depends on the decoded sample rate.</p>
+    <p class="note">Change STFT and display settings, then apply them to rerender the current source.</p>
     <audio controls crossorigin="anonymous"></audio>
     <div class="stage"><canvas></canvas></div>
-    <script type="module" src="./controls.ts"></script>
+
+    <script type="module">
+      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+
+      const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
+      const form = document.querySelector('form');
+      const input = document.querySelector('input[name="url"]');
+      const audio = document.querySelector('audio');
+      const canvas = document.querySelector('canvas');
+      const status = document.querySelector('[data-status]');
+      let viewer;
+      let source;
+
+      function value(name) {
+        return document.querySelector(`[name="${name}"]`).value;
+      }
+
+      function config() {
+        return {
+          stft: { windowSize: Number(value('windowSize')), fftSize: Number(value('fftSize')), hopSize: Number(value('hopSize')), window: 'hann' },
+          viewport: { minFrequency: 0, maxFrequency: source.sampleRate / 2, frequencyScale: value('frequencyScale') },
+          valueScale: { mode: value('mode'), min: -100, max: 0, gamma: 1, clamp: true },
+          colorMap: value('colorMap'),
+        };
+      }
+
+      function statusText() {
+        const viewport = viewer.getViewport();
+        return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.maxFrequency)}Hz ceiling`;
+      }
+
+      async function load(url) {
+        viewer?.destroy();
+        audio.src = url;
+        status.textContent = 'Loading and rendering...';
+        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
+        source = await createAudioSourceFromUrl(url);
+        viewer = await SpectrogramViewer.create({
+          audio,
+          canvas,
+          source,
+          backend: new WorkerComputeBackend(),
+          ...config(),
+          viewport: { ...config().viewport, startTime: 0, endTime: Math.min(10, source.duration) },
+        });
+        await viewer.render();
+        status.textContent = statusText();
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (input.value.trim()) void load(input.value.trim());
+      });
+      document.querySelector('[data-action="apply"]').addEventListener('click', () => {
+        if (!viewer) return;
+        viewer.setConfig(config());
+        viewer.requestRender();
+        status.textContent = statusText();
+      });
+
+      input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
+      await load(input.value);
+    </script>
   </body>
 </html>

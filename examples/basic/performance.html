@@ -4,7 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>spectrogram-js performance</title>
-    <link rel="stylesheet" href="./style.css" />
+    <style>
+      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      canvas, .controls, pre, .note { width: min(100%, 960px); }
+      .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; }
+      pre { box-sizing: border-box; overflow: auto; padding: 1rem; background: #020617; border: 1px solid #334155; }
+      .note { color: #cbd5e1; }
+    </style>
   </head>
   <body>
     <main>
@@ -18,6 +25,69 @@
       <canvas id="spectrogram"></canvas>
       <pre id="profile">Rendering initial worker profile...</pre>
     </main>
-    <script type="module" src="./performance.ts"></script>
+
+    <script type="module">
+      import { MainThreadComputeBackend, SpectrogramViewer, WorkerComputeBackend } from '../../src';
+
+      class SyntheticSource {
+        id = 'synthetic-performance';
+        sampleRate = 48_000;
+        duration = 60;
+        channelCount = 1;
+        data = Float32Array.from({ length: this.sampleRate * this.duration }, (_, index) => {
+          const time = index / this.sampleRate;
+          return 0.6 * Math.sin(2 * Math.PI * 440 * time) + 0.3 * Math.sin(2 * Math.PI * 2_200 * time);
+        });
+
+        read({ startTime, endTime }) {
+          const start = Math.max(0, Math.floor(startTime * this.sampleRate));
+          const end = Math.min(this.data.length, Math.ceil(endTime * this.sampleRate));
+          return this.data.slice(start, end);
+        }
+      }
+
+      const canvas = document.querySelector('#spectrogram');
+      const profile = document.querySelector('#profile');
+      const source = new SyntheticSource();
+      let viewer;
+      let viewportStart = 0;
+
+      function summarize(measures) {
+        const totals = new Map();
+        for (const measure of measures) totals.set(measure.name, (totals.get(measure.name) ?? 0) + measure.duration);
+        return Array.from(totals.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, duration]) => `${name.padEnd(24)} ${duration.toFixed(1)} ms`)
+          .join('\n');
+      }
+
+      async function renderWithBackend(name, backend) {
+        viewer?.destroy();
+        profile.textContent = `Rendering with ${name}...`;
+        viewer = await SpectrogramViewer.create({
+          canvas,
+          source,
+          backend,
+          cache: { tileDurationSeconds: 2, maxCachedTiles: 32 },
+          viewport: { startTime: viewportStart, endTime: viewportStart + 8, minFrequency: 0, maxFrequency: 12_000 },
+          stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
+        });
+        viewer.on('renderprofile', (event) => {
+          profile.textContent = `${name}\nrequest: ${event.requestId}\ngeneration: ${event.generation}\n\n${summarize(event.measures)}`;
+        });
+        await viewer.render();
+      }
+
+      document.querySelector('#main').addEventListener('click', () => void renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend()));
+      document.querySelector('#worker').addEventListener('click', () => void renderWithBackend('WorkerComputeBackend', new WorkerComputeBackend()));
+      document.querySelector('#pan').addEventListener('click', () => {
+        if (!viewer) return;
+        viewportStart = (viewportStart + 2) % 40;
+        viewer.setViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
+        viewer.requestRender();
+      });
+
+      await renderWithBackend('WorkerComputeBackend', new WorkerComputeBackend());
+    </script>
   </body>
 </html>

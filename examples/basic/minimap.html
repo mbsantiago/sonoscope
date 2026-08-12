@@ -4,20 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>spectrogram-js tile minimap</title>
-    <link rel="stylesheet" href="./style.css" />
+    <style>
+      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      a { color: #93c5fd; }
+      form, audio, canvas, .stage, .minimap, pre, .note { width: min(100%, 960px); }
+      form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+      input[type='url'] { flex: 1; min-width: 16rem; }
+      audio { margin-bottom: 1rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; touch-action: none; }
+      pre { box-sizing: border-box; overflow: auto; padding: 1rem; background: #020617; border: 1px solid #334155; }
+      .note, .legend { color: #cbd5e1; }
+      .minimap { position: relative; height: 2rem; margin: 1rem 0; overflow: hidden; background: #1e293b; border: 1px solid #334155; }
+      .minimap-tiles, .minimap-viewport { position: absolute; inset-block: 0; }
+      .minimap-tiles { inset-inline: 0; }
+      .minimap-tile { position: absolute; box-sizing: border-box; border: 1px solid #020617; box-shadow: inset 0 0 0 1px rgb(248 250 252 / 35%); }
+      .minimap-tile.computed { background: #22c55e; }
+      .minimap-tile.computing { background: #f59e0b; }
+      .minimap-tile.uncomputed { background: #475569; }
+      .minimap-viewport { border: 2px solid #f8fafc; box-sizing: border-box; pointer-events: none; }
+      .legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+      .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; margin-right: 0.25rem; vertical-align: -0.05rem; }
+      .legend .computed { background: #22c55e; }
+      .legend .computing { background: #f59e0b; }
+      .legend .uncomputed { background: #475569; }
+    </style>
   </head>
   <body>
     <main>
+      <p><a href="./index.html">Back to demos</a></p>
       <h1>Tile minimap</h1>
       <p class="note">The bar shows the whole recording. Green tiles are computed, amber tiles are computing in workers, and gray tiles are not computed.</p>
       <form>
         <label>Audio URL <input name="url" type="url" /></label>
         <button>Load</button>
       </form>
-      <audio controls></audio>
-      <div class="stage">
-        <canvas></canvas>
-      </div>
+      <audio controls crossorigin="anonymous"></audio>
+      <div class="stage"><canvas></canvas></div>
       <div class="minimap" aria-label="Tile state minimap">
         <div class="minimap-tiles"></div>
         <div class="minimap-viewport"></div>
@@ -29,6 +51,153 @@
       </div>
       <pre data-status></pre>
     </main>
-    <script type="module" src="./minimap.ts"></script>
+
+    <script type="module">
+      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+
+      const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
+      const form = document.querySelector('form');
+      const input = document.querySelector('input[name="url"]');
+      const audio = document.querySelector('audio');
+      const canvas = document.querySelector('canvas');
+      const status = document.querySelector('[data-status]');
+      const minimap = document.querySelector('.minimap');
+      const tilesElement = document.querySelector('.minimap-tiles');
+      const viewportElement = document.querySelector('.minimap-viewport');
+      let viewer;
+      let minimapFrame;
+      let lastPaintSummary = 'paint passes: none yet';
+
+      function scheduleMinimapUpdate() {
+        if (minimapFrame !== undefined) return;
+        minimapFrame = requestAnimationFrame(() => {
+          minimapFrame = undefined;
+          updateMinimap();
+        });
+      }
+
+      function updateMinimap() {
+        if (!viewer) return;
+        const source = viewer.getConfig().source;
+        const viewport = viewer.getViewport();
+        const tiles = assignTileLanes(viewer.getTileStates());
+        minimap.style.height = `${Math.max(2, tiles.laneCount * 0.85)}rem`;
+        tilesElement.replaceChildren(...tiles.items.map((tile) => tileSegment(tile, source.duration, tiles.laneCount)));
+        viewportElement.style.left = `${(viewport.startTime / source.duration) * 100}%`;
+        viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / source.duration) * 100}%`;
+        status.textContent = `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\ntiles: ${summarizeStates()}\n${lastPaintSummary}`;
+      }
+
+      function assignTileLanes(tiles) {
+        const laneEnds = [];
+        const items = [...tiles].sort((a, b) => a.timeStart - b.timeStart || a.timeEnd - b.timeEnd || a.channel - b.channel).map((tile) => {
+          const lane = laneEnds.findIndex((end) => tile.timeStart >= end - 1e-9);
+          const assignedLane = lane === -1 ? laneEnds.length : lane;
+          laneEnds[assignedLane] = tile.timeEnd;
+          return { ...tile, lane: assignedLane };
+        });
+        return { items, laneCount: Math.max(1, laneEnds.length) };
+      }
+
+      function tileSegment(tile, duration, laneCount) {
+        const element = document.createElement('div');
+        element.className = `minimap-tile ${tile.state}`;
+        element.style.left = `${(tile.timeStart / duration) * 100}%`;
+        element.style.width = `${((tile.timeEnd - tile.timeStart) / duration) * 100}%`;
+        element.style.top = `${(tile.lane / laneCount) * 100}%`;
+        element.style.height = `${100 / laneCount}%`;
+        element.title = `channel ${tile.channel}, ${tile.state}`;
+        return element;
+      }
+
+      function summarizeStates() {
+        const counts = { computed: 0, computing: 0, uncomputed: 0 };
+        for (const tile of viewer.getTileStates()) counts[tile.state] += 1;
+        return `${counts.computed} computed, ${counts.computing} computing, ${counts.uncomputed} uncomputed`;
+      }
+
+      function summarizePaints(measures) {
+        const count = measures.findLast((measure) => measure.name === 'render.paint.count')?.detail?.count ?? 0;
+        const partials = measures.filter((measure) => measure.name === 'render.paint.partial').map((measure) => `${measure.detail?.tiles}/${measure.detail?.total}`);
+        const finals = measures.filter((measure) => measure.name === 'render.paint.final').map((measure) => `${measure.detail?.tiles}/${measure.detail?.total}`);
+        return `paint passes: ${count}; partial [${partials.join(', ') || 'none'}]; final [${finals.join(', ') || 'none'}]`;
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function panTime(delta) {
+        const source = viewer.getConfig().source;
+        const viewport = viewer.getViewport();
+        const duration = viewport.endTime - viewport.startTime;
+        const startTime = clamp(viewport.startTime + delta, 0, Math.max(0, source.duration - duration));
+        viewer.setViewport({ startTime, endTime: startTime + duration });
+        viewer.requestRender();
+        scheduleMinimapUpdate();
+      }
+
+      function zoomTimeAt(centerTime, factor) {
+        const source = viewer.getConfig().source;
+        const viewport = viewer.getViewport();
+        const currentDuration = viewport.endTime - viewport.startTime;
+        const minDuration = 0.05;
+        const maxDuration = Math.min(source.duration, viewer.getConfig().cache.maxCachedTiles * viewer.getConfig().cache.tileDurationSeconds);
+        const duration = clamp(currentDuration * factor, minDuration, Math.max(minDuration, maxDuration));
+        const ratio = (centerTime - viewport.startTime) / currentDuration;
+        const startTime = clamp(centerTime - duration * ratio, 0, Math.max(0, source.duration - duration));
+        viewer.setViewport({ startTime, endTime: startTime + duration });
+        viewer.requestRender();
+        scheduleMinimapUpdate();
+      }
+
+      async function load(url) {
+        viewer?.destroy();
+        audio.src = url;
+        status.textContent = 'Loading and rendering...';
+        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
+        const source = await createAudioSourceFromUrl(url);
+        viewer = await SpectrogramViewer.create({
+          audio,
+          canvas,
+          source,
+          backend: new WorkerComputeBackend(),
+          cache: { tileDurationSeconds: 1, maxCachedTiles: 96, prefetchTiles: 16 },
+          playback: { follow: true, renderOnSeek: true },
+          viewport: { startTime: 0, endTime: Math.min(10, source.duration), minFrequency: 0, maxFrequency: source.sampleRate / 2 },
+        });
+        viewer.on('tileload', scheduleMinimapUpdate);
+        viewer.on('renderprogress', scheduleMinimapUpdate);
+        viewer.on('rendercomplete', scheduleMinimapUpdate);
+        viewer.on('viewportchange', scheduleMinimapUpdate);
+        viewer.on('renderprofile', (event) => {
+          lastPaintSummary = summarizePaints(event.measures);
+          scheduleMinimapUpdate();
+        });
+        updateMinimap();
+        await viewer.render();
+        updateMinimap();
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (input.value.trim()) void load(input.value.trim());
+      });
+      canvas.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        if (!viewer) return;
+        const viewport = viewer.getViewport();
+        if (event.shiftKey) {
+          const rect = canvas.getBoundingClientRect();
+          const { time } = viewer.canvasToTimeFrequency(event.clientX - rect.left, event.clientY - rect.top);
+          zoomTimeAt(time, Math.exp((event.deltaY < 0 ? -1 : 1) * 0.02));
+          return;
+        }
+        panTime((event.deltaY / 600) * (viewport.endTime - viewport.startTime));
+      });
+
+      input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
+      await load(input.value);
+    </script>
   </body>
 </html>

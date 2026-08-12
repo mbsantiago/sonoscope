@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Zoom demo</title>
-    <link rel="stylesheet" href="./style.css" />
+    <style>
+      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      a { color: #93c5fd; }
+      form, audio, canvas, .stage, .controls { width: min(100%, 960px); }
+      form, .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+      input[type='url'] { flex: 1; min-width: 16rem; }
+      audio { margin-bottom: 1rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; touch-action: none; }
+      .stage { position: relative; }
+      .selection { position: absolute; display: none; border: 1px solid #f8fafc; background: rgb(147 197 253 / 18%); pointer-events: none; }
+    </style>
   </head>
   <body>
     <p><a href="./index.html">Back to demos</a></p>
@@ -22,6 +32,127 @@
     </div>
     <audio controls crossorigin="anonymous"></audio>
     <div class="stage"><canvas></canvas><div class="selection"></div></div>
-    <script type="module" src="./zoom.ts"></script>
+
+    <script type="module">
+      import { SpectrogramViewer, WorkerComputeBackend, createAudioSourceFromUrl } from '../../src';
+
+      const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
+      const form = document.querySelector('form');
+      const input = document.querySelector('input[name="url"]');
+      const follow = document.querySelector('input[name="follow"]');
+      const audio = document.querySelector('audio');
+      const canvas = document.querySelector('canvas');
+      const selection = document.querySelector('.selection');
+      const status = document.querySelector('[data-status]');
+      let viewer;
+      let resetViewport;
+      let dragStart;
+
+      function statusText() {
+        const viewport = viewer.getViewport();
+        return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz`;
+      }
+
+      async function load(url) {
+        viewer?.destroy();
+        audio.src = url;
+        status.textContent = 'Loading and rendering...';
+        SpectrogramViewer.renderLoading(canvas, 'Decoding audio...');
+        const source = await createAudioSourceFromUrl(url);
+        viewer = await SpectrogramViewer.create({
+          audio,
+          canvas,
+          source,
+          backend: new WorkerComputeBackend(),
+          playback: { follow: follow.checked, renderOnSeek: true },
+          viewport: { startTime: 0, endTime: Math.min(10, source.duration), minFrequency: 0, maxFrequency: source.sampleRate / 2 },
+        });
+        resetViewport = viewer.getViewport();
+        await viewer.render();
+        status.textContent = statusText();
+      }
+
+      function setViewport(viewport) {
+        viewer.setViewport(viewport);
+        viewer.requestRender();
+        status.textContent = statusText();
+      }
+
+      function fullBounds() {
+        const source = viewer.getConfig().source;
+        return { startTime: 0, endTime: source.duration, minFrequency: 0, maxFrequency: source.sampleRate / 2 };
+      }
+
+      function zoomTime(factor, centerTime) {
+        const bounds = fullBounds();
+        const viewport = viewer.getViewport();
+        const center = centerTime ?? (viewport.startTime + viewport.endTime) / 2;
+        const duration = (viewport.endTime - viewport.startTime) * factor;
+        const startTime = Math.max(bounds.startTime, center - duration / 2);
+        const endTime = Math.min(bounds.endTime, startTime + duration);
+        setViewport({ startTime: Math.max(bounds.startTime, endTime - duration), endTime });
+      }
+
+      function showSelection(start, end) {
+        selection.style.display = 'block';
+        selection.style.left = `${Math.min(start.x, end.x)}px`;
+        selection.style.top = `${Math.min(start.y, end.y)}px`;
+        selection.style.width = `${Math.abs(end.x - start.x)}px`;
+        selection.style.height = `${Math.abs(end.y - start.y)}px`;
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (input.value.trim()) void load(input.value.trim());
+      });
+      follow.addEventListener('change', () => viewer?.setConfig({ playback: { follow: follow.checked } }));
+      document.querySelector('[data-action="reset"]').addEventListener('click', () => resetViewport && setViewport(resetViewport));
+      document.querySelector('[data-action="zoom-in"]').addEventListener('click', () => zoomTime(0.5));
+      document.querySelector('[data-action="zoom-out"]').addEventListener('click', () => zoomTime(2));
+
+      canvas.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        if (!viewer) return;
+        const rect = canvas.getBoundingClientRect();
+        const { time } = viewer.canvasToTimeFrequency(event.clientX - rect.left, event.clientY - rect.top);
+        zoomTime(event.deltaY < 0 ? 0.8 : 1.25, time);
+      });
+
+      canvas.addEventListener('pointerdown', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        dragStart = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        canvas.setPointerCapture(event.pointerId);
+      });
+      canvas.addEventListener('pointermove', (event) => {
+        if (!dragStart) return;
+        const rect = canvas.getBoundingClientRect();
+        showSelection(dragStart, { x: event.clientX - rect.left, y: event.clientY - rect.top });
+      });
+      canvas.addEventListener('pointerup', (event) => {
+        if (!viewer || !dragStart) return;
+        const rect = canvas.getBoundingClientRect();
+        const end = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        selection.style.display = 'none';
+        if (Math.abs(end.x - dragStart.x) > 8 || Math.abs(end.y - dragStart.y) > 8) {
+          const bounds = fullBounds();
+          const a = viewer.canvasToTimeFrequency(dragStart.x, dragStart.y);
+          const b = viewer.canvasToTimeFrequency(end.x, end.y);
+          setViewport({
+            startTime: Math.max(bounds.startTime, Math.min(a.time, b.time)),
+            endTime: Math.min(bounds.endTime, Math.max(a.time, b.time)),
+            minFrequency: Math.max(bounds.minFrequency, Math.min(a.frequency, b.frequency)),
+            maxFrequency: Math.min(bounds.maxFrequency, Math.max(a.frequency, b.frequency)),
+          });
+        }
+        dragStart = undefined;
+      });
+      canvas.addEventListener('pointercancel', () => {
+        dragStart = undefined;
+        selection.style.display = 'none';
+      });
+
+      input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
+      await load(input.value);
+    </script>
   </body>
 </html>
