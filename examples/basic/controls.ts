@@ -56,7 +56,6 @@ apply.addEventListener('click', () => {
   if (!viewer) return;
   const config = readConfig();
   viewer.setConfig(config);
-  viewer.setViewport({ ...viewer.getViewport(), ...config.viewport });
   void render();
 });
 

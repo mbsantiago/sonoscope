@@ -39,7 +39,7 @@ export async function createViewer(options: {
     canvas: options.canvas,
     colorMap: options.colorMap ?? 'viridis',
     playback: { showPlayhead: true, follow: options.follow ?? true, followMargin: 0.2, renderOnSeek: true },
-    stft: options.stft,
+    ...(options.stft === undefined ? {} : { stft: options.stft }),
     valueScale: { mode: 'db', min: -100, max: 0, ...options.valueScale },
     viewport: { startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 12_000, frequencyScale: 'linear', ...options.viewport },
   });

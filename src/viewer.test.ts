@@ -78,4 +78,32 @@ describe('SpectrogramViewer', () => {
 
     expect(queryPoint).toHaveBeenCalledWith({ time: 8.25, frequency: 250, channel: 0 });
   });
+
+  it('preserves viewport when non-viewport config changes', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0.1, endTime: 0.5, minFrequency: 100, maxFrequency: 400 } });
+    const viewport = { ...viewer.getViewport() };
+
+    viewer.setConfig({ colorMap: 'magma' });
+
+    expect(viewer.getViewport()).toEqual(viewport);
+  });
+
+  it('preserves viewport when STFT config changes', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0.1, endTime: 0.5, minFrequency: 100, maxFrequency: 400 } });
+    const viewport = { ...viewer.getViewport() };
+
+    viewer.setConfig({ stft: { windowSize: 512, fftSize: 512, hopSize: 128, window: 'hann' } });
+
+    expect(viewer.getViewport()).toEqual(viewport);
+    expect(viewer.getConfig().stft.windowSize).toBe(512);
+    expect(viewer.getConfig().stft.fftSize).toBe(512);
+  });
+
+  it('preserves viewport bounds when setConfig receives a partial viewport', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0.1, endTime: 0.5, minFrequency: 100, maxFrequency: 400 } });
+
+    viewer.setConfig({ stft: { windowSize: 512, fftSize: 512, hopSize: 128, window: 'hann' }, viewport: { frequencyScale: 'mel' } });
+
+    expect(viewer.getViewport()).toEqual({ startTime: 0.1, endTime: 0.5, minFrequency: 100, maxFrequency: 400, frequencyScale: 'mel' });
+  });
 });

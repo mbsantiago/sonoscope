@@ -45,7 +45,8 @@ export class SpectrogramViewer {
 
   setConfig(input: Partial<SpectrogramConfig>): void {
     const source = input.source ?? this.config.source;
-    this.config = resolveConfig({ ...this.config, ...input, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
+    const viewport = { ...this.config.viewport, ...input.viewport };
+    this.config = resolveConfig({ ...this.config, ...input, viewport, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
     this.cache.clear();
     this.renderer.invalidate();
     this.events.emit('configchange', { config: this.config });
