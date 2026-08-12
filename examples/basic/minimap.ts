@@ -12,6 +12,7 @@ const viewportElement = requiredElement<HTMLDivElement>('.minimap-viewport');
 let viewer: SpectrogramViewer | undefined;
 let minimapFrame: number | undefined;
 let renderTimer: ReturnType<typeof setTimeout> | undefined;
+const wheelZoomStep = 0.08;
 
 async function load(url: string): Promise<void> {
   cancelScheduledWork();
@@ -86,9 +87,10 @@ function zoomTimeAt(centerTime: number, factor: number): void {
   if (!viewer) return;
   const source = viewer.getConfig().source;
   if (!source) return;
+  const minDuration = minimumViewportDuration(viewer);
   const viewport = viewer.getViewport();
   const currentDuration = viewport.endTime - viewport.startTime;
-  const duration = clamp(currentDuration * factor, 0.05, source.duration);
+  const duration = clamp(currentDuration * factor, minDuration, source.duration);
   const ratio = (centerTime - viewport.startTime) / currentDuration;
   const startTime = clamp(centerTime - duration * ratio, 0, Math.max(0, source.duration - duration));
   viewer.setViewport({ startTime, endTime: startTime + duration });
@@ -97,6 +99,13 @@ function zoomTimeAt(centerTime: number, factor: number): void {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function minimumViewportDuration(target: SpectrogramViewer): number {
+  const { tileDurationSeconds, maxCachedTiles } = target.getConfig().cache;
+  const channels = target.getConfig().source?.channelCount ?? 1;
+  const visibleTileBudget = Math.max(1, Math.floor(maxCachedTiles / Math.max(1, channels * 4)));
+  return Math.max(tileDurationSeconds, tileDurationSeconds * visibleTileBudget * 0.25);
 }
 
 function cancelScheduledWork(): void {
@@ -119,7 +128,7 @@ canvas.addEventListener('wheel', (event) => {
   if (event.shiftKey) {
     const rect = canvas.getBoundingClientRect();
     const { time } = viewer.canvasToTimeFrequency(event.clientX - rect.left, event.clientY - rect.top);
-    zoomTimeAt(time, event.deltaY < 0 ? 0.8 : 1.25);
+    zoomTimeAt(time, Math.exp((event.deltaY < 0 ? -1 : 1) * wheelZoomStep));
     return;
   }
   panTime((event.deltaY / 600) * (viewport.endTime - viewport.startTime));
