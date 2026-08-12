@@ -109,6 +109,7 @@ export type SpectrogramConfig = {
   audio?: HTMLAudioElement;
   canvas: HTMLCanvasElement;
   source?: AudioSource;
+  channel?: number;
   stft?: Partial<StftConfig>;
   viewport?: Partial<ViewportConfig>;
   valueScale?: Partial<ValueScaleConfig>;
@@ -122,6 +123,7 @@ export type ResolvedSpectrogramConfig = {
   audio?: HTMLAudioElement;
   canvas: HTMLCanvasElement;
   source?: AudioSource;
+  channel: number;
   stft: StftConfig;
   viewport: ViewportConfig;
   valueScale: Required<ValueScaleConfig>;

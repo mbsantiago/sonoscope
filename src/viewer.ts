@@ -183,7 +183,7 @@ export class SpectrogramViewer {
     power?: number;
     db?: number;
   }> {
-    const spectrum = await this.querySpectrum({ time: input.time, channel: input.channel ?? 0 });
+    const spectrum = await this.querySpectrum({ time: input.time, channel: input.channel ?? this.config.channel });
     let binIndex = 0;
     for (let i = 1; i < spectrum.values.frequency.length; i++) {
       if (Math.abs(spectrum.values.frequency[i]! - input.frequency) < Math.abs(spectrum.values.frequency[binIndex]! - input.frequency)) binIndex = i;
@@ -212,7 +212,7 @@ export class SpectrogramViewer {
     frequencyScale: ResolvedSpectrogramConfig['viewport']['frequencyScale'];
     values: { frequency: Float32Array; magnitude: Float32Array; power?: Float32Array; db?: Float32Array; normalized?: Uint8Array | Float32Array };
   }> {
-    const channel = input.channel ?? 0;
+    const channel = input.channel ?? this.config.channel;
     const range = this.tileRangeForTime(input.time);
     const matrix = await this.getTile(channel, range.timeStart, range.timeEnd);
     let frameIndex = 0;
@@ -356,10 +356,9 @@ export class SpectrogramViewer {
     if (!this.config.source) throw new Error('Cannot compute tile ranges without an AudioSource');
     const ranges: Array<{ channel: number; timeStart: number; timeEnd: number }> = [];
     const firstStart = Math.floor(startTime / this.config.cache.tileDurationSeconds) * this.config.cache.tileDurationSeconds;
-    for (let channel = 0; channel < this.config.source.channelCount; channel++) {
-      for (let start = firstStart; start < endTime; start += this.config.cache.tileDurationSeconds) {
-        ranges.push({ channel, timeStart: Math.max(0, start), timeEnd: Math.min(this.config.source.duration, start + this.config.cache.tileDurationSeconds) });
-      }
+    const channel = this.config.channel;
+    for (let start = firstStart; start < endTime; start += this.config.cache.tileDurationSeconds) {
+      ranges.push({ channel, timeStart: Math.max(0, start), timeEnd: Math.min(this.config.source.duration, start + this.config.cache.tileDurationSeconds) });
     }
     return ranges;
   }

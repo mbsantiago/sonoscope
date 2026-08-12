@@ -16,9 +16,16 @@ describe('resolveConfig', () => {
   it('fills defaults and preserves provided source', () => {
     const config = resolveConfig({ canvas, source });
     expect(config.source).toBe(source);
+    expect(config.channel).toBe(0);
     expect(config.stft).toEqual({ windowSize: 1024, fftSize: 1024, hopSize: 256, window: 'hann' });
     expect(config.viewport.frequencyScale).toBe('linear');
     expect(config.colorMap).toBe('viridis');
+  });
+
+  it('validates selected channel against the source', () => {
+    expect(resolveConfig({ canvas, source: { ...source, channelCount: 2 }, channel: 1 }).channel).toBe(1);
+    expect(() => resolveConfig({ canvas, source, channel: 1 })).toThrow(/outside source channel count/);
+    expect(() => resolveConfig({ canvas, source, channel: -1 })).toThrow(/non-negative integer/);
   });
 
   it('throws when fftSize is not a power of two', () => {

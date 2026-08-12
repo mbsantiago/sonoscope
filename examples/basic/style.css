@@ -87,7 +87,6 @@ pre {
 }
 
 .minimap-tiles,
-.minimap-tile,
 .minimap-viewport {
   position: absolute;
   inset-block: 0;
@@ -95,6 +94,13 @@ pre {
 
 .minimap-tiles {
   inset-inline: 0;
+}
+
+.minimap-tile {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #020617;
+  box-shadow: inset 0 0 0 1px rgb(248 250 252 / 35%);
 }
 
 .minimap-tile.computed {

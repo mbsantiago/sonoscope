@@ -85,9 +85,9 @@ export class CanvasSpectrogramRenderer {
 
       const colors = buildColorMap(input.colorMap);
       const image = context.createImageData(deviceWidth, deviceHeight);
+      for (const placeholder of input.placeholders ?? []) this.paintPlaceholder(image, deviceWidth, deviceHeight, input.viewport, placeholder.timeStart, placeholder.timeEnd);
       for (const tile of input.tiles) this.paintTile(image, deviceWidth, deviceHeight, tile, input.viewport, input.valueScale, colors);
       context.putImageData(image, 0, 0);
-      for (const placeholder of input.placeholders ?? []) this.drawPlaceholder(context, width, height, input.viewport, placeholder.timeStart, placeholder.timeEnd);
       this.baseFrame = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, image };
 
       if (input.playheadTime !== undefined) this.drawPlayhead(context, width, height, input.viewport, input.playheadTime);
@@ -192,23 +192,21 @@ export class CanvasSpectrogramRenderer {
     context.restore();
   }
 
-  private drawPlaceholder(context: CanvasRenderingContext2D, width: number, height: number, viewport: ViewportConfig, timeStart: number, timeEnd: number): void {
+  private paintPlaceholder(image: ImageData, width: number, height: number, viewport: ViewportConfig, timeStart: number, timeEnd: number): void {
     const startX = Math.max(0, Math.floor(((timeStart - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
     const endX = Math.min(width, Math.ceil(((timeEnd - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
     if (endX <= startX) return;
 
-    context.save();
-    context.fillStyle = 'rgba(15,23,42,0.72)';
-    context.fillRect(startX, 0, endX - startX, height);
-    context.strokeStyle = 'rgba(148,163,184,0.35)';
-    context.lineWidth = 1;
-    for (let x = startX - height; x < endX; x += 12) {
-      context.beginPath();
-      context.moveTo(x, height);
-      context.lineTo(x + height, 0);
-      context.stroke();
+    for (let y = 0; y < height; y++) {
+      for (let x = startX; x < endX; x++) {
+        const pixelIndex = (y * width + x) * 4;
+        const hatch = ((x + y) % 12) < 2;
+        image.data[pixelIndex] = hatch ? 71 : 15;
+        image.data[pixelIndex + 1] = hatch ? 85 : 23;
+        image.data[pixelIndex + 2] = hatch ? 105 : 42;
+        image.data[pixelIndex + 3] = 255;
+      }
     }
-    context.restore();
   }
 }
 

@@ -1,11 +1,12 @@
 import { createViewer, getUrlFromPage, requiredElement, viewportStatus } from './demo-utils';
-import { WorkerComputeBackend, type PerformanceMeasure, type SpectrogramViewer, type TileState } from '../../src';
+import { WorkerComputeBackend, type PerformanceMeasure, type SpectrogramViewer, type TileState, type TileStateInfo } from '../../src';
 
 const form = requiredElement<HTMLFormElement>('form');
 const input = requiredElement<HTMLInputElement>('input[name="url"]');
 const audio = requiredElement<HTMLAudioElement>('audio');
 const canvas = requiredElement<HTMLCanvasElement>('canvas');
 const status = requiredElement<HTMLElement>('[data-status]');
+const minimapElement = requiredElement<HTMLDivElement>('.minimap');
 const tilesElement = requiredElement<HTMLDivElement>('.minimap-tiles');
 const viewportElement = requiredElement<HTMLDivElement>('.minimap-viewport');
 
@@ -80,7 +81,13 @@ function updateMinimap(): void {
   const source = viewer.getConfig().source;
   if (!source) return;
 
-  tilesElement.replaceChildren(...viewer.getTileStates().map((tile) => tileSegment(tile.state, (tile.timeStart / source.duration) * 100, ((tile.timeEnd - tile.timeStart) / source.duration) * 100)));
+  const tiles = assignTileLanes(viewer.getTileStates());
+  minimapElement.style.height = `${Math.max(2, tiles.laneCount * 0.85)}rem`;
+  tilesElement.replaceChildren(
+    ...tiles.items.map((tile) =>
+      tileSegment(tile.state, (tile.timeStart / source.duration) * 100, ((tile.timeEnd - tile.timeStart) / source.duration) * 100, tile.lane, tiles.laneCount, tile.channel),
+    ),
+  );
 
   const viewport = viewer.getViewport();
   viewportElement.style.left = `${(viewport.startTime / source.duration) * 100}%`;
@@ -88,12 +95,28 @@ function updateMinimap(): void {
   status.textContent = `${viewportStatus(viewer)}\n${summarizeStates(viewer)}\n${lastPaintSummary}`;
 }
 
-function tileSegment(state: TileState, left: number, width: number): HTMLDivElement {
+function tileSegment(state: TileState, left: number, width: number, lane: number, laneCount: number, channel: number): HTMLDivElement {
   const element = document.createElement('div');
   element.className = `minimap-tile ${state}`;
   element.style.left = `${left}%`;
   element.style.width = `${width}%`;
+  element.style.top = `${(lane / laneCount) * 100}%`;
+  element.style.height = `${100 / laneCount}%`;
+  element.title = `channel ${channel}, ${state}`;
   return element;
+}
+
+function assignTileLanes(tiles: TileStateInfo[]): { items: Array<TileStateInfo & { lane: number }>; laneCount: number } {
+  const laneEnds: number[] = [];
+  const items = [...tiles]
+    .sort((a, b) => a.timeStart - b.timeStart || a.timeEnd - b.timeEnd || a.channel - b.channel)
+    .map((tile) => {
+      const lane = laneEnds.findIndex((end) => tile.timeStart >= end - 1e-9);
+      const assignedLane = lane === -1 ? laneEnds.length : lane;
+      laneEnds[assignedLane] = tile.timeEnd;
+      return { ...tile, lane: assignedLane };
+    });
+  return { items, laneCount: Math.max(1, laneEnds.length) };
 }
 
 function summarizeStates(target: SpectrogramViewer): string {

@@ -203,11 +203,14 @@ describe('renderer helpers', () => {
   });
 
   it('draws placeholders for missing tile ranges', () => {
+    let data: Uint8ClampedArray | undefined;
     const context = {
       setTransform: vi.fn(),
       clearRect: vi.fn(),
       createImageData: vi.fn((w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4), colorSpace: 'srgb' as const })),
-      putImageData: vi.fn(),
+      putImageData: vi.fn((image: ImageData) => {
+        data = new Uint8ClampedArray(image.data);
+      }),
       fillRect: vi.fn(),
       fillText: vi.fn(),
       save: vi.fn(),
@@ -223,11 +226,14 @@ describe('renderer helpers', () => {
       viewport: { startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 100, frequencyScale: 'linear' },
       valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: 'gray',
-      tiles: [matrix],
+      tiles: [constantMatrix(0, 2, 1)],
       placeholders: [{ timeStart: 2, timeEnd: 4 }],
     });
 
-    expect(context.fillRect).toHaveBeenCalledWith(20, 0, 20, 20);
-    expect(context.stroke).toHaveBeenCalled();
+    expect(data).toBeDefined();
+    const placeholderPixel = (0 * 100 + 24) * 4;
+    const tilePixel = (0 * 100 + 0) * 4;
+    expect(Array.from(data!.slice(placeholderPixel, placeholderPixel + 4))).toEqual([71, 85, 105, 255]);
+    expect(data![tilePixel + 3]).toBe(255);
   });
 });

@@ -119,6 +119,29 @@ describe('SpectrogramViewer', () => {
     expect(progress.at(-1)).toBe(1);
   });
 
+  it('renders only the selected channel for stereo sources', async () => {
+    const requested: number[] = [];
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        requested.push(request.channel);
+        return Promise.resolve({ ...matrix(request.timeStart, request.timeEnd), channel: request.channel });
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, channelCount: 2, duration: 2 },
+      channel: 1,
+      cache: { tileDurationSeconds: 1, maxCachedTiles: 8, prefetchTiles: 0 },
+      viewport: { startTime: 0, endTime: 2, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+
+    await viewer.render();
+
+    expect(requested).toEqual([1, 1]);
+    expect(viewer.getTileStates().map((tile) => tile.channel)).toEqual([1, 1]);
+  });
+
   it('emits renderprofile measures for a render request', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const profiles: Array<{ requestId: string; generation: number; names: string[] }> = [];

@@ -26,11 +26,15 @@ export function resolveConfig(input: SpectrogramConfig): ResolvedSpectrogramConf
   };
   if (viewport.endTime <= viewport.startTime) throw new Error('viewport.endTime must be greater than viewport.startTime');
   if (viewport.maxFrequency <= viewport.minFrequency) throw new Error('viewport.maxFrequency must be greater than viewport.minFrequency');
+  const channel = input.channel ?? 0;
+  if (!Number.isInteger(channel) || channel < 0) throw new Error('channel must be a non-negative integer');
+  if (input.source && channel >= input.source.channelCount) throw new Error(`channel ${channel} is outside source channel count ${input.source.channelCount}`);
 
   return {
     ...(input.audio === undefined ? {} : { audio: input.audio }),
     canvas: input.canvas,
     ...(input.source === undefined ? {} : { source: input.source }),
+    channel,
     stft,
     viewport,
     valueScale: { mode: 'db', min: -100, max: 0, gamma: 1, clamp: true, ...input.valueScale },
