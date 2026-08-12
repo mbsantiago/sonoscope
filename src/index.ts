@@ -13,4 +13,5 @@ export { DecodedAudioSource } from './source';
 export { computeStftMatrix, createWindow } from './stft';
 export { applyTransforms, getTransformPadding } from './transforms';
 export { dbFromMagnitude, deriveDb, derivePower, deriveValueArrays, normalizeValue } from './value-scale';
+export { SpectrogramViewer } from './viewer';
 export type * from './types';

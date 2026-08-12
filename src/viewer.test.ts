@@ -1,0 +1,48 @@
+import { describe, expect, it, vi } from 'vitest';
+import { SpectrogramViewer } from './viewer';
+import type { AudioSource } from './types';
+
+function canvas(): HTMLCanvasElement {
+  return {
+    width: 100,
+    height: 100,
+    getBoundingClientRect: () => ({ width: 100, height: 100 }),
+    getContext: () => ({
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+      putImageData: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+    }),
+  } as unknown as HTMLCanvasElement;
+}
+
+const source: AudioSource = {
+  id: 'test',
+  sampleRate: 1024,
+  duration: 1,
+  channelCount: 1,
+  read: () => Float32Array.from({ length: 1024 }, (_, i) => Math.sin(2 * Math.PI * 128 * (i / 1024))),
+};
+
+describe('SpectrogramViewer', () => {
+  it('renders and emits progress', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
+    const progress: number[] = [];
+    viewer.on('renderprogress', (event) => progress.push(event.progress));
+    await viewer.render();
+    expect(progress.at(-1)).toBe(1);
+  });
+
+  it('queries a spectrum at a time point', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
+    const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });
+    expect(spectrum.values.frequency.length).toBeGreaterThan(0);
+    expect(spectrum.values.magnitude?.length).toBe(spectrum.values.frequency.length);
+  });
+});
