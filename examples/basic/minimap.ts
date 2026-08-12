@@ -20,6 +20,7 @@ let lastRenderStart = 0;
 let loadGeneration = 0;
 const wheelZoomStep = 0.02;
 const minRenderIntervalMs = 50;
+const minViewportDurationSeconds = 0.05;
 
 async function load(url: string): Promise<void> {
   const generation = ++loadGeneration;
@@ -167,9 +168,8 @@ function viewportDurationLimits(target: SpectrogramViewer): { minDuration: numbe
   const { tileDurationSeconds, maxCachedTiles } = target.getConfig().cache;
   const source = target.getConfig().source;
   const channels = target.getConfig().source?.channelCount ?? 1;
-  const visibleTileBudget = Math.max(1, Math.floor(maxCachedTiles / Math.max(1, channels * 4)));
   const cachedDuration = (maxCachedTiles / Math.max(1, channels)) * tileDurationSeconds;
-  const minDuration = Math.max(tileDurationSeconds, tileDurationSeconds * visibleTileBudget * 0.25);
+  const minDuration = Math.min(tileDurationSeconds, minViewportDurationSeconds);
   const maxDuration = Math.max(minDuration, Math.min(source?.duration ?? minDuration, cachedDuration));
   return { minDuration, maxDuration };
 }
