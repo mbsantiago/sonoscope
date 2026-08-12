@@ -14,10 +14,11 @@ export class DecodedAudioSource implements AudioSource {
     this.channelCount = buffer.numberOfChannels;
   }
 
-  static async fromUrl(url: string, audioContext = new AudioContext()): Promise<DecodedAudioSource> {
+  static async fromUrl(url: string, options?: AudioContext | { audioContext?: AudioContext; sampleRate?: number }): Promise<DecodedAudioSource> {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Failed to fetch audio source: ${response.status}`);
     const data = await response.arrayBuffer();
+    const audioContext = resolveAudioContext(data, options);
     return new DecodedAudioSource(await audioContext.decodeAudioData(data), url);
   }
 
@@ -27,4 +28,33 @@ export class DecodedAudioSource implements AudioSource {
     const end = Math.min(this.buffer.length, Math.ceil(options.endTime * this.sampleRate));
     return this.buffer.getChannelData(options.channel).slice(start, end);
   }
+}
+
+function resolveAudioContext(data: ArrayBuffer, options?: AudioContext | { audioContext?: AudioContext; sampleRate?: number }): AudioContext {
+  if (isAudioContext(options)) return options;
+  if (options && 'audioContext' in options && options.audioContext) return options.audioContext;
+  const sampleRate = options && 'sampleRate' in options ? options.sampleRate ?? readWavSampleRate(data) : readWavSampleRate(data);
+  return new AudioContext(sampleRate === undefined ? undefined : { sampleRate });
+}
+
+function isAudioContext(value: unknown): value is AudioContext {
+  return typeof value === 'object' && value !== null && 'decodeAudioData' in value;
+}
+
+function readWavSampleRate(data: ArrayBuffer): number | undefined {
+  if (data.byteLength < 28) return undefined;
+  const view = new DataView(data);
+  if (text(data, 0, 4) !== 'RIFF' || text(data, 8, 4) !== 'WAVE') return undefined;
+  let offset = 12;
+  while (offset + 8 <= data.byteLength) {
+    const id = text(data, offset, 4);
+    const size = view.getUint32(offset + 4, true);
+    if (id === 'fmt ' && offset + 16 <= data.byteLength) return view.getUint32(offset + 12, true);
+    offset += 8 + size + (size % 2);
+  }
+  return undefined;
+}
+
+function text(data: ArrayBuffer, offset: number, length: number): string {
+  return String.fromCharCode(...new Uint8Array(data, offset, length));
 }

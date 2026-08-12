@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DecodedAudioSource } from './source';
 
 function makeBuffer(): AudioBuffer {
@@ -11,6 +11,32 @@ function makeBuffer(): AudioBuffer {
   } as unknown as AudioBuffer;
 }
 
+function wavHeader(sampleRate: number): ArrayBuffer {
+  const data = new ArrayBuffer(44);
+  const bytes = new Uint8Array(data);
+  const view = new DataView(data);
+  bytes.set([82, 73, 70, 70], 0);
+  view.setUint32(4, 36, true);
+  bytes.set([87, 65, 86, 69], 8);
+  bytes.set([102, 109, 116, 32], 12);
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  bytes.set([100, 97, 116, 97], 36);
+  view.setUint32(40, 0, true);
+  return data;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete (globalThis as Partial<typeof globalThis>).fetch;
+  delete (globalThis as Partial<typeof globalThis>).AudioContext;
+});
+
 describe('DecodedAudioSource', () => {
   it('uses the decoded AudioBuffer sample rate', () => {
     const source = new DecodedAudioSource({ ...makeBuffer(), sampleRate: 96_000 } as AudioBuffer, 'fixture');
@@ -21,5 +47,31 @@ describe('DecodedAudioSource', () => {
   it('reads a time range as a copied Float32Array', () => {
     const source = new DecodedAudioSource(makeBuffer(), 'fixture');
     expect(Array.from(source.read({ channel: 0, startTime: 0.2, endTime: 0.5 }))).toEqual([2, 3, 4]);
+  });
+
+  it('decodes WAV files using the file sample rate by default', async () => {
+    const contexts: Array<{ sampleRate?: number }> = [];
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(wavHeader(192_000)) }) as typeof fetch;
+    globalThis.AudioContext = vi.fn(function AudioContext(this: { decodeAudioData: () => Promise<AudioBuffer> }, options?: AudioContextOptions) {
+      contexts.push(options?.sampleRate === undefined ? {} : { sampleRate: options.sampleRate });
+      this.decodeAudioData = () => Promise.resolve(makeBuffer());
+    }) as unknown as typeof AudioContext;
+
+    await DecodedAudioSource.fromUrl('bat.wav');
+
+    expect(contexts).toEqual([{ sampleRate: 192_000 }]);
+  });
+
+  it('allows callers to force the decode sample rate', async () => {
+    const contexts: Array<{ sampleRate?: number }> = [];
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(wavHeader(96_000)) }) as typeof fetch;
+    globalThis.AudioContext = vi.fn(function AudioContext(this: { decodeAudioData: () => Promise<AudioBuffer> }, options?: AudioContextOptions) {
+      contexts.push(options?.sampleRate === undefined ? {} : { sampleRate: options.sampleRate });
+      this.decodeAudioData = () => Promise.resolve(makeBuffer());
+    }) as unknown as typeof AudioContext;
+
+    await DecodedAudioSource.fromUrl('bat.wav', { sampleRate: 384_000 });
+
+    expect(contexts).toEqual([{ sampleRate: 384_000 }]);
   });
 });

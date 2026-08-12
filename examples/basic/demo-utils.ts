@@ -36,7 +36,7 @@ export async function createViewer(options: {
   backend?: SpectrogramComputeBackend;
 }): Promise<SpectrogramViewer> {
   options.audio.src = options.url;
-  const source = await DecodedAudioSource.fromUrl(options.url, new AudioContext({ sampleRate: 192_000 }));
+  const source = await DecodedAudioSource.fromUrl(options.url);
   const viewer = await SpectrogramViewer.create({
     audio: options.audio,
     canvas: options.canvas,
