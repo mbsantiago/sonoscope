@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ByteStreamSource } from './byte-source';
+import type { ByteStreamSource, SeekableByteSource } from './byte-source';
 import { StreamingWavSource } from './streaming-wav-source';
 
 function wavBytes(samples: number[], sampleRate = 4): Uint8Array {
@@ -106,5 +106,63 @@ describe('StreamingWavSource sequential decode', () => {
 
     expect(handler).toHaveBeenNthCalledWith(1, { startTime: 0, endTime: 0.5 });
     expect(handler).toHaveBeenNthCalledWith(2, { startTime: 0.5, endTime: 1 });
+  });
+
+  it('uses seekable byte ranges to satisfy far-ahead reads before sequential decode arrives', async () => {
+    const bytes = wavBytes([0, 32767, -32768, 16384]);
+    const ranges: Array<[number, number]> = [];
+    const seekableSource: SeekableByteSource = {
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 44));
+          },
+        }),
+      readRange: async (start: number, end: number) => {
+        ranges.push([start, end]);
+        return bytes.slice(start, end);
+      },
+    };
+    const source = await StreamingWavSource.fromByteSource(seekableSource);
+
+    const values = await source.read({ channel: 0, startTime: 0.5, endTime: 1 });
+
+    expect(ranges).toEqual([[48, 52]]);
+    expect(Array.from(values).map((value) => Number(value.toFixed(4)))).toEqual([-1, 0.5]);
+  });
+
+  it('does not resolve earlier missing reads when a seekable far-ahead range decodes', async () => {
+    const bytes = wavBytes([0, 32767, -32768, 16384]);
+    let resolveEarlierRange: ((bytes: Uint8Array) => void) | undefined;
+    const seekableSource: SeekableByteSource = {
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 44));
+          },
+        }),
+      readRange: async (start: number, end: number) => {
+        if (start === 44) {
+          return new Promise<Uint8Array>((resolve) => {
+            resolveEarlierRange = resolve;
+          });
+        }
+        return bytes.slice(start, end);
+      },
+    };
+    const source = await StreamingWavSource.fromByteSource(seekableSource);
+    const earlier = source.read({ channel: 0, startTime: 0, endTime: 0.5 });
+    let earlierResolved = false;
+    void Promise.resolve(earlier).then(() => {
+      earlierResolved = true;
+    });
+
+    await source.read({ channel: 0, startTime: 0.5, endTime: 1 });
+    await Promise.resolve();
+
+    expect(earlierResolved).toBe(false);
+
+    resolveEarlierRange!(bytes.slice(44, 48));
+    expect(Array.from(await earlier).map((value) => Number(value.toFixed(4)))).toEqual([0, 1]);
   });
 });

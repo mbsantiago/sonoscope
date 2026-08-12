@@ -1,6 +1,6 @@
-import { concatChunks, type ByteStreamSource } from './byte-source';
+import { concatChunks, isSeekableByteSource, type ByteStreamSource, type SeekableByteSource } from './byte-source';
 import type { AudioRange, AudioSource } from './types';
-import { decodeWavPcm, parseWavHeader, type WavInfo } from './wav';
+import { decodeWavPcm, parseWavHeader, wavTimeToByteRange, type WavInfo } from './wav';
 
 type PendingRead = {
   channel: number;
@@ -9,6 +9,8 @@ type PendingRead = {
   resolve: (samples: Float32Array) => void;
   reject: (error: Error) => void;
 };
+
+type DecodedRange = { startFrame: number; endFrame: number };
 
 const HEADER_READ_LIMIT = 4096;
 
@@ -19,6 +21,7 @@ export class StreamingWavSource implements AudioSource {
   readonly id: string;
   private readonly decoded: Float32Array[];
   private decodedUntilFrame = 0;
+  private readonly decodedRanges: DecodedRange[] = [];
   private readonly pending: PendingRead[] = [];
   private readonly handlers = new Set<(range: AudioRange) => void>();
 
@@ -26,6 +29,7 @@ export class StreamingWavSource implements AudioSource {
     private readonly reader: ReadableStreamDefaultReader<Uint8Array>,
     private readonly chunks: Uint8Array[],
     private readonly info: WavInfo,
+    private readonly seekable: SeekableByteSource | undefined,
     options?: { id?: string },
   ) {
     this.sampleRate = info.sampleRate;
@@ -47,7 +51,7 @@ export class StreamingWavSource implements AudioSource {
       chunks.push(result.value);
       total += result.value.length;
       try {
-        return new StreamingWavSource(reader, chunks, parseWavHeader(concatChunks(chunks)), options);
+        return new StreamingWavSource(reader, chunks, parseWavHeader(concatChunks(chunks)), isSeekableByteSource(byteSource) ? byteSource : undefined, options);
       } catch (error) {
         if (error instanceof Error && shouldContinueHeaderRead(error)) continue;
         reader.releaseLock();
@@ -56,7 +60,7 @@ export class StreamingWavSource implements AudioSource {
     }
 
     try {
-      return new StreamingWavSource(reader, chunks, parseWavHeader(concatChunks(chunks)), options);
+      return new StreamingWavSource(reader, chunks, parseWavHeader(concatChunks(chunks)), isSeekableByteSource(byteSource) ? byteSource : undefined, options);
     } catch (error) {
       reader.releaseLock();
       throw error;
@@ -67,7 +71,8 @@ export class StreamingWavSource implements AudioSource {
     if (options.channel < 0 || options.channel >= this.channelCount) throw new Error(`Invalid channel ${options.channel}`);
     const startFrame = Math.max(0, Math.floor(options.startTime * this.sampleRate));
     const endFrame = Math.min(this.decoded[options.channel]!.length, Math.ceil(options.endTime * this.sampleRate));
-    if (endFrame <= this.decodedUntilFrame) return this.decoded[options.channel]!.slice(startFrame, endFrame);
+    if (this.isRangeDecoded(startFrame, endFrame)) return this.decoded[options.channel]!.slice(startFrame, endFrame);
+    if (this.seekable) return this.readSeekableRange(options.channel, options.startTime, options.endTime, startFrame, endFrame);
     return new Promise((resolve, reject) => {
       this.pending.push({ channel: options.channel, startFrame, endFrame, resolve, reject });
       this.resolveReadyPending();
@@ -107,19 +112,51 @@ export class StreamingWavSource implements AudioSource {
   private copyDecoded(bytes: Uint8Array, byteOffset: number, startFrame: number): void {
     const decoded = decodeWavPcm(bytes, this.info, byteOffset);
     for (let channel = 0; channel < this.channelCount; channel++) this.decoded[channel]!.set(decoded[channel]!, startFrame);
-    const previous = this.decodedUntilFrame;
-    this.decodedUntilFrame = Math.max(this.decodedUntilFrame, startFrame + decoded[0]!.length);
-    if (this.decodedUntilFrame > previous) this.emitRange(previous / this.sampleRate, this.decodedUntilFrame / this.sampleRate);
+    const endFrame = startFrame + decoded[0]!.length;
+    this.addDecodedRange(startFrame, endFrame);
+    if (endFrame > startFrame) this.emitRange(startFrame / this.sampleRate, endFrame / this.sampleRate);
     this.resolveReadyPending();
+  }
+
+  private async readSeekableRange(channel: number, startTime: number, endTime: number, startFrame: number, endFrame: number): Promise<Float32Array> {
+    const range = wavTimeToByteRange(this.info, startTime, endTime);
+    const bytes = await this.seekable!.readRange(range.start, range.end);
+    this.copyDecoded(bytes, range.start, startFrame);
+    if (!this.isRangeDecoded(startFrame, endFrame)) throw new Error('Seekable WAV range ended before requested samples were available');
+    return this.decoded[channel]!.slice(startFrame, endFrame);
   }
 
   private resolveReadyPending(): void {
     for (let index = this.pending.length - 1; index >= 0; index--) {
       const pending = this.pending[index]!;
-      if (pending.endFrame > this.decodedUntilFrame) continue;
+      if (!this.isRangeDecoded(pending.startFrame, pending.endFrame)) continue;
       this.pending.splice(index, 1);
       pending.resolve(this.decoded[pending.channel]!.slice(pending.startFrame, pending.endFrame));
     }
+  }
+
+  private addDecodedRange(startFrame: number, endFrame: number): void {
+    if (endFrame <= startFrame) return;
+    this.decodedRanges.push({ startFrame, endFrame });
+    this.decodedRanges.sort((left, right) => left.startFrame - right.startFrame);
+
+    const merged: DecodedRange[] = [];
+    for (const range of this.decodedRanges) {
+      const previous = merged[merged.length - 1];
+      if (!previous || range.startFrame > previous.endFrame) {
+        merged.push({ ...range });
+      } else {
+        previous.endFrame = Math.max(previous.endFrame, range.endFrame);
+      }
+    }
+
+    this.decodedRanges.splice(0, this.decodedRanges.length, ...merged);
+    this.decodedUntilFrame = this.decodedRanges[0]?.startFrame === 0 ? this.decodedRanges[0].endFrame : 0;
+  }
+
+  private isRangeDecoded(startFrame: number, endFrame: number): boolean {
+    if (endFrame <= startFrame) return true;
+    return this.decodedRanges.some((range) => range.startFrame <= startFrame && range.endFrame >= endFrame);
   }
 
   private rejectPending(error: Error): void {
