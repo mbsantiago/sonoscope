@@ -7,6 +7,8 @@ export { buildColorMap, parseColor } from './colormap';
 export { resolveConfig, stableHash } from './config';
 export { TypedEventEmitter } from './events';
 export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFrequencyToCanvas } from './frequency-scale';
+export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
+export type { RenderInput } from './renderer';
 export { DecodedAudioSource } from './source';
 export { computeStftMatrix, createWindow } from './stft';
 export { applyTransforms, getTransformPadding } from './transforms';
