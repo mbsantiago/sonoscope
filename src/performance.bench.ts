@@ -1,7 +1,8 @@
 import { bench, describe } from 'vitest';
 import { MainThreadComputeBackend } from './backend';
+import { CanvasSpectrogramRenderer } from './renderer';
 import { computeStftMatrix } from './stft';
-import type { AudioSource, StftConfig } from './types';
+import type { AudioSource, SpectrogramMatrix, StftConfig } from './types';
 
 const sampleRate = 48_000;
 const durationSeconds = 2;
@@ -27,6 +28,12 @@ const configs: StftConfig[] = [
 
 const data = samples(sampleRate * durationSeconds);
 const audioSource = source(data);
+const renderMatrix = computeStftMatrix(data, {
+  channel: 0,
+  timeStart: 0,
+  sampleRate,
+  stft: { windowSize: 1024, fftSize: 1024, hopSize: 256, window: 'hann' },
+});
 
 describe('STFT compute', () => {
   for (const stft of configs) {
@@ -43,3 +50,44 @@ describe('MainThreadComputeBackend', () => {
     });
   }
 });
+
+describe('CanvasSpectrogramRenderer paint', () => {
+  bench('paint 400x240 one tile', () => {
+    paint(renderMatrix, 400, 240);
+  });
+
+  bench('paint 800x480 one tile', () => {
+    paint(renderMatrix, 800, 480);
+  });
+});
+
+function paint(matrix: SpectrogramMatrix, width: number, height: number): void {
+  new CanvasSpectrogramRenderer().render({
+    canvas: canvas(width, height),
+    viewport: { startTime: 0, endTime: durationSeconds, minFrequency: 0, maxFrequency: sampleRate / 2, frequencyScale: 'linear' },
+    valueScale: { mode: 'db', min: -100, max: 0, gamma: 1, clamp: true },
+    colorMap: 'viridis',
+    tiles: [matrix],
+  });
+}
+
+function canvas(width: number, height: number): HTMLCanvasElement {
+  const context = {
+    setTransform: () => undefined,
+    clearRect: () => undefined,
+    createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+    putImageData: () => undefined,
+    save: () => undefined,
+    restore: () => undefined,
+    beginPath: () => undefined,
+    moveTo: () => undefined,
+    lineTo: () => undefined,
+    stroke: () => undefined,
+  };
+  return {
+    width,
+    height,
+    getBoundingClientRect: () => ({ width, height }),
+    getContext: () => context,
+  } as unknown as HTMLCanvasElement;
+}
