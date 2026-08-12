@@ -133,10 +133,13 @@ export type ResolvedSpectrogramConfig = {
   transforms: SpectrogramTransform[];
 };
 
+export type AudioRange = { startTime: number; endTime: number };
+
 export interface AudioSource {
   readonly sampleRate: number;
   readonly duration: number;
   readonly channelCount: number;
   readonly id: string;
   read(options: { channel: number; startTime: number; endTime: number }): Float32Array | Promise<Float32Array>;
+  onRangeAvailable?(handler: (range: AudioRange) => void): () => void;
 }

@@ -14,6 +14,7 @@ export type { RenderInput } from './renderer';
 export type { PerformanceDetail, PerformanceMeasure } from './performance';
 export { DecodedAudioSource } from './source';
 export { computeStftMatrix, createWindow } from './stft';
+export { StreamingWavSource } from './streaming-wav-source';
 export { applyTransforms, getTransformPadding } from './transforms';
 export { dbFromMagnitude, deriveDb, derivePower, deriveValueArrays, normalizeValue } from './value-scale';
 export { SpectrogramViewer } from './viewer';
