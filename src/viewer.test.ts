@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DecodedAudioSource } from './source';
 import { SpectrogramViewer } from './viewer';
-import type { AudioSource } from './types';
+import type { SpectrogramComputeBackend } from './backend';
+import type { AudioSource, SpectrogramMatrix } from './types';
 
 function canvas(): HTMLCanvasElement {
   return {
@@ -57,6 +58,21 @@ const highRateSource: AudioSource = {
   sampleRate: 192_000,
 };
 
+function matrix(timeStart: number, timeEnd: number): SpectrogramMatrix {
+  return {
+    channel: 0,
+    timeStart,
+    timeEnd,
+    frameStart: 0,
+    frameCount: 1,
+    binCount: 1,
+    sampleRate: 10,
+    times: Float32Array.from([timeStart]),
+    frequencies: Float32Array.from([0]),
+    magnitude: Float32Array.from([1]),
+  };
+}
+
 describe('SpectrogramViewer', () => {
   it('defaults audio-only viewport max frequency to decoded source Nyquist', async () => {
     const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockResolvedValue(highRateSource as DecodedAudioSource);
@@ -97,6 +113,71 @@ describe('SpectrogramViewer', () => {
     viewer.on('renderprogress', (event) => progress.push(event.progress));
     await viewer.render();
     expect(progress.at(-1)).toBe(1);
+  });
+
+  it('emits renderprofile measures for a render request', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
+    const profiles: Array<{ requestId: string; generation: number; names: string[] }> = [];
+    viewer.on('renderprofile', (event) => profiles.push({ requestId: event.requestId, generation: event.generation, names: event.measures.map((measure) => measure.name) }));
+
+    await viewer.render();
+
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0]!.generation).toBeGreaterThan(0);
+    expect(profiles[0]!.names).toContain('render.total');
+    expect(profiles[0]!.names).toContain('renderer.paint');
+  });
+
+  it('does not let an older render complete after a newer viewport render', async () => {
+    let resolveFirst: ((value: SpectrogramMatrix) => void) | undefined;
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        if (request.timeStart === 0) return new Promise((resolve) => { resolveFirst = resolve; });
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 10 },
+      cache: { tileDurationSeconds: 1 },
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+    const completed: string[] = [];
+    viewer.on('rendercomplete', (event) => completed.push(event.requestId));
+
+    const first = viewer.render();
+    viewer.setViewport({ startTime: 1, endTime: 2 });
+    await viewer.render();
+    resolveFirst!(matrix(0, 1));
+    await first;
+
+    expect(completed).toEqual(['render-2']);
+  });
+
+  it('starts visible tile requests concurrently', async () => {
+    let running = 0;
+    let maxRunning = 0;
+    const backend: SpectrogramComputeBackend = {
+      computeTile: async (request) => {
+        running += 1;
+        maxRunning = Math.max(maxRunning, running);
+        await Promise.resolve();
+        running -= 1;
+        return matrix(request.timeStart, request.timeEnd);
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 4 },
+      cache: { tileDurationSeconds: 1 },
+      viewport: { startTime: 0, endTime: 4, minFrequency: 0, maxFrequency: 512 },
+      backend,
+    });
+
+    await viewer.render();
+
+    expect(maxRunning).toBeGreaterThan(1);
   });
 
   it('queries a spectrum at a time point', async () => {

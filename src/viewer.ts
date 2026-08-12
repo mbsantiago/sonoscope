@@ -3,6 +3,7 @@ import { createTileKey, SpectrogramCache } from './cache';
 import { resolveConfig, stableHash } from './config';
 import { TypedEventEmitter } from './events';
 import { canvasToTimeFrequency as mapCanvasToTimeFrequency, timeFrequencyToCanvas as mapTimeFrequencyToCanvas } from './frequency-scale';
+import { PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer } from './renderer';
 import { DecodedAudioSource } from './source';
 import { applyTransforms } from './transforms';
@@ -15,6 +16,7 @@ export class SpectrogramViewer {
   private playbackCleanup: Array<() => void> = [];
   private animationFrame: number | undefined;
   private requestCounter = 0;
+  private renderGeneration = 0;
   private status: SpectrogramStatus = { state: 'idle' };
 
   private constructor(
@@ -48,6 +50,7 @@ export class SpectrogramViewer {
     const source = input.source ?? this.config.source;
     const viewport = { ...this.config.viewport, ...input.viewport };
     this.config = resolveConfig({ ...this.config, ...input, viewport, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
+    this.renderGeneration += 1;
     this.cache.clear();
     this.renderer.invalidate();
     this.events.emit('configchange', { config: this.config });
@@ -64,6 +67,7 @@ export class SpectrogramViewer {
       canvas: this.config.canvas,
       ...(this.config.source ? { source: this.config.source } : {}),
     });
+    this.renderGeneration += 1;
     this.events.emit('viewportchange', { viewport: this.config.viewport });
   }
 
@@ -84,28 +88,56 @@ export class SpectrogramViewer {
   async render(): Promise<void> {
     if (!this.config.source) throw new Error('Cannot render without an AudioSource');
     const requestId = `render-${++this.requestCounter}`;
+    const generation = ++this.renderGeneration;
+    const profile = new PerformanceProfiler();
     const tiles = this.visibleTileRanges();
-    this.status = { state: 'rendering' };
-    this.events.emit('renderstart', { requestId, total: tiles.length });
-    const matrices: SpectrogramMatrix[] = [];
+    const matrices = new Map<string, SpectrogramMatrix>();
     let completed = 0;
-    for (const tile of tiles) {
-      const matrix = await this.getTile(tile.channel, tile.timeStart, tile.timeEnd);
-      matrices.push(matrix);
-      completed += 1;
-      this.events.emit('renderprogress', { requestId, completed, total: tiles.length, progress: completed / tiles.length, phase: 'computing' });
+
+    await profile.measureAsync('render.total', { tiles: tiles.length }, async () => {
+      this.status = { state: 'rendering' };
+      this.events.emit('renderstart', { requestId, total: tiles.length });
+      profile.record('render.visibleTiles', performance.now(), 0, { total: tiles.length });
+
+      await Promise.all(
+        tiles.map(async (tile) => {
+          const matrix = await this.getTile(tile.channel, tile.timeStart, tile.timeEnd, profile);
+          completed += 1;
+          matrices.set(`${tile.channel}:${tile.timeStart}:${tile.timeEnd}`, matrix);
+          if (generation !== this.renderGeneration) return;
+          this.events.emit('renderprogress', {
+            requestId,
+            completed,
+            total: tiles.length,
+            progress: tiles.length === 0 ? 1 : completed / tiles.length,
+            phase: 'computing',
+          });
+          this.paintPartial(Array.from(matrices.values()), profile);
+        }),
+      );
+      if (generation !== this.renderGeneration) return;
+
+      this.paintPartial(Array.from(matrices.values()), profile);
+      this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
+      this.status = { state: 'ready' };
+      this.events.emit('rendercomplete', { requestId, renderedTiles: matrices.size, missingTiles: tiles.length - matrices.size });
+    });
+
+    if (generation === this.renderGeneration) {
+      this.events.emit('renderprofile', { requestId, generation, measures: profile.measures() });
     }
+  }
+
+  private paintPartial(matrices: SpectrogramMatrix[], profile: PerformanceProfiler): void {
     this.renderer.render({
       canvas: this.config.canvas,
       viewport: this.config.viewport,
       valueScale: this.config.valueScale,
       colorMap: this.config.colorMap,
       tiles: matrices,
+      profile,
       ...(this.config.playback.showPlayhead && this.config.audio ? { playheadTime: this.config.audio.currentTime } : {}),
     });
-    this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
-    this.status = { state: 'ready' };
-    this.events.emit('rendercomplete', { requestId, renderedTiles: matrices.length, missingTiles: 0 });
   }
 
   async queryPoint(input: { time: number; frequency: number; channel?: number }): Promise<{
@@ -256,25 +288,30 @@ export class SpectrogramViewer {
     return { timeStart: Math.max(0, start), timeEnd: Math.min(this.config.source.duration, start + this.config.cache.tileDurationSeconds) };
   }
 
-  private async getTile(channel: number, timeStart: number, timeEnd: number): Promise<SpectrogramMatrix> {
+  private async getTile(channel: number, timeStart: number, timeEnd: number, profile?: PerformanceProfiler): Promise<SpectrogramMatrix> {
     if (!this.config.source) throw new Error('Cannot compute tile without an AudioSource');
+    const source = this.config.source;
+    const stft = this.config.stft;
+    const transforms = this.config.transforms;
     const key = createTileKey({
-      sourceId: this.config.source.id,
+      sourceId: source.id,
       channel,
       timeStart,
       timeEnd,
-      stftHash: stableHash(this.config.stft),
-      transformHash: stableHash(this.config.transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config }))),
+      stftHash: stableHash(stft),
+      transformHash: stableHash(transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config }))),
     });
-    const cached = this.cache.get(key);
+    const cached = profile ? profile.measure('tile.cache.lookup', { channel, timeStart, timeEnd }, () => this.cache.get(key)) : this.cache.get(key);
     if (cached) return cached;
-    const raw = await this.backend.computeTile({ source: this.config.source, channel, timeStart, timeEnd, stft: this.config.stft });
-    const transformed = await applyTransforms(raw, this.config.transforms, {
-      requestedTimeStart: timeStart,
-      requestedTimeEnd: timeEnd,
-      sampleRate: this.config.source.sampleRate,
-      stft: this.config.stft,
-    });
+    const raw = await this.backend.computeTile({ source, channel, timeStart, timeEnd, stft, ...(profile ? { profile } : {}) });
+    const transform = async () =>
+      applyTransforms(raw, transforms, {
+        requestedTimeStart: timeStart,
+        requestedTimeEnd: timeEnd,
+        sampleRate: source.sampleRate,
+        stft,
+      });
+    const transformed = profile ? await profile.measureAsync('tile.transforms.apply', { channel, timeStart, timeEnd }, transform) : await transform();
     this.cache.set(key, transformed);
     this.events.emit('tileload', { tileId: key, timeStart, timeEnd, channel });
     return transformed;
