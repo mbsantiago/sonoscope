@@ -3,36 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>spectrogram-js basic example</title>
-    <style>
-      body {
-        margin: 2rem;
-        background: #10131a;
-        color: #f8fafc;
-        font-family: system-ui, sans-serif;
-      }
-
-      audio,
-      canvas {
-        width: min(100%, 900px);
-      }
-
-      audio {
-        margin-bottom: 1rem;
-      }
-
-      canvas {
-        display: block;
-        height: 320px;
-        border: 1px solid #334155;
-      }
-    </style>
+    <title>spectrogram-js demos</title>
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <h1>spectrogram-js basic example</h1>
-    <p>Place an audio file at <code>examples/basic/example.wav</code>, then run <code>npm run dev:example</code>.</p>
-    <audio controls src="./example.wav"></audio>
-    <canvas></canvas>
-    <script type="module" src="./main.ts"></script>
+    <h1>spectrogram-js demos</h1>
+    <ul>
+      <li><a href="./loading.html">Loading demo</a></li>
+      <li><a href="./zoom.html">Zoom and viewport demo</a></li>
+      <li><a href="./controls.html">STFT and visualization controls demo</a></li>
+      <li><a href="./query.html">Query functions demo</a></li>
+    </ul>
   </body>
 </html>

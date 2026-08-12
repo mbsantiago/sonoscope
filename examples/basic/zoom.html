@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zoom demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <p><a href="./index.html">Back to demos</a></p>
+    <h1>Zoom and viewport demo</h1>
+    <form>
+      <input name="url" type="url" aria-label="Audio URL" />
+      <button type="submit">Load</button>
+    </form>
+    <div class="controls">
+      <button type="button" data-action="reset">Reset viewport</button>
+      <button type="button" data-action="zoom-in">Zoom in</button>
+      <button type="button" data-action="zoom-out">Zoom out</button>
+      <label><input type="checkbox" name="follow" checked /> Follow playback</label>
+      <span data-status></span>
+    </div>
+    <audio controls crossorigin="anonymous"></audio>
+    <div class="stage"><canvas></canvas><div class="selection"></div></div>
+    <script type="module" src="./zoom.ts"></script>
+  </body>
+</html>
