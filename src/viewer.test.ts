@@ -361,6 +361,52 @@ describe('SpectrogramViewer', () => {
     expect(viewer.getTileStates().map((tile) => tile.state)).toEqual(['computed', 'uncomputed', 'uncomputed']);
   });
 
+  it('rerenders when a streaming source reports a visible range is available', async () => {
+    let rangeHandler: ((range: { startTime: number; endTime: number }) => void) | undefined;
+    const streamingSource: AudioSource = {
+      ...source,
+      duration: 2,
+      onRangeAvailable: (handler) => {
+        rangeHandler = handler;
+        return () => { rangeHandler = undefined; };
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: streamingSource,
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 },
+    });
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue(undefined);
+
+    rangeHandler!({ startTime: 0.25, endTime: 0.5 });
+    await Promise.resolve();
+
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not rerender for streaming ranges outside the viewport', async () => {
+    let rangeHandler: ((range: { startTime: number; endTime: number }) => void) | undefined;
+    const streamingSource: AudioSource = {
+      ...source,
+      duration: 4,
+      onRangeAvailable: (handler) => {
+        rangeHandler = handler;
+        return () => { rangeHandler = undefined; };
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: streamingSource,
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 },
+    });
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue(undefined);
+
+    rangeHandler!({ startTime: 2, endTime: 3 });
+    await Promise.resolve();
+
+    expect(render).not.toHaveBeenCalled();
+  });
+
   it('queries a spectrum at a time point', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });

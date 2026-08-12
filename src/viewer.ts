@@ -14,6 +14,8 @@ export class SpectrogramViewer {
   private readonly cache: SpectrogramCache;
   private readonly renderer = new CanvasSpectrogramRenderer();
   private playbackCleanup: Array<() => void> = [];
+  private sourceRangeCleanup: (() => void) | undefined;
+  private sourceRenderQueued = false;
   private animationFrame: number | undefined;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
   private requestCounter = 0;
@@ -26,6 +28,7 @@ export class SpectrogramViewer {
   ) {
     this.cache = new SpectrogramCache({ maxCachedTiles: config.cache.maxCachedTiles });
     this.attachPlaybackSync();
+    this.attachSourceRangeSync();
   }
 
   static async create(input: SpectrogramConfig & { backend?: SpectrogramComputeBackend }): Promise<SpectrogramViewer> {
@@ -55,6 +58,7 @@ export class SpectrogramViewer {
     this.cache.clear();
     this.pendingTiles.clear();
     this.renderer.invalidate();
+    this.attachSourceRangeSync();
     this.events.emit('configchange', { config: this.config });
   }
 
@@ -246,10 +250,39 @@ export class SpectrogramViewer {
     this.stopPlaybackLoop();
     for (const cleanup of this.playbackCleanup) cleanup();
     this.playbackCleanup = [];
+    this.sourceRangeCleanup?.();
+    this.sourceRangeCleanup = undefined;
     this.cache.clear();
     this.backend.destroy?.();
     this.events.clear();
     this.status = { state: 'destroyed' };
+  }
+
+  private attachSourceRangeSync(): void {
+    this.sourceRangeCleanup?.();
+    this.sourceRangeCleanup = undefined;
+    const source = this.config.source;
+    if (!source?.onRangeAvailable) return;
+    this.sourceRangeCleanup = source.onRangeAvailable((range) => {
+      if (!this.rangeIntersectsViewport(range.startTime, range.endTime)) return;
+      this.queueSourceRangeRender();
+    });
+  }
+
+  private rangeIntersectsViewport(startTime: number, endTime: number): boolean {
+    return startTime < this.config.viewport.endTime && endTime > this.config.viewport.startTime;
+  }
+
+  private queueSourceRangeRender(): void {
+    if (this.sourceRenderQueued || this.status.state === 'destroyed') return;
+    this.sourceRenderQueued = true;
+    void Promise.resolve().then(() => {
+      this.sourceRenderQueued = false;
+      if (this.status.state === 'destroyed') return;
+      void this.render().catch((error) => {
+        this.events.emit('error', { error: error instanceof Error ? error : new Error(String(error)), recoverable: true, phase: 'source' });
+      });
+    });
   }
 
   private attachPlaybackSync(): void {
