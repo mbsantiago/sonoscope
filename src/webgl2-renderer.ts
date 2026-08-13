@@ -10,7 +10,7 @@ type ProgramInfo = {
   uniforms: Partial<Record<UniformName, WebGLUniformLocation>>;
 };
 
-const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_placeholder'] as const;
+const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_overlayMode'] as const;
 type UniformName = typeof WEBGL2_UNIFORMS[number];
 
 type TextureEntry = {
@@ -57,7 +57,7 @@ uniform vec2 u_tileSize;
 uniform vec2 u_canvasSize;
 uniform vec4 u_valueScale;
 uniform float u_frequencyScale;
-uniform float u_placeholder;
+uniform float u_overlayMode;
 
 float hzToMel(float hz) { return 2595.0 * log(1.0 + hz / 700.0) / log(10.0); }
 float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
@@ -73,9 +73,14 @@ float scaleToHz(float value, float scale) {
 }
 
 void main() {
-  if (u_placeholder == 1.0) {
+  if (u_overlayMode == 1.0) {
     float hatch = step(0.84, fract((gl_FragCoord.x + gl_FragCoord.y) / 12.0));
     outColor = mix(vec4(0.059, 0.09, 0.165, 1.0), vec4(0.278, 0.333, 0.412, 1.0), hatch);
+    return;
+  }
+
+  if (u_overlayMode == 2.0) {
+    outColor = vec4(1.0, 1.0, 1.0, 0.9);
     return;
   }
 
@@ -215,7 +220,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, entry.texture);
     this.uniform1i('u_tile', 0);
-    this.uniform1f('u_placeholder', 0);
+    this.uniform1f('u_overlayMode', 0);
     this.setFullViewportQuad();
     this.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
     this.uniform2f('u_tileFrequencyRange', tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2));
@@ -225,7 +230,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   private drawPlaceholder(): void {
     this.setFullViewportQuad();
-    this.uniform1f('u_placeholder', 1);
+    this.uniform1f('u_overlayMode', 1);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -234,7 +239,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const x = (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
     this.gl.enable(this.gl.BLEND);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-    this.uniform1f('u_placeholder', 1);
+    this.uniform1f('u_overlayMode', 2);
     this.setLineQuad(x, Math.min(1, x + 0.002));
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     this.gl.disable(this.gl.BLEND);
