@@ -47,8 +47,10 @@ type Settings = {
   windowSize: number;
   hopSize: number;
   window: WindowName;
-  summonMountains: boolean;
+  shaderProgram: "auto" | "normal" | "dither" | "terrain";
 };
+
+type ShaderProgram = Settings["shaderProgram"];
 
 const initialSettings: Settings = {
   recording: 0,
@@ -60,7 +62,7 @@ const initialSettings: Settings = {
   windowSize: 1024,
   hopSize: 128,
   window: "hann",
-  summonMountains: new URLSearchParams(location.search).get("summon") === "mountains",
+  shaderProgram: new URLSearchParams(location.search).get("summon") === "mountains" ? "terrain" : "auto",
 };
 
 function ReactSpectrogramDemo() {
@@ -119,7 +121,7 @@ function ReactSpectrogramDemo() {
         clamp: true,
       },
       colorMap: settings.colorMap,
-      renderer: settings.summonMountains ? { type: "webgl", program: "terrain" } : "auto",
+      renderer: rendererConfig(settings.shaderProgram),
       playback: { follow: true, renderOnSeek: true },
     })
       .then((viewer) => {
@@ -135,7 +137,7 @@ function ReactSpectrogramDemo() {
             setCacheSummary(formatCacheStats(viewer.getCacheStats()));
           },
         });
-        setStatus(`Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Mountains: ${settings.summonMountains ? "summoned" : "sleeping"}.`);
+        setStatus(`Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Shader: ${settings.shaderProgram}.`);
         setCacheSummary(formatCacheStats(viewer.getCacheStats()));
         viewer.requestRender();
         if (cancelled) unsubscribeViewport();
@@ -153,7 +155,7 @@ function ReactSpectrogramDemo() {
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [settings.recording, settings.summonMountains]);
+  }, [settings.recording, settings.shaderProgram]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -209,10 +211,10 @@ function ReactSpectrogramDemo() {
         clamp: true,
       },
       colorMap: settings.colorMap,
-      renderer: settings.summonMountains ? { type: "webgl", program: "terrain" } : "auto",
+      renderer: rendererConfig(settings.shaderProgram),
     });
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-  }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap, settings.summonMountains]);
+  }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap, settings.shaderProgram]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -227,9 +229,9 @@ function ReactSpectrogramDemo() {
     );
   }
 
-  function setSummonMountains(summonMountains: boolean) {
+  function setShaderProgram(shaderProgram: ShaderProgram) {
     startTransition(() => {
-      setSettings((current) => ({ ...current, summonMountains }));
+      setSettings((current) => ({ ...current, shaderProgram }));
       setCanvasKey((current) => current + 1);
     });
   }
@@ -467,15 +469,20 @@ function ReactSpectrogramDemo() {
             updateViewport((current) => ({ ...current, maxFrequency })),
         }),
         h(
-          "label",
-          { className: "toggle", title: "This is not a serious control." },
-          h("input", {
-            type: "checkbox",
-            checked: settings.summonMountains,
-            onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
-              setSummonMountains(event.currentTarget.checked),
-          }),
-          h("span", null, "summon mountains"),
+          Control,
+          { label: "Shader" },
+          h(
+            "select",
+            {
+              value: settings.shaderProgram,
+              onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                setShaderProgram(event.currentTarget.value as ShaderProgram),
+            },
+            option("auto"),
+            option("normal"),
+            option("dither"),
+            option("terrain"),
+          ),
         ),
         h(
           "button",
@@ -615,6 +622,10 @@ function Minimap(props: {
 
 function option(value: string) {
   return h("option", { value }, value);
+}
+
+function rendererConfig(shaderProgram: ShaderProgram) {
+  return shaderProgram === "auto" ? "auto" : { type: "webgl" as const, program: shaderProgram };
 }
 
 function pseudoLevel(index: number) {
