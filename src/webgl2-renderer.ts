@@ -412,7 +412,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   render(input: RenderInput): void {
-    const paint = () => this.paint(input);
+    const paint = () => this.paint(input, this.programFor(input));
     if (input.profile) {
       input.profile.measure('renderer.paint', { tiles: input.tiles.length, renderer: this.kind }, paint);
       return;
@@ -425,7 +425,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     if (!frame || frame.canvas !== input.canvas || !sameViewport(frame.viewport, input.viewport)) return false;
     const size = canvasSize(input.canvas);
     if (frame.width !== size.width || frame.height !== size.height || frame.dpr !== size.dpr || frame.deviceWidth !== size.deviceWidth || frame.deviceHeight !== size.deviceHeight) return false;
-    this.paint({ ...frame.input, playheadTime: input.playheadTime });
+    this.paint({ ...frame.input, playheadTime: input.playheadTime }, this.programFor(frame.input));
     return true;
   }
 
@@ -448,14 +448,13 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 
-  private paint(input: RenderInput): void {
+  private paint(input: RenderInput, program: WebGL2RenderProgram): void {
     const frame = canvasSize(input.canvas);
     input.canvas.width = frame.deviceWidth;
     input.canvas.height = frame.deviceHeight;
 
     this.updateColorMap(input.colorMap);
     this.gl.viewport(0, 0, frame.deviceWidth, frame.deviceHeight);
-    const program = this.programFor(input);
     program.paint(input, frame, this.renderResources());
     this.throwOnError('render');
     const { profile: _profile, ...frameInput } = input;
