@@ -30,7 +30,7 @@
         </label>
       </div>
       <canvas id="spectrogram"></canvas>
-      <pre id="profile">Rendering initial worker profile...</pre>
+      <pre id="profile">Rendering initial main-thread profile...</pre>
     </main>
 
     <script type="module">
@@ -72,20 +72,27 @@
       async function renderWithBackend(name, backend) {
         viewer?.destroy();
         profile.textContent = `Rendering with ${name}...`;
-        viewer = await SpectrogramViewer.create({
-          canvas,
-          source,
-          renderer: rendererMode.value,
-          backend,
-          cache: { tileDurationSeconds: 2, maxCachedTiles: 32 },
-          viewport: { startTime: viewportStart, endTime: viewportStart + 8, minFrequency: 0, maxFrequency: 12_000 },
-          stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
-        });
-        profile.textContent = `Renderer mode: ${viewer.getConfig().renderer}\nRendering with ${name}...`;
-        viewer.on('renderprofile', (event) => {
-          profile.textContent = `renderer: ${viewer.getConfig().renderer}\nbackend: ${name}\nrequest: ${event.requestId}\ngeneration: ${event.generation}\n\n${summarize(event.measures)}`;
-        });
-        await viewer.render();
+        try {
+          viewer = await SpectrogramViewer.create({
+            canvas,
+            source,
+            renderer: rendererMode.value,
+            backend,
+            cache: { tileDurationSeconds: 2, maxCachedTiles: 32 },
+            viewport: { startTime: viewportStart, endTime: viewportStart + 8, minFrequency: 0, maxFrequency: 12_000 },
+            stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
+          });
+          profile.textContent = `Renderer mode: ${viewer.getConfig().renderer}\nRendering with ${name}...`;
+          viewer.on('error', (event) => {
+            profile.textContent = `renderer: ${viewer.getConfig().renderer}\nbackend: ${name}\nerror: ${event.error.message}`;
+          });
+          viewer.on('renderprofile', (event) => {
+            profile.textContent = `renderer: ${viewer.getConfig().renderer}\nbackend: ${name}\nrequest: ${event.requestId}\ngeneration: ${event.generation}\n\n${summarize(event.measures)}`;
+          });
+          await viewer.render();
+        } catch (error) {
+          profile.textContent = error instanceof Error ? error.message : String(error);
+        }
       }
 
       document.querySelector('#main').addEventListener('click', () => void renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend()));
@@ -97,7 +104,7 @@
         viewer.requestRender();
       });
 
-      await renderWithBackend('WorkerComputeBackend', new WorkerComputeBackend());
+      await renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend());
     </script>
   </body>
 </html>
