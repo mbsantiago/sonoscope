@@ -21,6 +21,13 @@
         <button id="main">Render main-thread backend</button>
         <button id="worker">Render worker backend</button>
         <button id="pan">Pan viewport</button>
+        <label>Renderer
+          <select id="renderer">
+            <option value="auto">auto</option>
+            <option value="webgl2">webgl2</option>
+            <option value="canvas2d">canvas2d</option>
+          </select>
+        </label>
       </div>
       <canvas id="spectrogram"></canvas>
       <pre id="profile">Rendering initial worker profile...</pre>
@@ -48,6 +55,7 @@
 
       const canvas = document.querySelector('#spectrogram');
       const profile = document.querySelector('#profile');
+      const rendererMode = document.querySelector('#renderer');
       const source = new SyntheticSource();
       let viewer;
       let viewportStart = 0;
@@ -67,13 +75,15 @@
         viewer = await SpectrogramViewer.create({
           canvas,
           source,
+          renderer: rendererMode.value,
           backend,
           cache: { tileDurationSeconds: 2, maxCachedTiles: 32 },
           viewport: { startTime: viewportStart, endTime: viewportStart + 8, minFrequency: 0, maxFrequency: 12_000 },
           stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
         });
+        profile.textContent = `Renderer mode: ${viewer.getConfig().renderer}\nRendering with ${name}...`;
         viewer.on('renderprofile', (event) => {
-          profile.textContent = `${name}\nrequest: ${event.requestId}\ngeneration: ${event.generation}\n\n${summarize(event.measures)}`;
+          profile.textContent = `renderer: ${viewer.getConfig().renderer}\nbackend: ${name}\nrequest: ${event.requestId}\ngeneration: ${event.generation}\n\n${summarize(event.measures)}`;
         });
         await viewer.render();
       }
