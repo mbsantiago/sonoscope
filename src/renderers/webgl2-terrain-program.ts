@@ -56,8 +56,8 @@ void main() {
   vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float liftedHeight = pow(heightValue, 0.72) * u_terrainHeight;
   float viewX = terrain.x * 0.96;
-  float viewY = terrain.y * 0.68 + liftedHeight;
-  gl_Position = vec4(viewX, viewY - 0.02, 0.0, 1.0);
+  float viewY = terrain.y * 0.76 + liftedHeight * 0.42;
+  gl_Position = vec4(viewX, viewY - 0.01, -heightValue * 0.03, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
@@ -107,10 +107,10 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
 
   paint(input: RenderInput, frame: WebGL2Frame, resources: WebGL2RenderResources): void {
     const gl = this.gl;
-    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
     gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.shader.use();
     this.bindAttributes();
     this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
@@ -124,6 +124,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     this.shader.uniform1i('u_colormap', 1);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
     if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.valueScale, resources);
+    gl.disable(gl.DEPTH_TEST);
   }
 
   delete(): void {
