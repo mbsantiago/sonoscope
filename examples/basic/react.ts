@@ -127,7 +127,10 @@ function ReactSpectrogramDemo() {
         });
         unsubscribeProfile = viewer.on("renderprofile", () => setCacheSummary(formatCacheStats(viewer.getCacheStats())));
         cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
-          onNavigate: () => setCacheSummary(formatCacheStats(viewer.getCacheStats())),
+          onNavigate: (nextViewport) => {
+            startTransition(() => setViewport(nextViewport));
+            setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+          },
         });
         setStatus("Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor.");
         setCacheSummary(formatCacheStats(viewer.getCacheStats()));
