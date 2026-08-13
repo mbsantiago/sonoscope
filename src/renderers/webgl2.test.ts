@@ -17,12 +17,31 @@ describe('textureValuesForTile', () => {
       magnitude: Float32Array.from([0, 1, 1, 0]),
     };
 
-    expect(Array.from(textureValuesForTile(tile, { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true }))).toEqual([
+    expect(Array.from(textureValuesForTile(tile, { mode: 'magnitude', min: -240, max: 0, gamma: 1, clamp: true }))).toEqual([
       0, 0, 0, 255,
       255, 255, 255, 255,
       255, 255, 255, 255,
       0, 0, 0, 255,
     ]);
+  });
+
+  it('normalizes magnitude and power texture values with db bounds', () => {
+    const tile: SpectrogramMatrix = {
+      channel: 0,
+      timeStart: 0,
+      timeEnd: 1,
+      frameStart: 0,
+      frameCount: 1,
+      binCount: 1,
+      sampleRate: 10,
+      times: Float32Array.from([0]),
+      frequencies: Float32Array.from([0]),
+      magnitude: Float32Array.from([0.5]),
+      power: Float32Array.from([0.25]),
+    };
+
+    expect(textureValuesForTile(tile, { mode: 'magnitude', min: -100, max: 0, gamma: 1, clamp: true })[0]).toBe(127);
+    expect(textureValuesForTile(tile, { mode: 'power', min: -100, max: 0, gamma: 1, clamp: true })[0]).toBe(64);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dbFromMagnitude, deriveValueArrays, normalizeValue } from './value-scale';
+import { dbFromMagnitude, deriveValueArrays, magnitudeFromDb, normalizeValue, powerFromDb } from './value-scale';
 
 describe('value-scale', () => {
   it('computes digital db from magnitude', () => {
@@ -10,6 +10,13 @@ describe('value-scale', () => {
   it('normalizes and clamps values', () => {
     expect(normalizeValue(-50, { mode: 'db', min: -100, max: 0, gamma: 1, clamp: true })).toBeCloseTo(0.5);
     expect(normalizeValue(10, { mode: 'db', min: -100, max: 0, gamma: 1, clamp: true })).toBe(1);
+  });
+
+  it('interprets magnitude and power scale bounds as db', () => {
+    expect(magnitudeFromDb(-6.0206)).toBeCloseTo(0.5, 3);
+    expect(powerFromDb(-6.0206)).toBeCloseTo(0.25, 3);
+    expect(normalizeValue(0.5, { mode: 'magnitude', min: -100, max: 0, gamma: 1, clamp: true })).toBeCloseTo(0.5, 3);
+    expect(normalizeValue(0.25, { mode: 'power', min: -100, max: 0, gamma: 1, clamp: true })).toBeCloseTo(0.25, 3);
   });
 
   it('derives missing power and db arrays', () => {

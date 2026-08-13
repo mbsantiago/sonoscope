@@ -1,6 +1,7 @@
 import { buildColorMap } from '../colormap';
 import { valueDataForMode } from '../spectrogram-sampling';
 import type { ColorMapConfig, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from '../types';
+import { valueScaleBounds } from '../value-scale';
 import { CanvasSpectrogramRenderer, type LoadingRenderInput, type PlayheadRenderInput, type RenderInput, type SpectrogramRenderer } from './canvas';
 import { DitherSpectrogramProgram, WEBGL2_DITHER_FRAGMENT_SHADER } from './webgl2-dither-program';
 import { NormalSpectrogramProgram, WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER } from './webgl2-normal-program';
@@ -228,7 +229,8 @@ export function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Requir
 }
 
 function normalizedByte(value: number, valueScale: Required<ValueScaleConfig>): number {
-  let normalized = (value - valueScale.min) / (valueScale.max - valueScale.min || 1);
+  const { min, max } = valueScaleBounds(valueScale);
+  let normalized = (value - min) / (max - min || 1);
   if (valueScale.clamp) normalized = Math.max(0, Math.min(1, normalized));
   normalized = Math.max(0, normalized) ** valueScale.gamma;
   return Math.max(0, Math.min(255, Math.round(normalized * 255)));
