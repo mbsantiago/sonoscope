@@ -29,7 +29,7 @@ type FrameState = {
   input: RenderInput;
 };
 
-const VERTEX_SHADER = `#version 300 es
+export const WEBGL2_VERTEX_SHADER = `#version 300 es
 in vec2 a_position;
 out vec2 v_uv;
 void main() {
@@ -37,7 +37,7 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
-const FRAGMENT_SHADER = `#version 300 es
+export const WEBGL2_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
 in vec2 v_uv;
@@ -102,7 +102,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private frameState: FrameState | undefined;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
-    this.program = this.createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
+    this.program = this.createProgram(WEBGL2_VERTEX_SHADER, WEBGL2_FRAGMENT_SHADER);
     const quadBuffer = gl.createBuffer();
     const colorMapTexture = gl.createTexture();
     if (!quadBuffer || !colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');

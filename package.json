@@ -16,10 +16,12 @@
     "bench": "vitest bench",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
     "test": "vitest run",
+    "test:browser": "vitest run --config vite.browser.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@vitest/browser": "latest",
+    "@vitest/browser-preview": "latest",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"

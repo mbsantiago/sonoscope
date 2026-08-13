@@ -55,6 +55,20 @@ describe('createSpectrogramRenderer', () => {
     expect(() => createSpectrogramRenderer(canvas(null), 'webgl2')).toThrow(/WebGL2/);
   });
 
+  it('falls back to canvas renderer in auto mode when webgl2 initialization fails', () => {
+    const gl = webgl2();
+    vi.mocked(gl.getShaderParameter).mockReturnValue(false);
+
+    expect(createSpectrogramRenderer(canvas(gl), 'auto')).toBeInstanceOf(CanvasSpectrogramRenderer);
+  });
+
+  it('throws in webgl2 mode when webgl2 initialization fails', () => {
+    const gl = webgl2();
+    vi.mocked(gl.getShaderParameter).mockReturnValue(false);
+
+    expect(() => createSpectrogramRenderer(canvas(gl), 'webgl2')).toThrow(/Unable to compile WebGL2/);
+  });
+
   it('creates webgl2 renderer when webgl2 is available', () => {
     const gl = webgl2();
     const renderer = createSpectrogramRenderer(canvas(gl), 'webgl2');
