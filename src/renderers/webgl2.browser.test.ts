@@ -128,6 +128,30 @@ describe('WebGL2 shaders', () => {
     }
   });
 
+  it('renders hidden terrain mode with log and mel frequency scales', () => {
+    for (const frequencyScale of ['log', 'mel'] as const) {
+      const canvas = document.createElement('canvas');
+      Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 32, height: 24 }) });
+      const gl = canvas.getContext('webgl2');
+      if (!gl) return;
+      const renderer = new WebGL2SpectrogramRenderer(gl);
+
+      renderer.render({
+        canvas,
+        viewport: { startTime: 0, endTime: 1, minFrequency: frequencyScale === 'log' ? 1 : 0, maxFrequency: 100, frequencyScale },
+        valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+        colorMap: 'gray',
+        tiles: [brightBandTile()],
+        secretSpectrogram3d: true,
+      });
+
+      const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      expect(pixels.some((value) => value > 64)).toBe(true);
+      renderer.destroy();
+    }
+  });
+
   it('matches Canvas frequency warping for log and mel scales', () => {
     for (const frequencyScale of ['log', 'mel'] as const) {
       const canvas = document.createElement('canvas');

@@ -7,7 +7,7 @@
  * This shader is an original WebGL2 implementation adapted to spectrogram-js' tile texture layout.
  */
 import type { RenderInput } from './canvas';
-import { WebGL2ShaderProgram, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
+import { frequencyScaleCode, WebGL2ShaderProgram, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
 import type { SpectrogramMatrix, ValueScaleConfig } from '../types';
 import { terrainVerticesForTile } from './webgl2-geometry';
 
@@ -21,18 +21,34 @@ out float v_height;
 
 uniform sampler2D u_tile;
 uniform vec2 u_tileTimeRange;
+uniform vec2 u_tileFrequencyRange;
 uniform vec2 u_canvasSize;
+uniform vec4 u_viewport;
+uniform float u_frequencyScale;
 uniform float u_terrainHeight;
 
-float warpedFrequencyUv(float frequencyUv) {
-  return pow(256.0, frequencyUv - 1.0);
+float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
+float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
+float hzToScale(float hz, float scale) {
+  if (scale == 1.0) return log(max(1.0, hz)) / log(10.0);
+  if (scale == 2.0) return hzToMel(hz);
+  return hz;
+}
+float scaleToHz(float value, float scale) {
+  if (scale == 1.0) return pow(10.0, value);
+  if (scale == 2.0) return melToHz(value);
+  return value;
 }
 
 void main() {
-  v_tileUv = vec2(a_tileUv.x, warpedFrequencyUv(a_tileUv.y));
+  float minScale = hzToScale(u_viewport.z, u_frequencyScale);
+  float maxScale = hzToScale(u_viewport.w, u_frequencyScale);
+  float frequency = scaleToHz(mix(minScale, maxScale, a_tileUv.y), u_frequencyScale);
+  float frequencyUv = clamp((frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x), 0.0, 1.0);
+  v_tileUv = vec2(a_tileUv.x, frequencyUv);
   float heightValue = texture(u_tile, v_tileUv).r;
   v_height = heightValue;
-  vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_position.y * 2.0 - 1.0);
+  vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float viewX = terrain.x * 0.9 + heightValue * 0.08;
   float viewY = terrain.y * 0.86 + terrain.x * 0.04 + heightValue * u_terrainHeight;
   gl_Position = vec4(viewX, viewY - 0.1, -heightValue * 0.08, 1.0);
@@ -89,7 +105,9 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.shader.use();
     this.bindAttributes();
+    this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
     this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
+    this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
     this.shader.uniform1f('u_terrainHeight', 0.16);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
     gl.disable(gl.DEPTH_TEST);
@@ -115,6 +133,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
     this.shader.uniform1i('u_tile', 0);
     this.shader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
+    this.shader.uniform2f('u_tileFrequencyRange', tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2));
     this.shader.uniform2f('u_tileSize', entry.width, entry.height);
     const vertices = terrainVerticesForTile(tile, 96, 96);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
