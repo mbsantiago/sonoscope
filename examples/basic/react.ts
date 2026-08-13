@@ -106,7 +106,6 @@ function ReactSpectrogramDemo() {
         hopSize: settings.hopSize,
         window: settings.window,
       },
-      viewport: { ...viewport, frequencyScale: settings.frequencyScale },
       viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
       valueScale: {
         mode: settings.valueMode,
@@ -203,7 +202,15 @@ function ReactSpectrogramDemo() {
     });
     viewer.requestRender();
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-  }, [settings, viewport]);
+  }, [settings]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.setViewport({ ...viewport, frequencyScale: settings.frequencyScale });
+    viewer.requestRender();
+    setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+  }, [viewport, settings.frequencyScale]);
 
   function updateSettings(update: Partial<Settings>) {
     startTransition(() =>

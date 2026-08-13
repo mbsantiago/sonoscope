@@ -79,12 +79,15 @@ export class SpectrogramViewer {
   }
 
   setConfig(input: Partial<SpectrogramConfig>): void {
+    const previousTileConfigHash = this.tileConfigHash();
     const source = input.source ?? this.config.source;
     const viewport = { ...this.config.viewport, ...input.viewport };
     this.config = resolveConfig({ ...this.config, ...input, renderer: input.renderer ?? this.config.renderer, viewport, viewportConstraints: { ...this.config.viewportConstraints, ...input.viewportConstraints }, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
     this.renderGeneration += 1;
-    this.cache.clear();
-    this.pendingTiles.clear();
+    if (this.tileConfigHash() !== previousTileConfigHash) {
+      this.cache.clear();
+      this.pendingTiles.clear();
+    }
     this.renderer.invalidate();
     this.attachSourceRangeSync();
     this.events.emit('configchange', { config: this.config });
@@ -534,6 +537,15 @@ export class SpectrogramViewer {
       timeEnd,
       stftHash: stableHash(this.config.stft),
       transformHash: stableHash(this.config.transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config }))),
+    });
+  }
+
+  private tileConfigHash(): string {
+    return stableHash({
+      sourceId: this.config.source?.id,
+      channel: this.config.channel,
+      stft: this.config.stft,
+      transforms: this.config.transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config })),
     });
   }
 }

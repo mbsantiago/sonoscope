@@ -562,6 +562,38 @@ describe('SpectrogramViewer', () => {
     expect(viewer.getConfig().stft.fftSize).toBe(512);
   });
 
+  it('preserves cached tiles when render-only config changes', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
+    await viewer.render();
+    const before = viewer.getCacheStats().tiles;
+
+    viewer.setConfig({ colorMap: 'magma', valueScale: { mode: 'db', min: -80, max: -5 } });
+
+    expect(before).toBeGreaterThan(0);
+    expect(viewer.getCacheStats().tiles).toBe(before);
+  });
+
+  it('preserves cached tiles when only viewport changes', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
+    await viewer.render();
+    const before = viewer.getCacheStats().tiles;
+
+    viewer.setViewport({ startTime: 0.05, endTime: 0.95, frequencyScale: 'mel' });
+
+    expect(before).toBeGreaterThan(0);
+    expect(viewer.getCacheStats().tiles).toBe(before);
+  });
+
+  it('clears cached tiles when tile-generating config changes', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
+    await viewer.render();
+    expect(viewer.getCacheStats().tiles).toBeGreaterThan(0);
+
+    viewer.setConfig({ stft: { windowSize: 512, fftSize: 512, hopSize: 128, window: 'hann' } });
+
+    expect(viewer.getCacheStats().tiles).toBe(0);
+  });
+
   it('preserves viewport bounds when setConfig receives a partial viewport', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0.1, endTime: 0.5, minFrequency: 100, maxFrequency: 400 } });
 
