@@ -127,8 +127,7 @@ function ReactSpectrogramDemo() {
         });
         unsubscribeProfile = viewer.on("renderprofile", () => setCacheSummary(formatCacheStats(viewer.getCacheStats())));
         cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
-          onNavigate: (nextViewport) => {
-            startTransition(() => setViewport(nextViewport));
+          onNavigate: () => {
             setCacheSummary(formatCacheStats(viewer.getCacheStats()));
           },
         });
@@ -197,7 +196,6 @@ function ReactSpectrogramDemo() {
         hopSize: settings.hopSize,
         window: settings.window,
       },
-      viewport: { ...viewport, frequencyScale: settings.frequencyScale },
       viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
       valueScale: {
         mode: settings.valueMode,
@@ -209,7 +207,7 @@ function ReactSpectrogramDemo() {
       colorMap: settings.colorMap,
     });
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-  }, [settings]);
+  }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
