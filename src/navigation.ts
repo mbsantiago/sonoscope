@@ -36,7 +36,7 @@ export function zoomViewportTime(viewport: ViewportConfig, bounds: TimeBounds, c
 export function attachCanvasNavigation(viewer: SpectrogramViewer, canvas = viewer.getConfig().canvas, options: CanvasNavigationOptions = {}): () => void {
   const panSensitivity = options.panSensitivity ?? 260;
   const zoomSensitivity = options.zoomSensitivity ?? 0.055;
-  const zoomModifier = options.zoomModifier ?? 'shift';
+  const zoomModifier = options.zoomModifier ?? 'ctrl';
   let pendingWheel: { deltaY: number; shiftKey: boolean; ctrlKey: boolean; altKey: boolean; metaKey: boolean; clientX: number; clientY: number } | undefined;
   let wheelFrame: number | undefined;
 

@@ -76,4 +76,52 @@ describe('navigation utilities', () => {
     expect(setViewport).toHaveBeenCalledTimes(1);
     expect(setViewport.mock.calls[0]![0].startTime).toBeGreaterThan(viewport.startTime);
   });
+
+  it('uses plain wheel for horizontal time panning by default', () => {
+    const { runFrame, setViewport, wheel } = setupWheelNavigation();
+
+    wheel({ preventDefault: vi.fn(), deltaY: 120, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, clientX: 10, clientY: 10 } as unknown as WheelEvent);
+    runFrame();
+
+    expect(setViewport.mock.calls[0]![0]).toMatchObject({ startTime: 5.846153846153847, endTime: 9.846153846153847 });
+  });
+
+  it('uses ctrl wheel for cursor-centered time zoom by default', () => {
+    const { runFrame, setViewport, wheel } = setupWheelNavigation();
+
+    wheel({ preventDefault: vi.fn(), deltaY: -120, shiftKey: false, ctrlKey: true, altKey: false, metaKey: false, clientX: 10, clientY: 10 } as unknown as WheelEvent);
+    runFrame();
+
+    expect(setViewport.mock.calls[0]![0].startTime).toBeCloseTo(4.107029704093033, 12);
+    expect(setViewport.mock.calls[0]![0].endTime).toBeCloseTo(7.892970295906968, 12);
+  });
 });
+
+function setupWheelNavigation() {
+  let frame: FrameRequestCallback | undefined;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frame = callback;
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  const listeners = new Map<string, EventListener>();
+  const canvas = {
+    addEventListener: vi.fn((name: string, listener: EventListener) => listeners.set(name, listener)),
+    removeEventListener: vi.fn(),
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+  } as unknown as HTMLCanvasElement;
+  const setViewport = vi.fn((update: Partial<ViewportConfig>) => {
+    current = { ...current, ...update };
+  });
+  let current = { ...viewport };
+  const viewer = {
+    getConfig: () => ({ canvas, source: { duration: 20 } }),
+    getViewport: () => current,
+    setViewport,
+    requestRender: vi.fn(),
+    canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+  } as unknown as SpectrogramViewer;
+  attachCanvasNavigation(viewer, canvas);
+
+  return { runFrame: () => frame!(0), setViewport, wheel: listeners.get('wheel')! };
+}
