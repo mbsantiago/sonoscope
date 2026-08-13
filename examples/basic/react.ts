@@ -47,7 +47,7 @@ type Settings = {
   windowSize: number;
   hopSize: number;
   window: WindowName;
-  shaderProgram: "auto" | "normal" | "dither" | "terrain";
+  shaderProgram: "auto" | "normal" | "dither" | "sobel" | "terrain";
 };
 
 type ShaderProgram = Settings["shaderProgram"];
@@ -486,6 +486,7 @@ function ReactSpectrogramDemo() {
             option("auto"),
             option("normal"),
             option("dither"),
+            option("sobel"),
             option("terrain"),
           ),
         ),

@@ -6,10 +6,12 @@ import { CanvasSpectrogramRenderer, type LoadingRenderInput, type PlayheadRender
 import { DitherSpectrogramProgram, WEBGL2_DITHER_FRAGMENT_SHADER } from './webgl2-dither-program';
 import { NormalSpectrogramProgram, WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER } from './webgl2-normal-program';
 import { numberedSource, type TextureEntry, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
+import { SobelSpectrogramProgram, WEBGL2_SOBEL_FRAGMENT_SHADER } from './webgl2-sobel-program';
 import { TerrainSpectrogramProgram, WEBGL2_TERRAIN_FRAGMENT_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER } from './webgl2-terrain-program';
 
 export { WEBGL2_DITHER_FRAGMENT_SHADER } from './webgl2-dither-program';
 export { WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER } from './webgl2-normal-program';
+export { WEBGL2_SOBEL_FRAGMENT_SHADER } from './webgl2-sobel-program';
 export { WEBGL2_TERRAIN_FRAGMENT_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER } from './webgl2-terrain-program';
 export { terrainVerticesForTile, tileFrequencyRange } from './webgl2-geometry';
 
@@ -29,6 +31,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly fallback = new CanvasSpectrogramRenderer();
   private readonly normalProgram: WebGL2RenderProgram;
   private readonly ditherProgram: WebGL2RenderProgram;
+  private readonly sobelProgram: WebGL2RenderProgram;
   private readonly terrainProgram: WebGL2RenderProgram;
   private readonly customProgram: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
@@ -39,6 +42,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   constructor(private readonly gl: WebGL2RenderingContext, customProgram?: WebGL2RenderProgram) {
     this.normalProgram = new NormalSpectrogramProgram(gl);
     this.ditherProgram = new DitherSpectrogramProgram(gl);
+    this.sobelProgram = new SobelSpectrogramProgram(gl);
     this.terrainProgram = new TerrainSpectrogramProgram(gl);
     this.customProgram = customProgram;
     const colorMapTexture = gl.createTexture();
@@ -58,6 +62,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     return compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_VERTEX_SHADER)
       ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER)
       ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_DITHER_FRAGMENT_SHADER)
+      ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_SOBEL_FRAGMENT_SHADER)
       ?? compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER)
       ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER);
   }
@@ -103,6 +108,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.gl.deleteTexture(this.colorMapTexture);
     this.normalProgram.delete();
     this.ditherProgram.delete();
+    this.sobelProgram.delete();
     this.terrainProgram.delete();
     this.customProgram?.delete();
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
@@ -124,6 +130,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private programFor(input: RenderInput): WebGL2RenderProgram {
     if (typeof input.webglProgram === 'object') return input.webglProgram;
     if (input.webglProgram === 'terrain') return this.terrainProgram;
+    if (input.webglProgram === 'sobel') return this.sobelProgram;
     if (input.webglProgram === 'dither') return this.ditherProgram;
     if (input.webglProgram === 'normal') return this.normalProgram;
     if (this.customProgram) return this.customProgram;

@@ -15,7 +15,7 @@ export type RenderInput = {
   tiles: SpectrogramMatrix[];
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
-  webglProgram?: 'normal' | 'dither' | 'terrain' | WebGL2RenderProgram;
+  webglProgram?: 'normal' | 'dither' | 'sobel' | 'terrain' | WebGL2RenderProgram;
   secretSpectrogram3d?: boolean;
   profile?: PerformanceProfiler;
 };
