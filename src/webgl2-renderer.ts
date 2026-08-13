@@ -59,7 +59,7 @@ uniform vec4 u_valueScale;
 uniform float u_frequencyScale;
 uniform float u_overlayMode;
 
-float hzToMel(float hz) { return 2595.0 * log(1.0 + hz / 700.0) / log(10.0); }
+float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
 float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
 float hzToScale(float hz, float scale) {
   if (scale == 1.0) return log(max(1.0, hz)) / log(10.0);
@@ -85,29 +85,30 @@ void main() {
   }
 
   float globalX = gl_FragCoord.x / max(1.0, u_canvasSize.x);
-  float globalY = gl_FragCoord.y / max(1.0, u_canvasSize.y);
+  float canvasY = 1.0 - gl_FragCoord.y / max(1.0, u_canvasSize.y);
   float time = mix(u_viewport.x, u_viewport.y, globalX);
   if (time < u_tileTimeRange.x || time > u_tileTimeRange.y) discard;
   float minScale = hzToScale(u_viewport.z, u_frequencyScale);
   float maxScale = hzToScale(u_viewport.w, u_frequencyScale);
-  float frequency = scaleToHz(mix(maxScale, minScale, globalY), u_frequencyScale);
-  float tileU = clamp((time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x), 0.0, 1.0);
-  float scaledFrequency = hzToScale(frequency, u_frequencyScale);
-  float scaledTileMin = hzToScale(u_tileFrequencyRange.x, u_frequencyScale);
-  float scaledTileMax = hzToScale(u_tileFrequencyRange.y, u_frequencyScale);
-  float scaledStep = (scaledTileMax - scaledTileMin) / max(1.0, u_tileSize.y - 1.0);
-  if (scaledFrequency > scaledTileMin && scaledFrequency <= scaledTileMin + scaledStep * 0.5 + 0.000001) {
+  float frequency = scaleToHz(mix(maxScale, minScale, canvasY), u_frequencyScale);
+  float frequencyStep = (u_tileFrequencyRange.y - u_tileFrequencyRange.x) / max(1.0, u_tileSize.y - 1.0);
+  if (frequency > u_tileFrequencyRange.x && frequency <= u_tileFrequencyRange.x + frequencyStep * 0.5 + 0.000001) {
     outColor = texture(u_colormap, vec2(0.0, 0.5));
     return;
   }
-  float frequencyStart = scaledTileMin - scaledStep * 0.5;
-  float frequencyEnd = scaledTileMax + scaledStep * 0.5;
-  float tileV = clamp((scaledFrequency - frequencyStart) / max(0.000001, frequencyEnd - frequencyStart), 0.0, 1.0);
-  vec2 sampleUv = vec2(
-    mix(0.5 / max(1.0, u_tileSize.x), 1.0 - 0.5 / max(1.0, u_tileSize.x), tileU),
-    tileV
-  );
-  float normalized = texture(u_tile, sampleUv).r;
+  float framePosition = clamp((time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x) * max(1.0, u_tileSize.x - 1.0), 0.0, max(0.0, u_tileSize.x - 1.0));
+  float binPosition = clamp((frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x) * max(1.0, u_tileSize.y - 1.0), 0.0, max(0.0, u_tileSize.y - 1.0));
+  int frame0 = int(floor(framePosition));
+  int frame1 = int(ceil(framePosition));
+  int bin0 = int(floor(binPosition));
+  int bin1 = int(ceil(binPosition));
+  float frameFraction = fract(framePosition);
+  float binFraction = fract(binPosition);
+  float low0 = texelFetch(u_tile, ivec2(frame0, bin0), 0).r;
+  float low1 = texelFetch(u_tile, ivec2(frame1, bin0), 0).r;
+  float high0 = texelFetch(u_tile, ivec2(frame0, bin1), 0).r;
+  float high1 = texelFetch(u_tile, ivec2(frame1, bin1), 0).r;
+  float normalized = mix(mix(low0, low1, frameFraction), mix(high0, high1, frameFraction), binFraction);
   outColor = texture(u_colormap, vec2(clamp(normalized, 0.0, 1.0), 0.5));
 }`;
 
@@ -418,8 +419,7 @@ export function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Requir
   const values = new Uint8Array(tile.frameCount * tile.binCount * 4);
   for (let frame = 0; frame < tile.frameCount; frame++) {
     for (let bin = 0; bin < tile.binCount; bin++) {
-      const textureBin = tile.binCount - 1 - bin;
-      const index = (textureBin * tile.frameCount + frame) * 4;
+      const index = (bin * tile.frameCount + frame) * 4;
       const normalized = normalizedByte(source[frame * tile.binCount + bin]!, valueScale);
       values[index] = normalized;
       values[index + 1] = normalized;

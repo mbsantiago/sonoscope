@@ -22,21 +22,24 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
     page.on('pageerror', (error) => console.error(`[browser:error] ${error.message}`));
-    await page.goto(`${baseUrl}/examples/basic/renderers.html`, { waitUntil: 'networkidle' });
-    await page.selectOption('#renderer', 'canvas2d');
-    await page.waitForFunction(() => document.querySelector('#status')?.textContent?.includes('renderer config: canvas2d'), undefined, { timeout: 10_000 });
-    const canvas2d = await capture(page, 'canvas2d');
-    await page.selectOption('#renderer', 'webgl2');
-    try {
-      await page.waitForFunction(() => document.querySelector('#status')?.textContent?.includes('renderer config: webgl2'), undefined, { timeout: 10_000 });
-    } catch (error) {
-      const status = await page.locator('#status').textContent();
-      throw new Error(`Timed out waiting for WebGL2 render. Status: ${status}`);
+    for (const scale of ['linear', 'log', 'mel']) {
+      await page.goto(`${baseUrl}/examples/basic/renderers.html`, { waitUntil: 'networkidle' });
+      await page.selectOption('#frequency-scale', scale);
+      await page.selectOption('#renderer', 'canvas2d');
+      await page.waitForFunction(() => document.querySelector('#status')?.textContent?.includes('renderer config: canvas2d'), undefined, { timeout: 10_000 });
+      const canvas2d = await capture(page, `${scale}-canvas2d`);
+      await page.selectOption('#renderer', 'webgl2');
+      try {
+        await page.waitForFunction(() => document.querySelector('#status')?.textContent?.includes('renderer config: webgl2'), undefined, { timeout: 10_000 });
+      } catch (error) {
+        const status = await page.locator('#status').textContent();
+        throw new Error(`Timed out waiting for WebGL2 render. Status: ${status}`);
+      }
+      const webgl2 = await capture(page, `${scale}-webgl2`);
+      const diff = pngDiff(canvas2d.buffer, webgl2.buffer);
+      console.log(`${scale} canvas2d/webgl2 diff=${JSON.stringify(diff)}`);
+      if (diff.meanAbsoluteChannelDifference > 8 || (scale === 'linear' && diff.maxChannelDifference > 96)) throw new Error(`${scale} Canvas/WebGL2 screenshots differ too much: ${JSON.stringify(diff)}`);
     }
-    const webgl2 = await capture(page, 'webgl2');
-    const diff = pngDiff(canvas2d.buffer, webgl2.buffer);
-    console.log(`canvas2d/webgl2 diff=${JSON.stringify(diff)}`);
-    if (diff.meanAbsoluteChannelDifference > 8 || diff.maxChannelDifference > 96) throw new Error(`Canvas/WebGL2 screenshots differ too much: ${JSON.stringify(diff)}`);
     await page.goto(`${baseUrl}/examples/basic/renderers.html`, { waitUntil: 'networkidle' });
     await page.evaluate(async () => {
       const { WebGL2SpectrogramRenderer } = await import('/src/webgl2-renderer.ts');

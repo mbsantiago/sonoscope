@@ -104,6 +104,37 @@ describe('WebGL2 shaders', () => {
     }
   });
 
+  it('matches Canvas frequency warping for log and mel scales', () => {
+    for (const frequencyScale of ['log', 'mel'] as const) {
+      const canvas = document.createElement('canvas');
+      Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 32, height: 32 }) });
+      const gl = canvas.getContext('webgl2');
+      if (!gl) return;
+      const renderer = new WebGL2SpectrogramRenderer(gl);
+      const input: RenderInput = {
+        canvas,
+        viewport: { startTime: 0, endTime: 1, minFrequency: frequencyScale === 'log' ? 1 : 0, maxFrequency: 100, frequencyScale },
+        valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+        colorMap: 'gray',
+        tiles: [brightBandTile()],
+      };
+
+      renderer.render(input);
+      const webglPixels = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, webglPixels);
+      renderer.destroy();
+
+      const canvas2d = document.createElement('canvas');
+      Object.defineProperty(canvas2d, 'getBoundingClientRect', { value: () => ({ width: 32, height: 32 }) });
+      const context = canvas2d.getContext('2d');
+      if (!context) return;
+      new CanvasSpectrogramRenderer().render({ ...input, canvas: canvas2d });
+      const canvasPixels = context.getImageData(0, 0, canvas2d.width, canvas2d.height).data;
+
+      expect(meanRgbDifference(webglPixels, canvasPixels, canvas.width, canvas.height)).toBeLessThan(12);
+    }
+  });
+
   it('uses webgl2 for fromUrl auto rendering after decode', async () => {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 32, height: 16 }) });
@@ -185,4 +216,21 @@ function rowBrightness(pixels: Uint8Array | Uint8ClampedArray, width: number, yF
   let total = 0;
   for (let x = 0; x < width; x++) total += pixels[(yFromBottom * width + x) * 4]!;
   return total / width;
+}
+
+function meanRgbDifference(webglPixels: Uint8Array, canvasPixels: Uint8ClampedArray, width: number, height: number): number {
+  let total = 0;
+  let count = 0;
+  for (let yFromBottom = 0; yFromBottom < height; yFromBottom++) {
+    const canvasY = height - 1 - yFromBottom;
+    for (let x = 0; x < width; x++) {
+      const webglIndex = (yFromBottom * width + x) * 4;
+      const canvasIndex = (canvasY * width + x) * 4;
+      for (let channel = 0; channel < 3; channel++) {
+        total += Math.abs(webglPixels[webglIndex + channel]! - canvasPixels[canvasIndex + channel]!);
+        count += 1;
+      }
+    }
+  }
+  return total / count;
 }

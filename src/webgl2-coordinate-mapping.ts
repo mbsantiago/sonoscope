@@ -31,7 +31,7 @@ export function frequencyToWebGLTextureV(input: {
   minFrequency: number;
   maxFrequency: number;
 }): number {
-  return 1 - frequencyToTextureV(input);
+  return frequencyToTextureV(input);
 }
 
 export function textureVToBin(input: { textureV: number; binCount: number }): number {

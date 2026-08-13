@@ -26,10 +26,10 @@ describe('webgl2 coordinate mapping', () => {
     expect(textureVToBin({ textureV: 1, binCount: 8 })).toBe(7);
   });
 
-  it('maps WebGL texture v to compensate for bottom-left texture coordinates', () => {
-    expect(frequencyToWebGLTextureV({ frequency: 0, minFrequency: 0, maxFrequency: 8000 })).toBe(1);
+  it('maps WebGL texture v with low frequencies in low texture rows', () => {
+    expect(frequencyToWebGLTextureV({ frequency: 0, minFrequency: 0, maxFrequency: 8000 })).toBe(0);
     expect(frequencyToWebGLTextureV({ frequency: 4000, minFrequency: 0, maxFrequency: 8000 })).toBe(0.5);
-    expect(frequencyToWebGLTextureV({ frequency: 8000, minFrequency: 0, maxFrequency: 8000 })).toBe(0);
+    expect(frequencyToWebGLTextureV({ frequency: 8000, minFrequency: 0, maxFrequency: 8000 })).toBe(1);
   });
 
   it('maps screen top to high frequency bins and screen bottom to low frequency bins', () => {
@@ -87,8 +87,8 @@ describe('webgl2 coordinate mapping', () => {
     expect(sample.textureU).toBe(0.375);
     expect(sample.frame).toBe(60);
     expect(sample.frequency).toBe(2000);
-    expect(sample.textureV).toBe(0.75);
-    expect(sample.bin).toBe(60);
+    expect(sample.textureV).toBe(0.25);
+    expect(sample.bin).toBe(20);
   });
 
   it('maps viewport top and bottom to the same texture rows WebGL samples', () => {
@@ -111,7 +111,7 @@ describe('webgl2 coordinate mapping', () => {
     const top = viewportPixelToTileSample({ ...input, y: 0 });
     const bottom = viewportPixelToTileSample({ ...input, y: 100 });
 
-    expect(top.bin).toBe(0);
-    expect(bottom.bin).toBe(7);
+    expect(top.bin).toBe(7);
+    expect(bottom.bin).toBe(0);
   });
 });
