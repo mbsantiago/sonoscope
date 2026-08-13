@@ -1,7 +1,7 @@
 import { buildColorMap } from './colormap';
 import { CanvasSpectrogramRenderer, type LoadingRenderInput, type PlayheadRenderInput, type RenderInput, type SpectrogramRenderer } from './renderer';
 import { valueDataForMode } from './spectrogram-sampling';
-import type { ColorMapConfig, SpectrogramMatrix, ValueScaleConfig } from './types';
+import type { ColorMapConfig, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from './types';
 
 type ProgramInfo = {
   program: WebGLProgram;
@@ -15,6 +15,17 @@ type TextureEntry = {
   texture: WebGLTexture;
   width: number;
   height: number;
+};
+
+type FrameState = {
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  dpr: number;
+  deviceWidth: number;
+  deviceHeight: number;
+  viewport: ViewportConfig;
+  input: RenderInput;
 };
 
 const VERTEX_SHADER = `#version 300 es
@@ -88,6 +99,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
   private colorMapKey = '';
+  private frameState: FrameState | undefined;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     this.program = this.createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
@@ -107,6 +119,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   invalidate(): void {
     this.fallback.invalidate();
+    this.frameState = undefined;
     for (const entry of this.tileTextures.values()) this.gl.deleteTexture(entry.texture);
     this.tileTextures.clear();
   }
@@ -121,7 +134,12 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   renderPlayhead(input: PlayheadRenderInput): boolean {
-    return this.fallback.renderPlayhead(input);
+    const frame = this.frameState;
+    if (!frame || frame.canvas !== input.canvas || !sameViewport(frame.viewport, input.viewport)) return false;
+    const size = canvasSize(input.canvas);
+    if (frame.width !== size.width || frame.height !== size.height || frame.dpr !== size.dpr || frame.deviceWidth !== size.deviceWidth || frame.deviceHeight !== size.deviceHeight) return false;
+    this.paint({ ...frame.input, playheadTime: input.playheadTime });
+    return true;
   }
 
   renderLoading(input: LoadingRenderInput): void {
@@ -139,12 +157,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   private paint(input: RenderInput): void {
     const gl = this.gl;
-    const rect = input.canvas.getBoundingClientRect();
-    const width = Math.max(1, Math.round(rect.width || input.canvas.width || 1));
-    const height = Math.max(1, Math.round(rect.height || input.canvas.height || 1));
-    const dpr = globalThis.devicePixelRatio || 1;
-    const deviceWidth = Math.max(1, Math.round(width * dpr));
-    const deviceHeight = Math.max(1, Math.round(height * dpr));
+    const { width, height, dpr, deviceWidth, deviceHeight } = canvasSize(input.canvas);
     input.canvas.width = deviceWidth;
     input.canvas.height = deviceHeight;
 
@@ -167,6 +180,9 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
     for (const placeholder of input.placeholders ?? []) this.drawPlaceholder(placeholder.timeStart, placeholder.timeEnd, input.viewport.startTime, input.viewport.endTime);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, input.viewport.startTime, input.viewport.endTime);
+    if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.viewport);
+    const { profile: _profile, ...frameInput } = input;
+    this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
   }
 
   private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, viewportStart: number, viewportEnd: number): void {
@@ -188,6 +204,17 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.setTileRect(timeStart, timeEnd, viewportStart, viewportEnd);
     this.gl.uniform1i(this.program.uniforms.u_placeholder, 1);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  private drawPlayhead(time: number, viewport: ViewportConfig): void {
+    if (time < viewport.startTime || time > viewport.endTime) return;
+    const x = (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
+    this.gl.enable(this.gl.BLEND);
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.gl.uniform1i(this.program.uniforms.u_placeholder, 1);
+    this.gl.uniform4f(this.program.uniforms.u_tileRect, x, 0, Math.min(1, x + 0.002), 1);
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+    this.gl.disable(this.gl.BLEND);
   }
 
   private setTileRect(timeStart: number, timeEnd: number, viewportStart: number, viewportEnd: number): void {
@@ -278,4 +305,16 @@ function frequencyScaleCode(scale: RenderInput['viewport']['frequencyScale']): n
 
 function isUsableWebGL2Context(context: WebGL2RenderingContext): boolean {
   return typeof context.createShader === 'function' && typeof context.createProgram === 'function' && typeof context.texImage2D === 'function';
+}
+
+function canvasSize(canvas: HTMLCanvasElement): { width: number; height: number; dpr: number; deviceWidth: number; deviceHeight: number } {
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width || canvas.width || 1));
+  const height = Math.max(1, Math.round(rect.height || canvas.height || 1));
+  const dpr = globalThis.devicePixelRatio || 1;
+  return { width, height, dpr, deviceWidth: Math.max(1, Math.round(width * dpr)), deviceHeight: Math.max(1, Math.round(height * dpr)) };
+}
+
+function sameViewport(left: ViewportConfig, right: ViewportConfig): boolean {
+  return left.startTime === right.startTime && left.endTime === right.endTime && left.minFrequency === right.minFrequency && left.maxFrequency === right.maxFrequency && left.frequencyScale === right.frequencyScale;
 }
