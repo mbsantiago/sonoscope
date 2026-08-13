@@ -21,6 +21,7 @@ out float v_height;
 
 uniform sampler2D u_tile;
 uniform vec2 u_tileTimeRange;
+uniform vec2 u_terrainTimeRange;
 uniform vec2 u_tileFrequencyRange;
 uniform vec2 u_canvasSize;
 uniform vec4 u_viewport;
@@ -48,7 +49,9 @@ void main() {
   v_tileUv = vec2(a_tileUv.x, frequencyUv);
   float heightValue = texture(u_tile, v_tileUv).r;
   v_height = heightValue;
-  vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
+  float tileTime = mix(u_tileTimeRange.x, u_tileTimeRange.y, a_tileUv.x);
+  float viewportX = clamp((tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x), 0.0, 1.0);
+  vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float viewX = terrain.x * 0.9 + heightValue * 0.08;
   float viewY = terrain.y * 0.86 + terrain.x * 0.04 + heightValue * u_terrainHeight;
   gl_Position = vec4(viewX, viewY - 0.1, -heightValue * 0.08, 1.0);
@@ -111,6 +114,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     this.shader.use();
     this.bindAttributes();
     this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
+    this.shader.uniform2f('u_terrainTimeRange', input.viewport.startTime, input.viewport.endTime);
     this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
     this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
     this.shader.uniform1f('u_terrainHeight', 0.16);
@@ -127,10 +131,14 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
 
   private bindAttributes(): void {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
-    this.gl.enableVertexAttribArray(this.shader.position);
-    this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
-    this.gl.enableVertexAttribArray(this.shader.tileUv);
-    this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
+    if (this.shader.position >= 0) {
+      this.gl.enableVertexAttribArray(this.shader.position);
+      this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
+    }
+    if (this.shader.tileUv >= 0) {
+      this.gl.enableVertexAttribArray(this.shader.tileUv);
+      this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
+    }
   }
 
   private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {

@@ -126,10 +126,14 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
 
   private bindAttributes(): void {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
-    this.gl.enableVertexAttribArray(this.shader.position);
-    this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
-    this.gl.enableVertexAttribArray(this.shader.tileUv);
-    this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
+    if (this.shader.position >= 0) {
+      this.gl.enableVertexAttribArray(this.shader.position);
+      this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
+    }
+    if (this.shader.tileUv >= 0) {
+      this.gl.enableVertexAttribArray(this.shader.tileUv);
+      this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
+    }
   }
 
   private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
