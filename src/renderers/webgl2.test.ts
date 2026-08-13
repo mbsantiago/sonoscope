@@ -43,6 +43,23 @@ describe('textureValuesForTile', () => {
     expect(textureValuesForTile(tile, { mode: 'magnitude', min: -100, max: 0, gamma: 1, clamp: true })[0]).toBe(127);
     expect(textureValuesForTile(tile, { mode: 'power', min: -100, max: 0, gamma: 1, clamp: true })[0]).toBe(64);
   });
+
+  it('changes packed texture values when db bounds change', () => {
+    const tile: SpectrogramMatrix = {
+      channel: 0,
+      timeStart: 0,
+      timeEnd: 1,
+      frameStart: 0,
+      frameCount: 1,
+      binCount: 1,
+      sampleRate: 10,
+      times: Float32Array.from([0]),
+      frequencies: Float32Array.from([0]),
+      magnitude: Float32Array.from([0.5]),
+    };
+
+    expect(textureValuesForTile(tile, { mode: 'magnitude', min: -100, max: 0, gamma: 1, clamp: true })[0]).not.toBe(textureValuesForTile(tile, { mode: 'magnitude', min: -6, max: 0, gamma: 1, clamp: true })[0]);
+  });
 });
 
 describe('tileFrequencyRange', () => {

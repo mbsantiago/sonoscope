@@ -139,7 +139,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   private textureForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): TextureEntry {
-    const key = `${tile.channel}:${tile.timeStart}:${tile.timeEnd}:${valueScale.mode}`;
+    const key = `${tile.channel}:${tile.timeStart}:${tile.timeEnd}:${valueScale.mode}:${valueScale.min}:${valueScale.max}:${valueScale.gamma}:${valueScale.clamp}`;
     const existing = this.tileTextures.get(key);
     if (existing) return existing;
 

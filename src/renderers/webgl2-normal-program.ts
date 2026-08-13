@@ -1,6 +1,7 @@
 import type { RenderInput } from './canvas';
 import { frequencyScaleCode, WebGL2ShaderProgram, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
 import type { SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from '../types';
+import { valueScaleBounds } from '../value-scale';
 import { tileFrequencyRange } from './webgl2-geometry';
 
 export const WEBGL2_VERTEX_SHADER = `#version 300 es
@@ -110,7 +111,8 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     this.shader.uniform1i('u_colormap', 1);
     this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
     this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
-    this.shader.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
+    const bounds = valueScaleBounds(input.valueScale);
+    this.shader.uniform4f('u_valueScale', bounds.min, bounds.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
     this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
 
     const placeholderCount = input.placeholders?.length ?? 0;
