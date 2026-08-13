@@ -94,7 +94,8 @@
         const maxDuration = Math.min(constraints.maxDurationSeconds, bounds.endTime - bounds.startTime);
         const duration = Math.min(Math.max(currentDuration * factor, constraints.minDurationSeconds), maxDuration);
         if (Math.abs(duration - currentDuration) < 1e-9) return;
-        const startTime = Math.max(bounds.startTime, center - duration / 2);
+        const ratio = currentDuration <= 0 ? 0.5 : (center - viewport.startTime) / currentDuration;
+        const startTime = Math.max(bounds.startTime, center - duration * ratio);
         const endTime = Math.min(bounds.endTime, startTime + duration);
         setViewport({ startTime: Math.max(bounds.startTime, endTime - duration), endTime });
       }

@@ -19,6 +19,15 @@ describe('navigation utilities', () => {
     expect(zoomViewportTime(viewport, { startTime: 0, endTime: 20 }, 5, 0.5)).toMatchObject({ startTime: 4.5, endTime: 6.5 });
   });
 
+  it('keeps an off-center time anchor under the same cursor ratio after zooming', () => {
+    const anchorTime = 5;
+    const ratioBefore = (anchorTime - viewport.startTime) / (viewport.endTime - viewport.startTime);
+    const next = zoomViewportTime(viewport, { startTime: 0, endTime: 20 }, anchorTime, 0.5);
+    const ratioAfter = (anchorTime - next.startTime) / (next.endTime - next.startTime);
+
+    expect(ratioAfter).toBeCloseTo(ratioBefore, 12);
+  });
+
   it('does not shift sideways when zooming out at maximum duration', () => {
     const fullViewport: ViewportConfig = { ...viewport, startTime: 0, endTime: 20 };
 
