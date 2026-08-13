@@ -424,12 +424,13 @@ export class SpectrogramViewer {
     if (!this.config.source || this.config.cache.prefetchTiles <= 0) return;
     const before = direction === 'forward' ? [] : this.tileRangesForTimeRange(Math.max(0, this.config.viewport.startTime - seconds), this.config.viewport.startTime).reverse();
     const after = this.tileRangesForTimeRange(this.config.viewport.endTime, Math.min(this.config.source.duration, this.config.viewport.endTime + seconds));
-    const candidates = direction === 'forward' ? after : interleave(before, after);
+    const candidates = direction === 'forward' ? after : [...after.slice(0, this.config.cache.prefetchTiles), ...before.slice(0, this.config.cache.prefetchTiles)];
 
+    const maxStarted = direction === 'forward' ? this.config.cache.prefetchTiles : this.config.cache.prefetchTiles * 2;
     let started = 0;
     for (const tile of candidates) {
-      if (started >= this.config.cache.prefetchTiles) return;
-      if (this.cache.size() + this.pendingTiles.size >= this.config.cache.maxCachedTiles) return;
+      if (started >= maxStarted) return;
+      if (this.pendingTiles.size >= maxStarted) return;
       const key = this.tileKey(tile.channel, tile.timeStart, tile.timeEnd);
       if (this.cache.has(key) || this.pendingTiles.has(key)) continue;
       started += 1;

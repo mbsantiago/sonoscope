@@ -352,9 +352,11 @@ describe('SpectrogramViewer', () => {
 
     expect(requested).toContainEqual([3, 4]);
     expect(requested).toContainEqual([4, 5]);
-    expect(requested).toContainEqual([2, 3]);
     expect(requested).toContainEqual([5, 6]);
-    expect(requested).toHaveLength(4);
+    expect(requested).toContainEqual([6, 7]);
+    expect(requested).toContainEqual([2, 3]);
+    expect(requested).toContainEqual([1, 2]);
+    expect(requested.slice(2, 6)).toEqual([[5, 6], [6, 7], [2, 3], [1, 2]]);
   });
 
   it('starts prefetching surrounding tiles after visible render completes', async () => {
@@ -387,11 +389,14 @@ describe('SpectrogramViewer', () => {
     release?.();
     await render;
 
-    expect(requested).toContainEqual([2, 3]);
     expect(requested).toContainEqual([5, 6]);
+    expect(requested).toContainEqual([6, 7]);
+    expect(requested).toContainEqual([2, 3]);
+    expect(requested).toContainEqual([1, 2]);
+    expect(requested.slice(2, 6)).toEqual([[5, 6], [6, 7], [2, 3], [1, 2]]);
   });
 
-  it('does not prefetch when cached and pending tiles reach maxCachedTiles', async () => {
+  it('prefetches around the viewport even when the cache is full', async () => {
     let release: (() => void) | undefined;
     const requested: Array<[number, number]> = [];
     const backend: SpectrogramComputeBackend = {
@@ -414,6 +419,8 @@ describe('SpectrogramViewer', () => {
 
     expect(requested.slice(0, 2)).toEqual([[0, 1], [1, 2]]);
     expect(viewer.getConfig().cache.maxCachedTiles).toBeGreaterThan(2);
+    expect(requested).toContainEqual([2, 3]);
+    expect(requested).toContainEqual([3, 4]);
     release?.();
   });
 
