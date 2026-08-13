@@ -150,8 +150,14 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   renderLoading(input: LoadingRenderInput): void {
-    this.fallback.renderLoading(input);
-    this.invalidate();
+    this.frameState = undefined;
+    const gl = this.gl;
+    const { deviceWidth, deviceHeight } = canvasSize(input.canvas);
+    input.canvas.width = deviceWidth;
+    input.canvas.height = deviceHeight;
+    gl.viewport(0, 0, deviceWidth, deviceHeight);
+    gl.clearColor(0.06, 0.09, 0.16, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   destroy(): void {
