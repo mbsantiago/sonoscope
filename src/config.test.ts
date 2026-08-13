@@ -16,10 +16,16 @@ describe('resolveConfig', () => {
   it('fills defaults and preserves provided source', () => {
     const config = resolveConfig({ canvas, source });
     expect(config.source).toBe(source);
+    expect(config.renderer).toBe('auto');
     expect(config.channel).toBe(0);
     expect(config.stft).toEqual({ windowSize: 1024, fftSize: 1024, hopSize: 256, window: 'hann' });
     expect(config.viewport.frequencyScale).toBe('linear');
     expect(config.colorMap).toBe('viridis');
+  });
+
+  it('preserves explicit renderer modes', () => {
+    expect(resolveConfig({ canvas, source, renderer: 'canvas2d' }).renderer).toBe('canvas2d');
+    expect(resolveConfig({ canvas, source, renderer: 'webgl2' }).renderer).toBe('webgl2');
   });
 
   it('validates selected channel against the source', () => {

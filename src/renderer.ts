@@ -28,6 +28,17 @@ export type LoadingRenderInput = {
   text?: string;
 };
 
+export type RendererKind = 'webgl2' | 'canvas2d';
+
+export interface SpectrogramRenderer {
+  readonly kind: RendererKind;
+  invalidate(): void;
+  render(input: RenderInput): void;
+  renderPlayhead(input: PlayheadRenderInput): boolean;
+  renderLoading(input: LoadingRenderInput): void;
+  destroy?(): void;
+}
+
 type BaseFrame = {
   canvas: HTMLCanvasElement;
   width: number;
@@ -39,7 +50,8 @@ type BaseFrame = {
   image: ImageData;
 };
 
-export class CanvasSpectrogramRenderer {
+export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
+  readonly kind = 'canvas2d' as const;
   private baseFrame: BaseFrame | undefined;
 
   invalidate(): void {

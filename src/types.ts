@@ -2,6 +2,7 @@ import type { FrameStats, PerformanceMeasure } from './performance';
 
 export type FrequencyScale = 'linear' | 'log' | 'mel';
 export type ValueMode = 'magnitude' | 'power' | 'db';
+export type RendererMode = 'auto' | 'webgl2' | 'canvas2d';
 export type WindowName = 'hann' | 'hamming' | 'blackman' | 'rectangular';
 
 export type Rgba = [number, number, number, number];
@@ -122,6 +123,7 @@ export type SpectrogramConfig = {
   audio?: HTMLAudioElement;
   canvas: HTMLCanvasElement;
   source?: AudioSource;
+  renderer?: RendererMode;
   channel?: number;
   stft?: Partial<StftConfig>;
   viewport?: Partial<ViewportConfig>;
@@ -137,6 +139,7 @@ export type ResolvedSpectrogramConfig = {
   audio?: HTMLAudioElement;
   canvas: HTMLCanvasElement;
   source?: AudioSource;
+  renderer: RendererMode;
   channel: number;
   stft: StftConfig;
   viewport: ViewportConfig;

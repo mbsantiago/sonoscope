@@ -43,6 +43,7 @@ export function resolveConfig(input: SpectrogramConfig): ResolvedSpectrogramConf
     ...(input.audio === undefined ? {} : { audio: input.audio }),
     canvas: input.canvas,
     ...(input.source === undefined ? {} : { source: input.source }),
+    renderer: input.renderer ?? 'auto',
     channel,
     stft,
     viewport,
