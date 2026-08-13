@@ -56,11 +56,10 @@ void main() {
   vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float liftedHeight = pow(heightValue, 0.72) * u_terrainHeight;
   float frequencyLens = (a_tileUv.y - 0.5) * 2.0;
-  float heightParallax = liftedHeight * frequencyLens * 0.72;
-  float widthLens = mix(1.08, 0.88, abs(frequencyLens));
-  float viewX = terrain.x * widthLens;
-  float viewY = terrain.y * 0.72 + liftedHeight - heightParallax;
-  gl_Position = vec4(viewX, viewY - 0.02, heightParallax * 0.08, 1.0);
+  float faceParallax = liftedHeight * frequencyLens * 0.95;
+  float viewX = terrain.x * 0.96;
+  float viewY = terrain.y * 0.68 + liftedHeight - faceParallax;
+  gl_Position = vec4(viewX, viewY - 0.02, abs(faceParallax) * 0.04, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
