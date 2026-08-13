@@ -51,8 +51,9 @@ describe('createSpectrogramRenderer', () => {
     expect(createSpectrogramRenderer(canvas(null), 'auto')).toBeInstanceOf(CanvasSpectrogramRenderer);
   });
 
-  it('throws when webgl2 is requested but unavailable', () => {
-    expect(() => createSpectrogramRenderer(canvas(null), 'webgl2')).toThrow(/returned null/);
+  it('throws when webgl is requested but unavailable', () => {
+    expect(() => createSpectrogramRenderer(canvas(null), 'webgl')).toThrow(/returned null/);
+    expect(() => createSpectrogramRenderer(canvas(null), { type: 'webgl', program: 'terrain' })).toThrow(/returned null/);
   });
 
   it('falls back to canvas renderer in auto mode when webgl2 initialization fails', () => {
@@ -62,16 +63,16 @@ describe('createSpectrogramRenderer', () => {
     expect(createSpectrogramRenderer(canvas(gl), 'auto')).toBeInstanceOf(CanvasSpectrogramRenderer);
   });
 
-  it('throws in webgl2 mode when webgl2 initialization fails', () => {
+  it('throws in webgl mode when webgl2 initialization fails', () => {
     const gl = webgl2();
     vi.mocked(gl.getShaderParameter).mockReturnValue(false);
 
-    expect(() => createSpectrogramRenderer(canvas(gl), 'webgl2')).toThrow(/Unable to compile WebGL2/);
+    expect(() => createSpectrogramRenderer(canvas(gl), 'webgl')).toThrow(/Unable to compile WebGL2/);
   });
 
-  it('creates webgl2 renderer when webgl2 is available', () => {
+  it('creates webgl2 renderer when webgl is available', () => {
     const gl = webgl2();
-    const renderer = createSpectrogramRenderer(canvas(gl), 'webgl2');
+    const renderer = createSpectrogramRenderer(canvas(gl), { type: 'webgl', program: 'terrain' });
 
     expect(renderer.kind).toBe('webgl2');
   });

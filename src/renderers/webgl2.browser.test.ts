@@ -41,7 +41,7 @@ describe('WebGL2 shaders', () => {
       valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: 'gray',
       tiles: [brightBandTile()],
-      secretSpectrogram3d: true,
+      webglProgram: 'terrain',
     });
 
     const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -142,7 +142,7 @@ describe('WebGL2 shaders', () => {
         valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
         colorMap: 'gray',
         tiles: [brightBandTile()],
-        secretSpectrogram3d: true,
+          webglProgram: 'terrain',
       });
 
       const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -152,7 +152,7 @@ describe('WebGL2 shaders', () => {
     }
   });
 
-  it('renders a visible contour-following playhead in hidden terrain mode', () => {
+  it('renders a visible contour-following playhead in terrain mode', () => {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 48, height: 32 }) });
     const gl = canvas.getContext('webgl2');
@@ -164,7 +164,7 @@ describe('WebGL2 shaders', () => {
       valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: 'gray',
       tiles: [brightBandTile()],
-      secretSpectrogram3d: true,
+      webglProgram: 'terrain',
     };
 
     renderer.render(input);

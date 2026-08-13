@@ -5,6 +5,7 @@ export { pickNearestBin, pickNearestFrame } from '../spectrogram-sampling';
 import { locateSamplePosition, sampleValueDataPosition, valueDataForMode } from '../spectrogram-sampling';
 import type { PerformanceProfiler } from '../performance';
 import type { ColorMapConfig, Rgba, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from '../types';
+import type { WebGL2RenderProgram } from './webgl2-program';
 
 export type RenderInput = {
   canvas: HTMLCanvasElement;
@@ -14,6 +15,7 @@ export type RenderInput = {
   tiles: SpectrogramMatrix[];
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
+  webglProgram?: 'normal' | 'terrain' | WebGL2RenderProgram;
   secretSpectrogram3d?: boolean;
   profile?: PerformanceProfiler;
 };

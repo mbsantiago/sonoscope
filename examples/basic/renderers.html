@@ -22,7 +22,7 @@
           <select id="renderer">
             <option value="auto">auto</option>
             <option value="canvas2d">canvas2d</option>
-            <option value="webgl2">webgl2 experimental</option>
+            <option value="webgl">webgl</option>
           </select>
         </label>
         <label>Frequency scale
@@ -105,17 +105,16 @@
           viewer = await SpectrogramViewer.create({
             canvas,
             source,
-            renderer: summon.checked ? 'webgl2' : rendererMode.value,
+            renderer: summon.checked ? { type: 'webgl', program: 'terrain' } : rendererMode.value,
             backend,
             cache: { tileDurationSeconds: 8 },
             viewport: { startTime: 0, endTime: 8, minFrequency: frequencyScale.value === 'log' ? 20 : 0, maxFrequency: 8_000, frequencyScale: frequencyScale.value },
             valueScale: { mode: 'magnitude', min: 0, max: 1 },
             stft: { windowSize: 2048, fftSize: 2048, hopSize: 512 },
-            superpowers: { secretSpectrogram3d: summon.checked },
           });
           viewer.on('renderprofile', (event) => {
             const rendererPaint = event.measures.find((measure) => measure.name === 'renderer.paint');
-            status.textContent = `renderer config: ${viewer.getConfig().renderer}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nmountains: ${viewer.getConfig().superpowers.secretSpectrogram3d ? 'summoned' : 'sleeping'}\nrequest: ${event.requestId}\nrenderer paint: ${(rendererPaint?.duration ?? 0).toFixed(1)} ms`;
+            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nmountains: ${summon.checked ? 'summoned' : 'sleeping'}\nrequest: ${event.requestId}\nrenderer paint: ${(rendererPaint?.duration ?? 0).toFixed(1)} ms`;
           });
           await viewer.render();
         } catch (error) {

@@ -15,6 +15,10 @@ export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './r
 export type { RenderInput, RendererKind, SpectrogramRenderer } from './renderers/canvas';
 export { createSpectrogramRenderer } from './renderer-factory';
 export { WebGL2SpectrogramRenderer } from './renderers/webgl2';
+export { NormalSpectrogramProgram } from './renderers/webgl2-normal-program';
+export { TerrainSpectrogramProgram } from './renderers/webgl2-terrain-program';
+export { WebGL2ShaderProgram } from './renderers/webgl2-program';
+export type { WebGL2Frame, WebGL2RenderProgram, WebGL2RenderResources } from './renderers/webgl2-program';
 export { FrameMeter } from './performance';
 export type { FrameStats, PerformanceDetail, PerformanceMeasure } from './performance';
 export { DecodedAudioSource, createAudioSourceFromUrl } from './source';

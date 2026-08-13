@@ -26,22 +26,24 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly fallback = new CanvasSpectrogramRenderer();
   private readonly normalProgram: WebGL2RenderProgram;
   private readonly terrainProgram: WebGL2RenderProgram;
+  private readonly customProgram: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
   private colorMapKey = '';
   private frameState: FrameState | undefined;
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
+  constructor(private readonly gl: WebGL2RenderingContext, customProgram?: WebGL2RenderProgram) {
     this.normalProgram = new NormalSpectrogramProgram(gl);
     this.terrainProgram = new TerrainSpectrogramProgram(gl);
+    this.customProgram = customProgram;
     const colorMapTexture = gl.createTexture();
     if (!colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
     this.colorMapTexture = colorMapTexture;
   }
 
-  static create(canvas: HTMLCanvasElement): WebGL2SpectrogramRenderer | undefined {
+  static create(canvas: HTMLCanvasElement, customProgram?: WebGL2RenderProgram): WebGL2SpectrogramRenderer | undefined {
     const gl = canvas.getContext('webgl2');
-    return gl && isUsableWebGL2Context(gl) ? new WebGL2SpectrogramRenderer(gl) : undefined;
+    return gl && isUsableWebGL2Context(gl) ? new WebGL2SpectrogramRenderer(gl, customProgram) : undefined;
   }
 
   static diagnose(canvas: HTMLCanvasElement): string | undefined {
@@ -95,6 +97,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.gl.deleteTexture(this.colorMapTexture);
     this.normalProgram.delete();
     this.terrainProgram.delete();
+    this.customProgram?.delete();
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 
@@ -112,6 +115,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   private programFor(input: RenderInput): WebGL2RenderProgram {
+    if (typeof input.webglProgram === 'object') return input.webglProgram;
+    if (input.webglProgram === 'terrain') return this.terrainProgram;
+    if (input.webglProgram === 'normal') return this.normalProgram;
+    if (this.customProgram) return this.customProgram;
     return input.secretSpectrogram3d ? this.terrainProgram : this.normalProgram;
   }
 

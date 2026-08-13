@@ -119,8 +119,7 @@ function ReactSpectrogramDemo() {
         clamp: true,
       },
       colorMap: settings.colorMap,
-      renderer: settings.summonMountains ? "webgl2" : "auto",
-      superpowers: { secretSpectrogram3d: settings.summonMountains },
+      renderer: settings.summonMountains ? { type: "webgl", program: "terrain" } : "auto",
       playback: { follow: true, renderOnSeek: true },
     })
       .then((viewer) => {
@@ -136,7 +135,7 @@ function ReactSpectrogramDemo() {
             setCacheSummary(formatCacheStats(viewer.getCacheStats()));
           },
         });
-        setStatus(`Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Mountains: ${viewer.getConfig().superpowers.secretSpectrogram3d ? "summoned" : "sleeping"}.`);
+        setStatus(`Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Mountains: ${settings.summonMountains ? "summoned" : "sleeping"}.`);
         setCacheSummary(formatCacheStats(viewer.getCacheStats()));
         viewer.requestRender();
         if (cancelled) unsubscribeViewport();
@@ -210,8 +209,7 @@ function ReactSpectrogramDemo() {
         clamp: true,
       },
       colorMap: settings.colorMap,
-      renderer: settings.summonMountains ? "webgl2" : "auto",
-      superpowers: { secretSpectrogram3d: settings.summonMountains },
+      renderer: settings.summonMountains ? { type: "webgl", program: "terrain" } : "auto",
     });
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
   }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap, settings.summonMountains]);
