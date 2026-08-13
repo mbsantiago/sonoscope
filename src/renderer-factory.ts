@@ -1,6 +1,6 @@
-import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from './renderer';
+import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from './renderers/canvas';
 import type { RendererMode } from './types';
-import { WebGL2SpectrogramRenderer } from './webgl2-renderer';
+import { WebGL2SpectrogramRenderer } from './renderers/webgl2';
 
 export function createSpectrogramRenderer(canvas: HTMLCanvasElement, mode: RendererMode): SpectrogramRenderer {
   if (mode === 'canvas2d') return new CanvasSpectrogramRenderer();

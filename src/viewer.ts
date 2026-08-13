@@ -5,7 +5,7 @@ import { TypedEventEmitter } from './events';
 import { canvasToTimeFrequency as mapCanvasToTimeFrequency, timeFrequencyToCanvas as mapTimeFrequencyToCanvas } from './frequency-scale';
 import { zoomViewportTime } from './navigation';
 import { FrameMeter, PerformanceProfiler } from './performance';
-import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from './renderer';
+import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from './renderers/canvas';
 import { createSpectrogramRenderer } from './renderer-factory';
 import { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 import { applyTransforms } from './transforms';
