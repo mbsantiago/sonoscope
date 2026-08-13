@@ -16,6 +16,7 @@ precision highp float;
 
 in vec2 a_position;
 in vec2 a_tileUv;
+out float v_viewportX;
 out vec2 v_tileUv;
 out float v_height;
 
@@ -51,6 +52,7 @@ void main() {
   v_height = heightValue;
   float tileTime = mix(u_tileTimeRange.x, u_tileTimeRange.y, a_tileUv.x);
   float viewportX = clamp((tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x), 0.0, 1.0);
+  v_viewportX = viewportX;
   vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float liftedHeight = pow(heightValue, 0.72) * u_terrainHeight;
   float viewX = terrain.x * 0.96;
@@ -61,20 +63,15 @@ void main() {
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
+in float v_viewportX;
 in vec2 v_tileUv;
 in float v_height;
 out vec4 outColor;
 
 uniform sampler2D u_tile;
+uniform sampler2D u_colormap;
 uniform vec2 u_tileSize;
 uniform float u_terrainPlayhead;
-
-vec3 heightPalette(float height) {
-  vec3 low = vec3(0.05, 0.08, 0.12);
-  vec3 mid = vec3(0.15, 0.58, 0.92);
-  vec3 high = vec3(1.0, 0.92, 0.55);
-  return mix(mix(low, mid, smoothstep(0.0, 0.58, height)), high, smoothstep(0.55, 1.0, height));
-}
 
 void main() {
   vec2 stepSize = 1.0 / max(vec2(1.0), u_tileSize - 1.0);
@@ -86,13 +83,14 @@ void main() {
   float light = clamp(dot(normal, normalize(vec3(-0.35, -0.55, 0.9))), 0.0, 1.0);
   float contour = smoothstep(0.015, 0.0, abs(fract(v_height * 18.0) - 0.5));
   float ridge = smoothstep(0.965, 1.0, fract(v_tileUv.y * u_tileSize.y));
-  float fade = pow(cos((1.0 - v_tileUv.y) * 1.57079632679), 0.45);
+  float edgeFade = smoothstep(0.0, 0.16, v_viewportX) * smoothstep(1.0, 0.84, v_viewportX);
   if (u_terrainPlayhead == 1.0) {
     outColor = vec4(vec3(1.0), 0.98);
     return;
   }
-  vec3 color = heightPalette(v_height) * (0.42 + light * 0.48) + vec3(contour * 0.2 + ridge * 0.13);
-  outColor = vec4(clamp(color * fade, 0.0, 1.0), 1.0);
+  vec3 baseColor = texture(u_colormap, vec2(clamp(v_height, 0.0, 1.0), 0.5)).rgb;
+  vec3 color = baseColor * (0.48 + light * 0.5) + vec3(contour * 0.18 + ridge * 0.1);
+  outColor = vec4(clamp(color * mix(0.18, 1.0, edgeFade), 0.0, 1.0), 1.0);
 }`;
 
 export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
@@ -120,6 +118,9 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
     this.shader.uniform1f('u_terrainHeight', 0.34);
     this.shader.uniform1f('u_terrainPlayhead', 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
+    this.shader.uniform1i('u_colormap', 1);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
     if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.valueScale, resources);
   }
