@@ -1,7 +1,7 @@
 import type { SpectrogramViewer } from './viewer';
 import type { ViewportConfig } from './types';
 
-export type TimeBounds = { startTime: number; endTime: number };
+export type TimeBounds = { startTime: number; endTime: number; minDurationSeconds?: number; maxDurationSeconds?: number };
 
 export type CanvasNavigationOptions = {
   panSensitivity?: number;
@@ -24,7 +24,10 @@ export function panViewportTime(viewport: ViewportConfig, bounds: TimeBounds, de
 
 export function zoomViewportTime(viewport: ViewportConfig, bounds: TimeBounds, centerTime: number, factor: number): ViewportConfig {
   const currentDuration = viewport.endTime - viewport.startTime;
-  const duration = clamp(currentDuration * factor, 0.001, bounds.endTime - bounds.startTime);
+  const minDuration = bounds.minDurationSeconds ?? 0.001;
+  const maxDuration = Math.min(bounds.maxDurationSeconds ?? bounds.endTime - bounds.startTime, bounds.endTime - bounds.startTime);
+  const duration = clamp(currentDuration * factor, minDuration, maxDuration);
+  if (Math.abs(duration - currentDuration) < 1e-9) return viewport;
   const ratio = currentDuration <= 0 ? 0.5 : (centerTime - viewport.startTime) / currentDuration;
   const startTime = clamp(centerTime - duration * ratio, bounds.startTime, Math.max(bounds.startTime, bounds.endTime - duration));
   return { ...viewport, startTime, endTime: startTime + duration };
@@ -53,7 +56,8 @@ export function attachCanvasNavigation(viewer: SpectrogramViewer, canvas = viewe
       const source = viewer.getConfig().source;
       if (!source) return;
       const viewport = viewer.getViewport();
-      const bounds = { startTime: 0, endTime: source.duration };
+      const constraints = viewer.getConfig().viewportConstraints;
+      const bounds = { startTime: 0, endTime: source.duration, minDurationSeconds: constraints?.minDurationSeconds, maxDurationSeconds: constraints?.maxDurationSeconds };
       if (modifierPressed(wheel, zoomModifier)) {
         const rect = canvas.getBoundingClientRect();
         const { time } = viewer.canvasToTimeFrequency(wheel.clientX - rect.left, wheel.clientY - rect.top);

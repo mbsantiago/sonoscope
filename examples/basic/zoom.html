@@ -89,7 +89,11 @@
         const bounds = fullBounds();
         const viewport = viewer.getViewport();
         const center = centerTime ?? (viewport.startTime + viewport.endTime) / 2;
-        const duration = (viewport.endTime - viewport.startTime) * factor;
+        const currentDuration = viewport.endTime - viewport.startTime;
+        const constraints = viewer.getConfig().viewportConstraints;
+        const maxDuration = Math.min(constraints.maxDurationSeconds, bounds.endTime - bounds.startTime);
+        const duration = Math.min(Math.max(currentDuration * factor, constraints.minDurationSeconds), maxDuration);
+        if (Math.abs(duration - currentDuration) < 1e-9) return;
         const startTime = Math.max(bounds.startTime, center - duration / 2);
         const endTime = Math.min(bounds.endTime, startTime + duration);
         setViewport({ startTime: Math.max(bounds.startTime, endTime - duration), endTime });

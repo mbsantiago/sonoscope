@@ -19,6 +19,18 @@ describe('navigation utilities', () => {
     expect(zoomViewportTime(viewport, { startTime: 0, endTime: 20 }, 5, 0.5)).toMatchObject({ startTime: 4.5, endTime: 6.5 });
   });
 
+  it('does not shift sideways when zooming out at maximum duration', () => {
+    const fullViewport: ViewportConfig = { ...viewport, startTime: 0, endTime: 20 };
+
+    expect(zoomViewportTime(fullViewport, { startTime: 0, endTime: 20, maxDurationSeconds: 20 }, 4, 2)).toEqual(fullViewport);
+  });
+
+  it('does not shift sideways when zooming in at minimum duration', () => {
+    const tinyViewport: ViewportConfig = { ...viewport, startTime: 4, endTime: 4.5 };
+
+    expect(zoomViewportTime(tinyViewport, { startTime: 0, endTime: 20, minDurationSeconds: 0.5 }, 4.4, 0.5)).toEqual(tinyViewport);
+  });
+
   it('coalesces wheel navigation to one viewport update per animation frame', () => {
     let frame: FrameRequestCallback | undefined;
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
