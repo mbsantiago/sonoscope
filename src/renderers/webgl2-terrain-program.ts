@@ -33,9 +33,9 @@ void main() {
   float heightValue = texture(u_tile, v_tileUv).r;
   v_height = heightValue;
   vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_position.y * 2.0 - 1.0);
-  float viewX = terrain.x * 0.9 + terrain.y * 0.16;
-  float viewY = terrain.y * 0.62 + heightValue * u_terrainHeight;
-  gl_Position = vec4(viewX, viewY - 0.42, -heightValue * 0.2, 1.0);
+  float viewX = terrain.x * 0.9 + heightValue * 0.08;
+  float viewY = terrain.y * 0.86 + terrain.x * 0.04 + heightValue * u_terrainHeight;
+  gl_Position = vec4(viewX, viewY - 0.1, -heightValue * 0.08, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
@@ -90,7 +90,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     this.shader.use();
     this.bindAttributes();
     this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
-    this.shader.uniform1f('u_terrainHeight', 0.34);
+    this.shader.uniform1f('u_terrainHeight', 0.16);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
     gl.disable(gl.DEPTH_TEST);
   }
