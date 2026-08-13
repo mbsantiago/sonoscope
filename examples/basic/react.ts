@@ -121,7 +121,7 @@ function ReactSpectrogramDemo() {
       .then((viewer) => {
         if (cancelled) return;
         viewerRef.current = viewer;
-        setDuration(viewer.getSource().duration);
+        setDuration(viewer.getConfig().source.duration);
         unsubscribeViewport = viewer.on("viewportchange", (event) => {
           startTransition(() => setViewport(event.viewport));
         });
