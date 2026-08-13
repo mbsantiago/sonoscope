@@ -4,6 +4,7 @@ import type { SpectrogramComputeBackend } from './backend';
 import type { AudioSource, SpectrogramMatrix } from './types';
 
 type AudioFixture = HTMLAudioElement & {
+  paused: boolean;
   emit(name: string): void;
   listenerCount(): number;
 };
@@ -143,6 +144,26 @@ describe('playback sync', () => {
     expect(cancel).toHaveBeenCalledWith(1);
   });
 
+  it('emits playback frame cadence profiles', async () => {
+    const element = audio();
+    let frame: FrameRequestCallback | undefined;
+    globalThis.requestAnimationFrame = () => 0;
+    globalThis.cancelAnimationFrame = () => undefined;
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const viewer = await SpectrogramViewer.create({ audio: element, canvas: canvas(), source });
+    await viewer.render();
+    const profiles: number[] = [];
+    viewer.on('playbackprofile', (stats) => profiles.push(stats.fps));
+
+    element.emit('play');
+    for (let index = 0; index <= 30; index++) frame?.(index * 16);
+
+    expect(profiles[0]).toBeCloseTo(62.5);
+  });
+
   it('rerenders during playback after config changes invalidate the cached frame', async () => {
     const element = audio();
     let frame: FrameRequestCallback | undefined;
@@ -200,6 +221,59 @@ describe('playback sync', () => {
 
     expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 2 });
     expect(requested).toEqual([]);
+  });
+
+  it('skips streaming range rerenders during playback when visible tiles are cached', async () => {
+    const element = audio();
+    let rangeHandler: ((range: { startTime: number; endTime: number }) => void) | undefined;
+    const streamingSource = {
+      ...source,
+      onRangeAvailable: (handler: (range: { startTime: number; endTime: number }) => void) => {
+        rangeHandler = handler;
+        return () => undefined;
+      },
+    };
+    const viewer = await SpectrogramViewer.create({
+      audio: element,
+      canvas: canvas(),
+      source: streamingSource,
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 50 },
+    });
+    await viewer.render();
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue();
+    element.paused = false;
+
+    rangeHandler!({ startTime: 0, endTime: 1 });
+    await Promise.resolve();
+
+    expect(render).not.toHaveBeenCalled();
+  });
+
+  it('skips queued cached full renders when playback starts', async () => {
+    const element = audio();
+    let frame: FrameRequestCallback | undefined;
+    globalThis.requestAnimationFrame = () => 0;
+    globalThis.cancelAnimationFrame = () => undefined;
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const viewer = await SpectrogramViewer.create({
+      audio: element,
+      canvas: canvas(),
+      source,
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 50 },
+    });
+    await viewer.render();
+    const render = vi.spyOn(viewer, 'render').mockResolvedValue();
+
+    viewer.requestRender();
+    element.paused = false;
+    element.emit('play');
+    frame?.(0);
+    await Promise.resolve();
+
+    expect(render).not.toHaveBeenCalled();
   });
 
   it('removes playback listeners on destroy', async () => {

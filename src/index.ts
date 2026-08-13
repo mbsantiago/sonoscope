@@ -13,7 +13,8 @@ export { attachCanvasNavigation, panViewportTime, setViewerViewport, zoomViewpor
 export type { CanvasNavigationOptions, TimeBounds } from './navigation';
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
 export type { RenderInput } from './renderer';
-export type { PerformanceDetail, PerformanceMeasure } from './performance';
+export { FrameMeter } from './performance';
+export type { FrameStats, PerformanceDetail, PerformanceMeasure } from './performance';
 export { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 export { computeStftMatrix, createWindow } from './stft';
 export { StreamingWavSource } from './streaming-wav-source';

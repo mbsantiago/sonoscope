@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PerformanceProfiler } from './performance';
+import { FrameMeter, PerformanceProfiler } from './performance';
 
 describe('PerformanceProfiler', () => {
   it('records measured synchronous work', () => {
@@ -38,5 +38,19 @@ describe('PerformanceProfiler', () => {
     measures.push({ name: 'render.total', start: 0, duration: 0 });
 
     expect(profiler.measures()).toEqual([{ name: 'renderer.paint', start: 1, duration: 2, detail: { tiles: 1 } }]);
+  });
+});
+
+describe('FrameMeter', () => {
+  it('summarizes frame cadence after the sample window', () => {
+    const meter = new FrameMeter(3);
+
+    expect(meter.tick(0)).toBeUndefined();
+    expect(meter.tick(16)).toBeUndefined();
+    expect(meter.tick(32)).toBeUndefined();
+    const stats = meter.tick(48);
+
+    expect(stats).toMatchObject({ frames: 3, elapsedMs: 48, minFrameMs: 16, maxFrameMs: 16, averageFrameMs: 16 });
+    expect(stats?.fps).toBeCloseTo(62.5);
   });
 });

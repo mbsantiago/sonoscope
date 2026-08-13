@@ -2,7 +2,7 @@ import { buildColorMap } from './colormap';
 import { canvasToTimeFrequency, timeFrequencyToCanvas } from './frequency-scale';
 import { normalizeValue } from './value-scale';
 export { pickNearestBin, pickNearestFrame } from './spectrogram-sampling';
-import { sampleSpectrogramValue } from './spectrogram-sampling';
+import { locateSamplePosition, sampleValueDataPosition, valueDataForMode } from './spectrogram-sampling';
 import type { PerformanceProfiler } from './performance';
 import type { ColorMapConfig, Rgba, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from './types';
 
@@ -134,17 +134,19 @@ export class CanvasSpectrogramRenderer {
   ): void {
     const startX = Math.max(0, Math.floor(((tile.timeStart - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
     const endX = Math.min(width, Math.ceil(((tile.timeEnd - viewport.startTime) / (viewport.endTime - viewport.startTime)) * width));
-    const rowFrequencies = Array.from({ length: height }, (_, y) => {
+    const valueData = valueDataForMode(tile, valueScale.mode);
+    const rowPositions = Array.from({ length: height }, (_, y) => {
       const { frequency } = canvasToTimeFrequency(0, y, width, height, viewport);
-      return frequency;
+      return locateSamplePosition(tile.frequencies, frequency);
     });
 
     for (let x = startX; x < endX; x++) {
       const time = viewport.startTime + (x / width) * (viewport.endTime - viewport.startTime);
       if (time < tile.timeStart || time > tile.timeEnd || tile.frameCount === 0) continue;
+      const timePosition = locateSamplePosition(tile.times, time);
 
       for (let y = 0; y < height; y++) {
-        const normalized = normalizeValue(sampleSpectrogramValue(tile, time, rowFrequencies[y]!, valueScale.mode), valueScale);
+        const normalized = normalizeValue(sampleValueDataPosition(valueData, timePosition, rowPositions[y]!), valueScale);
         const color = colors[Math.max(0, Math.min(255, Math.round(normalized * 255)))]!;
         const pixelIndex = (y * width + x) * 4;
         image.data[pixelIndex] = color[0];

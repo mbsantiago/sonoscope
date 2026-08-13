@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickNearestBin, pickNearestFrame, sampleSpectrogramValue } from './spectrogram-sampling';
+import { locateSamplePosition, pickNearestBin, pickNearestFrame, sampleValueDataPosition, sampleSpectrogramValue, valueDataForMode } from './spectrogram-sampling';
 import type { SpectrogramMatrix } from './types';
 
 const matrix: SpectrogramMatrix = {
@@ -28,5 +28,12 @@ describe('spectrogram sampling', () => {
   it('clamps samples outside the matrix extent', () => {
     expect(sampleSpectrogramValue(matrix, -1, 50, 'magnitude')).toBe(0);
     expect(sampleSpectrogramValue(matrix, 2, 300, 'magnitude')).toBe(0.25);
+  });
+
+  it('prepares value data once for fallback db sampling', () => {
+    const data = valueDataForMode(matrix, 'db');
+    const value = sampleValueDataPosition(data, locateSamplePosition(matrix.times, 0), locateSamplePosition(matrix.frequencies, 200));
+
+    expect(value).toBeCloseTo(0);
   });
 });

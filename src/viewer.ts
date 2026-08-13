@@ -3,7 +3,7 @@ import { createTileKey, SpectrogramCache } from './cache';
 import { resolveConfig, stableHash } from './config';
 import { TypedEventEmitter } from './events';
 import { canvasToTimeFrequency as mapCanvasToTimeFrequency, timeFrequencyToCanvas as mapTimeFrequencyToCanvas } from './frequency-scale';
-import { PerformanceProfiler } from './performance';
+import { FrameMeter, PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer } from './renderer';
 import { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 import { applyTransforms } from './transforms';
@@ -24,6 +24,9 @@ export class SpectrogramViewer {
   private requestCounter = 0;
   private renderGeneration = 0;
   private status: SpectrogramStatus = { state: 'idle' };
+  private readonly playbackFrameMeter = new FrameMeter();
+  private lastPlaybackPrefetchTime = Number.NEGATIVE_INFINITY;
+  private suppressCachedPlaybackRender = false;
 
   private constructor(
     private config: ResolvedSpectrogramConfig,
@@ -194,6 +197,7 @@ export class SpectrogramViewer {
       profile.record('render.paint.final', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
       paintCount += 1;
       this.paintPartial(Array.from(matrices.values()), [], profile);
+      void this.renderPlaybackPlayhead();
       profile.record('render.paint.count', performance.now(), 0, { count: paintCount });
       profile.record('cache.memory', performance.now(), 0, this.cache.stats());
       this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
@@ -328,7 +332,13 @@ export class SpectrogramViewer {
   }
 
   private queueSourceRangeRender(): void {
+    if (this.config.audio && !this.config.audio.paused && this.visibleTilesCached()) return;
     this.requestRender();
+  }
+
+  private visibleTilesCached(): boolean {
+    if (!this.config.source) return false;
+    return this.visibleTileRanges().every((tile) => this.cache.has(this.tileKey(tile.channel, tile.timeStart, tile.timeEnd)));
   }
 
   private async renderRequested(): Promise<void> {
@@ -337,6 +347,11 @@ export class SpectrogramViewer {
     this.renderRunning = true;
     while (this.renderAgain && !this.isDestroyed()) {
       this.renderAgain = false;
+      if (this.suppressCachedPlaybackRender && this.config.audio && !this.config.audio.paused && this.visibleTilesCached()) {
+        this.suppressCachedPlaybackRender = false;
+        continue;
+      }
+      this.suppressCachedPlaybackRender = false;
       try {
         await this.render();
       } catch (error) {
@@ -363,7 +378,7 @@ export class SpectrogramViewer {
     };
     const onTimeUpdate = () => {
       this.followPlayheadIfNeeded();
-      void this.renderPlaybackPlayhead();
+      if (audio.paused) void this.renderPlaybackPlayhead();
     };
     const onPlay = () => this.startPlaybackLoop();
     const onPause = () => this.stopPlaybackLoop();
@@ -380,10 +395,16 @@ export class SpectrogramViewer {
   }
 
   private startPlaybackLoop(): void {
-    const tick = () => {
+    this.playbackFrameMeter.reset();
+    this.lastPlaybackPrefetchTime = Number.NEGATIVE_INFINITY;
+    this.suppressCachedPlaybackRender = true;
+    const tick = (time: number) => {
+      const start = performance.now();
       const viewportChanged = this.followPlayheadIfNeeded();
       if (viewportChanged || !this.renderPlaybackPlayhead()) this.requestRender();
-      this.prefetchPlaybackLookahead();
+      this.prefetchPlaybackLookahead(time);
+      const stats = this.playbackFrameMeter.tick(time, performance.now() - start);
+      if (stats) this.events.emit('playbackprofile', stats);
       this.animationFrame = requestAnimationFrame(tick);
     };
     this.stopPlaybackLoop();
@@ -408,10 +429,12 @@ export class SpectrogramViewer {
     return false;
   }
 
-  private prefetchPlaybackLookahead(): void {
+  private prefetchPlaybackLookahead(frameTime: number): void {
     const audio = this.config.audio;
     const source = this.config.source;
     if (!audio || !source || !this.config.playback.follow) return;
+    if (frameTime - this.lastPlaybackPrefetchTime < 250) return;
+    this.lastPlaybackPrefetchTime = frameTime;
 
     const duration = this.config.viewport.endTime - this.config.viewport.startTime;
     const margin = duration * this.config.playback.followMargin;

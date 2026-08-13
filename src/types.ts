@@ -1,4 +1,4 @@
-import type { PerformanceMeasure } from './performance';
+import type { FrameStats, PerformanceMeasure } from './performance';
 
 export type FrequencyScale = 'linear' | 'log' | 'mel';
 export type ValueMode = 'magnitude' | 'power' | 'db';
@@ -113,6 +113,7 @@ export type SpectrogramEvents = {
   renderprogress: { requestId: string; completed: number; total: number; progress: number; phase: 'computing' | 'rendering' };
   rendercomplete: { requestId: string; renderedTiles: number; missingTiles: number };
   renderprofile: { requestId: string; generation: number; measures: PerformanceMeasure[] };
+  playbackprofile: FrameStats;
   tileload: { tileId: string; timeStart: number; timeEnd: number; channel: number };
   error: { error: Error; recoverable: boolean; phase: 'decode' | 'source' | 'compute' | 'transform' | 'render' | 'playback' };
 };
