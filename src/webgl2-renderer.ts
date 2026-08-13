@@ -3,15 +3,68 @@ import { CanvasSpectrogramRenderer, type LoadingRenderInput, type PlayheadRender
 import { valueDataForMode } from './spectrogram-sampling';
 import type { ColorMapConfig, SpectrogramMatrix, ValueScaleConfig, ViewportConfig } from './types';
 
-type ProgramInfo = {
-  program: WebGLProgram;
-  position: number;
-  tileUv: number;
-  uniforms: Partial<Record<UniformName, WebGLUniformLocation>>;
-};
-
-const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_overlayMode'] as const;
+const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_overlayMode', 'u_terrainHeight'] as const;
 type UniformName = typeof WEBGL2_UNIFORMS[number];
+
+class WebGL2ShaderProgram {
+  readonly program: WebGLProgram;
+  readonly position: number;
+  readonly tileUv: number;
+  private readonly uniforms: Partial<Record<UniformName, WebGLUniformLocation>>;
+
+  constructor(private readonly gl: WebGL2RenderingContext, vertexSource: string, fragmentSource: string) {
+    const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
+    const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+    const program = gl.createProgram();
+    if (!program) throw new Error('Unable to create WebGL2 program');
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    gl.deleteShader(vertex);
+    gl.deleteShader(fragment);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(program) ?? 'unknown program error';
+      gl.deleteProgram(program);
+      throw new Error(`Unable to link WebGL2 program: ${log}`);
+    }
+    this.program = program;
+    this.position = gl.getAttribLocation(program, 'a_position');
+    this.tileUv = gl.getAttribLocation(program, 'a_tileUv');
+    this.uniforms = Object.fromEntries(WEBGL2_UNIFORMS.flatMap((name) => {
+      const location = gl.getUniformLocation(program, name);
+      if (!location) return [];
+      return [[name, location]];
+    })) as WebGL2ShaderProgram['uniforms'];
+  }
+
+  use(): void {
+    this.gl.useProgram(this.program);
+  }
+
+  delete(): void {
+    this.gl.deleteProgram(this.program);
+  }
+
+  uniform1i(name: UniformName, value: number): void {
+    const location = this.uniforms[name];
+    if (location) this.gl.uniform1i(location, value);
+  }
+
+  uniform1f(name: UniformName, value: number): void {
+    const location = this.uniforms[name];
+    if (location) this.gl.uniform1f(location, value);
+  }
+
+  uniform2f(name: UniformName, x: number, y: number): void {
+    const location = this.uniforms[name];
+    if (location) this.gl.uniform2f(location, x, y);
+  }
+
+  uniform4f(name: UniformName, x: number, y: number, z: number, w: number): void {
+    const location = this.uniforms[name];
+    if (location) this.gl.uniform4f(location, x, y, z, w);
+  }
+}
 
 type TextureEntry = {
   texture: WebGLTexture;
@@ -112,22 +165,74 @@ void main() {
   outColor = texture(u_colormap, vec2(clamp(normalized, 0.0, 1.0), 0.5));
 }`;
 
+export const WEBGL2_TERRAIN_VERTEX_SHADER = `#version 300 es
+precision highp float;
+
+in vec2 a_position;
+in vec2 a_tileUv;
+out vec2 v_tileUv;
+out float v_height;
+
+uniform sampler2D u_tile;
+uniform vec2 u_tileTimeRange;
+uniform vec2 u_canvasSize;
+uniform float u_terrainHeight;
+
+void main() {
+  v_tileUv = a_tileUv;
+  float heightValue = texture(u_tile, a_tileUv).r;
+  v_height = heightValue;
+  vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_position.y * 2.0 - 1.0);
+  float isoX = (terrain.x - terrain.y) * 0.58;
+  float isoY = (terrain.x + terrain.y) * 0.28 - heightValue * u_terrainHeight;
+  gl_Position = vec4(isoX, isoY - 0.18, heightValue * 0.2, 1.0);
+}`;
+
+export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+
+in vec2 v_tileUv;
+in float v_height;
+out vec4 outColor;
+
+uniform sampler2D u_tile;
+uniform vec2 u_tileSize;
+
+void main() {
+  vec2 stepSize = 1.0 / max(vec2(1.0), u_tileSize - 1.0);
+  float left = texture(u_tile, clamp(v_tileUv - vec2(stepSize.x, 0.0), 0.0, 1.0)).r;
+  float right = texture(u_tile, clamp(v_tileUv + vec2(stepSize.x, 0.0), 0.0, 1.0)).r;
+  float low = texture(u_tile, clamp(v_tileUv - vec2(0.0, stepSize.y), 0.0, 1.0)).r;
+  float high = texture(u_tile, clamp(v_tileUv + vec2(0.0, stepSize.y), 0.0, 1.0)).r;
+  vec3 normal = normalize(vec3((left - right) * 1.8, (low - high) * 1.8, 0.6));
+  float light = clamp(dot(normal, normalize(vec3(-0.35, -0.55, 0.9))), 0.0, 1.0);
+  float contour = smoothstep(0.015, 0.0, abs(fract(v_height * 18.0) - 0.5));
+  float ridge = smoothstep(0.965, 1.0, fract(v_tileUv.y * u_tileSize.y));
+  float tone = 0.18 + v_height * 0.48 + light * 0.26 + contour * 0.18 + ridge * 0.16;
+  outColor = vec4(vec3(clamp(tone, 0.0, 1.0)), 1.0);
+}`;
+
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = 'webgl2' as const;
   private readonly fallback = new CanvasSpectrogramRenderer();
-  private readonly program: ProgramInfo;
+  private readonly normalShader: WebGL2ShaderProgram;
+  private readonly terrainShader: WebGL2ShaderProgram;
   private readonly quadBuffer: WebGLBuffer;
+  private readonly terrainBuffer: WebGLBuffer;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
   private colorMapKey = '';
   private frameState: FrameState | undefined;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
-    this.program = this.createProgram(WEBGL2_VERTEX_SHADER, WEBGL2_FRAGMENT_SHADER);
+    this.normalShader = new WebGL2ShaderProgram(gl, WEBGL2_VERTEX_SHADER, WEBGL2_FRAGMENT_SHADER);
+    this.terrainShader = new WebGL2ShaderProgram(gl, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER);
     const quadBuffer = gl.createBuffer();
+    const terrainBuffer = gl.createBuffer();
     const colorMapTexture = gl.createTexture();
-    if (!quadBuffer || !colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
+    if (!quadBuffer || !terrainBuffer || !colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
     this.quadBuffer = quadBuffer;
+    this.terrainBuffer = terrainBuffer;
     this.colorMapTexture = colorMapTexture;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
@@ -142,7 +247,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const gl = canvas.getContext('webgl2');
     if (!gl) return 'canvas.getContext("webgl2") returned null';
     if (!isUsableWebGL2Context(gl)) return 'canvas.getContext("webgl2") did not return a usable WebGL2RenderingContext';
-    return compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_VERTEX_SHADER) ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER);
+    return compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_VERTEX_SHADER)
+      ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER)
+      ?? compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER)
+      ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER);
   }
 
   invalidate(): void {
@@ -185,7 +293,9 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.invalidate();
     this.gl.deleteTexture(this.colorMapTexture);
     this.gl.deleteBuffer(this.quadBuffer);
-    this.gl.deleteProgram(this.program.program);
+    this.gl.deleteBuffer(this.terrainBuffer);
+    this.normalShader.delete();
+    this.terrainShader.delete();
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 
@@ -197,23 +307,27 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
     this.updateColorMap(input.colorMap);
     gl.viewport(0, 0, deviceWidth, deviceHeight);
+    if (input.secretSpectrogram3d) {
+      this.paintTerrain(input, width, height, dpr, deviceWidth, deviceHeight);
+      return;
+    }
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
     gl.clearColor(0.02, 0.025, 0.035, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(this.program.program);
+    this.normalShader.use();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.enableVertexAttribArray(this.program.position);
-    gl.vertexAttribPointer(this.program.position, 2, gl.FLOAT, false, 16, 0);
-    gl.enableVertexAttribArray(this.program.tileUv);
-    gl.vertexAttribPointer(this.program.tileUv, 2, gl.FLOAT, false, 16, 8);
+    gl.enableVertexAttribArray(this.normalShader.position);
+    gl.vertexAttribPointer(this.normalShader.position, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(this.normalShader.tileUv);
+    gl.vertexAttribPointer(this.normalShader.tileUv, 2, gl.FLOAT, false, 16, 8);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.colorMapTexture);
-    this.uniform1i('u_colormap', 1);
-    this.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
-    this.uniform2f('u_canvasSize', deviceWidth, deviceHeight);
-    this.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
-    this.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
+    this.normalShader.uniform1i('u_colormap', 1);
+    this.normalShader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
+    this.normalShader.uniform2f('u_canvasSize', deviceWidth, deviceHeight);
+    this.normalShader.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
+    this.normalShader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
 
     const placeholderCount = input.placeholders?.length ?? 0;
     for (let index = 0; index < placeholderCount; index++) this.drawPlaceholder();
@@ -224,25 +338,61 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
   }
 
+  private paintTerrain(input: RenderInput, width: number, height: number, dpr: number, deviceWidth: number, deviceHeight: number): void {
+    const gl = this.gl;
+    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.terrainShader.use();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.terrainBuffer);
+    gl.enableVertexAttribArray(this.terrainShader.position);
+    gl.vertexAttribPointer(this.terrainShader.position, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(this.terrainShader.tileUv);
+    gl.vertexAttribPointer(this.terrainShader.tileUv, 2, gl.FLOAT, false, 16, 8);
+    this.terrainShader.uniform2f('u_canvasSize', deviceWidth, deviceHeight);
+    this.terrainShader.uniform1f('u_terrainHeight', 0.72);
+    for (const tile of input.tiles) this.drawTerrainTile(tile, input.valueScale);
+    gl.disable(gl.DEPTH_TEST);
+    this.throwOnError('terrain render');
+    const { profile: _profile, ...frameInput } = input;
+    this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
+  }
+
+  private drawTerrainTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): void {
+    if (tile.frameCount < 2 || tile.binCount < 2) return;
+    const gl = this.gl;
+    const entry = this.textureForTile(tile, valueScale);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, entry.texture);
+    this.terrainShader.uniform1i('u_tile', 0);
+    this.terrainShader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
+    this.terrainShader.uniform2f('u_tileSize', entry.width, entry.height);
+    const vertices = terrainVerticesForTile(tile, 96, 96);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.terrainBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 4);
+  }
+
   private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): void {
     if (tile.frameCount === 0 || tile.binCount === 0) return;
     const gl = this.gl;
     const entry = this.textureForTile(tile, valueScale);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-    this.uniform1i('u_tile', 0);
-    this.uniform1f('u_overlayMode', 0);
+    this.normalShader.uniform1i('u_tile', 0);
+    this.normalShader.uniform1f('u_overlayMode', 0);
     this.setFullViewportQuad();
-    this.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
+    this.normalShader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
     const frequencyRange = tileFrequencyRange(tile);
-    this.uniform2f('u_tileFrequencyRange', frequencyRange.min, frequencyRange.max);
-    this.uniform2f('u_tileSize', entry.width, entry.height);
+    this.normalShader.uniform2f('u_tileFrequencyRange', frequencyRange.min, frequencyRange.max);
+    this.normalShader.uniform2f('u_tileSize', entry.width, entry.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   private drawPlaceholder(): void {
     this.setFullViewportQuad();
-    this.uniform1f('u_overlayMode', 1);
+    this.normalShader.uniform1f('u_overlayMode', 1);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -251,7 +401,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const x = (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
     this.gl.enable(this.gl.BLEND);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-    this.uniform1f('u_overlayMode', 2);
+    this.normalShader.uniform1f('u_overlayMode', 2);
     const pixelWidth = 1 / Math.max(1, this.frameState?.deviceWidth ?? 1);
     this.setLineQuad(x, Math.min(1, x + pixelWidth));
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
@@ -310,69 +460,9 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
   }
 
-  private compileShader(type: number, source: string): WebGLShader {
-    const shader = this.gl.createShader(type);
-    if (!shader) throw new Error('Unable to create WebGL2 shader');
-    this.gl.shaderSource(shader, source);
-    this.gl.compileShader(shader);
-    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-      const log = this.gl.getShaderInfoLog(shader)?.trim() || 'unknown shader error';
-      const kind = type === this.gl.VERTEX_SHADER ? 'vertex' : type === this.gl.FRAGMENT_SHADER ? 'fragment' : 'unknown';
-      this.gl.deleteShader(shader);
-      throw new Error(`Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`);
-    }
-    return shader;
-  }
-
-  private createProgram(vertexSource: string, fragmentSource: string): ProgramInfo {
-    const gl = this.gl;
-    const vertex = this.compileShader(gl.VERTEX_SHADER, vertexSource);
-    const fragment = this.compileShader(gl.FRAGMENT_SHADER, fragmentSource);
-    const program = gl.createProgram();
-    if (!program) throw new Error('Unable to create WebGL2 program');
-    gl.attachShader(program, vertex);
-    gl.attachShader(program, fragment);
-    gl.linkProgram(program);
-    gl.deleteShader(vertex);
-    gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const log = gl.getProgramInfoLog(program) ?? 'unknown program error';
-      gl.deleteProgram(program);
-      throw new Error(`Unable to link WebGL2 program: ${log}`);
-    }
-    const position = gl.getAttribLocation(program, 'a_position');
-    const tileUv = gl.getAttribLocation(program, 'a_tileUv');
-    const uniforms = Object.fromEntries(WEBGL2_UNIFORMS.flatMap((name) => {
-      const location = gl.getUniformLocation(program, name);
-      if (!location) return [];
-      return [[name, location]];
-    })) as ProgramInfo['uniforms'];
-    return { program, position, tileUv, uniforms };
-  }
-
   private throwOnError(phase: string): void {
     const error = this.gl.getError();
     if (error !== this.gl.NO_ERROR) throw new Error(`WebGL2 renderer ${phase} failed with GL error 0x${error.toString(16)}`);
-  }
-
-  private uniform1i(name: UniformName, value: number): void {
-    const location = this.program.uniforms[name];
-    if (location) this.gl.uniform1i(location, value);
-  }
-
-  private uniform1f(name: UniformName, value: number): void {
-    const location = this.program.uniforms[name];
-    if (location) this.gl.uniform1f(location, value);
-  }
-
-  private uniform2f(name: UniformName, x: number, y: number): void {
-    const location = this.program.uniforms[name];
-    if (location) this.gl.uniform2f(location, x, y);
-  }
-
-  private uniform4f(name: UniformName, x: number, y: number, z: number, w: number): void {
-    const location = this.program.uniforms[name];
-    if (location) this.gl.uniform4f(location, x, y, z, w);
   }
 }
 
@@ -402,6 +492,20 @@ function numberedSource(source: string): string {
   return source.split('\n').map((line, index) => `${String(index + 1).padStart(3, ' ')}: ${line}`).join('\n');
 }
 
+function compileShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
+  const shader = gl.createShader(type);
+  if (!shader) throw new Error('Unable to create WebGL2 shader');
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(shader)?.trim() || 'unknown shader error';
+    const kind = type === gl.VERTEX_SHADER ? 'vertex' : type === gl.FRAGMENT_SHADER ? 'fragment' : 'unknown';
+    gl.deleteShader(shader);
+    throw new Error(`Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`);
+  }
+  return shader;
+}
+
 function compileShaderDiagnostic(gl: WebGL2RenderingContext, type: number, source: string): string | undefined {
   const shader = gl.createShader(type);
   const kind = type === gl.VERTEX_SHADER ? 'vertex' : type === gl.FRAGMENT_SHADER ? 'fragment' : 'unknown';
@@ -428,6 +532,36 @@ export function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Requir
     }
   }
   return values;
+}
+
+export function terrainVerticesForTile(tile: Pick<SpectrogramMatrix, 'frameCount' | 'binCount'>, maxColumns = 96, maxRows = 96): Float32Array {
+  const columns = Math.max(2, Math.min(maxColumns, tile.frameCount));
+  const rows = Math.max(2, Math.min(maxRows, tile.binCount));
+  const vertices = new Float32Array((columns - 1) * (rows - 1) * 6 * 4);
+  let offset = 0;
+  for (let row = 0; row < rows - 1; row++) {
+    const v0 = row / (rows - 1);
+    const v1 = (row + 1) / (rows - 1);
+    for (let column = 0; column < columns - 1; column++) {
+      const u0 = column / (columns - 1);
+      const u1 = (column + 1) / (columns - 1);
+      offset = writeTerrainVertex(vertices, offset, u0, v0);
+      offset = writeTerrainVertex(vertices, offset, u1, v0);
+      offset = writeTerrainVertex(vertices, offset, u0, v1);
+      offset = writeTerrainVertex(vertices, offset, u1, v0);
+      offset = writeTerrainVertex(vertices, offset, u1, v1);
+      offset = writeTerrainVertex(vertices, offset, u0, v1);
+    }
+  }
+  return vertices;
+}
+
+function writeTerrainVertex(vertices: Float32Array, offset: number, u: number, v: number): number {
+  vertices[offset] = u;
+  vertices[offset + 1] = v;
+  vertices[offset + 2] = u;
+  vertices[offset + 3] = v;
+  return offset + 4;
 }
 
 export function tileFrequencyRange(tile: Pick<SpectrogramMatrix, 'frequencies' | 'sampleRate'>): { min: number; max: number } {

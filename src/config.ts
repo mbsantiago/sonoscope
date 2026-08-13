@@ -53,6 +53,7 @@ export function resolveConfig(input: SpectrogramConfig): ResolvedSpectrogramConf
     playback: { showPlayhead: true, follow: false, followMargin: 0.2, renderOnSeek: true, ...input.playback },
     cache: resolveCache(input.cache, viewportConstraints),
     transforms: input.transforms ?? [],
+    superpowers: { secretSpectrogram3d: false, ...input.superpowers },
   };
 }
 

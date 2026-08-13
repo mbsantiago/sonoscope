@@ -55,6 +55,10 @@ export type CacheConfig = {
   prefetchTiles: number;
 };
 
+export type SuperpowersConfig = {
+  secretSpectrogram3d: boolean;
+};
+
 export type CacheStats = {
   tiles: number;
   bytes: number;
@@ -133,6 +137,7 @@ export type SpectrogramConfig = {
   playback?: Partial<PlaybackConfig>;
   cache?: Partial<CacheConfig>;
   transforms?: SpectrogramTransform[];
+  superpowers?: Partial<SuperpowersConfig>;
 };
 
 export type ResolvedSpectrogramConfig = {
@@ -149,6 +154,7 @@ export type ResolvedSpectrogramConfig = {
   playback: PlaybackConfig;
   cache: CacheConfig;
   transforms: SpectrogramTransform[];
+  superpowers: SuperpowersConfig;
 };
 
 export type AudioRange = { startTime: number; endTime: number };

@@ -32,6 +32,7 @@
             <option value="mel">mel</option>
           </select>
         </label>
+        <label title="This is not a serious control."><input id="summon" type="checkbox" /> summon mountains</label>
         <button id="render">Render</button>
       </div>
       <canvas id="spectrogram"></canvas>
@@ -62,6 +63,7 @@
       let canvas = document.querySelector('#spectrogram');
       const rendererMode = document.querySelector('#renderer');
       const frequencyScale = document.querySelector('#frequency-scale');
+      const summon = document.querySelector('#summon');
       const status = document.querySelector('#status');
       const source = new SyntheticSource();
       const backend = {
@@ -98,21 +100,22 @@
       async function renderSelected() {
         viewer?.destroy();
         canvas = resetCanvas(canvas);
-        status.textContent = `Creating viewer with renderer: ${rendererMode.value}, frequency scale: ${frequencyScale.value}...`;
+        status.textContent = `Creating viewer with renderer: ${rendererMode.value}, frequency scale: ${frequencyScale.value}${summon.checked ? ', invoking forbidden geometry' : ''}...`;
         try {
           viewer = await SpectrogramViewer.create({
             canvas,
             source,
-            renderer: rendererMode.value,
+            renderer: summon.checked ? 'webgl2' : rendererMode.value,
             backend,
             cache: { tileDurationSeconds: 8 },
             viewport: { startTime: 0, endTime: 8, minFrequency: frequencyScale.value === 'log' ? 20 : 0, maxFrequency: 8_000, frequencyScale: frequencyScale.value },
             valueScale: { mode: 'magnitude', min: 0, max: 1 },
             stft: { windowSize: 2048, fftSize: 2048, hopSize: 512 },
+            superpowers: { secretSpectrogram3d: summon.checked },
           });
           viewer.on('renderprofile', (event) => {
             const rendererPaint = event.measures.find((measure) => measure.name === 'renderer.paint');
-            status.textContent = `renderer config: ${viewer.getConfig().renderer}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nrequest: ${event.requestId}\nrenderer paint: ${(rendererPaint?.duration ?? 0).toFixed(1)} ms`;
+            status.textContent = `renderer config: ${viewer.getConfig().renderer}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nmountains: ${viewer.getConfig().superpowers.secretSpectrogram3d ? 'summoned' : 'sleeping'}\nrequest: ${event.requestId}\nrenderer paint: ${(rendererPaint?.duration ?? 0).toFixed(1)} ms`;
           });
           await viewer.render();
         } catch (error) {
@@ -123,6 +126,8 @@
       document.querySelector('#render').addEventListener('click', () => void renderSelected());
       rendererMode.addEventListener('change', () => void renderSelected());
       frequencyScale.addEventListener('change', () => void renderSelected());
+      summon.addEventListener('change', () => void renderSelected());
+      summon.checked = new URLSearchParams(window.location.search).get('summon') === 'mountains';
       await renderSelected();
 
       function resetCanvas(current) {

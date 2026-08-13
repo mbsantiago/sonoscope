@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { textureValuesForTile, tileFrequencyRange } from './webgl2-renderer';
+import { terrainVerticesForTile, textureValuesForTile, tileFrequencyRange } from './webgl2-renderer';
 import type { SpectrogramMatrix } from './types';
 
 describe('textureValuesForTile', () => {
@@ -43,5 +43,14 @@ describe('tileFrequencyRange', () => {
     };
 
     expect(tileFrequencyRange(tile)).toEqual({ min: 0, max: 96_000 });
+  });
+});
+
+describe('terrainVerticesForTile', () => {
+  it('builds two triangles per terrain cell with position and uv pairs', () => {
+    const vertices = terrainVerticesForTile({ frameCount: 3, binCount: 2 }, 3, 2);
+
+    expect(vertices.length).toBe(2 * 1 * 6 * 4);
+    expect(Array.from(vertices.slice(0, 8))).toEqual([0, 0, 0, 0, 0.5, 0, 0.5, 0]);
   });
 });

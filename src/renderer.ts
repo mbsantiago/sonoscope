@@ -14,6 +14,7 @@ export type RenderInput = {
   tiles: SpectrogramMatrix[];
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
+  secretSpectrogram3d?: boolean;
   profile?: PerformanceProfiler;
 };
 

@@ -279,6 +279,7 @@ export class SpectrogramViewer {
       placeholders,
       profile,
       ...(this.config.playback.showPlayhead && this.config.audio ? { playheadTime: this.config.audio.currentTime } : {}),
+      ...(this.config.superpowers.secretSpectrogram3d ? { secretSpectrogram3d: true } : {}),
     });
   }
 

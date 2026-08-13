@@ -21,6 +21,11 @@ describe('resolveConfig', () => {
     expect(config.stft).toEqual({ windowSize: 1024, fftSize: 1024, hopSize: 256, window: 'hann' });
     expect(config.viewport.frequencyScale).toBe('linear');
     expect(config.colorMap).toBe('viridis');
+    expect(config.superpowers.secretSpectrogram3d).toBe(false);
+  });
+
+  it('preserves hidden superpower flags', () => {
+    expect(resolveConfig({ canvas, source, superpowers: { secretSpectrogram3d: true } }).superpowers.secretSpectrogram3d).toBe(true);
   });
 
   it('preserves explicit renderer modes', () => {
