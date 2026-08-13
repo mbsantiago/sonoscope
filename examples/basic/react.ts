@@ -522,18 +522,20 @@ function Slider(props: {
   values?: number[];
   onChange: (value: number) => void;
 }) {
-  const valueIndex = props.values?.indexOf(props.value);
-  const sliderValue = props.values ? (valueIndex === undefined || valueIndex < 0 ? 0 : valueIndex) : props.value;
+  const valueIndex = props.values?.indexOf(props.value) ?? -1;
+  const min = props.values ? 0 : props.min;
+  const max = props.values ? props.values.length - 1 : props.max;
+  const value = props.values ? Math.max(0, valueIndex) : props.value;
   return h(
     "label",
     null,
     h("span", null, props.label, h("b", null, props.value)),
     h("input", {
       type: "range",
-      min: props.values ? 0 : props.min,
-      max: props.values ? props.values.length - 1 : props.max,
-      step: props.step,
-      value: sliderValue < 0 ? 0 : sliderValue,
+      min: String(min),
+      max: String(max),
+      step: String(props.step),
+      value: String(value),
       onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
         props.onChange(props.values?.[Number(event.currentTarget.value)] ?? Number(event.currentTarget.value)),
     }),
