@@ -117,6 +117,13 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     return gl && isUsableWebGL2Context(gl) ? new WebGL2SpectrogramRenderer(gl) : undefined;
   }
 
+  static diagnose(canvas: HTMLCanvasElement): string | undefined {
+    const gl = canvas.getContext('webgl2');
+    if (!gl) return 'canvas.getContext("webgl2") returned null';
+    if (!isUsableWebGL2Context(gl)) return 'canvas.getContext("webgl2") did not return a usable WebGL2RenderingContext';
+    return compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_VERTEX_SHADER) ?? compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER);
+  }
+
   invalidate(): void {
     this.fallback.invalidate();
     this.frameState = undefined;
@@ -322,4 +329,16 @@ function sameViewport(left: ViewportConfig, right: ViewportConfig): boolean {
 
 function numberedSource(source: string): string {
   return source.split('\n').map((line, index) => `${String(index + 1).padStart(3, ' ')}: ${line}`).join('\n');
+}
+
+function compileShaderDiagnostic(gl: WebGL2RenderingContext, type: number, source: string): string | undefined {
+  const shader = gl.createShader(type);
+  const kind = type === gl.VERTEX_SHADER ? 'vertex' : type === gl.FRAGMENT_SHADER ? 'fragment' : 'unknown';
+  if (!shader) return `Unable to create WebGL2 ${kind} shader`;
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  const ok = gl.getShaderParameter(shader, gl.COMPILE_STATUS) as boolean;
+  const log = gl.getShaderInfoLog(shader)?.trim() || 'unknown shader error';
+  gl.deleteShader(shader);
+  return ok ? undefined : `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`;
 }

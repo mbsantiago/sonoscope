@@ -52,7 +52,7 @@ describe('createSpectrogramRenderer', () => {
   });
 
   it('throws when webgl2 is requested but unavailable', () => {
-    expect(() => createSpectrogramRenderer(canvas(null), 'webgl2')).toThrow(/WebGL2/);
+    expect(() => createSpectrogramRenderer(canvas(null), 'webgl2')).toThrow(/returned null/);
   });
 
   it('falls back to canvas renderer in auto mode when webgl2 initialization fails', () => {

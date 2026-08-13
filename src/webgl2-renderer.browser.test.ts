@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER } from './webgl2-renderer';
+import { WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './webgl2-renderer';
 
 function compileShader(gl: WebGL2RenderingContext, type: number, source: string): string | undefined {
   const shader = gl.createShader(type);
@@ -20,5 +20,6 @@ describe('WebGL2 shaders', () => {
 
     expect(compileShader(gl, gl.VERTEX_SHADER, WEBGL2_VERTEX_SHADER)).toBeUndefined();
     expect(compileShader(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER)).toBeUndefined();
+    expect(WebGL2SpectrogramRenderer.diagnose(canvas)).toBeUndefined();
   });
 });

@@ -7,7 +7,7 @@ export function createSpectrogramRenderer(canvas: HTMLCanvasElement, mode: Rende
   try {
     const renderer = WebGL2SpectrogramRenderer.create(canvas);
     if (!renderer) {
-      if (mode === 'webgl2') throw new Error('WebGL2 renderer requested but WebGL2 is unavailable');
+      if (mode === 'webgl2') throw new Error(`WebGL2 renderer requested but WebGL2 is unavailable: ${WebGL2SpectrogramRenderer.diagnose(canvas) ?? 'unknown reason'}`);
       return new CanvasSpectrogramRenderer();
     }
     return renderer;

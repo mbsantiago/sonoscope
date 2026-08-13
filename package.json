@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@vitest/browser": "latest",
-    "@vitest/browser-preview": "latest",
+    "@vitest/browser-playwright": "latest",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"
