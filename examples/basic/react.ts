@@ -47,6 +47,7 @@ type Settings = {
   windowSize: number;
   hopSize: number;
   window: WindowName;
+  summonMountains: boolean;
 };
 
 const initialSettings: Settings = {
@@ -59,6 +60,7 @@ const initialSettings: Settings = {
   windowSize: 1024,
   hopSize: 128,
   window: "hann",
+  summonMountains: new URLSearchParams(location.search).get("summon") === "mountains",
 };
 
 function ReactSpectrogramDemo() {
@@ -116,6 +118,8 @@ function ReactSpectrogramDemo() {
         clamp: true,
       },
       colorMap: settings.colorMap,
+      renderer: settings.summonMountains ? "webgl2" : "auto",
+      superpowers: { secretSpectrogram3d: settings.summonMountains },
       playback: { follow: true, renderOnSeek: true },
     })
       .then((viewer) => {
@@ -131,7 +135,7 @@ function ReactSpectrogramDemo() {
             setCacheSummary(formatCacheStats(viewer.getCacheStats()));
           },
         });
-        setStatus("Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor.");
+        setStatus(`Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Mountains: ${viewer.getConfig().superpowers.secretSpectrogram3d ? "summoned" : "sleeping"}.`);
         setCacheSummary(formatCacheStats(viewer.getCacheStats()));
         viewer.requestRender();
         if (cancelled) unsubscribeViewport();
@@ -149,7 +153,7 @@ function ReactSpectrogramDemo() {
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [settings.recording]);
+  }, [settings.recording, settings.summonMountains]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -205,9 +209,11 @@ function ReactSpectrogramDemo() {
         clamp: true,
       },
       colorMap: settings.colorMap,
+      renderer: settings.summonMountains ? "webgl2" : "auto",
+      superpowers: { secretSpectrogram3d: settings.summonMountains },
     });
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-  }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap]);
+  }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap, settings.summonMountains]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -454,6 +460,17 @@ function ReactSpectrogramDemo() {
             updateViewport((current) => ({ ...current, maxFrequency })),
         }),
         h(
+          "label",
+          { className: "toggle", title: "This is not a serious control." },
+          h("input", {
+            type: "checkbox",
+            checked: settings.summonMountains,
+            onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+              updateSettings({ summonMountains: event.currentTarget.checked }),
+          }),
+          h("span", null, "summon mountains"),
+        ),
+        h(
           "button",
           {
             type: "button",
@@ -675,6 +692,9 @@ const styles = `
   label b { color: #d7dce5; font-weight: 700; }
   select, button { width: 100%; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; background: #171a20; color: #f4efe7; padding: 10px 12px; font: 700 13px ui-monospace, monospace; }
   button { background: #e6e9ef; color: #101216; cursor: pointer; text-transform: uppercase; letter-spacing: .12em; }
+  .toggle { display: flex; grid-template-columns: none; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; background: #171a20; color: #f4efe7; cursor: pointer; }
+  .toggle span { display: block; }
+  .toggle input { accent-color: #f4efe7; }
   input[type='range'] { accent-color: #d7dce5; width: 100%; }
   @media (max-width: 900px) { .workbench { grid-template-columns: 1fr; } .controls { position: static; } h1 { letter-spacing: -.05em; } }
 `;
