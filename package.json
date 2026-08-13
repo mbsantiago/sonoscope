@@ -1,9 +1,22 @@
 {
   "name": "spectrogram-js",
   "version": "0.0.0",
+  "description": "Framework-agnostic TypeScript spectrogram rendering for browser audio.",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "author": "Santiago",
+  "keywords": [
+    "audio",
+    "spectrogram",
+    "stft",
+    "webgl",
+    "canvas",
+    "typescript"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -11,13 +24,20 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "vite build && tsc --emitDeclarationOnly",
+    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "bench": "vitest bench",
     "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
+    "pack:dry": "npm pack --dry-run",
+    "prepack": "npm run build",
     "test": "vitest run",
     "test:browser": "vitest run --config vite.browser.config.ts",
     "typecheck": "tsc --noEmit"
