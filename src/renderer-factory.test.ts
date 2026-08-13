@@ -18,4 +18,11 @@ describe('createSpectrogramRenderer', () => {
   it('throws when webgl2 is requested but unavailable', () => {
     expect(() => createSpectrogramRenderer(canvas(null), 'webgl2')).toThrow(/WebGL2/);
   });
+
+  it('creates webgl2 renderer when webgl2 is available', () => {
+    const gl = { getExtension: vi.fn(), canvas: {} };
+    const renderer = createSpectrogramRenderer(canvas(gl), 'webgl2');
+
+    expect(renderer.kind).toBe('webgl2');
+  });
 });

@@ -14,6 +14,7 @@ export type { CanvasNavigationOptions, TimeBounds } from './navigation';
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
 export type { RenderInput, RendererKind, SpectrogramRenderer } from './renderer';
 export { createSpectrogramRenderer } from './renderer-factory';
+export { WebGL2SpectrogramRenderer } from './webgl2-renderer';
 export { FrameMeter } from './performance';
 export type { FrameStats, PerformanceDetail, PerformanceMeasure } from './performance';
 export { DecodedAudioSource, createAudioSourceFromUrl } from './source';
