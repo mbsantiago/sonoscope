@@ -522,7 +522,8 @@ function Slider(props: {
   values?: number[];
   onChange: (value: number) => void;
 }) {
-  const sliderValue = props.values ? props.values.indexOf(props.value) : props.value;
+  const valueIndex = props.values?.indexOf(props.value);
+  const sliderValue = props.values ? (valueIndex === undefined || valueIndex < 0 ? 0 : valueIndex) : props.value;
   return h(
     "label",
     null,
