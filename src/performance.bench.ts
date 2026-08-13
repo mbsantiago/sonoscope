@@ -1,6 +1,6 @@
 import { bench, describe } from 'vitest';
 import { MainThreadComputeBackend } from './backend';
-import { CanvasSpectrogramRenderer } from './renderer';
+import { CanvasSpectrogramRenderer } from './renderers/canvas';
 import { computeStftMatrix } from './stft';
 import type { AudioSource, SpectrogramMatrix, StftConfig } from './types';
 

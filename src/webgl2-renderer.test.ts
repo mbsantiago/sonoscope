@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { terrainVerticesForTile, textureValuesForTile, tileFrequencyRange } from './webgl2-renderer';
+import { terrainVerticesForTile, textureValuesForTile, tileFrequencyRange } from './renderers/webgl2';
 import type { SpectrogramMatrix } from './types';
 
 describe('textureValuesForTile', () => {

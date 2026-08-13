@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CanvasSpectrogramRenderer } from './renderer';
+import { CanvasSpectrogramRenderer } from './renderers/canvas';
 import { createSpectrogramRenderer } from './renderer-factory';
 
 function canvas(context: unknown = null): HTMLCanvasElement {

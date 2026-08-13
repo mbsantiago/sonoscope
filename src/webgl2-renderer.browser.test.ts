@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { WEBGL2_FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './webgl2-renderer';
-import { CanvasSpectrogramRenderer, type RenderInput } from './renderer';
+import { CanvasSpectrogramRenderer, type RenderInput } from './renderers/canvas';
+import { WEBGL2_FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './renderers/webgl2';
 import type { SpectrogramMatrix } from './types';
 import { SpectrogramViewer } from './viewer';
 
