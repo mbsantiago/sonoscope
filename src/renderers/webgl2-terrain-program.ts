@@ -28,6 +28,7 @@ uniform vec2 u_canvasSize;
 uniform vec4 u_viewport;
 uniform float u_frequencyScale;
 uniform float u_terrainHeight;
+uniform float u_terrainPlayhead;
 
 float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
 float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
@@ -56,8 +57,9 @@ void main() {
   vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float liftedHeight = pow(heightValue, 0.72) * u_terrainHeight;
   float viewX = terrain.x * 0.96;
-  float viewY = terrain.y * 0.76 + liftedHeight * 0.42;
-  gl_Position = vec4(viewX, viewY - 0.01, -heightValue * 0.03, 1.0);
+  float playheadLift = u_terrainPlayhead == 1.0 ? 0.012 : 0.0;
+  float viewY = terrain.y * 0.76 + liftedHeight * 0.42 + playheadLift;
+  gl_Position = vec4(viewX, viewY - 0.01, -heightValue * 0.03 - playheadLift, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
@@ -160,6 +162,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
   }
 
   private drawPlayhead(time: number, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
+    this.gl.disable(this.gl.DEPTH_TEST);
     this.gl.enable(this.gl.BLEND);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
     this.shader.uniform1f('u_terrainPlayhead', 1);
@@ -169,6 +172,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     }
     this.shader.uniform1f('u_terrainPlayhead', 0);
     this.gl.disable(this.gl.BLEND);
+    this.gl.enable(this.gl.DEPTH_TEST);
   }
 
   private drawPlayheadForTile(tile: SpectrogramMatrix, time: number, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
