@@ -4,7 +4,8 @@ import { resolveConfig, stableHash } from './config';
 import { TypedEventEmitter } from './events';
 import { canvasToTimeFrequency as mapCanvasToTimeFrequency, timeFrequencyToCanvas as mapTimeFrequencyToCanvas } from './frequency-scale';
 import { FrameMeter, PerformanceProfiler } from './performance';
-import { CanvasSpectrogramRenderer } from './renderer';
+import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from './renderer';
+import { createSpectrogramRenderer } from './renderer-factory';
 import { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 import { applyTransforms } from './transforms';
 import type { AudioSource, CacheStats, ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
@@ -13,7 +14,7 @@ import { WorkerComputeBackend } from './worker-backend';
 export class SpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
   private readonly cache: SpectrogramCache;
-  private readonly renderer = new CanvasSpectrogramRenderer();
+  private readonly renderer: SpectrogramRenderer;
   private playbackCleanup: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
   private renderQueued = false;
@@ -33,6 +34,7 @@ export class SpectrogramViewer {
     private readonly backend: SpectrogramComputeBackend,
   ) {
     this.cache = new SpectrogramCache({ maxCachedTiles: config.cache.maxCachedTiles });
+    this.renderer = createSpectrogramRenderer(config.canvas, config.renderer);
     this.attachPlaybackSync();
     this.attachSourceRangeSync();
   }
@@ -77,7 +79,7 @@ export class SpectrogramViewer {
   setConfig(input: Partial<SpectrogramConfig>): void {
     const source = input.source ?? this.config.source;
     const viewport = { ...this.config.viewport, ...input.viewport };
-    this.config = resolveConfig({ ...this.config, ...input, viewport, viewportConstraints: { ...this.config.viewportConstraints, ...input.viewportConstraints }, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
+    this.config = resolveConfig({ ...this.config, ...input, renderer: input.renderer ?? this.config.renderer, viewport, viewportConstraints: { ...this.config.viewportConstraints, ...input.viewportConstraints }, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
     this.renderGeneration += 1;
     this.cache.clear();
     this.pendingTiles.clear();
@@ -312,6 +314,7 @@ export class SpectrogramViewer {
     this.sourceRangeCleanup = undefined;
     this.cache.clear();
     this.backend.destroy?.();
+    this.renderer.destroy?.();
     this.events.clear();
     this.status = { state: 'destroyed' };
   }

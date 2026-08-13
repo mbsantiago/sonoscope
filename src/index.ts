@@ -12,7 +12,8 @@ export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFreq
 export { attachCanvasNavigation, panViewportTime, setViewerViewport, zoomViewportTime } from './navigation';
 export type { CanvasNavigationOptions, TimeBounds } from './navigation';
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
-export type { RenderInput } from './renderer';
+export type { RenderInput, RendererKind, SpectrogramRenderer } from './renderer';
+export { createSpectrogramRenderer } from './renderer-factory';
 export { FrameMeter } from './performance';
 export type { FrameStats, PerformanceDetail, PerformanceMeasure } from './performance';
 export { DecodedAudioSource, createAudioSourceFromUrl } from './source';

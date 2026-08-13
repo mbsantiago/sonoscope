@@ -184,6 +184,13 @@ describe('SpectrogramViewer', () => {
     fromUrl.mockRestore();
   });
 
+  it('creates with auto renderer when webgl2 is unavailable', async () => {
+    const target = canvas();
+    const viewer = await SpectrogramViewer.create({ canvas: target, source, renderer: 'auto' });
+
+    expect(viewer.getConfig().renderer).toBe('auto');
+  });
+
   it('renders and emits progress', async () => {
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 } });
     const progress: number[] = [];
