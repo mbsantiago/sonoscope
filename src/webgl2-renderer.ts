@@ -83,6 +83,19 @@ type FrameState = {
   input: RenderInput;
 };
 
+type WebGL2Frame = ReturnType<typeof canvasSize>;
+
+type WebGL2RenderResources = {
+  colorMapTexture: WebGLTexture;
+  textureForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): TextureEntry;
+};
+
+type WebGL2RenderProgram = {
+  readonly shader: WebGL2ShaderProgram;
+  paint(input: RenderInput, frame: WebGL2Frame, resources: WebGL2RenderResources): void;
+  delete(): void;
+};
+
 export const WEBGL2_VERTEX_SHADER = `#version 300 es
 in vec2 a_position;
 in vec2 a_tileUv;
@@ -212,30 +225,168 @@ void main() {
   outColor = vec4(vec3(clamp(tone, 0.0, 1.0)), 1.0);
 }`;
 
+class NormalSpectrogramProgram implements WebGL2RenderProgram {
+  readonly shader: WebGL2ShaderProgram;
+  private readonly quadBuffer: WebGLBuffer;
+
+  constructor(private readonly gl: WebGL2RenderingContext) {
+    this.shader = new WebGL2ShaderProgram(gl, WEBGL2_VERTEX_SHADER, WEBGL2_FRAGMENT_SHADER);
+    const quadBuffer = gl.createBuffer();
+    if (!quadBuffer) throw new Error('Unable to initialize WebGL2 normal renderer resources');
+    this.quadBuffer = quadBuffer;
+    this.setFullViewportQuad();
+  }
+
+  paint(input: RenderInput, frame: WebGL2Frame, resources: WebGL2RenderResources): void {
+    const gl = this.gl;
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.clearColor(0.02, 0.025, 0.035, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    this.shader.use();
+    this.bindAttributes();
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
+    this.shader.uniform1i('u_colormap', 1);
+    this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
+    this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
+    this.shader.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
+    this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
+
+    const placeholderCount = input.placeholders?.length ?? 0;
+    for (let index = 0; index < placeholderCount; index++) this.drawPlaceholder();
+    for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
+    if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.viewport, frame.deviceWidth);
+  }
+
+  delete(): void {
+    this.gl.deleteBuffer(this.quadBuffer);
+    this.shader.delete();
+  }
+
+  private bindAttributes(): void {
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
+    this.gl.enableVertexAttribArray(this.shader.position);
+    this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
+    this.gl.enableVertexAttribArray(this.shader.tileUv);
+    this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
+  }
+
+  private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
+    if (tile.frameCount === 0 || tile.binCount === 0) return;
+    const entry = resources.textureForTile(tile, valueScale);
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
+    this.shader.uniform1i('u_tile', 0);
+    this.shader.uniform1f('u_overlayMode', 0);
+    this.setFullViewportQuad();
+    this.shader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
+    const frequencyRange = tileFrequencyRange(tile);
+    this.shader.uniform2f('u_tileFrequencyRange', frequencyRange.min, frequencyRange.max);
+    this.shader.uniform2f('u_tileSize', entry.width, entry.height);
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  private drawPlaceholder(): void {
+    this.setFullViewportQuad();
+    this.shader.uniform1f('u_overlayMode', 1);
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  private drawPlayhead(time: number, viewport: ViewportConfig, deviceWidth: number): void {
+    if (time < viewport.startTime || time > viewport.endTime) return;
+    const x = (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
+    this.gl.enable(this.gl.BLEND);
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.shader.uniform1f('u_overlayMode', 2);
+    const pixelWidth = 1 / Math.max(1, deviceWidth);
+    this.setLineQuad(x, Math.min(1, x + pixelWidth));
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+    this.gl.disable(this.gl.BLEND);
+  }
+
+  private setFullViewportQuad(): void {
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]), this.gl.DYNAMIC_DRAW);
+  }
+
+  private setLineQuad(start: number, end: number): void {
+    const left = start * 2 - 1;
+    const right = end * 2 - 1;
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([left, -1, 0, 1, right, -1, 1, 1, left, 1, 0, 0, right, 1, 1, 0]), this.gl.DYNAMIC_DRAW);
+  }
+}
+
+class TerrainSpectrogramProgram implements WebGL2RenderProgram {
+  readonly shader: WebGL2ShaderProgram;
+  private readonly terrainBuffer: WebGLBuffer;
+
+  constructor(private readonly gl: WebGL2RenderingContext) {
+    this.shader = new WebGL2ShaderProgram(gl, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER);
+    const terrainBuffer = gl.createBuffer();
+    if (!terrainBuffer) throw new Error('Unable to initialize WebGL2 terrain renderer resources');
+    this.terrainBuffer = terrainBuffer;
+  }
+
+  paint(input: RenderInput, frame: WebGL2Frame, resources: WebGL2RenderResources): void {
+    const gl = this.gl;
+    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.shader.use();
+    this.bindAttributes();
+    this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
+    this.shader.uniform1f('u_terrainHeight', 0.72);
+    for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
+    gl.disable(gl.DEPTH_TEST);
+  }
+
+  delete(): void {
+    this.gl.deleteBuffer(this.terrainBuffer);
+    this.shader.delete();
+  }
+
+  private bindAttributes(): void {
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
+    this.gl.enableVertexAttribArray(this.shader.position);
+    this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
+    this.gl.enableVertexAttribArray(this.shader.tileUv);
+    this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
+  }
+
+  private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
+    if (tile.frameCount < 2 || tile.binCount < 2) return;
+    const entry = resources.textureForTile(tile, valueScale);
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
+    this.shader.uniform1i('u_tile', 0);
+    this.shader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
+    this.shader.uniform2f('u_tileSize', entry.width, entry.height);
+    const vertices = terrainVerticesForTile(tile, 96, 96);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
+  }
+}
+
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = 'webgl2' as const;
   private readonly fallback = new CanvasSpectrogramRenderer();
-  private readonly normalShader: WebGL2ShaderProgram;
-  private readonly terrainShader: WebGL2ShaderProgram;
-  private readonly quadBuffer: WebGLBuffer;
-  private readonly terrainBuffer: WebGLBuffer;
+  private readonly normalProgram: WebGL2RenderProgram;
+  private readonly terrainProgram: WebGL2RenderProgram;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
   private colorMapKey = '';
   private frameState: FrameState | undefined;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
-    this.normalShader = new WebGL2ShaderProgram(gl, WEBGL2_VERTEX_SHADER, WEBGL2_FRAGMENT_SHADER);
-    this.terrainShader = new WebGL2ShaderProgram(gl, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER);
-    const quadBuffer = gl.createBuffer();
-    const terrainBuffer = gl.createBuffer();
+    this.normalProgram = new NormalSpectrogramProgram(gl);
+    this.terrainProgram = new TerrainSpectrogramProgram(gl);
     const colorMapTexture = gl.createTexture();
-    if (!quadBuffer || !terrainBuffer || !colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
-    this.quadBuffer = quadBuffer;
-    this.terrainBuffer = terrainBuffer;
+    if (!colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
     this.colorMapTexture = colorMapTexture;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
   }
 
   static create(canvas: HTMLCanvasElement): WebGL2SpectrogramRenderer | undefined {
@@ -292,132 +443,34 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   destroy(): void {
     this.invalidate();
     this.gl.deleteTexture(this.colorMapTexture);
-    this.gl.deleteBuffer(this.quadBuffer);
-    this.gl.deleteBuffer(this.terrainBuffer);
-    this.normalShader.delete();
-    this.terrainShader.delete();
+    this.normalProgram.delete();
+    this.terrainProgram.delete();
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 
   private paint(input: RenderInput): void {
-    const gl = this.gl;
-    const { width, height, dpr, deviceWidth, deviceHeight } = canvasSize(input.canvas);
-    input.canvas.width = deviceWidth;
-    input.canvas.height = deviceHeight;
+    const frame = canvasSize(input.canvas);
+    input.canvas.width = frame.deviceWidth;
+    input.canvas.height = frame.deviceHeight;
 
     this.updateColorMap(input.colorMap);
-    gl.viewport(0, 0, deviceWidth, deviceHeight);
-    if (input.secretSpectrogram3d) {
-      this.paintTerrain(input, width, height, dpr, deviceWidth, deviceHeight);
-      return;
-    }
-    gl.disable(gl.DEPTH_TEST);
-    gl.disable(gl.BLEND);
-    gl.clearColor(0.02, 0.025, 0.035, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    this.normalShader.use();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.enableVertexAttribArray(this.normalShader.position);
-    gl.vertexAttribPointer(this.normalShader.position, 2, gl.FLOAT, false, 16, 0);
-    gl.enableVertexAttribArray(this.normalShader.tileUv);
-    gl.vertexAttribPointer(this.normalShader.tileUv, 2, gl.FLOAT, false, 16, 8);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, this.colorMapTexture);
-    this.normalShader.uniform1i('u_colormap', 1);
-    this.normalShader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
-    this.normalShader.uniform2f('u_canvasSize', deviceWidth, deviceHeight);
-    this.normalShader.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
-    this.normalShader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
-
-    const placeholderCount = input.placeholders?.length ?? 0;
-    for (let index = 0; index < placeholderCount; index++) this.drawPlaceholder();
-    for (const tile of input.tiles) this.drawTile(tile, input.valueScale);
-    if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.viewport);
+    this.gl.viewport(0, 0, frame.deviceWidth, frame.deviceHeight);
+    const program = this.programFor(input);
+    program.paint(input, frame, this.renderResources());
     this.throwOnError('render');
     const { profile: _profile, ...frameInput } = input;
-    this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
+    this.frameState = { canvas: input.canvas, width: frame.width, height: frame.height, dpr: frame.dpr, deviceWidth: frame.deviceWidth, deviceHeight: frame.deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
   }
 
-  private paintTerrain(input: RenderInput, width: number, height: number, dpr: number, deviceWidth: number, deviceHeight: number): void {
-    const gl = this.gl;
-    gl.enable(gl.DEPTH_TEST);
-    gl.disable(gl.BLEND);
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    this.terrainShader.use();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.terrainBuffer);
-    gl.enableVertexAttribArray(this.terrainShader.position);
-    gl.vertexAttribPointer(this.terrainShader.position, 2, gl.FLOAT, false, 16, 0);
-    gl.enableVertexAttribArray(this.terrainShader.tileUv);
-    gl.vertexAttribPointer(this.terrainShader.tileUv, 2, gl.FLOAT, false, 16, 8);
-    this.terrainShader.uniform2f('u_canvasSize', deviceWidth, deviceHeight);
-    this.terrainShader.uniform1f('u_terrainHeight', 0.72);
-    for (const tile of input.tiles) this.drawTerrainTile(tile, input.valueScale);
-    gl.disable(gl.DEPTH_TEST);
-    this.throwOnError('terrain render');
-    const { profile: _profile, ...frameInput } = input;
-    this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
+  private programFor(input: RenderInput): WebGL2RenderProgram {
+    return input.secretSpectrogram3d ? this.terrainProgram : this.normalProgram;
   }
 
-  private drawTerrainTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): void {
-    if (tile.frameCount < 2 || tile.binCount < 2) return;
-    const gl = this.gl;
-    const entry = this.textureForTile(tile, valueScale);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-    this.terrainShader.uniform1i('u_tile', 0);
-    this.terrainShader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
-    this.terrainShader.uniform2f('u_tileSize', entry.width, entry.height);
-    const vertices = terrainVerticesForTile(tile, 96, 96);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.terrainBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
-    gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 4);
-  }
-
-  private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): void {
-    if (tile.frameCount === 0 || tile.binCount === 0) return;
-    const gl = this.gl;
-    const entry = this.textureForTile(tile, valueScale);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-    this.normalShader.uniform1i('u_tile', 0);
-    this.normalShader.uniform1f('u_overlayMode', 0);
-    this.setFullViewportQuad();
-    this.normalShader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
-    const frequencyRange = tileFrequencyRange(tile);
-    this.normalShader.uniform2f('u_tileFrequencyRange', frequencyRange.min, frequencyRange.max);
-    this.normalShader.uniform2f('u_tileSize', entry.width, entry.height);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  }
-
-  private drawPlaceholder(): void {
-    this.setFullViewportQuad();
-    this.normalShader.uniform1f('u_overlayMode', 1);
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-  }
-
-  private drawPlayhead(time: number, viewport: ViewportConfig): void {
-    if (time < viewport.startTime || time > viewport.endTime) return;
-    const x = (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
-    this.gl.enable(this.gl.BLEND);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-    this.normalShader.uniform1f('u_overlayMode', 2);
-    const pixelWidth = 1 / Math.max(1, this.frameState?.deviceWidth ?? 1);
-    this.setLineQuad(x, Math.min(1, x + pixelWidth));
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-    this.gl.disable(this.gl.BLEND);
-  }
-
-  private setFullViewportQuad(): void {
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
-    this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]));
-  }
-
-  private setLineQuad(start: number, end: number): void {
-    const left = start * 2 - 1;
-    const right = end * 2 - 1;
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
-    this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, new Float32Array([left, -1, 0, 1, right, -1, 1, 1, left, 1, 0, 0, right, 1, 1, 0]));
+  private renderResources(): WebGL2RenderResources {
+    return {
+      colorMapTexture: this.colorMapTexture,
+      textureForTile: (tile, valueScale) => this.textureForTile(tile, valueScale),
+    };
   }
 
   private textureForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): TextureEntry {
