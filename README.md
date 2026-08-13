@@ -1,11 +1,11 @@
-# spectrogram-js
+# espectro
 
 Framework-agnostic TypeScript spectrogram rendering for browser audio.
 
 ## Basic Usage
 
 ```ts
-import { SpectrogramViewer } from 'spectrogram-js';
+import { SpectrogramViewer } from 'espectro';
 
 const audio = document.querySelector('audio')!;
 const canvas = document.querySelector('canvas')!;
@@ -28,7 +28,7 @@ If `source` is omitted, the viewer decodes `audio.currentSrc || audio.src` into 
 `DecodedAudioSource` uses browser `AudioContext.decodeAudioData`. For WAV files, `DecodedAudioSource.fromUrl` reads the file sample rate and creates an `AudioContext` with that rate. Other formats may still decode into the browser's default `AudioContext` rate unless you provide one explicitly. The default spectrogram viewport uses the decoded source Nyquist frequency (`source.sampleRate / 2`) when a source is available.
 
 ```ts
-import { DecodedAudioSource, SpectrogramViewer } from 'spectrogram-js';
+import { DecodedAudioSource, SpectrogramViewer } from 'espectro';
 
 const source = await DecodedAudioSource.fromUrl('/audio/birdsong.wav');
 

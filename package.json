@@ -1,5 +1,5 @@
 {
-  "name": "spectrogram-js",
+  "name": "espectro",
   "version": "0.0.0",
   "description": "Framework-agnostic TypeScript spectrogram rendering for browser audio.",
   "type": "module",

@@ -4,7 +4,7 @@
  * Visual treatment inspired by Chrome Music Lab's 3D sonogram shaders:
  * https://github.com/googlecreativelab/chrome-music-lab/tree/master/spectrogram/src/bin/shaders
  * Chrome Music Lab is Copyright 2016 Google Inc. and licensed under Apache-2.0.
- * This shader is an original WebGL2 implementation adapted to spectrogram-js' tile texture layout.
+ * This shader is an original WebGL2 implementation adapted to espectro's tile texture layout.
  */
 import type { RenderInput } from './canvas';
 import { frequencyScaleCode, WebGL2ShaderProgram, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
