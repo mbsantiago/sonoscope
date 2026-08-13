@@ -22,8 +22,8 @@ void main() {
   v_height = heightValue;
   vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_position.y * 2.0 - 1.0);
   float isoX = (terrain.x - terrain.y) * 0.58;
-  float isoY = (terrain.x + terrain.y) * 0.28 - heightValue * u_terrainHeight;
-  gl_Position = vec4(isoX, isoY - 0.18, heightValue * 0.2, 1.0);
+  float isoY = (terrain.x + terrain.y) * 0.28 + heightValue * u_terrainHeight;
+  gl_Position = vec4(isoX, isoY - 0.58, -heightValue * 0.2, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
