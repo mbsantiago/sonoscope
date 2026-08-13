@@ -92,15 +92,15 @@ function brightBandTile(timeStart = 0, timeEnd = 1): SpectrogramMatrix {
     }
   }
   return {
-      channel: 0,
-      timeStart,
-      timeEnd,
-      frameStart: 0,
-      frameCount,
-      binCount,
-      sampleRate: 10,
-      times: Float32Array.from({ length: frameCount }, (_, index) => timeStart + (index / (frameCount - 1)) * (timeEnd - timeStart)),
-      frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100),
-      magnitude,
-    };
+    channel: 0,
+    timeStart,
+    timeEnd,
+    frameStart: 0,
+    frameCount,
+    binCount,
+    sampleRate: 10,
+    times: Float32Array.from({ length: frameCount }, (_, index) => timeStart + (index / (frameCount - 1)) * (timeEnd - timeStart)),
+    frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100),
+    magnitude,
+  };
 }

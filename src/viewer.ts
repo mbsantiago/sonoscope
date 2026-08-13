@@ -171,28 +171,28 @@ export class SpectrogramViewer {
       this.renderer.renderLoading({ canvas: this.config.canvas });
 
       const jobs = tiles.map(async (tile) => {
-          const matrix = await this.getTile(tile.channel, tile.timeStart, tile.timeEnd, profile);
-          completed += 1;
-          matrices.set(`${tile.channel}:${tile.timeStart}:${tile.timeEnd}`, matrix);
-          if (generation !== this.renderGeneration) return;
-          this.events.emit('renderprogress', {
-            requestId,
-            completed,
-            total: tiles.length,
-            progress: tiles.length === 0 ? 1 : completed / tiles.length,
-            phase: 'computing',
-          });
-          if (!partialPaintQueued) {
-            partialPaintQueued = true;
-            await Promise.resolve();
-            partialPaintQueued = false;
-            if (generation === this.renderGeneration && matrices.size < tiles.length) {
-              profile.record('render.paint.partial', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
-              paintCount += 1;
-              this.paintPartial(Array.from(matrices.values()), this.missingPlaceholders(tiles, matrices), profile);
-            }
-          }
+        const matrix = await this.getTile(tile.channel, tile.timeStart, tile.timeEnd, profile);
+        completed += 1;
+        matrices.set(`${tile.channel}:${tile.timeStart}:${tile.timeEnd}`, matrix);
+        if (generation !== this.renderGeneration) return;
+        this.events.emit('renderprogress', {
+          requestId,
+          completed,
+          total: tiles.length,
+          progress: tiles.length === 0 ? 1 : completed / tiles.length,
+          phase: 'computing',
         });
+        if (!partialPaintQueued) {
+          partialPaintQueued = true;
+          await Promise.resolve();
+          partialPaintQueued = false;
+          if (generation === this.renderGeneration && matrices.size < tiles.length) {
+            profile.record('render.paint.partial', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
+            paintCount += 1;
+            this.paintPartial(Array.from(matrices.values()), this.missingPlaceholders(tiles, matrices), profile);
+          }
+        }
+      });
       await Promise.all(jobs);
       if (generation !== this.renderGeneration) return;
       this.prefetchAroundViewport();
@@ -536,14 +536,4 @@ export class SpectrogramViewer {
       transformHash: stableHash(this.config.transforms.map((transform) => ({ name: transform.name, version: transform.version, config: transform.config }))),
     });
   }
-}
-
-function interleave<T>(left: T[], right: T[]): T[] {
-  const result: T[] = [];
-  const length = Math.max(left.length, right.length);
-  for (let i = 0; i < length; i++) {
-    if (left[i] !== undefined) result.push(left[i]!);
-    if (right[i] !== undefined) result.push(right[i]!);
-  }
-  return result;
 }

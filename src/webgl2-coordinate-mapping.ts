@@ -1,5 +1,5 @@
 import type { FrequencyScale } from './types';
-import { hzToScale, scaleToHz } from './frequency-scale';
+import { canvasToTimeFrequency } from './frequency-scale';
 
 export function viewportPixelToFrequency(input: {
   y: number;
@@ -8,10 +8,13 @@ export function viewportPixelToFrequency(input: {
   maxFrequency: number;
   frequencyScale: FrequencyScale;
 }): number {
-  const min = hzToScale(input.minFrequency, input.frequencyScale);
-  const max = hzToScale(input.maxFrequency, input.frequencyScale);
-  const scaled = max - (input.y / input.height) * (max - min);
-  return scaleToHz(scaled, input.frequencyScale);
+  return canvasToTimeFrequency(0, input.y, 1, input.height, {
+    startTime: 0,
+    endTime: 1,
+    minFrequency: input.minFrequency,
+    maxFrequency: input.maxFrequency,
+    frequencyScale: input.frequencyScale,
+  }).frequency;
 }
 
 export function frequencyToTextureV(input: {
@@ -33,14 +36,6 @@ export function frequencyToWebGLTextureV(input: {
 
 export function textureVToBin(input: { textureV: number; binCount: number }): number {
   return Math.max(0, Math.min(input.binCount - 1, Math.floor(input.textureV * input.binCount)));
-}
-
-export function sourceValueIndex(input: { frame: number; bin: number; binCount: number }): number {
-  return input.frame * input.binCount + input.bin;
-}
-
-export function textureValueIndex(input: { frame: number; bin: number; frameCount: number }): number {
-  return input.bin * input.frameCount + input.frame;
 }
 
 export function timeToTextureU(input: { time: number; tileStartTime: number; tileEndTime: number }): number {
@@ -82,7 +77,7 @@ export function viewportPixelToTileSample(input: {
     frequency,
     textureU,
     textureV,
-    frame: Math.max(0, Math.min(input.frameCount - 1, Math.floor(textureU * input.frameCount))),
+    frame: timeToFrame({ time, tileStartTime: input.tileStartTime, tileEndTime: input.tileEndTime, frameCount: input.frameCount }),
     bin: textureVToBin({ textureV, binCount: input.binCount }),
   };
 }

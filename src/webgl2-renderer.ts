@@ -10,7 +10,8 @@ type ProgramInfo = {
   uniforms: Partial<Record<UniformName, WebGLUniformLocation>>;
 };
 
-type UniformName = 'u_tile' | 'u_colormap' | 'u_viewport' | 'u_tileTimeRange' | 'u_tileFrequencyRange' | 'u_tileSize' | 'u_canvasSize' | 'u_valueScale' | 'u_frequencyScale' | 'u_placeholder';
+const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_placeholder'] as const;
+type UniformName = typeof WEBGL2_UNIFORMS[number];
 
 type TextureEntry = {
   texture: WebGLTexture;
@@ -198,15 +199,16 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
     this.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
 
-    for (const placeholder of input.placeholders ?? []) this.drawPlaceholder(placeholder.timeStart, placeholder.timeEnd, input.viewport.startTime, input.viewport.endTime);
-    for (const tile of input.tiles) this.drawTile(tile, input.valueScale, input.viewport.startTime, input.viewport.endTime);
+    const placeholderCount = input.placeholders?.length ?? 0;
+    for (let index = 0; index < placeholderCount; index++) this.drawPlaceholder();
+    for (const tile of input.tiles) this.drawTile(tile, input.valueScale);
     if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.viewport);
     this.throwOnError('render');
     const { profile: _profile, ...frameInput } = input;
     this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
   }
 
-  private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, viewportStart: number, viewportEnd: number): void {
+  private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): void {
     if (tile.frameCount === 0 || tile.binCount === 0) return;
     const gl = this.gl;
     const entry = this.textureForTile(tile, valueScale);
@@ -221,7 +223,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  private drawPlaceholder(timeStart: number, timeEnd: number, viewportStart: number, viewportEnd: number): void {
+  private drawPlaceholder(): void {
     this.setFullViewportQuad();
     this.uniform1f('u_placeholder', 1);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
@@ -322,7 +324,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     }
     const position = gl.getAttribLocation(program, 'a_position');
     const tileUv = gl.getAttribLocation(program, 'a_tileUv');
-    const uniforms = Object.fromEntries((['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_placeholder'] satisfies UniformName[]).flatMap((name) => {
+    const uniforms = Object.fromEntries(WEBGL2_UNIFORMS.flatMap((name) => {
       const location = gl.getUniformLocation(program, name);
       if (!location) return [];
       return [[name, location]];

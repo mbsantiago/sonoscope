@@ -45,19 +45,34 @@ try {
       oldCanvas.replaceWith(canvas);
       const gl = canvas.getContext('webgl2');
       const renderer = new WebGL2SpectrogramRenderer(gl);
-      const frameCount = 8;
-      const binCount = 8;
-      const magnitude = new Float32Array(frameCount * binCount);
-      for (let frame = 0; frame < frameCount; frame++) {
-        for (let bin = 0; bin < binCount; bin++) magnitude[frame * binCount + bin] = bin >= 3 && bin <= 5 ? 1 : 0;
-      }
       renderer.render({
         canvas,
         viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 100, frequencyScale: 'linear' },
         valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
         colorMap: 'gray',
-        tiles: [{ channel: 0, timeStart: 0, timeEnd: 1, frameStart: 0, frameCount, binCount, sampleRate: 10, times: Float32Array.from({ length: frameCount }, (_, index) => index / (frameCount - 1)), frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100), magnitude }],
+        tiles: [brightBandTile()],
       });
+
+      function brightBandTile() {
+        const frameCount = 8;
+        const binCount = 8;
+        const magnitude = new Float32Array(frameCount * binCount);
+        for (let frame = 0; frame < frameCount; frame++) {
+          for (let bin = 0; bin < binCount; bin++) magnitude[frame * binCount + bin] = bin >= 3 && bin <= 5 ? 1 : 0;
+        }
+        return {
+          channel: 0,
+          timeStart: 0,
+          timeEnd: 1,
+          frameStart: 0,
+          frameCount,
+          binCount,
+          sampleRate: 10,
+          times: Float32Array.from({ length: frameCount }, (_, index) => index / (frameCount - 1)),
+          frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100),
+          magnitude,
+        };
+      }
     });
     await capture(page, 'webgl2-direct');
   } finally {

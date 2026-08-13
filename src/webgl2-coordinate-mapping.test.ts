@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { frequencyToTextureV, frequencyToWebGLTextureV, sourceValueIndex, textureVToBin, textureValueIndex, timeToFrame, timeToTextureU, viewportPixelToFrequency, viewportPixelToTileSample, viewportPixelToTime } from './webgl2-coordinate-mapping';
+import { frequencyToTextureV, frequencyToWebGLTextureV, textureVToBin, timeToFrame, timeToTextureU, viewportPixelToFrequency, viewportPixelToTileSample, viewportPixelToTime } from './webgl2-coordinate-mapping';
 
 describe('webgl2 coordinate mapping', () => {
   it('maps canvas y pixels to frequency like the canvas renderer', () => {
@@ -32,16 +32,6 @@ describe('webgl2 coordinate mapping', () => {
 
     expect(textureVToBin({ textureV: frequencyToTextureV({ frequency: topFrequency, minFrequency: 0, maxFrequency: 8000 }), binCount: 8 })).toBe(7);
     expect(textureVToBin({ textureV: frequencyToTextureV({ frequency: bottomFrequency, minFrequency: 0, maxFrequency: 8000 }), binCount: 8 })).toBe(0);
-  });
-
-  it('packs frame-major source values into row-major texture values without flipping bins', () => {
-    expect(sourceValueIndex({ frame: 0, bin: 0, binCount: 8 })).toBe(0);
-    expect(sourceValueIndex({ frame: 1, bin: 0, binCount: 8 })).toBe(8);
-    expect(sourceValueIndex({ frame: 1, bin: 3, binCount: 8 })).toBe(11);
-
-    expect(textureValueIndex({ frame: 0, bin: 0, frameCount: 8 })).toBe(0);
-    expect(textureValueIndex({ frame: 1, bin: 0, frameCount: 8 })).toBe(1);
-    expect(textureValueIndex({ frame: 1, bin: 3, frameCount: 8 })).toBe(25);
   });
 
   it('maps viewport x pixels to global time', () => {
