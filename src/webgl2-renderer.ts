@@ -98,6 +98,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly quadBuffer: WebGLBuffer;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
+  private readonly tileTextureFilter: number;
   private colorMapKey = '';
   private frameState: FrameState | undefined;
 
@@ -108,6 +109,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     if (!quadBuffer || !colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
     this.quadBuffer = quadBuffer;
     this.colorMapTexture = colorMapTexture;
+    this.tileTextureFilter = gl.getExtension('OES_texture_float_linear') ? gl.LINEAR : gl.NEAREST;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
   }
@@ -247,8 +249,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const valueData = valueDataForMode(tile, valueScale.mode).values;
     const values = valueData instanceof Float32Array ? valueData : Float32Array.from(valueData);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.tileTextureFilter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.tileTextureFilter);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, tile.frameCount, tile.binCount, 0, gl.RED, gl.FLOAT, values);
