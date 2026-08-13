@@ -1,3 +1,11 @@
+/**
+ * Hidden terrain spectrogram program.
+ *
+ * Visual treatment inspired by Chrome Music Lab's 3D sonogram shaders:
+ * https://github.com/googlecreativelab/chrome-music-lab/tree/master/spectrogram/src/bin/shaders
+ * Chrome Music Lab is Copyright 2016 Google Inc. and licensed under Apache-2.0.
+ * This shader is an original WebGL2 implementation adapted to spectrogram-js' tile texture layout.
+ */
 import type { RenderInput } from './canvas';
 import { WebGL2ShaderProgram, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
 import type { SpectrogramMatrix, ValueScaleConfig } from '../types';
@@ -16,9 +24,13 @@ uniform vec2 u_tileTimeRange;
 uniform vec2 u_canvasSize;
 uniform float u_terrainHeight;
 
+float warpedFrequencyUv(float frequencyUv) {
+  return pow(256.0, frequencyUv - 1.0);
+}
+
 void main() {
-  v_tileUv = a_tileUv;
-  float heightValue = texture(u_tile, a_tileUv).r;
+  v_tileUv = vec2(a_tileUv.x, warpedFrequencyUv(a_tileUv.y));
+  float heightValue = texture(u_tile, v_tileUv).r;
   v_height = heightValue;
   vec2 terrain = vec2(a_position.x * 2.0 - 1.0, a_position.y * 2.0 - 1.0);
   float isoX = (terrain.x - terrain.y) * 0.58;
@@ -36,6 +48,13 @@ out vec4 outColor;
 uniform sampler2D u_tile;
 uniform vec2 u_tileSize;
 
+vec3 heightPalette(float height) {
+  vec3 low = vec3(0.05, 0.08, 0.12);
+  vec3 mid = vec3(0.15, 0.58, 0.92);
+  vec3 high = vec3(1.0, 0.92, 0.55);
+  return mix(mix(low, mid, smoothstep(0.0, 0.58, height)), high, smoothstep(0.55, 1.0, height));
+}
+
 void main() {
   vec2 stepSize = 1.0 / max(vec2(1.0), u_tileSize - 1.0);
   float left = texture(u_tile, clamp(v_tileUv - vec2(stepSize.x, 0.0), 0.0, 1.0)).r;
@@ -46,8 +65,9 @@ void main() {
   float light = clamp(dot(normal, normalize(vec3(-0.35, -0.55, 0.9))), 0.0, 1.0);
   float contour = smoothstep(0.015, 0.0, abs(fract(v_height * 18.0) - 0.5));
   float ridge = smoothstep(0.965, 1.0, fract(v_tileUv.y * u_tileSize.y));
-  float tone = 0.18 + v_height * 0.48 + light * 0.26 + contour * 0.18 + ridge * 0.16;
-  outColor = vec4(vec3(clamp(tone, 0.0, 1.0)), 1.0);
+  float fade = pow(cos((1.0 - v_tileUv.y) * 1.57079632679), 0.45);
+  vec3 color = heightPalette(v_height) * (0.42 + light * 0.48) + vec3(contour * 0.2 + ridge * 0.13);
+  outColor = vec4(clamp(color * fade, 0.0, 1.0), 1.0);
 }`;
 
 export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
