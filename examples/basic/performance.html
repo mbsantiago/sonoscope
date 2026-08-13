@@ -53,7 +53,7 @@
         }
       }
 
-      const canvas = document.querySelector('#spectrogram');
+      let canvas = document.querySelector('#spectrogram');
       const profile = document.querySelector('#profile');
       const rendererMode = document.querySelector('#renderer');
       const source = new SyntheticSource();
@@ -71,6 +71,7 @@
 
       async function renderWithBackend(name, backend) {
         viewer?.destroy();
+        canvas = resetCanvas(canvas);
         profile.textContent = `Rendering with ${name}...`;
         try {
           viewer = await SpectrogramViewer.create({
@@ -105,6 +106,12 @@
       });
 
       await renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend());
+
+      function resetCanvas(current) {
+        const next = current.cloneNode(false);
+        current.replaceWith(next);
+        return next;
+      }
     </script>
   </body>
 </html>

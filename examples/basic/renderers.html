@@ -52,7 +52,7 @@
         }
       }
 
-      const canvas = document.querySelector('#spectrogram');
+      let canvas = document.querySelector('#spectrogram');
       const rendererMode = document.querySelector('#renderer');
       const status = document.querySelector('#status');
       const source = new SyntheticSource();
@@ -60,6 +60,7 @@
 
       async function renderSelected() {
         viewer?.destroy();
+        canvas = resetCanvas(canvas);
         status.textContent = `Creating viewer with renderer: ${rendererMode.value}...`;
         try {
           viewer = await SpectrogramViewer.create({
@@ -82,6 +83,12 @@
       document.querySelector('#render').addEventListener('click', () => void renderSelected());
       rendererMode.addEventListener('change', () => void renderSelected());
       await renderSelected();
+
+      function resetCanvas(current) {
+        const next = current.cloneNode(false);
+        current.replaceWith(next);
+        return next;
+      }
     </script>
   </body>
 </html>
