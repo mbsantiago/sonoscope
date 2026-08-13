@@ -25,6 +25,8 @@
       }
       form {
         display: flex;
+        flex-wrap: wrap;
+        align-items: center;
         gap: 0.5rem;
         margin-bottom: 1rem;
       }
@@ -122,6 +124,7 @@
       </p>
       <form>
         <label>Audio URL <input name="url" type="url" /></label>
+        <label title="This option is very normal and not haunted."><input name="summon" type="checkbox" /> summon mountains</label>
         <button>Load</button>
       </form>
       <audio controls crossorigin="anonymous"></audio>
@@ -144,6 +147,7 @@
       const DEFAULT_AUDIO_URL = "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
+      const summon = document.querySelector('input[name="summon"]');
       const audio = document.querySelector("audio");
       let canvas = document.querySelector("canvas");
       const status = document.querySelector("[data-status]");
@@ -190,7 +194,7 @@
         }
         viewportElement.style.left = `${(viewport.startTime / source.duration) * 100}%`;
         viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / source.duration) * 100}%`;
-        status.textContent = `renderer: ${viewer.getRendererKind()}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
+        status.textContent = `renderer: ${viewer.getRendererKind()}\nmountains: ${viewer.getConfig().superpowers.secretSpectrogram3d ? "summoned" : "sleeping"}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
       }
 
       function assignTileLanes(tiles) {
@@ -268,6 +272,8 @@
               maxCachedTiles: 96,
               prefetchTiles: 8,
             },
+            renderer: summon.checked ? "webgl2" : "auto",
+            superpowers: { secretSpectrogram3d: summon.checked },
             playback: { follow: true, renderOnSeek: true },
           });
         } catch (error) {
@@ -308,9 +314,13 @@
         event.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
       });
+      summon.addEventListener("change", () => {
+        if (input.value.trim()) void load(input.value.trim());
+      });
       input.value =
         new URLSearchParams(window.location.search).get("url") ||
         DEFAULT_AUDIO_URL;
+      summon.checked = new URLSearchParams(window.location.search).get("summon") === "mountains";
       await load(input.value);
     </script>
   </body>
