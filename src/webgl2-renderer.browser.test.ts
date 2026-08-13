@@ -30,18 +30,7 @@ describe('WebGL2 shaders', () => {
     const gl = canvas.getContext('webgl2');
     if (!gl) return;
     const renderer = new WebGL2SpectrogramRenderer(gl);
-    const tile: SpectrogramMatrix = {
-      channel: 0,
-      timeStart: 0,
-      timeEnd: 1,
-      frameStart: 0,
-      frameCount: 2,
-      binCount: 2,
-      sampleRate: 10,
-      times: Float32Array.from([0, 1]),
-      frequencies: Float32Array.from([0, 100]),
-      magnitude: Float32Array.from([0, 1, 1, 0]),
-    };
+    const tile = brightBandTile();
 
     renderer.render({
       canvas,
@@ -57,3 +46,26 @@ describe('WebGL2 shaders', () => {
     renderer.destroy();
   });
 });
+
+function brightBandTile(): SpectrogramMatrix {
+  const frameCount = 8;
+  const binCount = 8;
+  const magnitude = new Float32Array(frameCount * binCount);
+  for (let frame = 0; frame < frameCount; frame++) {
+    for (let bin = 0; bin < binCount; bin++) {
+      magnitude[frame * binCount + bin] = bin >= 3 && bin <= 5 ? 1 : 0;
+    }
+  }
+  return {
+      channel: 0,
+      timeStart: 0,
+      timeEnd: 1,
+      frameStart: 0,
+      frameCount,
+      binCount,
+      sampleRate: 10,
+      times: Float32Array.from({ length: frameCount }, (_, index) => index / (frameCount - 1)),
+      frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100),
+      magnitude,
+    };
+}

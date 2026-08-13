@@ -20,8 +20,8 @@
       <div class="controls">
         <label>Renderer
           <select id="renderer">
-            <option value="canvas2d">canvas2d</option>
             <option value="auto">auto</option>
+            <option value="canvas2d">canvas2d</option>
             <option value="webgl2">webgl2 experimental</option>
           </select>
         </label>
@@ -41,8 +41,8 @@
         channelCount = 1;
         data = Float32Array.from({ length: this.sampleRate * this.duration }, (_, index) => {
           const time = index / this.sampleRate;
-          const sweep = 300 + 3_000 * (time / this.duration);
-          return 0.5 * Math.sin(2 * Math.PI * sweep * time) + 0.25 * Math.sin(2 * Math.PI * 1_700 * time);
+          const sweep = 600 + 4_000 * (time / this.duration);
+          return 1.8 * Math.sin(2 * Math.PI * sweep * time) + 1.2 * Math.sin(2 * Math.PI * 1_700 * time);
         });
 
         read({ startTime, endTime }) {
@@ -56,6 +56,35 @@
       const rendererMode = document.querySelector('#renderer');
       const status = document.querySelector('#status');
       const source = new SyntheticSource();
+      const backend = {
+        async computeTile(request) {
+          const frameCount = 128;
+          const binCount = 128;
+          const magnitude = new Float32Array(frameCount * binCount);
+          for (let frame = 0; frame < frameCount; frame++) {
+            const t = frame / (frameCount - 1);
+            const sweepBin = Math.round(96 - t * 72);
+            const toneBin = 36;
+            for (let bin = 0; bin < binCount; bin++) {
+              const sweep = Math.exp(-((bin - sweepBin) ** 2) / 10);
+              const tone = Math.exp(-((bin - toneBin) ** 2) / 8) * 0.8;
+              magnitude[frame * binCount + bin] = sweep + tone;
+            }
+          }
+          return {
+            channel: request.channel,
+            timeStart: request.timeStart,
+            timeEnd: request.timeEnd,
+            frameStart: 0,
+            frameCount,
+            binCount,
+            sampleRate: source.sampleRate,
+            times: Float32Array.from({ length: frameCount }, (_, index) => request.timeStart + (index / (frameCount - 1)) * (request.timeEnd - request.timeStart)),
+            frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 8_000),
+            magnitude,
+          };
+        },
+      };
       let viewer;
 
       async function renderSelected() {
@@ -67,7 +96,10 @@
             canvas,
             source,
             renderer: rendererMode.value,
+            backend,
+            cache: { tileDurationSeconds: 8 },
             viewport: { startTime: 0, endTime: 8, minFrequency: 0, maxFrequency: 8_000 },
+            valueScale: { mode: 'magnitude', min: 0, max: 1 },
             stft: { windowSize: 2048, fftSize: 2048, hopSize: 512 },
           });
           viewer.on('renderprofile', (event) => {

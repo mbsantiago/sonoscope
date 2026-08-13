@@ -10,10 +10,13 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "vite build && tsc --emitDeclarationOnly",
     "bench": "vitest bench",
+    "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
     "test": "vitest run",
     "test:browser": "vitest run --config vite.browser.config.ts",
@@ -22,6 +25,7 @@
   "devDependencies": {
     "@vitest/browser": "latest",
     "@vitest/browser-playwright": "latest",
+    "pngjs": "^7.0.0",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"

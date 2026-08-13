@@ -6,11 +6,11 @@ import type { ColorMapConfig, SpectrogramMatrix, ValueScaleConfig, ViewportConfi
 type ProgramInfo = {
   program: WebGLProgram;
   position: number;
-  uniforms: Record<RequiredUniformName, WebGLUniformLocation> & Partial<Record<OptionalUniformName, WebGLUniformLocation>>;
+  tileUv: number;
+  uniforms: Partial<Record<UniformName, WebGLUniformLocation>>;
 };
 
-type RequiredUniformName = 'u_tile' | 'u_colormap' | 'u_tileRect' | 'u_viewport' | 'u_tileTimeRange' | 'u_tileFrequencyRange' | 'u_tileSize' | 'u_valueScale' | 'u_frequencyScale' | 'u_placeholder';
-type OptionalUniformName = never;
+type UniformName = 'u_tile' | 'u_colormap' | 'u_viewport' | 'u_tileTimeRange' | 'u_tileFrequencyRange' | 'u_tileSize' | 'u_canvasSize' | 'u_valueScale' | 'u_frequencyScale' | 'u_placeholder';
 
 type TextureEntry = {
   texture: WebGLTexture;
@@ -31,25 +31,29 @@ type FrameState = {
 
 export const WEBGL2_VERTEX_SHADER = `#version 300 es
 in vec2 a_position;
-out vec2 v_uv;
+in vec2 a_tileUv;
+out vec2 v_globalUv;
+out vec2 v_tileUv;
 void main() {
-  v_uv = a_position * 0.5 + 0.5;
+  v_globalUv = a_position * 0.5 + 0.5;
+  v_tileUv = a_tileUv;
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
 export const WEBGL2_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
-in vec2 v_uv;
+in vec2 v_globalUv;
+in vec2 v_tileUv;
 out vec4 outColor;
 
 uniform sampler2D u_tile;
 uniform sampler2D u_colormap;
-uniform vec4 u_tileRect;
 uniform vec4 u_viewport;
 uniform vec2 u_tileTimeRange;
 uniform vec2 u_tileFrequencyRange;
 uniform vec2 u_tileSize;
+uniform vec2 u_canvasSize;
 uniform vec4 u_valueScale;
 uniform float u_frequencyScale;
 uniform float u_placeholder;
@@ -68,26 +72,26 @@ float scaleToHz(float value, float scale) {
 }
 
 void main() {
-  if (v_uv.x < u_tileRect.x || v_uv.x > u_tileRect.z || v_uv.y < u_tileRect.y || v_uv.y > u_tileRect.w) discard;
-
   if (u_placeholder == 1.0) {
     float hatch = step(0.84, fract((gl_FragCoord.x + gl_FragCoord.y) / 12.0));
     outColor = mix(vec4(0.059, 0.09, 0.165, 1.0), vec4(0.278, 0.333, 0.412, 1.0), hatch);
     return;
   }
 
-  float time = mix(u_viewport.x, u_viewport.y, v_uv.x);
+  float globalX = gl_FragCoord.x / max(1.0, u_canvasSize.x);
+  float globalY = gl_FragCoord.y / max(1.0, u_canvasSize.y);
+  float time = mix(u_viewport.x, u_viewport.y, globalX);
+  if (time < u_tileTimeRange.x || time > u_tileTimeRange.y) discard;
   float minScale = hzToScale(u_viewport.z, u_frequencyScale);
   float maxScale = hzToScale(u_viewport.w, u_frequencyScale);
-  float frequency = scaleToHz(mix(minScale, maxScale, 1.0 - v_uv.y), u_frequencyScale);
+  float frequency = scaleToHz(mix(maxScale, minScale, globalY), u_frequencyScale);
   float tileU = clamp((time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x), 0.0, 1.0);
-  float tileV = clamp((frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x), 0.0, 1.0);
-  float halfFrame = 0.5 / max(1.0, u_tileSize.x);
-  float halfBin = 0.5 / max(1.0, u_tileSize.y);
-  float value = texture(u_tile, vec2(mix(halfFrame, 1.0 - halfFrame, tileU), mix(halfBin, 1.0 - halfBin, tileV))).r;
-  float normalized = (value - u_valueScale.x) / max(0.000001, u_valueScale.y - u_valueScale.x);
-  if (u_valueScale.w == 1.0) normalized = clamp(normalized, 0.0, 1.0);
-  normalized = pow(max(0.0, normalized), u_valueScale.z);
+  float tileV = 1.0 - clamp((frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x), 0.0, 1.0);
+  vec2 sampleUv = vec2(
+    mix(0.5 / max(1.0, u_tileSize.x), 1.0 - 0.5 / max(1.0, u_tileSize.x), tileU),
+    mix(0.5 / max(1.0, u_tileSize.y), 1.0 - 0.5 / max(1.0, u_tileSize.y), tileV)
+  );
+  float normalized = texture(u_tile, sampleUv).r;
   outColor = texture(u_colormap, vec2(clamp(normalized, 0.0, 1.0), 0.5));
 }`;
 
@@ -98,7 +102,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly quadBuffer: WebGLBuffer;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
-  private readonly tileTextureFilter: number;
   private colorMapKey = '';
   private frameState: FrameState | undefined;
 
@@ -109,9 +112,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     if (!quadBuffer || !colorMapTexture) throw new Error('Unable to initialize WebGL2 renderer resources');
     this.quadBuffer = quadBuffer;
     this.colorMapTexture = colorMapTexture;
-    this.tileTextureFilter = gl.getExtension('OES_texture_float_linear') ? gl.LINEAR : gl.NEAREST;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
   }
 
   static create(canvas: HTMLCanvasElement): WebGL2SpectrogramRenderer | undefined {
@@ -185,17 +187,21 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     gl.useProgram(this.program.program);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.enableVertexAttribArray(this.program.position);
-    gl.vertexAttribPointer(this.program.position, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(this.program.position, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(this.program.tileUv);
+    gl.vertexAttribPointer(this.program.tileUv, 2, gl.FLOAT, false, 16, 8);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.colorMapTexture);
-    gl.uniform1i(this.program.uniforms.u_colormap, 1);
-    gl.uniform4f(this.program.uniforms.u_viewport, input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
-    gl.uniform4f(this.program.uniforms.u_valueScale, input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
-    gl.uniform1f(this.program.uniforms.u_frequencyScale, frequencyScaleCode(input.viewport.frequencyScale));
+    this.uniform1i('u_colormap', 1);
+    this.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
+    this.uniform2f('u_canvasSize', deviceWidth, deviceHeight);
+    this.uniform4f('u_valueScale', input.valueScale.min, input.valueScale.max, input.valueScale.gamma, input.valueScale.clamp ? 1 : 0);
+    this.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
 
     for (const placeholder of input.placeholders ?? []) this.drawPlaceholder(placeholder.timeStart, placeholder.timeEnd, input.viewport.startTime, input.viewport.endTime);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, input.viewport.startTime, input.viewport.endTime);
     if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.viewport);
+    this.throwOnError('render');
     const { profile: _profile, ...frameInput } = input;
     this.frameState = { canvas: input.canvas, width, height, dpr, deviceWidth, deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
   }
@@ -206,18 +212,18 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const entry = this.textureForTile(tile, valueScale);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-    gl.uniform1i(this.program.uniforms.u_tile, 0);
-    gl.uniform1f(this.program.uniforms.u_placeholder, 0);
-    this.setTileRect(tile.timeStart, tile.timeEnd, viewportStart, viewportEnd);
-    gl.uniform2f(this.program.uniforms.u_tileTimeRange, tile.timeStart, tile.timeEnd);
-    gl.uniform2f(this.program.uniforms.u_tileFrequencyRange, tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? 0);
-    gl.uniform2f(this.program.uniforms.u_tileSize, entry.width, entry.height);
+    this.uniform1i('u_tile', 0);
+    this.uniform1f('u_placeholder', 0);
+    this.setFullViewportQuad();
+    this.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
+    this.uniform2f('u_tileFrequencyRange', tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2));
+    this.uniform2f('u_tileSize', entry.width, entry.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   private drawPlaceholder(timeStart: number, timeEnd: number, viewportStart: number, viewportEnd: number): void {
-    this.setTileRect(timeStart, timeEnd, viewportStart, viewportEnd);
-    this.gl.uniform1f(this.program.uniforms.u_placeholder, 1);
+    this.setFullViewportQuad();
+    this.uniform1f('u_placeholder', 1);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -226,16 +232,22 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const x = (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
     this.gl.enable(this.gl.BLEND);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-    this.gl.uniform1f(this.program.uniforms.u_placeholder, 1);
-    this.gl.uniform4f(this.program.uniforms.u_tileRect, x, 0, Math.min(1, x + 0.002), 1);
+    this.uniform1f('u_placeholder', 1);
+    this.setLineQuad(x, Math.min(1, x + 0.002));
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     this.gl.disable(this.gl.BLEND);
   }
 
-  private setTileRect(timeStart: number, timeEnd: number, viewportStart: number, viewportEnd: number): void {
-    const start = Math.max(0, (timeStart - viewportStart) / (viewportEnd - viewportStart));
-    const end = Math.min(1, (timeEnd - viewportStart) / (viewportEnd - viewportStart));
-    this.gl.uniform4f(this.program.uniforms.u_tileRect, start, 0, end, 1);
+  private setFullViewportQuad(): void {
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
+    this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]));
+  }
+
+  private setLineQuad(start: number, end: number): void {
+    const left = start * 2 - 1;
+    const right = end * 2 - 1;
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
+    this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, new Float32Array([left, -1, 0, 1, right, -1, 1, 1, left, 1, 0, 0, right, 1, 1, 0]));
   }
 
   private textureForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): TextureEntry {
@@ -247,12 +259,17 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const texture = gl.createTexture();
     if (!texture) throw new Error('Unable to create WebGL2 tile texture');
     const values = textureValuesForTile(tile, valueScale);
+    const activeTexture = gl.getParameter(gl.ACTIVE_TEXTURE) as number;
+    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.tileTextureFilter);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.tileTextureFilter);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, tile.frameCount, tile.binCount, 0, gl.RED, gl.FLOAT, values);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tile.frameCount, tile.binCount, 0, gl.RGBA, gl.UNSIGNED_BYTE, values);
+    this.throwOnError('tile texture upload');
+    gl.activeTexture(activeTexture);
     const entry = { texture, width: tile.frameCount, height: tile.binCount };
     this.tileTextures.set(key, entry);
     return entry;
@@ -265,6 +282,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const data = new Uint8Array(buildColorMap(config).flat());
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.colorMapTexture);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -303,12 +321,38 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       throw new Error(`Unable to link WebGL2 program: ${log}`);
     }
     const position = gl.getAttribLocation(program, 'a_position');
-    const uniforms = Object.fromEntries((['u_tile', 'u_colormap', 'u_tileRect', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_valueScale', 'u_frequencyScale', 'u_placeholder'] satisfies RequiredUniformName[]).map((name) => {
+    const tileUv = gl.getAttribLocation(program, 'a_tileUv');
+    const uniforms = Object.fromEntries((['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_placeholder'] satisfies UniformName[]).flatMap((name) => {
       const location = gl.getUniformLocation(program, name);
-      if (!location) throw new Error(`Unable to find WebGL2 uniform ${name}`);
-      return [name, location];
+      if (!location) return [];
+      return [[name, location]];
     })) as ProgramInfo['uniforms'];
-    return { program, position, uniforms };
+    return { program, position, tileUv, uniforms };
+  }
+
+  private throwOnError(phase: string): void {
+    const error = this.gl.getError();
+    if (error !== this.gl.NO_ERROR) throw new Error(`WebGL2 renderer ${phase} failed with GL error 0x${error.toString(16)}`);
+  }
+
+  private uniform1i(name: UniformName, value: number): void {
+    const location = this.program.uniforms[name];
+    if (location) this.gl.uniform1i(location, value);
+  }
+
+  private uniform1f(name: UniformName, value: number): void {
+    const location = this.program.uniforms[name];
+    if (location) this.gl.uniform1f(location, value);
+  }
+
+  private uniform2f(name: UniformName, x: number, y: number): void {
+    const location = this.program.uniforms[name];
+    if (location) this.gl.uniform2f(location, x, y);
+  }
+
+  private uniform4f(name: UniformName, x: number, y: number, z: number, w: number): void {
+    const location = this.program.uniforms[name];
+    if (location) this.gl.uniform4f(location, x, y, z, w);
   }
 }
 
@@ -350,13 +394,25 @@ function compileShaderDiagnostic(gl: WebGL2RenderingContext, type: number, sourc
   return ok ? undefined : `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`;
 }
 
-function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): Float32Array {
+export function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): Uint8Array {
   const source = valueDataForMode(tile, valueScale.mode).values;
-  const values = new Float32Array(tile.frameCount * tile.binCount);
+  const values = new Uint8Array(tile.frameCount * tile.binCount * 4);
   for (let frame = 0; frame < tile.frameCount; frame++) {
     for (let bin = 0; bin < tile.binCount; bin++) {
-      values[bin * tile.frameCount + frame] = source[frame * tile.binCount + bin]!;
+      const index = (bin * tile.frameCount + frame) * 4;
+      const normalized = normalizedByte(source[frame * tile.binCount + bin]!, valueScale);
+      values[index] = normalized;
+      values[index + 1] = normalized;
+      values[index + 2] = normalized;
+      values[index + 3] = 255;
     }
   }
   return values;
+}
+
+function normalizedByte(value: number, valueScale: Required<ValueScaleConfig>): number {
+  let normalized = (value - valueScale.min) / (valueScale.max - valueScale.min || 1);
+  if (valueScale.clamp) normalized = Math.max(0, Math.min(1, normalized));
+  normalized = Math.max(0, normalized) ** valueScale.gamma;
+  return Math.max(0, Math.min(255, Math.round(normalized * 255)));
 }

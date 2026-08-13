@@ -23,8 +23,8 @@
         <button id="pan">Pan viewport</button>
         <label>Renderer
           <select id="renderer">
-            <option value="canvas2d">canvas2d</option>
             <option value="auto">auto</option>
+            <option value="canvas2d">canvas2d</option>
             <option value="webgl2">webgl2 experimental</option>
           </select>
         </label>
@@ -43,7 +43,7 @@
         channelCount = 1;
         data = Float32Array.from({ length: this.sampleRate * this.duration }, (_, index) => {
           const time = index / this.sampleRate;
-          return 0.6 * Math.sin(2 * Math.PI * 440 * time) + 0.3 * Math.sin(2 * Math.PI * 2_200 * time);
+          return 1.8 * Math.sin(2 * Math.PI * 440 * time) + 1.2 * Math.sin(2 * Math.PI * 2_200 * time);
         });
 
         read({ startTime, endTime }) {
@@ -81,6 +81,7 @@
             backend,
             cache: { tileDurationSeconds: 2, maxCachedTiles: 32 },
             viewport: { startTime: viewportStart, endTime: viewportStart + 8, minFrequency: 0, maxFrequency: 12_000 },
+            valueScale: { mode: 'db', min: -45, max: 15 },
             stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
           });
           profile.textContent = `Renderer mode: ${viewer.getConfig().renderer}\nRendering with ${name}...`;
