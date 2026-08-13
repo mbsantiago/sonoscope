@@ -79,7 +79,7 @@
             url,
             ...config(),
           });
-          source = viewer.getConfig().source;
+          source = viewer.getSource();
           await viewer.render();
           status.textContent = statusText();
         } catch (error) {
@@ -99,8 +99,7 @@
       });
       document.querySelector('[data-action="apply"]').addEventListener('click', () => {
         if (!viewer) return;
-        viewer.setConfig(config());
-        viewer.requestRender();
+        viewer.updateConfig(config());
         status.textContent = statusText();
       });
 

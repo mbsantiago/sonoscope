@@ -104,9 +104,8 @@
         const [url, label] = recordings[index];
         title.textContent = `Loading ${label}...`;
         try {
-          await spectrogram.setSourceUrl(url);
+          await spectrogram.updateSourceUrl(url);
           title.textContent = label;
-          spectrogram.requestRender();
         } catch (error) {
           index = previousIndex;
           title.textContent = `Could not load ${label}: ${error instanceof Error ? error.message : String(error)}`;

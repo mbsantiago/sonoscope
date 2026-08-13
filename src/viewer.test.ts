@@ -144,6 +144,53 @@ describe('SpectrogramViewer', () => {
     expect(viewer.getTileStates().every((tile) => tile.state === 'uncomputed')).toBe(true);
   });
 
+  it('exposes source and duration convenience accessors', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source });
+
+    expect(viewer.getSource()).toBe(source);
+    expect(viewer.getDuration()).toBe(source.duration);
+  });
+
+  it('updates viewport and schedules a render', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source });
+    const requestRender = vi.spyOn(viewer, 'requestRender');
+
+    viewer.updateViewport({ startTime: 0.1, endTime: 0.6 });
+
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0.1, endTime: 0.6 });
+    expect(requestRender).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates config and schedules a render', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source });
+    const requestRender = vi.spyOn(viewer, 'requestRender');
+
+    viewer.updateConfig({ colorMap: 'magma' });
+
+    expect(viewer.getConfig().colorMap).toBe('magma');
+    expect(requestRender).toHaveBeenCalledTimes(1);
+  });
+
+  it('zooms time around an anchor and schedules a render', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1 } });
+    const requestRender = vi.spyOn(viewer, 'requestRender');
+
+    viewer.zoomTime(0.5, 0.25);
+
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0.125, endTime: 0.625 });
+    expect(requestRender).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not schedule a render when time zoom is already clamped', async () => {
+    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source, viewport: { startTime: 0, endTime: 1 }, viewportConstraints: { maxDurationSeconds: 1 } });
+    const requestRender = vi.spyOn(viewer, 'requestRender');
+
+    viewer.zoomTime(2, 0.25);
+
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 1 });
+    expect(requestRender).not.toHaveBeenCalled();
+  });
+
   it('loads a new source URL into an existing viewer', async () => {
     const audio = { src: 'old.wav', currentSrc: '', duration: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as HTMLAudioElement;
     const viewer = await SpectrogramViewer.create({ canvas: canvas(), audio, source });

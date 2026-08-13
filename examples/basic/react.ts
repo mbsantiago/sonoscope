@@ -121,7 +121,7 @@ function ReactSpectrogramDemo() {
       .then((viewer) => {
         if (cancelled) return;
         viewerRef.current = viewer;
-        setDuration(viewer.getConfig().source.duration);
+        setDuration(viewer.getDuration());
         unsubscribeViewport = viewer.on("viewportchange", (event) => {
           startTransition(() => setViewport(event.viewport));
         });
@@ -190,7 +190,7 @@ function ReactSpectrogramDemo() {
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.setConfig({
+    viewer.updateConfig({
       stft: {
         windowSize: settings.windowSize,
         fftSize: settings.windowSize,
@@ -208,15 +208,13 @@ function ReactSpectrogramDemo() {
       },
       colorMap: settings.colorMap,
     });
-    viewer.requestRender();
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
   }, [settings]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.setViewport({ ...viewport, frequencyScale: settings.frequencyScale });
-    viewer.requestRender();
+    viewer.updateViewport({ ...viewport, frequencyScale: settings.frequencyScale });
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
   }, [viewport, settings.frequencyScale]);
 

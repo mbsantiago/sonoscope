@@ -102,8 +102,7 @@
       document.querySelector('#pan').addEventListener('click', () => {
         if (!viewer) return;
         viewportStart = (viewportStart + 2) % 40;
-        viewer.setViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
-        viewer.requestRender();
+        viewer.updateViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
       });
 
       await renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend());

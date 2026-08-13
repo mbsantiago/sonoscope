@@ -34,7 +34,7 @@
     <div class="stage"><canvas></canvas><div class="selection"></div></div>
 
     <script type="module">
-      import { attachCanvasNavigation, SpectrogramViewer, zoomViewportTime } from '../../src';
+      import { attachCanvasNavigation, SpectrogramViewer } from '../../src';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
@@ -82,22 +82,13 @@
       }
 
       function setViewport(viewport) {
-        viewer.setViewport(viewport);
-        viewer.requestRender();
+        viewer.updateViewport(viewport);
         status.textContent = statusText();
       }
 
       function fullBounds() {
-        const source = viewer.getConfig().source;
+        const source = viewer.getSource();
         return { startTime: 0, endTime: source.duration, minFrequency: 0, maxFrequency: source.sampleRate / 2 };
-      }
-
-      function zoomTime(factor, centerTime) {
-        const bounds = fullBounds();
-        const viewport = viewer.getViewport();
-        const center = centerTime ?? (viewport.startTime + viewport.endTime) / 2;
-        const constraints = viewer.getConfig().viewportConstraints;
-        setViewport(zoomViewportTime(viewport, { ...bounds, minDurationSeconds: constraints.minDurationSeconds, maxDurationSeconds: constraints.maxDurationSeconds }, center, factor));
       }
 
       function showSelection(start, end) {
@@ -112,10 +103,16 @@
         event.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
       });
-      follow.addEventListener('change', () => viewer?.setConfig({ playback: { follow: follow.checked } }));
+      follow.addEventListener('change', () => viewer?.updateConfig({ playback: { follow: follow.checked } }));
       document.querySelector('[data-action="reset"]').addEventListener('click', () => resetViewport && setViewport(resetViewport));
-      document.querySelector('[data-action="zoom-in"]').addEventListener('click', () => zoomTime(0.5));
-      document.querySelector('[data-action="zoom-out"]').addEventListener('click', () => zoomTime(2));
+      document.querySelector('[data-action="zoom-in"]').addEventListener('click', () => {
+        viewer?.zoomTime(0.5);
+        if (viewer) status.textContent = statusText();
+      });
+      document.querySelector('[data-action="zoom-out"]').addEventListener('click', () => {
+        viewer?.zoomTime(2);
+        if (viewer) status.textContent = statusText();
+      });
 
       function attachCanvasInteractions(target) {
         target.addEventListener('pointerdown', (event) => {

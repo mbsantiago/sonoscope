@@ -175,7 +175,7 @@
 
       function updateMinimap() {
         if (!viewer) return;
-        const source = viewer.getConfig().source;
+        const source = viewer.getSource();
         const viewport = viewer.getViewport();
         if (tilesDirty) {
           const tiles = assignTileLanes(viewer.getTileStates());

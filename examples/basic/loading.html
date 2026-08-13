@@ -78,8 +78,7 @@
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (!input.value.trim()) return;
-        await spectrogram.setSourceUrl(input.value.trim());
-        spectrogram.requestRender();
+        await spectrogram.updateSourceUrl(input.value.trim());
       });
     </script>
   </body>

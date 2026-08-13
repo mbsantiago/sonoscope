@@ -3,6 +3,7 @@ import { createTileKey, SpectrogramCache } from './cache';
 import { resolveConfig, stableHash } from './config';
 import { TypedEventEmitter } from './events';
 import { canvasToTimeFrequency as mapCanvasToTimeFrequency, timeFrequencyToCanvas as mapTimeFrequencyToCanvas } from './frequency-scale';
+import { zoomViewportTime } from './navigation';
 import { FrameMeter, PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from './renderer';
 import { createSpectrogramRenderer } from './renderer-factory';
@@ -78,6 +79,15 @@ export class SpectrogramViewer {
     return this.renderer.kind;
   }
 
+  getSource(): AudioSource {
+    if (!this.config.source) throw new Error('SpectrogramViewer has no AudioSource');
+    return this.config.source;
+  }
+
+  getDuration(): number {
+    return this.getSource().duration;
+  }
+
   setConfig(input: Partial<SpectrogramConfig>): void {
     const previousTileConfigHash = this.tileConfigHash();
     const source = input.source ?? this.config.source;
@@ -93,6 +103,11 @@ export class SpectrogramViewer {
     this.events.emit('configchange', { config: this.config });
   }
 
+  updateConfig(input: Partial<SpectrogramConfig>): void {
+    this.setConfig(input);
+    this.requestRender();
+  }
+
   setSource(source: AudioSource, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): void {
     this.setConfig({
       source,
@@ -106,9 +121,19 @@ export class SpectrogramViewer {
     });
   }
 
+  updateSource(source: AudioSource, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): void {
+    this.setSource(source, options);
+    this.requestRender();
+  }
+
   async setSourceUrl(url: string, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): Promise<void> {
     if (this.config.audio) this.config.audio.src = url;
     this.setSource(await createAudioSourceFromUrl(url), options);
+  }
+
+  async updateSourceUrl(url: string, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): Promise<void> {
+    await this.setSourceUrl(url, options);
+    this.requestRender();
   }
 
   getViewport(): ResolvedSpectrogramConfig['viewport'] {
@@ -125,6 +150,26 @@ export class SpectrogramViewer {
     });
     this.renderGeneration += 1;
     this.events.emit('viewportchange', { viewport: this.config.viewport });
+  }
+
+  updateViewport(viewport: Partial<ResolvedSpectrogramConfig['viewport']>): void {
+    this.setViewport(viewport);
+    this.requestRender();
+  }
+
+  getTimeBounds(): { startTime: number; endTime: number; minDurationSeconds: number; maxDurationSeconds: number } {
+    return {
+      startTime: 0,
+      endTime: this.getDuration(),
+      minDurationSeconds: this.config.viewportConstraints.minDurationSeconds,
+      maxDurationSeconds: this.config.viewportConstraints.maxDurationSeconds,
+    };
+  }
+
+  zoomTime(factor: number, centerTime = (this.config.viewport.startTime + this.config.viewport.endTime) / 2): void {
+    const next = zoomViewportTime(this.config.viewport, this.getTimeBounds(), centerTime, factor);
+    if (next === this.config.viewport) return;
+    this.updateViewport(next);
   }
 
   getStatus(): SpectrogramStatus {
