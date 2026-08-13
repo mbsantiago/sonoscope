@@ -105,7 +105,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
     this.updateColorMap(input.colorMap);
     this.gl.viewport(0, 0, frame.deviceWidth, frame.deviceHeight);
-    program.paint(input, frame, this.renderResources());
+    program.paint(input, frame, this.renderResources(input));
     this.throwOnError('render');
     const { profile: _profile, ...frameInput } = input;
     this.frameState = { canvas: input.canvas, width: frame.width, height: frame.height, dpr: frame.dpr, deviceWidth: frame.deviceWidth, deviceHeight: frame.deviceHeight, viewport: { ...input.viewport }, input: { ...frameInput, tiles: [...input.tiles], placeholders: [...(input.placeholders ?? [])] } };
@@ -115,9 +115,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     return input.secretSpectrogram3d ? this.terrainProgram : this.normalProgram;
   }
 
-  private renderResources(): WebGL2RenderResources {
+  private renderResources(input: RenderInput): WebGL2RenderResources {
     return {
       colorMapTexture: this.colorMapTexture,
+      tiles: input.tiles,
       textureForTile: (tile, valueScale) => this.textureForTile(tile, valueScale),
     };
   }

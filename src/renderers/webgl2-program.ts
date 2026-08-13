@@ -1,7 +1,7 @@
 import type { RenderInput } from './canvas';
 import type { SpectrogramMatrix, ValueScaleConfig } from '../types';
 
-export const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_overlayMode', 'u_terrainHeight'] as const;
+export const WEBGL2_UNIFORMS = ['u_tile', 'u_colormap', 'u_viewport', 'u_tileTimeRange', 'u_tileFrequencyRange', 'u_tileSize', 'u_canvasSize', 'u_valueScale', 'u_frequencyScale', 'u_overlayMode', 'u_terrainHeight', 'u_terrainPlayhead'] as const;
 export type UniformName = typeof WEBGL2_UNIFORMS[number];
 
 export type TextureEntry = {
@@ -14,6 +14,7 @@ export type WebGL2Frame = { width: number; height: number; dpr: number; deviceWi
 
 export type WebGL2RenderResources = {
   colorMapTexture: WebGLTexture;
+  tiles: SpectrogramMatrix[];
   textureForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): TextureEntry;
 };
 

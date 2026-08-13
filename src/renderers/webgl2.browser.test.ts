@@ -152,6 +152,32 @@ describe('WebGL2 shaders', () => {
     }
   });
 
+  it('renders a visible contour-following playhead in hidden terrain mode', () => {
+    const canvas = document.createElement('canvas');
+    Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 48, height: 32 }) });
+    const gl = canvas.getContext('webgl2');
+    if (!gl) return;
+    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const input: RenderInput = {
+      canvas,
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 100, frequencyScale: 'linear' },
+      valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+      colorMap: 'gray',
+      tiles: [brightBandTile()],
+      secretSpectrogram3d: true,
+    };
+
+    renderer.render(input);
+    const withoutPlayhead = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, withoutPlayhead);
+    renderer.render({ ...input, playheadTime: 0.5 });
+    const withPlayhead = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, withPlayhead);
+
+    expect(meanRgbDifference(withoutPlayhead, withPlayhead, canvas.width, canvas.height)).toBeGreaterThan(0.1);
+    renderer.destroy();
+  });
+
   it('matches Canvas frequency warping for log and mel scales', () => {
     for (const frequencyScale of ['log', 'mel'] as const) {
       const canvas = document.createElement('canvas');
@@ -266,7 +292,7 @@ function rowBrightness(pixels: Uint8Array | Uint8ClampedArray, width: number, yF
   return total / width;
 }
 
-function meanRgbDifference(webglPixels: Uint8Array, canvasPixels: Uint8ClampedArray, width: number, height: number): number {
+function meanRgbDifference(webglPixels: Uint8Array | Uint8ClampedArray, canvasPixels: Uint8Array | Uint8ClampedArray, width: number, height: number): number {
   let total = 0;
   let count = 0;
   for (let yFromBottom = 0; yFromBottom < height; yFromBottom++) {
