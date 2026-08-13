@@ -141,11 +141,11 @@
     <script type="module">
       import { attachCanvasNavigation, SpectrogramViewer } from "../../src";
 
-      const DEFAULT_AUDIO_URL = "https://xeno-canto.org/995398/download";
+      const DEFAULT_AUDIO_URL = "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector("audio");
-      const canvas = document.querySelector("canvas");
+      let canvas = document.querySelector("canvas");
       const status = document.querySelector("[data-status]");
       const minimap = document.querySelector(".minimap");
       const tilesElement = document.querySelector(".minimap-tiles");
@@ -251,23 +251,29 @@
         cleanupNavigation?.();
         cleanupAudioPause?.();
         viewer?.destroy();
+        canvas = resetCanvas(canvas);
         audio.src = url;
         status.textContent = "Loading and rendering...";
-        viewer = await SpectrogramViewer.fromUrl({
-          audio,
-          canvas,
-          url,
-          viewportConstraints: {
-            minDurationSeconds: 0.05,
-            maxDurationSeconds: 30,
-          },
-          cache: {
-            tileDurationSeconds: 1,
-            maxCachedTiles: 96,
-            prefetchTiles: 8,
-          },
-          playback: { follow: true, renderOnSeek: true },
-        });
+        try {
+          viewer = await SpectrogramViewer.fromUrl({
+            audio,
+            canvas,
+            url,
+            viewportConstraints: {
+              minDurationSeconds: 0.05,
+              maxDurationSeconds: 30,
+            },
+            cache: {
+              tileDurationSeconds: 1,
+              maxCachedTiles: 96,
+              prefetchTiles: 8,
+            },
+            playback: { follow: true, renderOnSeek: true },
+          });
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : String(error);
+          return;
+        }
         viewer.on("tileload", () => {
           scheduleTileMapUpdate();
         });
@@ -290,6 +296,12 @@
         updateMinimap();
         await viewer.render();
         updateMinimap();
+      }
+
+      function resetCanvas(current) {
+        const next = current.cloneNode(false);
+        current.replaceWith(next);
+        return next;
       }
 
       form.addEventListener("submit", (event) => {

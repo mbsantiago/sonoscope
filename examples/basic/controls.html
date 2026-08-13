@@ -40,11 +40,11 @@
     <script type="module">
       import { SpectrogramViewer } from '../../src';
 
-      const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
+      const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector('audio');
-      const canvas = document.querySelector('canvas');
+      let canvas = document.querySelector('canvas');
       const status = document.querySelector('[data-status]');
       let viewer;
       let source;
@@ -69,17 +69,28 @@
 
       async function load(url) {
         viewer?.destroy();
+        canvas = resetCanvas(canvas);
         audio.src = url;
         status.textContent = 'Loading and rendering...';
-        viewer = await SpectrogramViewer.fromUrl({
-          audio,
-          canvas,
-          url,
-          ...config(),
-        });
-        source = viewer.getConfig().source;
-        await viewer.render();
-        status.textContent = statusText();
+        try {
+          viewer = await SpectrogramViewer.fromUrl({
+            audio,
+            canvas,
+            url,
+            ...config(),
+          });
+          source = viewer.getConfig().source;
+          await viewer.render();
+          status.textContent = statusText();
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      function resetCanvas(current) {
+        const next = current.cloneNode(false);
+        current.replaceWith(next);
+        return next;
       }
 
       form.addEventListener('submit', (event) => {

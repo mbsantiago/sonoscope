@@ -30,11 +30,11 @@
     <script type="module">
       import { SpectrogramViewer } from '../../src';
 
-      const DEFAULT_AUDIO_URL = 'https://xeno-canto.org/995398/download';
+      const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector('audio');
-      const canvas = document.querySelector('canvas');
+      let canvas = document.querySelector('canvas');
       const output = document.querySelector('[data-output]');
       let viewer;
 
@@ -44,11 +44,23 @@
 
       async function load(url) {
         viewer?.destroy();
+        canvas = resetCanvas(canvas);
+        attachCanvasQuery(canvas);
         audio.src = url;
         output.textContent = 'Loading and rendering...';
-        viewer = await SpectrogramViewer.fromUrl({ audio, canvas, url });
-        await viewer.render();
-        write({ instruction: 'Click the canvas to query values.', viewport: viewer.getViewport() });
+        try {
+          viewer = await SpectrogramViewer.fromUrl({ audio, canvas, url });
+          await viewer.render();
+          write({ instruction: 'Click the canvas to query values.', viewport: viewer.getViewport() });
+        } catch (error) {
+          output.textContent = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      function resetCanvas(current) {
+        const next = current.cloneNode(false);
+        current.replaceWith(next);
+        return next;
       }
 
       form.addEventListener('submit', (event) => {
@@ -56,13 +68,15 @@
         if (input.value.trim()) void load(input.value.trim());
       });
 
-      canvas.addEventListener('click', async (event) => {
-        if (!viewer) return;
-        const rect = canvas.getBoundingClientRect();
-        const point = await viewer.queryCanvasPoint({ x: event.clientX - rect.left, y: event.clientY - rect.top });
-        const spectrum = await viewer.querySpectrum({ time: point.time });
-        write({ point, spectrumPreview: spectrum });
-      });
+      function attachCanvasQuery(target) {
+        target.addEventListener('click', async (event) => {
+          if (!viewer) return;
+          const rect = target.getBoundingClientRect();
+          const point = await viewer.queryCanvasPoint({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+          const spectrum = await viewer.querySpectrum({ time: point.time });
+          write({ point, spectrumPreview: spectrum });
+        });
+      }
 
       input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
       await load(input.value);
