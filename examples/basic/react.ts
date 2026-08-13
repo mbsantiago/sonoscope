@@ -195,25 +195,29 @@ function ReactSpectrogramDemo() {
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.updateConfig({
-      stft: {
-        windowSize: settings.windowSize,
-        fftSize: settings.windowSize,
-        hopSize: settings.hopSize,
-        window: settings.window,
-      },
-      viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
-      valueScale: {
-        mode: settings.valueMode,
-        min: settings.minDb,
-        max: settings.maxDb,
-        gamma: 1,
-        clamp: true,
-      },
-      colorMap: settings.colorMap,
-      renderer: rendererConfig(settings.shaderProgram),
-    });
-    setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+    try {
+      viewer.updateConfig({
+        stft: {
+          windowSize: settings.windowSize,
+          fftSize: settings.windowSize,
+          hopSize: settings.hopSize,
+          window: settings.window,
+        },
+        viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
+        valueScale: {
+          mode: settings.valueMode,
+          min: settings.minDb,
+          max: settings.maxDb,
+          gamma: 1,
+          clamp: true,
+        },
+        colorMap: settings.colorMap,
+        renderer: rendererConfig(settings.shaderProgram),
+      });
+      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
   }, [settings.windowSize, settings.hopSize, settings.window, settings.valueMode, settings.minDb, settings.maxDb, settings.colorMap, settings.shaderProgram]);
 
   useEffect(() => {
@@ -444,7 +448,8 @@ function ReactSpectrogramDemo() {
           value: settings.windowSize,
           min: 256,
           max: 2048,
-          step: 256,
+          step: 1,
+          values: [256, 512, 1024, 2048],
           onChange: (windowSize: number) =>
             updateSettings({
               windowSize,
@@ -513,20 +518,22 @@ function Slider(props: {
   min: number;
   max: number;
   step: number;
+  values?: number[];
   onChange: (value: number) => void;
 }) {
+  const sliderValue = props.values ? props.values.indexOf(props.value) : props.value;
   return h(
     "label",
     null,
     h("span", null, props.label, h("b", null, props.value)),
     h("input", {
       type: "range",
-      min: props.min,
-      max: props.max,
+      min: props.values ? 0 : props.min,
+      max: props.values ? props.values.length - 1 : props.max,
       step: props.step,
-      value: props.value,
+      value: sliderValue < 0 ? 0 : sliderValue,
       onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
-        props.onChange(Number(event.currentTarget.value)),
+        props.onChange(props.values?.[Number(event.currentTarget.value)] ?? Number(event.currentTarget.value)),
     }),
   );
 }
