@@ -458,7 +458,7 @@ function ReactSpectrogramDemo() {
           max: 24_000,
           step: 500,
           onChange: (maxFrequency: number) =>
-            updateViewport({ ...viewport, maxFrequency }),
+            updateViewport((current) => ({ ...current, maxFrequency })),
         }),
         h(
           "button",

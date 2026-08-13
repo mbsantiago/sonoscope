@@ -92,14 +92,17 @@ void main() {
   float maxScale = hzToScale(u_viewport.w, u_frequencyScale);
   float frequency = scaleToHz(mix(maxScale, minScale, globalY), u_frequencyScale);
   float tileU = clamp((time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x), 0.0, 1.0);
-  float frequencyStep = (u_tileFrequencyRange.y - u_tileFrequencyRange.x) / max(1.0, u_tileSize.y - 1.0);
-  if (frequency > u_tileFrequencyRange.x && frequency <= u_tileFrequencyRange.x + frequencyStep * 0.5 + 0.000001) {
+  float scaledFrequency = hzToScale(frequency, u_frequencyScale);
+  float scaledTileMin = hzToScale(u_tileFrequencyRange.x, u_frequencyScale);
+  float scaledTileMax = hzToScale(u_tileFrequencyRange.y, u_frequencyScale);
+  float scaledStep = (scaledTileMax - scaledTileMin) / max(1.0, u_tileSize.y - 1.0);
+  if (scaledFrequency > scaledTileMin && scaledFrequency <= scaledTileMin + scaledStep * 0.5 + 0.000001) {
     outColor = texture(u_colormap, vec2(0.0, 0.5));
     return;
   }
-  float frequencyStart = u_tileFrequencyRange.x - frequencyStep * 0.5;
-  float frequencyEnd = u_tileFrequencyRange.y + frequencyStep * 0.5;
-  float tileV = clamp((frequency - frequencyStart) / max(0.000001, frequencyEnd - frequencyStart), 0.0, 1.0);
+  float frequencyStart = scaledTileMin - scaledStep * 0.5;
+  float frequencyEnd = scaledTileMax + scaledStep * 0.5;
+  float tileV = clamp((scaledFrequency - frequencyStart) / max(0.000001, frequencyEnd - frequencyStart), 0.0, 1.0);
   vec2 sampleUv = vec2(
     mix(0.5 / max(1.0, u_tileSize.x), 1.0 - 0.5 / max(1.0, u_tileSize.x), tileU),
     tileV

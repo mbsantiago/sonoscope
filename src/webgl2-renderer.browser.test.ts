@@ -81,6 +81,29 @@ describe('WebGL2 shaders', () => {
     expect(rowBrightness(webglPixels, canvas.width, webglRow)).toBeLessThanOrEqual(rowBrightness(canvasPixels, canvas2d.width, canvasRow) + 2);
   });
 
+  it('renders log and mel frequency scales with WebGL2', () => {
+    for (const frequencyScale of ['log', 'mel'] as const) {
+      const canvas = document.createElement('canvas');
+      Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 16, height: 16 }) });
+      const gl = canvas.getContext('webgl2');
+      if (!gl) return;
+      const renderer = new WebGL2SpectrogramRenderer(gl);
+
+      renderer.render({
+        canvas,
+        viewport: { startTime: 0, endTime: 1, minFrequency: frequencyScale === 'log' ? 1 : 0, maxFrequency: 100, frequencyScale },
+        valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+        colorMap: 'gray',
+        tiles: [brightBandTile()],
+      });
+
+      const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      expect(pixels.some((value) => value > 64)).toBe(true);
+      renderer.destroy();
+    }
+  });
+
   it('uses webgl2 for fromUrl auto rendering after decode', async () => {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 32, height: 16 }) });

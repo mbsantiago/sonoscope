@@ -8,6 +8,12 @@ describe('webgl2 coordinate mapping', () => {
     expect(viewportPixelToFrequency({ y: 50, height: 100, minFrequency: 0, maxFrequency: 8000, frequencyScale: 'linear' })).toBe(4000);
   });
 
+  it('maps log and mel y pixels through the selected frequency scale', () => {
+    expect(viewportPixelToFrequency({ y: 50, height: 100, minFrequency: 1, maxFrequency: 10_000, frequencyScale: 'log' })).toBeCloseTo(100, 6);
+    expect(viewportPixelToFrequency({ y: 50, height: 100, minFrequency: 0, maxFrequency: 8_000, frequencyScale: 'mel' })).toBeGreaterThan(1_000);
+    expect(viewportPixelToFrequency({ y: 50, height: 100, minFrequency: 0, maxFrequency: 8_000, frequencyScale: 'mel' })).toBeLessThan(4_000);
+  });
+
   it('maps frequency to low-to-high texture rows', () => {
     expect(frequencyToTextureV({ frequency: 0, minFrequency: 0, maxFrequency: 8000 })).toBe(0);
     expect(frequencyToTextureV({ frequency: 4000, minFrequency: 0, maxFrequency: 8000 })).toBe(0.5);
