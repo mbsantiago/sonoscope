@@ -9,6 +9,8 @@ export { FetchByteSource, concatChunks, isSeekableByteSource, readPrefix } from 
 export type { ByteStreamSource, SeekableByteSource } from './byte-source';
 export { TypedEventEmitter } from './events';
 export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFrequencyToCanvas } from './frequency-scale';
+export { attachCanvasNavigation, panViewportTime, setViewerViewport, zoomViewportTime } from './navigation';
+export type { CanvasNavigationOptions, TimeBounds } from './navigation';
 export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderer';
 export type { RenderInput } from './renderer';
 export type { PerformanceDetail, PerformanceMeasure } from './performance';

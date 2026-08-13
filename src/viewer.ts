@@ -7,7 +7,7 @@ import { PerformanceProfiler } from './performance';
 import { CanvasSpectrogramRenderer } from './renderer';
 import { DecodedAudioSource, createAudioSourceFromUrl } from './source';
 import { applyTransforms } from './transforms';
-import type { AudioSource, ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
+import type { AudioSource, CacheStats, ResolvedSpectrogramConfig, SpectrogramConfig, SpectrogramEvents, SpectrogramMatrix, SpectrogramStatus, TileStateInfo } from './types';
 import { WorkerComputeBackend } from './worker-backend';
 
 export class SpectrogramViewer {
@@ -74,7 +74,7 @@ export class SpectrogramViewer {
   setConfig(input: Partial<SpectrogramConfig>): void {
     const source = input.source ?? this.config.source;
     const viewport = { ...this.config.viewport, ...input.viewport };
-    this.config = resolveConfig({ ...this.config, ...input, viewport, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
+    this.config = resolveConfig({ ...this.config, ...input, viewport, viewportConstraints: { ...this.config.viewportConstraints, ...input.viewportConstraints }, canvas: input.canvas ?? this.config.canvas, ...(source ? { source } : {}) });
     this.renderGeneration += 1;
     this.cache.clear();
     this.pendingTiles.clear();
@@ -110,6 +110,7 @@ export class SpectrogramViewer {
     this.config = resolveConfig({
       ...this.config,
       viewport: { ...this.config.viewport, ...viewport },
+      viewportConstraints: this.config.viewportConstraints,
       canvas: this.config.canvas,
       ...(this.config.source ? { source: this.config.source } : {}),
     });
@@ -130,6 +131,10 @@ export class SpectrogramViewer {
         state: this.cache.has(key) ? 'computed' : this.pendingTiles.has(key) ? 'computing' : 'uncomputed',
       };
     });
+  }
+
+  getCacheStats(): CacheStats {
+    return this.cache.stats();
   }
 
   canvasToTimeFrequency(x: number, y: number): { time: number; frequency: number } {
@@ -182,14 +187,15 @@ export class SpectrogramViewer {
             }
           }
         });
-      this.prefetchAroundViewport();
       await Promise.all(jobs);
       if (generation !== this.renderGeneration) return;
+      this.prefetchAroundViewport();
 
       profile.record('render.paint.final', performance.now(), 0, { tiles: matrices.size, total: tiles.length });
       paintCount += 1;
       this.paintPartial(Array.from(matrices.values()), [], profile);
       profile.record('render.paint.count', performance.now(), 0, { count: paintCount });
+      profile.record('cache.memory', performance.now(), 0, this.cache.stats());
       this.events.emit('renderprogress', { requestId, completed: tiles.length, total: tiles.length, progress: 1, phase: 'rendering' });
       this.status = { state: 'ready' };
       this.events.emit('rendercomplete', { requestId, renderedTiles: matrices.size, missingTiles: tiles.length - matrices.size });

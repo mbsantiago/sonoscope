@@ -16,14 +16,23 @@ export function resolveConfig(input: SpectrogramConfig): ResolvedSpectrogramConf
   if (stft.windowSize <= 0) throw new Error('stft.windowSize must be greater than zero');
   if (stft.hopSize <= 0) throw new Error('stft.hopSize must be greater than zero');
 
-  const viewport = {
+  const sourceDuration = input.source?.duration ?? input.audio?.duration ?? 1;
+  const viewportConstraints = {
+    minDurationSeconds: 0.05,
+    maxDurationSeconds: Math.min(30, sourceDuration),
+    ...input.viewportConstraints,
+  };
+  if (viewportConstraints.minDurationSeconds <= 0) throw new Error('viewportConstraints.minDurationSeconds must be greater than zero');
+  if (viewportConstraints.maxDurationSeconds < viewportConstraints.minDurationSeconds) throw new Error('viewportConstraints.maxDurationSeconds must be greater than or equal to viewportConstraints.minDurationSeconds');
+
+  const viewport = clampViewport({
     startTime: 0,
-    endTime: input.source?.duration ?? input.audio?.duration ?? 1,
+    endTime: sourceDuration,
     minFrequency: 0,
     maxFrequency: input.source ? input.source.sampleRate / 2 : 22_050,
     frequencyScale: 'linear' as const,
     ...input.viewport,
-  };
+  }, sourceDuration, viewportConstraints);
   if (viewport.endTime <= viewport.startTime) throw new Error('viewport.endTime must be greater than viewport.startTime');
   if (viewport.maxFrequency <= viewport.minFrequency) throw new Error('viewport.maxFrequency must be greater than viewport.minFrequency');
   const channel = input.channel ?? 0;
@@ -37,12 +46,29 @@ export function resolveConfig(input: SpectrogramConfig): ResolvedSpectrogramConf
     channel,
     stft,
     viewport,
+    viewportConstraints,
     valueScale: { mode: 'db', min: -100, max: 0, gamma: 1, clamp: true, ...input.valueScale },
     colorMap: input.colorMap ?? 'viridis',
     playback: { showPlayhead: true, follow: false, followMargin: 0.2, renderOnSeek: true, ...input.playback },
-    cache: { tileDurationSeconds: 5, maxCachedTiles: 64, prefetchTiles: 8, ...input.cache },
+    cache: resolveCache(input.cache, viewportConstraints),
     transforms: input.transforms ?? [],
   };
+}
+
+function clampViewport<T extends { startTime: number; endTime: number }>(viewport: T, sourceDuration: number, constraints: { minDurationSeconds: number; maxDurationSeconds: number }): T {
+  const duration = Math.min(Math.max(viewport.endTime - viewport.startTime, constraints.minDurationSeconds), constraints.maxDurationSeconds, sourceDuration);
+  const startTime = Math.min(Math.max(0, viewport.startTime), Math.max(0, sourceDuration - duration));
+  return { ...viewport, startTime, endTime: startTime + duration };
+}
+
+function resolveCache(input: SpectrogramConfig['cache'], viewportConstraints: { maxDurationSeconds: number }) {
+  const tileDurationSeconds = input?.tileDurationSeconds ?? 5;
+  if (tileDurationSeconds <= 0) throw new Error('cache.tileDurationSeconds must be greater than zero');
+  const minimumTilesForMaxViewport = Math.ceil(viewportConstraints.maxDurationSeconds / tileDurationSeconds) + 2;
+  const prefetchTiles = input?.prefetchTiles ?? Math.max(8, minimumTilesForMaxViewport);
+  const maxCachedTiles = Math.max(input?.maxCachedTiles ?? 64, minimumTilesForMaxViewport + prefetchTiles * 2);
+  if (prefetchTiles < 0) throw new Error('cache.prefetchTiles must be greater than or equal to zero');
+  return { tileDurationSeconds, maxCachedTiles, prefetchTiles };
 }
 
 export function stableHash(value: unknown): string {

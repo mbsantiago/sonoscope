@@ -139,7 +139,7 @@ describe('SpectrogramViewer', () => {
     viewer.setSource(nextSource);
 
     expect(viewer.getConfig().source).toBe(nextSource);
-    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 10, minFrequency: 0, maxFrequency: 1_000 });
+    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 1_000 });
     expect(viewer.getTileStates().every((tile) => tile.state === 'uncomputed')).toBe(true);
   });
 
@@ -357,12 +357,15 @@ describe('SpectrogramViewer', () => {
     expect(requested).toHaveLength(4);
   });
 
-  it('starts prefetching surrounding tiles during the first visible render', async () => {
+  it('starts prefetching surrounding tiles after visible render completes', async () => {
     const requested: Array<[number, number]> = [];
+    let release: (() => void) | undefined;
     const backend: SpectrogramComputeBackend = {
       computeTile: (request) => {
         requested.push([request.timeStart, request.timeEnd]);
-        return new Promise(() => undefined);
+        if (request.timeStart === 3) return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+        if (request.timeStart === 4) return new Promise((resolve) => { release = () => resolve(matrix(request.timeStart, request.timeEnd)); });
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
       },
     };
     const viewer = await SpectrogramViewer.create({
@@ -373,11 +376,17 @@ describe('SpectrogramViewer', () => {
       backend,
     });
 
-    void viewer.render();
+    const render = viewer.render();
     await Promise.resolve();
 
     expect(requested).toContainEqual([3, 4]);
     expect(requested).toContainEqual([4, 5]);
+    expect(requested).not.toContainEqual([2, 3]);
+    expect(requested).not.toContainEqual([5, 6]);
+
+    release?.();
+    await render;
+
     expect(requested).toContainEqual([2, 3]);
     expect(requested).toContainEqual([5, 6]);
   });
@@ -403,7 +412,8 @@ describe('SpectrogramViewer', () => {
     await viewer.render();
     await Promise.resolve();
 
-    expect(requested).toEqual([[0, 1], [1, 2]]);
+    expect(requested.slice(0, 2)).toEqual([[0, 1], [1, 2]]);
+    expect(viewer.getConfig().cache.maxCachedTiles).toBeGreaterThan(2);
     release?.();
   });
 
@@ -432,6 +442,22 @@ describe('SpectrogramViewer', () => {
     release!();
     await render;
     expect(viewer.getTileStates().map((tile) => tile.state)).toEqual(['computed', 'uncomputed', 'uncomputed']);
+  });
+
+  it('reports current and peak cache memory usage', async () => {
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: { ...source, duration: 10 },
+      cache: { prefetchTiles: 0 },
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 512 },
+      backend: { computeTile: (request) => Promise.resolve(matrix(request.timeStart, request.timeEnd)) },
+    });
+
+    await viewer.render();
+
+    expect(viewer.getCacheStats()).toMatchObject({ tiles: 1, peakTiles: 1 });
+    expect(viewer.getCacheStats().bytes).toBeGreaterThan(0);
+    expect(viewer.getCacheStats().peakBytes).toBeGreaterThanOrEqual(viewer.getCacheStats().bytes);
   });
 
   it('rerenders when a streaming source reports a visible range is available', async () => {
@@ -490,8 +516,9 @@ describe('SpectrogramViewer', () => {
   it('converts queryCanvasPoint from CSS pixels, not high-DPR backing pixels', async () => {
     const viewer = await SpectrogramViewer.create({
       canvas: sizedCanvas(250, 100, 500, 200),
-      source,
+      source: { ...source, duration: 10 },
       viewport: { startTime: 7.5, endTime: 9, minFrequency: 0, maxFrequency: 500 },
+      viewportConstraints: { maxDurationSeconds: 10 },
     });
     const queryPoint = vi.spyOn(viewer, 'queryPoint').mockResolvedValue({ time: 8.25, frequency: 250, frameIndex: 0, binIndex: 0, channel: 0 });
 

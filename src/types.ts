@@ -21,6 +21,11 @@ export type ViewportConfig = {
   frequencyScale: FrequencyScale;
 };
 
+export type ViewportConstraintsConfig = {
+  minDurationSeconds: number;
+  maxDurationSeconds: number;
+};
+
 export type ValueScaleConfig = {
   mode: ValueMode;
   min?: number;
@@ -47,6 +52,13 @@ export type CacheConfig = {
   tileDurationSeconds: number;
   maxCachedTiles: number;
   prefetchTiles: number;
+};
+
+export type CacheStats = {
+  tiles: number;
+  bytes: number;
+  peakTiles: number;
+  peakBytes: number;
 };
 
 export type SpectrogramMatrix = {
@@ -112,6 +124,7 @@ export type SpectrogramConfig = {
   channel?: number;
   stft?: Partial<StftConfig>;
   viewport?: Partial<ViewportConfig>;
+  viewportConstraints?: Partial<ViewportConstraintsConfig>;
   valueScale?: Partial<ValueScaleConfig>;
   colorMap?: ColorMapConfig;
   playback?: Partial<PlaybackConfig>;
@@ -126,6 +139,7 @@ export type ResolvedSpectrogramConfig = {
   channel: number;
   stft: StftConfig;
   viewport: ViewportConfig;
+  viewportConstraints: ViewportConstraintsConfig;
   valueScale: Required<ValueScaleConfig>;
   colorMap: ColorMapConfig;
   playback: PlaybackConfig;

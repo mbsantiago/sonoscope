@@ -35,4 +35,27 @@ describe('resolveConfig', () => {
   it('throws when neither source nor audio is provided', () => {
     expect(() => resolveConfig({ canvas })).toThrow(/source or audio/);
   });
+
+  it('clamps viewport duration to configured bounds', () => {
+    const config = resolveConfig({
+      canvas,
+      source,
+      viewport: { startTime: 1, endTime: 9 },
+      viewportConstraints: { minDurationSeconds: 1, maxDurationSeconds: 3 },
+    });
+
+    expect(config.viewport).toMatchObject({ startTime: 1, endTime: 4 });
+    expect(config.viewportConstraints).toEqual({ minDurationSeconds: 1, maxDurationSeconds: 3 });
+  });
+
+  it('sizes cache to cover the maximum viewport duration with prefetch room', () => {
+    const config = resolveConfig({
+      canvas,
+      source,
+      viewportConstraints: { maxDurationSeconds: 20 },
+      cache: { tileDurationSeconds: 5, maxCachedTiles: 2, prefetchTiles: 1 },
+    });
+
+    expect(config.cache.maxCachedTiles).toBeGreaterThanOrEqual(8);
+  });
 });
