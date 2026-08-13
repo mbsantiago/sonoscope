@@ -246,8 +246,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const gl = this.gl;
     const texture = gl.createTexture();
     if (!texture) throw new Error('Unable to create WebGL2 tile texture');
-    const valueData = valueDataForMode(tile, valueScale.mode).values;
-    const values = valueData instanceof Float32Array ? valueData : Float32Array.from(valueData);
+    const values = textureValuesForTile(tile, valueScale);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.tileTextureFilter);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.tileTextureFilter);
@@ -349,4 +348,15 @@ function compileShaderDiagnostic(gl: WebGL2RenderingContext, type: number, sourc
   const log = gl.getShaderInfoLog(shader)?.trim() || 'unknown shader error';
   gl.deleteShader(shader);
   return ok ? undefined : `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`;
+}
+
+function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>): Float32Array {
+  const source = valueDataForMode(tile, valueScale.mode).values;
+  const values = new Float32Array(tile.frameCount * tile.binCount);
+  for (let frame = 0; frame < tile.frameCount; frame++) {
+    for (let bin = 0; bin < tile.binCount; bin++) {
+      values[bin * tile.frameCount + frame] = source[frame * tile.binCount + bin]!;
+    }
+  }
+  return values;
 }
