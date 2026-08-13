@@ -34,7 +34,7 @@
     <div class="stage"><canvas></canvas><div class="selection"></div></div>
 
     <script type="module">
-      import { SpectrogramViewer } from '../../src';
+      import { attachCanvasNavigation, SpectrogramViewer, zoomViewportTime } from '../../src';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
@@ -47,6 +47,7 @@
       let viewer;
       let resetViewport;
       let dragStart;
+      let cleanupNavigation;
 
       function statusText() {
         const viewport = viewer.getViewport();
@@ -54,6 +55,7 @@
       }
 
       async function load(url) {
+        cleanupNavigation?.();
         viewer?.destroy();
         canvas = resetCanvas(canvas);
         attachCanvasInteractions(canvas);
@@ -67,6 +69,11 @@
             playback: { follow: follow.checked, renderOnSeek: true },
           });
           resetViewport = viewer.getViewport();
+          cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
+            onNavigate: () => {
+              status.textContent = statusText();
+            },
+          });
           await viewer.render();
           status.textContent = statusText();
         } catch (error) {
@@ -89,15 +96,8 @@
         const bounds = fullBounds();
         const viewport = viewer.getViewport();
         const center = centerTime ?? (viewport.startTime + viewport.endTime) / 2;
-        const currentDuration = viewport.endTime - viewport.startTime;
         const constraints = viewer.getConfig().viewportConstraints;
-        const maxDuration = Math.min(constraints.maxDurationSeconds, bounds.endTime - bounds.startTime);
-        const duration = Math.min(Math.max(currentDuration * factor, constraints.minDurationSeconds), maxDuration);
-        if (Math.abs(duration - currentDuration) < 1e-9) return;
-        const ratio = currentDuration <= 0 ? 0.5 : (center - viewport.startTime) / currentDuration;
-        const startTime = Math.max(bounds.startTime, center - duration * ratio);
-        const endTime = Math.min(bounds.endTime, startTime + duration);
-        setViewport({ startTime: Math.max(bounds.startTime, endTime - duration), endTime });
+        setViewport(zoomViewportTime(viewport, { ...bounds, minDurationSeconds: constraints.minDurationSeconds, maxDurationSeconds: constraints.maxDurationSeconds }, center, factor));
       }
 
       function showSelection(start, end) {
@@ -118,14 +118,6 @@
       document.querySelector('[data-action="zoom-out"]').addEventListener('click', () => zoomTime(2));
 
       function attachCanvasInteractions(target) {
-        target.addEventListener('wheel', (event) => {
-          event.preventDefault();
-          if (!viewer) return;
-          const rect = target.getBoundingClientRect();
-          const { time } = viewer.canvasToTimeFrequency(event.clientX - rect.left, event.clientY - rect.top);
-          zoomTime(event.deltaY < 0 ? 0.8 : 1.25, time);
-        });
-
         target.addEventListener('pointerdown', (event) => {
           const rect = target.getBoundingClientRect();
           dragStart = { x: event.clientX - rect.left, y: event.clientY - rect.top };
