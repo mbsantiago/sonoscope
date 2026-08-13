@@ -240,7 +240,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.gl.enable(this.gl.BLEND);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
     this.uniform1f('u_overlayMode', 2);
-    this.setLineQuad(x, Math.min(1, x + 0.002));
+    const pixelWidth = 1 / Math.max(1, this.frameState?.deviceWidth ?? 1);
+    this.setLineQuad(x, Math.min(1, x + pixelWidth));
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     this.gl.disable(this.gl.BLEND);
   }
