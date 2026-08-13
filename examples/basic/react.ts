@@ -78,6 +78,7 @@ function ReactSpectrogramDemo() {
     span: number;
   } | null>(null);
   const [settings, setSettings] = useState(initialSettings);
+  const [canvasKey, setCanvasKey] = useState(0);
   const [duration, setDuration] = useState(30);
   const [playheadTime, setPlayheadTime] = useState(0);
   const [cacheSummary, setCacheSummary] = useState("cache: empty");
@@ -228,6 +229,13 @@ function ReactSpectrogramDemo() {
     );
   }
 
+  function setSummonMountains(summonMountains: boolean) {
+    startTransition(() => {
+      setSettings((current) => ({ ...current, summonMountains }));
+      setCanvasKey((current) => current + 1);
+    });
+  }
+
   function updateViewport(
     update: typeof viewport | ((current: typeof viewport) => typeof viewport),
   ) {
@@ -305,6 +313,7 @@ function ReactSpectrogramDemo() {
         ),
         h("audio", { ref: audioRef, controls: true, crossOrigin: "anonymous" }),
         h("canvas", {
+          key: canvasKey,
           ref: canvasRef,
           onPointerDown,
           onPointerMove,
@@ -466,7 +475,7 @@ function ReactSpectrogramDemo() {
             type: "checkbox",
             checked: settings.summonMountains,
             onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
-              updateSettings({ summonMountains: event.currentTarget.checked }),
+              setSummonMountains(event.currentTarget.checked),
           }),
           h("span", null, "summon mountains"),
         ),
