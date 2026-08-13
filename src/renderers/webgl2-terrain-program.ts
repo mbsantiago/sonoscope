@@ -52,9 +52,10 @@ void main() {
   float tileTime = mix(u_tileTimeRange.x, u_tileTimeRange.y, a_tileUv.x);
   float viewportX = clamp((tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x), 0.0, 1.0);
   vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
-  float viewX = terrain.x * 0.9 + heightValue * 0.08;
-  float viewY = terrain.y * 0.86 + terrain.x * 0.04 + heightValue * u_terrainHeight;
-  gl_Position = vec4(viewX, viewY - 0.1, -heightValue * 0.08, 1.0);
+  float liftedHeight = pow(heightValue, 0.72) * u_terrainHeight;
+  float viewX = terrain.x * 0.96;
+  float viewY = terrain.y * 0.78 + liftedHeight;
+  gl_Position = vec4(viewX, viewY - 0.04, 0.0, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
@@ -107,21 +108,20 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
 
   paint(input: RenderInput, frame: WebGL2Frame, resources: WebGL2RenderResources): void {
     const gl = this.gl;
-    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
     gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     this.shader.use();
     this.bindAttributes();
     this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
     this.shader.uniform2f('u_terrainTimeRange', input.viewport.startTime, input.viewport.endTime);
     this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
     this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
-    this.shader.uniform1f('u_terrainHeight', 0.16);
+    this.shader.uniform1f('u_terrainHeight', 0.34);
     this.shader.uniform1f('u_terrainPlayhead', 0);
     for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
     if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.valueScale, resources);
-    gl.disable(gl.DEPTH_TEST);
   }
 
   delete(): void {
