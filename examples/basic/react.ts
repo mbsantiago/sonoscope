@@ -5,7 +5,7 @@ import React, {
   useState,
 } from "https://esm.sh/react@19.2.1";
 import { createRoot } from "https://esm.sh/react-dom@19.2.1/client";
-import { SpectrogramViewer } from "../../src";
+import { attachCanvasNavigation, SpectrogramViewer } from "../../src";
 import type {
   BuiltInColorMap,
   FrequencyScale,
@@ -93,6 +93,7 @@ function ReactSpectrogramDemo() {
     if (!audio || !canvas) return;
 
     let cancelled = false;
+    let cleanupNavigation: (() => void) | undefined;
     let unsubscribeViewport: (() => void) | undefined;
     let unsubscribeProfile: (() => void) | undefined;
     setStatus("Loading source...");
@@ -125,7 +126,10 @@ function ReactSpectrogramDemo() {
           startTransition(() => setViewport(event.viewport));
         });
         unsubscribeProfile = viewer.on("renderprofile", () => setCacheSummary(formatCacheStats(viewer.getCacheStats())));
-        setStatus("Drag to pan. Wheel to zoom around the cursor.");
+        cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
+          onNavigate: () => setCacheSummary(formatCacheStats(viewer.getCacheStats())),
+        });
+        setStatus("Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor.");
         setCacheSummary(formatCacheStats(viewer.getCacheStats()));
         viewer.requestRender();
         if (cancelled) unsubscribeViewport();
@@ -137,6 +141,7 @@ function ReactSpectrogramDemo() {
 
     return () => {
       cancelled = true;
+      cleanupNavigation?.();
       unsubscribeViewport?.();
       unsubscribeProfile?.();
       viewerRef.current?.destroy();
@@ -231,23 +236,6 @@ function ReactSpectrogramDemo() {
     );
   }
 
-  function onWheel(event: React.WheelEvent<HTMLCanvasElement>) {
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const anchor = (event.clientX - rect.left) / rect.width;
-    const factor = event.deltaY < 0 ? 0.78 : 1.28;
-    updateViewport((current) => {
-      const span = current.endTime - current.startTime;
-      const nextSpan = span * factor;
-      const anchorTime = current.startTime + span * anchor;
-      return {
-        ...current,
-        startTime: anchorTime - nextSpan * anchor,
-        endTime: anchorTime + nextSpan * (1 - anchor),
-      };
-    });
-  }
-
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
@@ -313,7 +301,6 @@ function ReactSpectrogramDemo() {
         h("audio", { ref: audioRef, controls: true, crossOrigin: "anonymous" }),
         h("canvas", {
           ref: canvasRef,
-          onWheel,
           onPointerDown,
           onPointerMove,
           onPointerUp,
