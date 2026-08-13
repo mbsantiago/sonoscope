@@ -92,10 +92,17 @@ void main() {
   float maxScale = hzToScale(u_viewport.w, u_frequencyScale);
   float frequency = scaleToHz(mix(maxScale, minScale, globalY), u_frequencyScale);
   float tileU = clamp((time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x), 0.0, 1.0);
-  float tileV = 1.0 - clamp((frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x), 0.0, 1.0);
+  float frequencyStep = (u_tileFrequencyRange.y - u_tileFrequencyRange.x) / max(1.0, u_tileSize.y - 1.0);
+  if (frequency > u_tileFrequencyRange.x && frequency <= u_tileFrequencyRange.x + frequencyStep * 0.5 + 0.000001) {
+    outColor = texture(u_colormap, vec2(0.0, 0.5));
+    return;
+  }
+  float frequencyStart = u_tileFrequencyRange.x - frequencyStep * 0.5;
+  float frequencyEnd = u_tileFrequencyRange.y + frequencyStep * 0.5;
+  float tileV = clamp((frequency - frequencyStart) / max(0.000001, frequencyEnd - frequencyStart), 0.0, 1.0);
   vec2 sampleUv = vec2(
     mix(0.5 / max(1.0, u_tileSize.x), 1.0 - 0.5 / max(1.0, u_tileSize.x), tileU),
-    mix(0.5 / max(1.0, u_tileSize.y), 1.0 - 0.5 / max(1.0, u_tileSize.y), tileV)
+    tileV
   );
   float normalized = texture(u_tile, sampleUv).r;
   outColor = texture(u_colormap, vec2(clamp(normalized, 0.0, 1.0), 0.5));
@@ -408,7 +415,8 @@ export function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Requir
   const values = new Uint8Array(tile.frameCount * tile.binCount * 4);
   for (let frame = 0; frame < tile.frameCount; frame++) {
     for (let bin = 0; bin < tile.binCount; bin++) {
-      const index = (bin * tile.frameCount + frame) * 4;
+      const textureBin = tile.binCount - 1 - bin;
+      const index = (textureBin * tile.frameCount + frame) * 4;
       const normalized = normalizedByte(source[frame * tile.binCount + bin]!, valueScale);
       values[index] = normalized;
       values[index + 1] = normalized;

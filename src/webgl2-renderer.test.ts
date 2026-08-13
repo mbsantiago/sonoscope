@@ -3,7 +3,7 @@ import { textureValuesForTile, tileFrequencyRange } from './webgl2-renderer';
 import type { SpectrogramMatrix } from './types';
 
 describe('textureValuesForTile', () => {
-  it('packs normalized values into rgba texture rows', () => {
+  it('packs normalized values into flipped rgba texture rows for WebGL coordinates', () => {
     const tile: SpectrogramMatrix = {
       channel: 0,
       timeStart: 0,
@@ -18,10 +18,10 @@ describe('textureValuesForTile', () => {
     };
 
     expect(Array.from(textureValuesForTile(tile, { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true }))).toEqual([
-      0, 0, 0, 255,
-      255, 255, 255, 255,
       255, 255, 255, 255,
       0, 0, 0, 255,
+      0, 0, 0, 255,
+      255, 255, 255, 255,
     ]);
   });
 });

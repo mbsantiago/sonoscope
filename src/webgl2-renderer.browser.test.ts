@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './webgl2-renderer';
+import { CanvasSpectrogramRenderer, type RenderInput } from './renderer';
 import type { SpectrogramMatrix } from './types';
 import { SpectrogramViewer } from './viewer';
 
@@ -45,6 +46,39 @@ describe('WebGL2 shaders', () => {
     gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     expect(pixels.some((value) => value > 64)).toBe(true);
     renderer.destroy();
+  });
+
+  it('does not stretch the lowest frequency bin up the viewport', () => {
+    const canvas = document.createElement('canvas');
+    Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 16, height: 16 }) });
+    const gl = canvas.getContext('webgl2');
+    if (!gl) return;
+    const renderer = new WebGL2SpectrogramRenderer(gl);
+
+    const input: RenderInput = {
+      canvas,
+      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 100, frequencyScale: 'linear' },
+      valueScale: { mode: 'magnitude', min: 0, max: 1, gamma: 1, clamp: true },
+      colorMap: 'gray',
+      tiles: [singleBrightBinTile(0)],
+    };
+
+    renderer.render(input);
+
+    const webglPixels = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, webglPixels);
+    renderer.destroy();
+
+    const canvas2d = document.createElement('canvas');
+    Object.defineProperty(canvas2d, 'getBoundingClientRect', { value: () => ({ width: 16, height: 16 }) });
+    const context = canvas2d.getContext('2d');
+    if (!context) return;
+    new CanvasSpectrogramRenderer().render({ ...input, canvas: canvas2d });
+    const canvasPixels = context.getImageData(0, 0, canvas2d.width, canvas2d.height).data;
+
+    const webglRow = Math.floor(canvas.height * 0.5);
+    const canvasRow = canvas2d.height - 1 - webglRow;
+    expect(rowBrightness(webglPixels, canvas.width, webglRow)).toBeLessThanOrEqual(rowBrightness(canvasPixels, canvas2d.width, canvasRow) + 2);
   });
 
   it('uses webgl2 for fromUrl auto rendering after decode', async () => {
@@ -103,4 +137,29 @@ function brightBandTile(timeStart = 0, timeEnd = 1): SpectrogramMatrix {
     frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100),
     magnitude,
   };
+}
+
+function singleBrightBinTile(brightBin: number): SpectrogramMatrix {
+  const frameCount = 4;
+  const binCount = 4;
+  const magnitude = new Float32Array(frameCount * binCount);
+  for (let frame = 0; frame < frameCount; frame++) magnitude[frame * binCount + brightBin] = 1;
+  return {
+    channel: 0,
+    timeStart: 0,
+    timeEnd: 1,
+    frameStart: 0,
+    frameCount,
+    binCount,
+    sampleRate: 200,
+    times: Float32Array.from({ length: frameCount }, (_, index) => index / (frameCount - 1)),
+    frequencies: Float32Array.from([0, 25, 50, 75]),
+    magnitude,
+  };
+}
+
+function rowBrightness(pixels: Uint8Array | Uint8ClampedArray, width: number, yFromBottom: number): number {
+  let total = 0;
+  for (let x = 0; x < width; x++) total += pixels[(yFromBottom * width + x) * 4]!;
+  return total / width;
 }
