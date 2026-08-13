@@ -223,7 +223,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.uniform1f('u_overlayMode', 0);
     this.setFullViewportQuad();
     this.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
-    this.uniform2f('u_tileFrequencyRange', tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2));
+    const frequencyRange = tileFrequencyRange(tile);
+    this.uniform2f('u_tileFrequencyRange', frequencyRange.min, frequencyRange.max);
     this.uniform2f('u_tileSize', entry.width, entry.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -416,6 +417,13 @@ export function textureValuesForTile(tile: SpectrogramMatrix, valueScale: Requir
     }
   }
   return values;
+}
+
+export function tileFrequencyRange(tile: Pick<SpectrogramMatrix, 'frequencies' | 'sampleRate'>): { min: number; max: number } {
+  return {
+    min: tile.frequencies[0] ?? 0,
+    max: tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2),
+  };
 }
 
 function normalizedByte(value: number, valueScale: Required<ValueScaleConfig>): number {
