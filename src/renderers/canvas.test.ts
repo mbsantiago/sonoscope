@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PerformanceProfiler } from './performance';
-import { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderers/canvas';
-import type { SpectrogramMatrix } from './types';
+import { PerformanceProfiler } from '../performance';
+import { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './canvas';
+import type { SpectrogramMatrix } from '../types';
 
 afterEach(() => {
   vi.restoreAllMocks();

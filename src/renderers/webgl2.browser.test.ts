@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { CanvasSpectrogramRenderer, type RenderInput } from './renderers/canvas';
-import { WEBGL2_FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './renderers/webgl2';
-import type { SpectrogramMatrix } from './types';
-import { SpectrogramViewer } from './viewer';
+import { CanvasSpectrogramRenderer, type RenderInput } from './canvas';
+import { WEBGL2_FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './webgl2';
+import type { SpectrogramMatrix } from '../types';
+import { SpectrogramViewer } from '../viewer';
 
 function compileShader(gl: WebGL2RenderingContext, type: number, source: string): string | undefined {
   const shader = gl.createShader(type);
