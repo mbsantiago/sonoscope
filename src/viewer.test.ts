@@ -96,7 +96,7 @@ describe('SpectrogramViewer', () => {
     fromUrl.mockRestore();
   });
 
-  it('shows a loading overlay while audio-only sources decode', async () => {
+  it('does not claim a 2d canvas context while audio-only sources decode', async () => {
     let release: (() => void) | undefined;
     const fromUrl = vi.spyOn(DecodedAudioSource, 'fromUrl').mockReturnValue(new Promise((resolve) => { release = () => resolve(highRateSource as DecodedAudioSource); }));
     const renderLoading = vi.spyOn(SpectrogramViewer, 'renderLoading');
@@ -105,7 +105,7 @@ describe('SpectrogramViewer', () => {
     const created = SpectrogramViewer.create({ canvas: canvas(), audio });
     await Promise.resolve();
 
-    expect(renderLoading).toHaveBeenCalledWith(expect.any(Object), 'Decoding audio...');
+    expect(renderLoading).not.toHaveBeenCalled();
     release!();
     await created;
     fromUrl.mockRestore();
@@ -127,7 +127,8 @@ describe('SpectrogramViewer', () => {
     const viewer = await SpectrogramViewer.fromUrl({ canvas: canvas(), audio, url: 'test.wav', backend });
 
     expect(audio.src).toBe('test.wav');
-    expect(renderLoading).toHaveBeenCalledWith(expect.any(Object), 'Decoding audio...');
+    expect(renderLoading).not.toHaveBeenCalled();
+    expect(viewer.getRendererKind()).toBe('canvas2d');
     expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 96_000 });
     renderLoading.mockRestore();
   });
@@ -158,7 +159,7 @@ describe('SpectrogramViewer', () => {
     await viewer.setSourceUrl('next.wav');
 
     expect(audio.src).toBe('next.wav');
-    expect(renderLoading).toHaveBeenCalledWith(expect.any(Object), 'Decoding audio...');
+    expect(renderLoading).not.toHaveBeenCalled();
     expect(viewer.getConfig().source?.sampleRate).toBe(192_000);
     renderLoading.mockRestore();
   });

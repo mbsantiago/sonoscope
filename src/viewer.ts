@@ -43,7 +43,6 @@ export class SpectrogramViewer {
     if (!input.source && input.audio) {
       const url = input.audio.currentSrc || input.audio.src;
       if (!url) throw new Error('SpectrogramViewer requires audio.currentSrc or audio.src when source is omitted');
-      SpectrogramViewer.renderLoading(input.canvas, 'Decoding audio...');
       const config = resolveConfig({ ...input, source: await DecodedAudioSource.fromUrl(url) });
       return new SpectrogramViewer(config, input.backend ?? new MainThreadComputeBackend());
     }
@@ -53,7 +52,6 @@ export class SpectrogramViewer {
 
   static async fromUrl(input: Omit<SpectrogramConfig, 'audio' | 'source'> & { audio: HTMLAudioElement; url: string; backend?: SpectrogramComputeBackend }): Promise<SpectrogramViewer> {
     input.audio.src = input.url;
-    SpectrogramViewer.renderLoading(input.canvas, 'Decoding audio...');
     const source = await createAudioSourceFromUrl(input.url);
     const viewer = await SpectrogramViewer.create({
       ...input,
@@ -74,6 +72,10 @@ export class SpectrogramViewer {
 
   getConfig(): ResolvedSpectrogramConfig {
     return this.config;
+  }
+
+  getRendererKind(): SpectrogramRenderer['kind'] {
+    return this.renderer.kind;
   }
 
   setConfig(input: Partial<SpectrogramConfig>): void {
@@ -103,7 +105,6 @@ export class SpectrogramViewer {
 
   async setSourceUrl(url: string, options?: { viewport?: Partial<ResolvedSpectrogramConfig['viewport']> }): Promise<void> {
     if (this.config.audio) this.config.audio.src = url;
-    SpectrogramViewer.renderLoading(this.config.canvas, 'Decoding audio...');
     this.setSource(await createAudioSourceFromUrl(url), options);
   }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WEBGL2_FRAGMENT_SHADER, WEBGL2_VERTEX_SHADER, WebGL2SpectrogramRenderer } from './webgl2-renderer';
 import type { SpectrogramMatrix } from './types';
+import { SpectrogramViewer } from './viewer';
 
 function compileShader(gl: WebGL2RenderingContext, type: number, source: string): string | undefined {
   const shader = gl.createShader(type);
@@ -45,9 +46,43 @@ describe('WebGL2 shaders', () => {
     expect(pixels.some((value) => value > 64)).toBe(true);
     renderer.destroy();
   });
+
+  it('uses webgl2 for fromUrl auto rendering after decode', async () => {
+    const canvas = document.createElement('canvas');
+    Object.defineProperty(canvas, 'getBoundingClientRect', { value: () => ({ width: 32, height: 16 }) });
+    if (!canvas.getContext('webgl2')) return;
+
+    const previousFetch = globalThis.fetch;
+    const previousAudioContext = globalThis.AudioContext;
+    globalThis.fetch = async () => new Response(new ArrayBuffer(8));
+    globalThis.AudioContext = class {
+      decodeAudioData() {
+        return Promise.resolve({ sampleRate: 1_000, duration: 1, numberOfChannels: 1, getChannelData: () => new Float32Array(1_000) });
+      }
+      close() {
+        return Promise.resolve();
+      }
+    } as unknown as typeof AudioContext;
+    try {
+      const audio = document.createElement('audio');
+      const viewer = await SpectrogramViewer.fromUrl({
+        audio,
+        canvas,
+        url: '/test.wav',
+        backend: { computeTile: async (request) => brightBandTile(request.timeStart, request.timeEnd) },
+      });
+
+      expect(viewer.getConfig().renderer).toBe('auto');
+      expect(viewer.getRendererKind()).toBe('webgl2');
+      viewer.destroy();
+    } finally {
+      globalThis.fetch = previousFetch;
+      globalThis.AudioContext = previousAudioContext;
+    }
+  });
 });
 
-function brightBandTile(): SpectrogramMatrix {
+function brightBandTile(timeStart = 0, timeEnd = 1): SpectrogramMatrix {
   const frameCount = 8;
   const binCount = 8;
   const magnitude = new Float32Array(frameCount * binCount);
@@ -58,13 +93,13 @@ function brightBandTile(): SpectrogramMatrix {
   }
   return {
       channel: 0,
-      timeStart: 0,
-      timeEnd: 1,
+      timeStart,
+      timeEnd,
       frameStart: 0,
       frameCount,
       binCount,
       sampleRate: 10,
-      times: Float32Array.from({ length: frameCount }, (_, index) => index / (frameCount - 1)),
+      times: Float32Array.from({ length: frameCount }, (_, index) => timeStart + (index / (frameCount - 1)) * (timeEnd - timeStart)),
       frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 100),
       magnitude,
     };

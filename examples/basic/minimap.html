@@ -190,7 +190,7 @@
         }
         viewportElement.style.left = `${(viewport.startTime / source.duration) * 100}%`;
         viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / source.duration) * 100}%`;
-        status.textContent = `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
+        status.textContent = `renderer: ${viewer.getRendererKind()}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
       }
 
       function assignTileLanes(tiles) {
