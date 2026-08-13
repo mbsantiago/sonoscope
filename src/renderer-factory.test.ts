@@ -53,7 +53,7 @@ describe('createSpectrogramRenderer', () => {
 
   it('throws when webgl is requested but unavailable', () => {
     expect(() => createSpectrogramRenderer(canvas(null), 'webgl')).toThrow(/returned null/);
-    expect(() => createSpectrogramRenderer(canvas(null), { type: 'webgl', program: 'terrain' })).toThrow(/returned null/);
+    expect(() => createSpectrogramRenderer(canvas(null), { type: 'webgl', program: 'dither' })).toThrow(/returned null/);
   });
 
   it('falls back to canvas renderer in auto mode when webgl2 initialization fails', () => {
@@ -72,7 +72,7 @@ describe('createSpectrogramRenderer', () => {
 
   it('creates webgl2 renderer when webgl is available', () => {
     const gl = webgl2();
-    const renderer = createSpectrogramRenderer(canvas(gl), { type: 'webgl', program: 'terrain' });
+    const renderer = createSpectrogramRenderer(canvas(gl), { type: 'webgl', program: 'dither' });
 
     expect(renderer.kind).toBe('webgl2');
   });

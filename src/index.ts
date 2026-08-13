@@ -15,6 +15,7 @@ export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './r
 export type { RenderInput, RendererKind, SpectrogramRenderer } from './renderers/canvas';
 export { createSpectrogramRenderer } from './renderer-factory';
 export { WebGL2SpectrogramRenderer } from './renderers/webgl2';
+export { DitherSpectrogramProgram } from './renderers/webgl2-dither-program';
 export { NormalSpectrogramProgram } from './renderers/webgl2-normal-program';
 export { TerrainSpectrogramProgram } from './renderers/webgl2-terrain-program';
 export { WebGL2ShaderProgram } from './renderers/webgl2-program';

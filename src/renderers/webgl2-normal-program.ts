@@ -89,8 +89,8 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
   readonly shader: WebGL2ShaderProgram;
   private readonly quadBuffer: WebGLBuffer;
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
-    this.shader = new WebGL2ShaderProgram(gl, WEBGL2_VERTEX_SHADER, WEBGL2_FRAGMENT_SHADER);
+  constructor(private readonly gl: WebGL2RenderingContext, fragmentShader = WEBGL2_FRAGMENT_SHADER) {
+    this.shader = new WebGL2ShaderProgram(gl, WEBGL2_VERTEX_SHADER, fragmentShader);
     const quadBuffer = gl.createBuffer();
     if (!quadBuffer) throw new Error('Unable to initialize WebGL2 normal renderer resources');
     this.quadBuffer = quadBuffer;

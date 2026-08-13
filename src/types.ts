@@ -3,7 +3,7 @@ import type { WebGL2RenderProgram } from './renderers/webgl2-program';
 
 export type FrequencyScale = 'linear' | 'log' | 'mel';
 export type ValueMode = 'magnitude' | 'power' | 'db';
-export type WebGLRendererProgram = 'normal' | 'terrain' | WebGL2RenderProgram;
+export type WebGLRendererProgram = 'normal' | 'dither' | 'terrain' | WebGL2RenderProgram;
 export type WebGLRendererConfig = { type: 'webgl'; program?: WebGLRendererProgram };
 export type RendererMode = 'auto' | 'webgl' | 'webgl2' | 'canvas2d' | WebGLRendererConfig;
 export type WindowName = 'hann' | 'hamming' | 'blackman' | 'rectangular';

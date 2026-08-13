@@ -30,6 +30,7 @@
       <label>Scale <select name="frequencyScale"><option>linear</option><option>log</option><option>mel</option></select></label>
       <label>Mode <select name="mode"><option>db</option><option>magnitude</option><option>power</option></select></label>
       <label>Color <select name="colorMap"><option>viridis</option><option>gray</option><option>magma</option><option>inferno</option><option>plasma</option><option>turbo</option></select></label>
+      <label>Shader <select name="shader"><option value="auto">auto</option><option value="normal">normal</option><option value="dither">dither</option><option value="terrain">terrain</option></select></label>
       <button type="button" data-action="apply">Apply config</button>
       <span data-status></span>
     </div>
@@ -59,7 +60,13 @@
           viewport: { minFrequency: 0, ...(source ? { maxFrequency: source.sampleRate / 2 } : {}), frequencyScale: value('frequencyScale') },
           valueScale: { mode: value('mode'), min: -100, max: 0, gamma: 1, clamp: true },
           colorMap: value('colorMap'),
+          renderer: rendererConfig(),
         };
+      }
+
+      function rendererConfig() {
+        const shader = value('shader');
+        return shader === 'auto' ? 'auto' : { type: 'webgl', program: shader };
       }
 
       function statusText() {
@@ -99,7 +106,14 @@
       });
       document.querySelector('[data-action="apply"]').addEventListener('click', () => {
         if (!viewer) return;
-        viewer.updateConfig(config());
+        const previousRenderer = JSON.stringify(viewer.getConfig().renderer);
+        const nextConfig = config();
+        if (JSON.stringify(nextConfig.renderer) !== previousRenderer) {
+          const url = viewer.getConfig().audio?.currentSrc || input.value.trim();
+          if (url) void load(url);
+          return;
+        }
+        viewer.updateConfig(nextConfig);
         status.textContent = statusText();
       });
 

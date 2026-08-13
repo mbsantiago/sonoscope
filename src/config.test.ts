@@ -32,6 +32,7 @@ describe('resolveConfig', () => {
     expect(resolveConfig({ canvas, source, renderer: 'canvas2d' }).renderer).toBe('canvas2d');
     expect(resolveConfig({ canvas, source, renderer: 'webgl' }).renderer).toBe('webgl');
     expect(resolveConfig({ canvas, source, renderer: 'webgl2' }).renderer).toBe('webgl2');
+    expect(resolveConfig({ canvas, source, renderer: { type: 'webgl', program: 'dither' } }).renderer).toEqual({ type: 'webgl', program: 'dither' });
     expect(resolveConfig({ canvas, source, renderer: { type: 'webgl', program: 'terrain' } }).renderer).toEqual({ type: 'webgl', program: 'terrain' });
   });
 
