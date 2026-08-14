@@ -153,15 +153,36 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       const centerY = height / 2;
       const halfH = (height / 2) * Math.max(0.01, amplitudeScale);
 
+      let maxSpread = 0;
+      for (let i = 0; i < len; i++) {
+        const spread = peaks.max[i]! - peaks.min[i]!;
+        if (spread > maxSpread) maxSpread = spread;
+      }
+      const isLineMode = maxSpread < 0.05;
+
       const vertexCount = len * 2;
       const positions = new Float32Array(vertexCount * 2);
       const xNorms = new Float32Array(vertexCount);
+      const halfThick = (isLineMode ? 1.25 : 0) * dpr;
 
       for (let i = 0; i < len; i++) {
         const norm = i / Math.max(1, len - 1);
         const x = norm * width;
-        const topY = centerY - peaks.max[i]! * halfH;
-        const bottomY = centerY - peaks.min[i]! * halfH;
+        let topY: number;
+        let bottomY: number;
+
+        if (isLineMode) {
+          const sample = (peaks.max[i]! + peaks.min[i]!) / 2;
+          const y = centerY - sample * halfH;
+          topY = y - halfThick;
+          bottomY = y + halfThick;
+        } else {
+          topY = centerY - peaks.max[i]! * halfH;
+          bottomY = centerY - peaks.min[i]! * halfH;
+          if (bottomY - topY < 1 * dpr) {
+            bottomY = topY + 1 * dpr;
+          }
+        }
 
         const idx = i * 4;
         positions[idx] = x;

@@ -71,7 +71,7 @@ export class WaveformPeakPyramid {
     const timeSpan = endTime - startTime;
     const samplesPerPixel = (timeSpan * sampleRate) / outLength;
 
-    if (samplesPerPixel < 1) {
+    if (samplesPerPixel <= 3) {
       // Sub-sample / high zoom mode: use continuous linear interpolation between samples
       for (let i = 0; i < outLength; i++) {
         const t = startTime + (i / Math.max(1, outLength - 1)) * timeSpan;
