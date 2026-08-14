@@ -1,11 +1,10 @@
-import {
-  attachCanvasNavigation,
-  type BuiltInColorMap,
-  type FrequencyScale,
-  SpectrogramViewer,
-  type ValueMode,
-  type WindowName,
+import type {
+  BuiltInColorMap,
+  FrequencyScale,
+  ValueMode,
+  WindowName,
 } from "@sonogram/core";
+import { Spectrogram, type SpectrogramHandle } from "@sonogram/react";
 import React, { startTransition, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -65,21 +64,13 @@ const initialSettings: Settings = {
 };
 
 function ReactSpectrogramDemo() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const viewerRef = useRef<SpectrogramViewer | null>(null);
-  const dragRef = useRef<{
-    x: number;
-    startTime: number;
-    endTime: number;
-  } | null>(null);
+  const spectrogramRef = useRef<SpectrogramHandle | null>(null);
   const minimapDragRef = useRef<{
     x: number;
     startTime: number;
     span: number;
   } | null>(null);
   const [settings, setSettings] = useState(initialSettings);
-  const [canvasKey, setCanvasKey] = useState(0);
   const [duration, setDuration] = useState(30);
   const [playheadTime, setPlayheadTime] = useState(0);
   const [cacheSummary, setCacheSummary] = useState("cache: empty");
@@ -89,83 +80,39 @@ function ReactSpectrogramDemo() {
     minFrequency: 20,
     maxFrequency: 12_000,
   });
-  const [status, setStatus] = useState("Preparing viewer...");
+  const [status, setStatus] = useState(
+    "Loading viewer from @sonogram/react...",
+  );
 
   useEffect(() => {
-    const audio = audioRef.current;
-    const canvas = canvasRef.current;
-    if (!audio || !canvas) return;
+    const handle = spectrogramRef.current;
+    if (!handle) return;
+    const audio = handle.getAudio();
+    const viewer = handle.getViewer();
+    if (!viewer) return;
 
-    let cancelled = false;
-    let cleanupNavigation: (() => void) | undefined;
-    let unsubscribeViewport: (() => void) | undefined;
-    let unsubscribeProfile: (() => void) | undefined;
-    setStatus("Loading source...");
-    SpectrogramViewer.fromUrl({
-      audio,
-      canvas,
-      url: RECORDINGS[settings.recording]?.[0] ?? RECORDINGS[0]![0],
-      windowSize: settings.windowSize,
-      fftSize: settings.windowSize,
-      hopSize: settings.hopSize,
-      window: settings.window,
-      minViewportDuration: 0.08,
-      maxViewportDuration: 20,
-      valueMode: settings.valueMode,
-      minValue: settings.minDb,
-      maxValue: settings.maxDb,
-      valueGamma: 1,
-      clampValues: true,
-      colorMap: settings.colorMap,
-      renderer: rendererConfig(settings.shaderProgram),
-      followPlayback: true,
-      renderOnSeek: true,
-    })
-      .then((viewer) => {
-        if (cancelled) return;
-        viewerRef.current = viewer;
-        setDuration(viewer.getDuration());
-        unsubscribeViewport = viewer.on("viewportchange", (event) => {
-          startTransition(() => setViewport(event.viewport));
-        });
-        unsubscribeProfile = viewer.on("renderprofile", () =>
-          setCacheSummary(formatCacheStats(viewer.getCacheStats())),
-        );
-        cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
-          onNavigate: () => {
-            setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-          },
-        });
-        setStatus(
-          `Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Shader: ${settings.shaderProgram}.`,
-        );
-        setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-        viewer.requestRender();
-        if (cancelled) unsubscribeViewport();
-      })
-      .catch((error) => {
-        if (!cancelled)
-          setStatus(error instanceof Error ? error.message : String(error));
-      });
+    setDuration(viewer.getDuration());
+    setCacheSummary(formatCacheStats(viewer.getCacheStats()));
 
-    return () => {
-      cancelled = true;
-      cleanupNavigation?.();
-      unsubscribeViewport?.();
-      unsubscribeProfile?.();
-      viewerRef.current?.destroy();
-      viewerRef.current = null;
-    };
-  }, [settings.recording, settings.shaderProgram]);
+    const unsubViewport = viewer.on("viewportchange", (event) => {
+      startTransition(() => setViewport(event.viewport));
+    });
+    const unsubProfile = viewer.on("renderprofile", () => {
+      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+    });
+    const unsubComplete = viewer.on("rendercomplete", () => {
+      setStatus(
+        `Drag to pan. Wheel to pan; Ctrl+wheel to zoom. Shader: ${settings.shaderProgram}.`,
+      );
+    });
+    const unsubError = viewer.on("error", (event) => {
+      setStatus(`Error: ${event.error.message}`);
+    });
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
     let frame: number | undefined;
-
-    const update = () => setPlayheadTime(audio.currentTime || 0);
+    const updateTime = () => setPlayheadTime(audio?.currentTime || 0);
     const tick = () => {
-      update();
+      updateTime();
       frame = requestAnimationFrame(tick);
     };
     const start = () => {
@@ -174,68 +121,32 @@ function ReactSpectrogramDemo() {
     const stop = () => {
       if (frame !== undefined) cancelAnimationFrame(frame);
       frame = undefined;
-      update();
+      updateTime();
     };
 
-    audio.addEventListener("play", start);
-    audio.addEventListener("pause", stop);
-    audio.addEventListener("seeked", update);
-    audio.addEventListener("timeupdate", update);
-    update();
-    if (!audio.paused) start();
+    if (audio) {
+      audio.addEventListener("play", start);
+      audio.addEventListener("pause", stop);
+      audio.addEventListener("seeked", updateTime);
+      audio.addEventListener("timeupdate", updateTime);
+      updateTime();
+      if (!audio.paused) start();
+    }
 
     return () => {
+      unsubViewport();
+      unsubProfile();
+      unsubComplete();
+      unsubError();
       stop();
-      audio.removeEventListener("play", start);
-      audio.removeEventListener("pause", stop);
-      audio.removeEventListener("seeked", update);
-      audio.removeEventListener("timeupdate", update);
+      if (audio) {
+        audio.removeEventListener("play", start);
+        audio.removeEventListener("pause", stop);
+        audio.removeEventListener("seeked", updateTime);
+        audio.removeEventListener("timeupdate", updateTime);
+      }
     };
-  }, [settings.recording]);
-
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    try {
-      viewer.updateConfig({
-        windowSize: settings.windowSize,
-        fftSize: settings.windowSize,
-        hopSize: settings.hopSize,
-        window: settings.window,
-        minViewportDuration: 0.08,
-        maxViewportDuration: 20,
-        valueMode: settings.valueMode,
-        minValue: settings.minDb,
-        maxValue: settings.maxDb,
-        valueGamma: 1,
-        clampValues: true,
-        colorMap: settings.colorMap,
-        renderer: rendererConfig(settings.shaderProgram),
-      });
-      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
-    }
-  }, [
-    settings.windowSize,
-    settings.hopSize,
-    settings.window,
-    settings.valueMode,
-    settings.minDb,
-    settings.maxDb,
-    settings.colorMap,
-    settings.shaderProgram,
-  ]);
-
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    viewer.updateViewport({
-      ...viewport,
-      frequencyScale: settings.frequencyScale,
-    });
-    setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-  }, [viewport, settings.frequencyScale]);
+  }, [settings.recording, settings.shaderProgram]);
 
   function updateSettings(update: Partial<Settings>) {
     startTransition(() =>
@@ -246,50 +157,25 @@ function ReactSpectrogramDemo() {
   function setShaderProgram(shaderProgram: ShaderProgram) {
     startTransition(() => {
       setSettings((current: Settings) => ({ ...current, shaderProgram }));
-      setCanvasKey((current: number) => current + 1);
     });
   }
 
   function updateViewport(
     update: typeof viewport | ((current: typeof viewport) => typeof viewport),
   ) {
-    startTransition(() =>
-      setViewport((current: typeof viewport) =>
-        clampViewport(
-          typeof update === "function" ? update(current) : update,
-          duration,
-        ),
-      ),
-    );
-  }
-
-  function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      x: event.clientX,
-      startTime: viewport.startTime,
-      endTime: viewport.endTime,
-    };
-  }
-
-  function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const secondsPerPixel = (drag.endTime - drag.startTime) / rect.width;
-    const delta = (event.clientX - drag.x) * secondsPerPixel;
-    updateViewport({
-      ...viewport,
-      startTime: drag.startTime - delta,
-      endTime: drag.endTime - delta,
+    startTransition(() => {
+      const next = clampViewport(
+        typeof update === "function" ? update(viewport) : update,
+        duration,
+      );
+      setViewport(next);
+      spectrogramRef.current?.getViewer()?.updateViewport(next);
     });
   }
 
-  function onPointerUp() {
-    dragRef.current = null;
-  }
-
   const current = RECORDINGS[settings.recording] ?? RECORDINGS[0]!;
+  const currentUrl = current[0];
+
   return h(
     "main",
     { className: "shell" },
@@ -298,14 +184,16 @@ function ReactSpectrogramDemo() {
       "section",
       { className: "hero" },
       h("a", { href: "./index.html" }, "Back to demos"),
-      h("p", { className: "eyebrow" }, "React integration"),
-      h("h1", null, "One component, live spectrogram controls."),
+      h("p", { className: "eyebrow" }, "React integration (@sonogram/react)"),
+      h("h1", null, "Declarative <Spectrogram /> Component"),
       h(
         "p",
         null,
-        "React owns the form state. ",
-        h("code", null, "SpectrogramViewer"),
-        " owns decoding, rendering, playback sync, and tile updates.",
+        "Powered by the exported ",
+        h("code", null, "<Spectrogram />"),
+        " component from ",
+        h("code", null, "@sonogram/react"),
+        ". React manages declarative state; Sonogram core manages WebGL2/WASM hardware rendering.",
       ),
     ),
     h(
@@ -327,14 +215,46 @@ function ReactSpectrogramDemo() {
           ),
           h("span", { className: "status" }, status),
         ),
-        h("audio", { ref: audioRef, controls: true, crossOrigin: "anonymous" }),
-        h("canvas", {
-          key: canvasKey,
-          ref: canvasRef,
-          onPointerDown,
-          onPointerMove,
-          onPointerUp,
-          onPointerCancel: onPointerUp,
+        h(Spectrogram, {
+          ref: spectrogramRef,
+          url: currentUrl,
+          showAudioControls: true,
+          colorMap: settings.colorMap,
+          valueMode: settings.valueMode,
+          minValue: settings.minDb,
+          maxValue: settings.maxDb,
+          valueGamma: 1,
+          clampValues: true,
+          windowSize: settings.windowSize,
+          fftSize: settings.windowSize,
+          hopSize: settings.hopSize,
+          window: settings.window,
+          frequencyScale: settings.frequencyScale,
+          renderer: rendererConfig(settings.shaderProgram),
+          minViewportDuration: 0.08,
+          maxViewportDuration: 20,
+          followPlayback: true,
+          renderOnSeek: true,
+          navigation: {
+            enableWheel: true,
+            enableDrag: true,
+          },
+          onViewportChange: (vp) => {
+            startTransition(() => setViewport(vp));
+          },
+          canvasProps: {
+            style: {
+              width: "100%",
+              height: "min(52vh, 520px)",
+              minHeight: "330px",
+              display: "block",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "#050505",
+              cursor: "grab",
+              touchAction: "none",
+            },
+          },
         }),
         h(Minimap, {
           duration,
@@ -442,8 +362,8 @@ function ReactSpectrogramDemo() {
         h(Slider, {
           label: "Min dB",
           value: settings.minDb,
-          min: -120,
-          max: -10,
+          min: -140,
+          max: -20,
           step: 1,
           onChange: (minDb: number) => updateSettings({ minDb }),
         }),
@@ -762,9 +682,7 @@ const styles = `
   .display-topline strong { color: #f4efe7; }
   .display-topline span { color: #89919f; font-size: .82rem; margin-top: 3px; }
   .status { text-align: right; max-width: 310px; }
-  audio { width: 100%; margin-bottom: 12px; opacity: .92; }
-  canvas { width: 100%; height: min(52vh, 520px); min-height: 330px; display: block; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: #050505; cursor: grab; touch-action: none; }
-  canvas:active { cursor: grabbing; }
+  audio { width: 100%; margin-top: 12px; margin-bottom: 8px; opacity: .92; }
   .minimap-block { display: grid; gap: 8px; padding: 14px 4px 2px; }
   .minimap-label { display: flex; justify-content: space-between; gap: 12px; color: #89919f; font: 700 12px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .12em; }
   .minimap-label b { color: #d7dce5; font-weight: 700; text-transform: none; letter-spacing: 0; }

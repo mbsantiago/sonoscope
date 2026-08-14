@@ -35,6 +35,8 @@ export function useSpectrogram(
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const viewerRef = useRef<SpectrogramViewer | null>(null);
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
 
   const [status, setStatus] = useState<SpectrogramStatus>({ state: "idle" });
   const [viewport, setViewport] = useState<ViewportConfig | null>(null);
@@ -46,6 +48,7 @@ export function useSpectrogram(
     [JSON.stringify(viewerConfig)],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses source identity; in-place option updates are handled reactively below
   useEffect(() => {
     const canvas = canvasRef.current;
     const audio = audioRef.current;
@@ -93,7 +96,7 @@ export function useSpectrogram(
         unsubs.push(
           viewer.on("viewportchange", (event) => {
             setViewport(event.viewport);
-            onViewportChange?.(event.viewport);
+            onViewportChangeRef.current?.(event.viewport);
           }),
           viewer.on("renderstart", () => {
             setStatus({ state: "loading" });
@@ -128,7 +131,16 @@ export function useSpectrogram(
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [url, source, navigation, onViewportChange, memoizedConfig]);
+  }, [url, source, navigation]);
+
+  // Handle in-place reactive config updates on existing viewer
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    try {
+      viewer.updateConfig(memoizedConfig);
+    } catch {}
+  }, [memoizedConfig]);
 
   return {
     canvasRef,
