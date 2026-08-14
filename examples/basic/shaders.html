@@ -90,10 +90,13 @@
           canvas,
           url: audio.src,
           renderer: { type: "webgl", program: shader },
-          viewport: { frequencyScale: "mel" },
-          valueScale: { mode: "db", min: -65, max: -10 },
+          frequencyScale: "mel",
+          valueMode: "db",
+          minValue: -65,
+          maxValue: -10,
           colorMap: { base: "gray" },
-          playback: { follow: true, renderOnSeek: true },
+          followPlayback: true,
+          renderOnSeek: true,
         });
 
         cleanupNavigation = attachCanvasNavigation(spectrogram, canvas);

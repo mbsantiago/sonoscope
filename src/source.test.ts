@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAudioSourceFromUrl, DecodedAudioSource } from "./source";
+import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
 
 function makeBuffer(): AudioBuffer {
@@ -149,10 +150,63 @@ describe("createAudioSourceFromUrl", () => {
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
       }) as typeof fetch;
 
-    const source = await createAudioSourceFromUrl("bat.mp3", options);
+    const source = await createAudioSourceFromUrl("bat.unknown", options);
 
     expect(source.id).toBe("decoded");
-    expect(decoded).toHaveBeenCalledWith("bat.mp3", options);
+    expect(decoded).toHaveBeenCalledWith("bat.unknown", options);
+  });
+
+  it("uses StreamingMp3Source when MP3 bytes and WebCodecs are supported", async () => {
+    const mp3Bytes = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
+    vi.spyOn(StreamingMp3Source, "isSupported").mockResolvedValue(true);
+    const streaming = vi
+      .spyOn(StreamingMp3Source, "fromByteSource")
+      .mockResolvedValue({
+        id: "streaming-mp3",
+        sampleRate: 44100,
+        duration: 1,
+        channelCount: 2,
+        read: () => new Float32Array(0),
+      } as unknown as StreamingMp3Source);
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: streamFrom(mp3Bytes),
+    }) as typeof fetch;
+
+    const source = await createAudioSourceFromUrl("song.mp3");
+
+    expect(source.id).toBe("streaming-mp3");
+    expect(streaming).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to DecodedAudioSource when MP3 streaming fails", async () => {
+    const mp3Bytes = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
+    vi.spyOn(StreamingMp3Source, "isSupported").mockResolvedValue(true);
+    vi.spyOn(StreamingMp3Source, "fromByteSource").mockRejectedValue(
+      new Error("decoder error"),
+    );
+    const decoded = vi
+      .spyOn(DecodedAudioSource, "fromUrl")
+      .mockResolvedValue(
+        new DecodedAudioSource(makeBuffer(), "decoded-after-mp3-failure"),
+      );
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: streamFrom(mp3Bytes),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      }) as typeof fetch;
+
+    const source = await createAudioSourceFromUrl("corrupt.mp3");
+
+    expect(source.id).toBe("decoded-after-mp3-failure");
+    expect(decoded).toHaveBeenCalledWith("corrupt.mp3", undefined);
   });
 
   it("falls back to DecodedAudioSource when WAV streaming fails", async () => {

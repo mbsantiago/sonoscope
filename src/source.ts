@@ -1,4 +1,6 @@
 import { FetchByteSource, readPrefix } from "./byte-source";
+import { isMp3Bytes } from "./mp3";
+import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
 import type { AudioSource } from "./types";
 import { isWavBytes } from "./wav";
@@ -59,6 +61,13 @@ export async function createAudioSourceFromUrl(
   if (isWavBytes(prefix)) {
     try {
       return await StreamingWavSource.fromByteSource(byteSource, { id: url });
+    } catch {
+      return DecodedAudioSource.fromUrl(url, options);
+    }
+  }
+  if (isMp3Bytes(prefix) && (await StreamingMp3Source.isSupported())) {
+    try {
+      return await StreamingMp3Source.fromByteSource(byteSource, { id: url });
     } catch {
       return DecodedAudioSource.fromUrl(url, options);
     }

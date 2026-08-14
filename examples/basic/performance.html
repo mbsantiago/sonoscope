@@ -131,10 +131,19 @@
             source,
             renderer: rendererMode.value,
             backend,
-            cache: { tileDurationSeconds: 2, maxCachedTiles: 32 },
-            viewport: { startTime: viewportStart, endTime: viewportStart + 8, minFrequency: 0, maxFrequency: 12_000 },
-            valueScale: { mode: 'db', min: -45, max: 15 },
-            stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
+            tileDuration: 2,
+            maxCachedTiles: 32,
+            startTime: viewportStart,
+            endTime: viewportStart + 8,
+            minFrequency: 0,
+            maxFrequency: 12_000,
+            valueMode: 'db',
+            minValue: -45,
+            maxValue: 15,
+            windowSize: 2048,
+            fftSize: 2048,
+            hopSize: 512,
+            window: 'hann',
           });
 
           let latestMeasures = [];
@@ -146,7 +155,7 @@
             profile.textContent = `[${iter}/${iterations}] Running compute & draw on ${name}...`;
 
             // Clear cache & invalidate renderer to force clean compute + draw every iteration
-            viewer.setConfig({ viewport: { startTime: (viewportStart + (iter * 0.1) % 10), endTime: (viewportStart + (iter * 0.1) % 10) + 8 } });
+            viewer.setConfig({ startTime: (viewportStart + (iter * 0.1) % 10), endTime: (viewportStart + (iter * 0.1) % 10) + 8 });
 
             const start = performance.now();
             await viewer.render();

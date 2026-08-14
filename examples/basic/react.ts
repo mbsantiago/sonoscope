@@ -109,23 +109,21 @@ function ReactSpectrogramDemo() {
       audio,
       canvas,
       url: RECORDINGS[settings.recording][0],
-      stft: {
-        windowSize: settings.windowSize,
-        fftSize: settings.windowSize,
-        hopSize: settings.hopSize,
-        window: settings.window,
-      },
-      viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
-      valueScale: {
-        mode: settings.valueMode,
-        min: settings.minDb,
-        max: settings.maxDb,
-        gamma: 1,
-        clamp: true,
-      },
+      windowSize: settings.windowSize,
+      fftSize: settings.windowSize,
+      hopSize: settings.hopSize,
+      window: settings.window,
+      minViewportDuration: 0.08,
+      maxViewportDuration: 20,
+      valueMode: settings.valueMode,
+      minValue: settings.minDb,
+      maxValue: settings.maxDb,
+      valueGamma: 1,
+      clampValues: true,
       colorMap: settings.colorMap,
       renderer: rendererConfig(settings.shaderProgram),
-      playback: { follow: true, renderOnSeek: true },
+      followPlayback: true,
+      renderOnSeek: true,
     })
       .then((viewer) => {
         if (cancelled) return;
@@ -204,23 +202,17 @@ function ReactSpectrogramDemo() {
     if (!viewer) return;
     try {
       viewer.updateConfig({
-        stft: {
-          windowSize: settings.windowSize,
-          fftSize: settings.windowSize,
-          hopSize: settings.hopSize,
-          window: settings.window,
-        },
-        viewportConstraints: {
-          minDurationSeconds: 0.08,
-          maxDurationSeconds: 20,
-        },
-        valueScale: {
-          mode: settings.valueMode,
-          min: settings.minDb,
-          max: settings.maxDb,
-          gamma: 1,
-          clamp: true,
-        },
+        windowSize: settings.windowSize,
+        fftSize: settings.windowSize,
+        hopSize: settings.hopSize,
+        window: settings.window,
+        minViewportDuration: 0.08,
+        maxViewportDuration: 20,
+        valueMode: settings.valueMode,
+        minValue: settings.minDb,
+        maxValue: settings.maxDb,
+        valueGamma: 1,
+        clampValues: true,
         colorMap: settings.colorMap,
         renderer: rendererConfig(settings.shaderProgram),
       });

@@ -23,13 +23,16 @@ import { applyTransforms } from "./transforms";
 import type {
   AudioSource,
   CacheStats,
+  FrequencyScale,
   RendererMode,
   ResolvedSpectrogramConfig,
   SpectrogramConfig,
   SpectrogramEvents,
   SpectrogramMatrix,
   SpectrogramStatus,
+  StftConfig,
   TileStateInfo,
+  ViewportConfig,
 } from "./types";
 
 export class SpectrogramViewer {
@@ -55,7 +58,7 @@ export class SpectrogramViewer {
     private readonly backend: SpectrogramComputeBackend,
   ) {
     this.cache = new SpectrogramCache({
-      maxCachedTiles: config.cache.maxCachedTiles,
+      maxCachedTiles: config.maxCachedTiles,
     });
     this.renderer = createSpectrogramRenderer(config.canvas, config.renderer);
     this.attachPlaybackSync();
@@ -87,23 +90,20 @@ export class SpectrogramViewer {
 
   static async fromUrl(
     input: Omit<SpectrogramConfig, "audio" | "source"> & {
-      audio: HTMLAudioElement;
+      audio?: HTMLAudioElement;
       url: string;
     },
   ): Promise<SpectrogramViewer> {
-    input.audio.src = input.url;
+    if (input.audio) input.audio.src = input.url;
     const source = await createAudioSourceFromUrl(input.url);
     const viewer = await SpectrogramViewer.create({
+      startTime: 0,
+      endTime: Math.min(10, source.duration),
+      minFrequency: 0,
+      maxFrequency: source.sampleRate / 2,
       ...input,
       source,
       backend: input.backend ?? "auto",
-      viewport: {
-        startTime: 0,
-        endTime: Math.min(10, source.duration),
-        minFrequency: 0,
-        maxFrequency: source.sampleRate / 2,
-        ...input.viewport,
-      },
     });
     return viewer;
   }
@@ -144,16 +144,9 @@ export class SpectrogramViewer {
     const previousTileConfigHash = this.tileConfigHash();
     const previousRenderer = this.config.renderer;
     const source = input.source ?? this.config.source;
-    const viewport = { ...this.config.viewport, ...input.viewport };
     this.config = resolveConfig({
       ...this.config,
       ...input,
-      renderer: input.renderer ?? this.config.renderer,
-      viewport,
-      viewportConstraints: {
-        ...this.config.viewportConstraints,
-        ...input.viewportConstraints,
-      },
       canvas: input.canvas ?? this.config.canvas,
       ...(source ? { source } : {}),
     });
@@ -183,33 +176,25 @@ export class SpectrogramViewer {
     this.requestRender();
   }
 
-  setSource(
-    source: AudioSource,
-    options?: { viewport?: Partial<ResolvedSpectrogramConfig["viewport"]> },
-  ): void {
+  setSource(source: AudioSource, options?: Partial<ViewportConfig>): void {
     this.setConfig({
       source,
-      viewport: {
-        startTime: 0,
-        endTime: Math.min(10, source.duration),
-        minFrequency: 0,
-        maxFrequency: source.sampleRate / 2,
-        ...options?.viewport,
-      },
+      startTime: 0,
+      endTime: Math.min(10, source.duration),
+      minFrequency: 0,
+      maxFrequency: source.sampleRate / 2,
+      ...options,
     });
   }
 
-  updateSource(
-    source: AudioSource,
-    options?: { viewport?: Partial<ResolvedSpectrogramConfig["viewport"]> },
-  ): void {
+  updateSource(source: AudioSource, options?: Partial<ViewportConfig>): void {
     this.setSource(source, options);
     this.requestRender();
   }
 
   async setSourceUrl(
     url: string,
-    options?: { viewport?: Partial<ResolvedSpectrogramConfig["viewport"]> },
+    options?: Partial<ViewportConfig>,
   ): Promise<void> {
     if (this.config.audio) this.config.audio.src = url;
     this.setSource(await createAudioSourceFromUrl(url), options);
@@ -217,31 +202,34 @@ export class SpectrogramViewer {
 
   async updateSourceUrl(
     url: string,
-    options?: { viewport?: Partial<ResolvedSpectrogramConfig["viewport"]> },
+    options?: Partial<ViewportConfig>,
   ): Promise<void> {
     await this.setSourceUrl(url, options);
     this.requestRender();
   }
 
-  getViewport(): ResolvedSpectrogramConfig["viewport"] {
-    return this.config.viewport;
+  getViewport(): ViewportConfig {
+    return {
+      startTime: this.config.startTime,
+      endTime: this.config.endTime,
+      minFrequency: this.config.minFrequency,
+      maxFrequency: this.config.maxFrequency,
+      frequencyScale: this.config.frequencyScale,
+    };
   }
 
-  setViewport(viewport: Partial<ResolvedSpectrogramConfig["viewport"]>): void {
+  setViewport(viewport: Partial<ViewportConfig>): void {
     this.config = resolveConfig({
       ...this.config,
-      viewport: { ...this.config.viewport, ...viewport },
-      viewportConstraints: this.config.viewportConstraints,
+      ...viewport,
       canvas: this.config.canvas,
       ...(this.config.source ? { source: this.config.source } : {}),
     });
     this.renderGeneration += 1;
-    this.events.emit("viewportchange", { viewport: this.config.viewport });
+    this.events.emit("viewportchange", { viewport: this.getViewport() });
   }
 
-  updateViewport(
-    viewport: Partial<ResolvedSpectrogramConfig["viewport"]>,
-  ): void {
+  updateViewport(viewport: Partial<ViewportConfig>): void {
     this.setViewport(viewport);
     this.requestRender();
   }
@@ -255,24 +243,27 @@ export class SpectrogramViewer {
     return {
       startTime: 0,
       endTime: this.getDuration(),
-      minDurationSeconds: this.config.viewportConstraints.minDurationSeconds,
-      maxDurationSeconds: this.config.viewportConstraints.maxDurationSeconds,
+      minDurationSeconds: this.config.minViewportDuration,
+      maxDurationSeconds: this.config.maxViewportDuration,
     };
   }
 
   zoomTime(
     factor: number,
-    centerTime = (this.config.viewport.startTime +
-      this.config.viewport.endTime) /
-      2,
+    centerTime = (this.config.startTime + this.config.endTime) / 2,
   ): void {
+    const currentViewport = this.getViewport();
     const next = zoomViewportTime(
-      this.config.viewport,
+      currentViewport,
       this.getTimeBounds(),
       centerTime,
       factor,
     );
-    if (next === this.config.viewport) return;
+    if (
+      next.startTime === currentViewport.startTime &&
+      next.endTime === currentViewport.endTime
+    )
+      return;
     this.updateViewport(next);
   }
 
@@ -311,7 +302,7 @@ export class SpectrogramViewer {
       y,
       rect.width || this.config.canvas.width,
       rect.height || this.config.canvas.height,
-      this.config.viewport,
+      this.getViewport(),
     );
   }
 
@@ -325,7 +316,7 @@ export class SpectrogramViewer {
       frequency,
       rect.width || this.config.canvas.width,
       rect.height || this.config.canvas.height,
-      this.config.viewport,
+      this.getViewport(),
     );
   }
 
@@ -453,15 +444,22 @@ export class SpectrogramViewer {
   ): void {
     this.renderer.render({
       canvas: this.config.canvas,
-      viewport: this.config.viewport,
-      valueScale: this.config.valueScale,
+      viewport: this.getViewport(),
+      valueScale: {
+        mode: this.config.valueMode,
+        min: this.config.minValue,
+        max: this.config.maxValue,
+        gamma: this.config.valueGamma,
+        clamp: this.config.clampValues,
+      },
       colorMap: this.config.colorMap,
       tiles: matrices,
       placeholders,
       profile,
-      ...(this.config.playback.showPlayhead && this.config.audio
+      ...(this.config.showPlayhead && this.config.audio
         ? { playheadTime: this.config.audio.currentTime }
         : {}),
+      secretSpectrogram3d: this.config.secretSpectrogram3d,
       ...webglProgramRenderInput(this.config.renderer),
     });
   }
@@ -538,7 +536,7 @@ export class SpectrogramViewer {
     time: number;
     frameIndex: number;
     channel: number;
-    frequencyScale: ResolvedSpectrogramConfig["viewport"]["frequencyScale"];
+    frequencyScale: FrequencyScale;
     values: {
       frequency: Float32Array;
       magnitude: Float32Array;
@@ -564,7 +562,7 @@ export class SpectrogramViewer {
       time: matrix.times[frameIndex]!,
       frameIndex,
       channel,
-      frequencyScale: this.config.viewport.frequencyScale,
+      frequencyScale: this.config.frequencyScale,
       values: {
         frequency: matrix.frequencies,
         magnitude: matrix.magnitude.slice(start, end),
@@ -584,8 +582,7 @@ export class SpectrogramViewer {
     if (!this.config.source)
       throw new Error("Cannot query without an AudioSource");
     const time =
-      (input.frameIndex * this.config.stft.hopSize) /
-      this.config.source.sampleRate;
+      (input.frameIndex * this.config.hopSize) / this.config.source.sampleRate;
     return this.querySpectrum({
       time,
       ...(input.channel === undefined ? {} : { channel: input.channel }),
@@ -617,10 +614,7 @@ export class SpectrogramViewer {
   }
 
   private rangeIntersectsViewport(startTime: number, endTime: number): boolean {
-    return (
-      startTime < this.config.viewport.endTime &&
-      endTime > this.config.viewport.startTime
-    );
+    return startTime < this.config.endTime && endTime > this.config.startTime;
   }
 
   private queueSourceRangeRender(): void {
@@ -678,11 +672,11 @@ export class SpectrogramViewer {
     if (!audio) return;
     const onSeeked = () => {
       this.followPlayheadIfNeeded();
-      if (this.config.playback.renderOnSeek) this.requestRender();
+      if (this.config.renderOnSeek) this.requestRender();
     };
     const onSeeking = () => {
       this.followPlayheadIfNeeded();
-      if (this.config.playback.renderOnSeek) this.requestRender();
+      if (this.config.renderOnSeek) this.requestRender();
     };
     const onTimeUpdate = () => {
       this.followPlayheadIfNeeded();
@@ -739,17 +733,16 @@ export class SpectrogramViewer {
 
   private followPlayheadIfNeeded(): boolean {
     const audio = this.config.audio;
-    if (!audio || !this.config.playback.follow) return false;
-    const duration =
-      this.config.viewport.endTime - this.config.viewport.startTime;
-    const margin = duration * this.config.playback.followMargin;
+    if (!audio || !this.config.followPlayback) return false;
+    const duration = this.config.endTime - this.config.startTime;
+    const margin = duration * this.config.followMargin;
     if (
-      audio.currentTime < this.config.viewport.startTime + margin ||
-      audio.currentTime > this.config.viewport.endTime - margin
+      audio.currentTime < this.config.startTime + margin ||
+      audio.currentTime > this.config.endTime - margin
     ) {
       const startTime = Math.max(
         0,
-        audio.currentTime - duration * this.config.playback.followMargin,
+        audio.currentTime - duration * this.config.followMargin,
       );
       this.setViewport({ startTime, endTime: startTime + duration });
       return true;
@@ -760,53 +753,45 @@ export class SpectrogramViewer {
   private prefetchPlaybackLookahead(frameTime: number): void {
     const audio = this.config.audio;
     const source = this.config.source;
-    if (!audio || !source || !this.config.playback.follow) return;
+    if (!audio || !source || !this.config.followPlayback) return;
     if (frameTime - this.lastPlaybackPrefetchTime < 250) return;
     this.lastPlaybackPrefetchTime = frameTime;
 
-    const duration =
-      this.config.viewport.endTime - this.config.viewport.startTime;
-    const margin = duration * this.config.playback.followMargin;
-    if (audio.currentTime < this.config.viewport.endTime - margin * 1.5) return;
+    const duration = this.config.endTime - this.config.startTime;
+    const margin = duration * this.config.followMargin;
+    if (audio.currentTime < this.config.endTime - margin * 1.5) return;
 
-    this.prefetchAroundViewport(
-      "forward",
-      margin + this.config.cache.tileDurationSeconds,
-    );
+    this.prefetchAroundViewport("forward", margin + this.config.tileDuration);
   }
 
   private prefetchAroundViewport(
     direction: "both" | "forward" = "both",
-    seconds = this.config.cache.tileDurationSeconds *
-      this.config.cache.prefetchTiles,
+    seconds = this.config.tileDuration * this.config.prefetchTiles,
   ): void {
-    if (!this.config.source || this.config.cache.prefetchTiles <= 0) return;
+    if (!this.config.source || this.config.prefetchTiles <= 0) return;
     const before =
       direction === "forward"
         ? []
         : this.tileRangesForTimeRange(
-            Math.max(0, this.config.viewport.startTime - seconds),
-            this.config.viewport.startTime,
+            Math.max(0, this.config.startTime - seconds),
+            this.config.startTime,
           ).reverse();
     const after = this.tileRangesForTimeRange(
-      this.config.viewport.endTime,
-      Math.min(
-        this.config.source.duration,
-        this.config.viewport.endTime + seconds,
-      ),
+      this.config.endTime,
+      Math.min(this.config.source.duration, this.config.endTime + seconds),
     );
     const candidates =
       direction === "forward"
         ? after
         : [
-            ...after.slice(0, this.config.cache.prefetchTiles),
-            ...before.slice(0, this.config.cache.prefetchTiles),
+            ...after.slice(0, this.config.prefetchTiles),
+            ...before.slice(0, this.config.prefetchTiles),
           ];
 
     const maxStarted =
       direction === "forward"
-        ? this.config.cache.prefetchTiles
-        : this.config.cache.prefetchTiles * 2;
+        ? this.config.prefetchTiles
+        : this.config.prefetchTiles * 2;
     let started = 0;
     for (const tile of candidates) {
       if (started >= maxStarted) return;
@@ -828,10 +813,10 @@ export class SpectrogramViewer {
 
   private renderPlaybackPlayhead(): boolean {
     const audio = this.config.audio;
-    if (!audio || !this.config.playback.showPlayhead) return true;
+    if (!audio || !this.config.showPlayhead) return true;
     return this.renderer.renderPlayhead({
       canvas: this.config.canvas,
-      viewport: this.config.viewport,
+      viewport: this.getViewport(),
       playheadTime: audio.currentTime,
     });
   }
@@ -844,8 +829,8 @@ export class SpectrogramViewer {
     if (!this.config.source)
       throw new Error("Cannot render without an AudioSource");
     return this.tileRangesForTimeRange(
-      this.config.viewport.startTime,
-      this.config.viewport.endTime,
+      this.config.startTime,
+      this.config.endTime,
     );
   }
 
@@ -861,20 +846,20 @@ export class SpectrogramViewer {
       timeEnd: number;
     }> = [];
     const firstStart =
-      Math.floor(startTime / this.config.cache.tileDurationSeconds) *
-      this.config.cache.tileDurationSeconds;
+      Math.floor(startTime / this.config.tileDuration) *
+      this.config.tileDuration;
     const channel = this.config.channel;
     for (
       let start = firstStart;
       start < endTime;
-      start += this.config.cache.tileDurationSeconds
+      start += this.config.tileDuration
     ) {
       ranges.push({
         channel,
         timeStart: Math.max(0, start),
         timeEnd: Math.min(
           this.config.source.duration,
-          start + this.config.cache.tileDurationSeconds,
+          start + this.config.tileDuration,
         ),
       });
     }
@@ -888,13 +873,12 @@ export class SpectrogramViewer {
     if (!this.config.source)
       throw new Error("Cannot query without an AudioSource");
     const start =
-      Math.floor(time / this.config.cache.tileDurationSeconds) *
-      this.config.cache.tileDurationSeconds;
+      Math.floor(time / this.config.tileDuration) * this.config.tileDuration;
     return {
       timeStart: Math.max(0, start),
       timeEnd: Math.min(
         this.config.source.duration,
-        start + this.config.cache.tileDurationSeconds,
+        start + this.config.tileDuration,
       ),
     };
   }
@@ -908,7 +892,12 @@ export class SpectrogramViewer {
     if (!this.config.source)
       throw new Error("Cannot compute tile without an AudioSource");
     const source = this.config.source;
-    const stft = this.config.stft;
+    const stft: StftConfig = {
+      windowSize: this.config.windowSize,
+      fftSize: this.config.fftSize,
+      hopSize: this.config.hopSize,
+      window: this.config.window,
+    };
     const transforms = this.config.transforms;
     const key = this.tileKey(channel, timeStart, timeEnd);
     const cached = profile
@@ -967,7 +956,12 @@ export class SpectrogramViewer {
       channel,
       timeStart,
       timeEnd,
-      stftHash: stableHash(this.config.stft),
+      stftHash: stableHash({
+        windowSize: this.config.windowSize,
+        fftSize: this.config.fftSize,
+        hopSize: this.config.hopSize,
+        window: this.config.window,
+      }),
       transformHash: stableHash(
         this.config.transforms.map((transform) => ({
           name: transform.name,
@@ -982,7 +976,11 @@ export class SpectrogramViewer {
     return stableHash({
       sourceId: this.config.source?.id,
       channel: this.config.channel,
-      stft: this.config.stft,
+      windowSize: this.config.windowSize,
+      fftSize: this.config.fftSize,
+      hopSize: this.config.hopSize,
+      window: this.config.window,
+      tileDuration: this.config.tileDuration,
       transforms: this.config.transforms.map((transform) => ({
         name: transform.name,
         version: transform.version,

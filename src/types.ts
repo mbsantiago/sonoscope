@@ -230,14 +230,54 @@ export type SpectrogramConfig = {
   renderer?: RendererMode;
   backend?: BackendMode;
   channel?: number;
+
+  // STFT
+  windowSize?: number;
+  fftSize?: number;
+  hopSize?: number;
+  window?: WindowName;
+
+  // Viewport & Constraints
+  startTime?: number;
+  endTime?: number;
+  minFrequency?: number;
+  maxFrequency?: number;
+  frequencyScale?: FrequencyScale;
+  minViewportDuration?: number;
+  maxViewportDuration?: number;
+
+  // Value Scale
+  valueMode?: ValueMode;
+  minValue?: number;
+  maxValue?: number;
+  valueGamma?: number;
+  clampValues?: boolean;
+
+  // Playback
+  showPlayhead?: boolean;
+  followPlayback?: boolean;
+  followMargin?: number;
+  renderOnSeek?: boolean;
+
+  // Cache
+  tileDuration?: number;
+  maxCachedTiles?: number;
+  prefetchTiles?: number;
+
+  // Superpowers
+  secretSpectrogram3d?: boolean;
+
+  // Modular
+  colorMap?: ColorMapConfig;
+  transforms?: SpectrogramTransform[];
+
+  // Legacy nested properties supported during transition
   stft?: Partial<StftConfig>;
   viewport?: Partial<ViewportConfig>;
   viewportConstraints?: Partial<ViewportConstraintsConfig>;
   valueScale?: Partial<ValueScaleConfig>;
-  colorMap?: ColorMapConfig;
   playback?: Partial<PlaybackConfig>;
   cache?: Partial<CacheConfig>;
-  transforms?: SpectrogramTransform[];
   superpowers?: Partial<SuperpowersConfig>;
 };
 
@@ -248,15 +288,46 @@ export type ResolvedSpectrogramConfig = {
   renderer: RendererMode;
   backend: BackendMode;
   channel: number;
-  stft: StftConfig;
-  viewport: ViewportConfig;
-  viewportConstraints: ViewportConstraintsConfig;
-  valueScale: Required<ValueScaleConfig>;
+
+  // STFT
+  windowSize: number;
+  fftSize: number;
+  hopSize: number;
+  window: WindowName;
+
+  // Viewport & Constraints
+  startTime: number;
+  endTime: number;
+  minFrequency: number;
+  maxFrequency: number;
+  frequencyScale: FrequencyScale;
+  minViewportDuration: number;
+  maxViewportDuration: number;
+
+  // Value Scale
+  valueMode: ValueMode;
+  minValue: number;
+  maxValue: number;
+  valueGamma: number;
+  clampValues: boolean;
+
+  // Playback
+  showPlayhead: boolean;
+  followPlayback: boolean;
+  followMargin: number;
+  renderOnSeek: boolean;
+
+  // Cache
+  tileDuration: number;
+  maxCachedTiles: number;
+  prefetchTiles: number;
+
+  // Superpowers
+  secretSpectrogram3d: boolean;
+
+  // Modular
   colorMap: ColorMapConfig;
-  playback: PlaybackConfig;
-  cache: CacheConfig;
   transforms: SpectrogramTransform[];
-  superpowers: SuperpowersConfig;
 };
 
 export type AudioRange = { startTime: number; endTime: number };

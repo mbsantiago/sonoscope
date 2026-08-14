@@ -107,10 +107,18 @@
             source,
             renderer: summon.checked ? { type: 'webgl', program: 'terrain' } : rendererMode.value,
             backend,
-            cache: { tileDurationSeconds: 8 },
-            viewport: { startTime: 0, endTime: 8, minFrequency: frequencyScale.value === 'log' ? 20 : 0, maxFrequency: 8_000, frequencyScale: frequencyScale.value },
-            valueScale: { mode: 'magnitude', min: 0, max: 1 },
-            stft: { windowSize: 2048, fftSize: 2048, hopSize: 512 },
+            tileDuration: 8,
+            startTime: 0,
+            endTime: 8,
+            minFrequency: frequencyScale.value === 'log' ? 20 : 0,
+            maxFrequency: 8_000,
+            frequencyScale: frequencyScale.value,
+            valueMode: 'magnitude',
+            minValue: 0,
+            maxValue: 1,
+            windowSize: 2048,
+            fftSize: 2048,
+            hopSize: 512,
           });
           viewer.on('renderprofile', (event) => {
             const rendererPaint = event.measures.find((measure) => measure.name === 'renderer.paint');

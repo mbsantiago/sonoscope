@@ -1,15 +1,10 @@
 import type {
+  FrequencyScale,
   ResolvedSpectrogramConfig,
   SpectrogramConfig,
-  StftConfig,
+  ValueMode,
+  WindowName,
 } from "./types";
-
-const DEFAULT_STFT: StftConfig = {
-  windowSize: 1024,
-  fftSize: 1024,
-  hopSize: 256,
-  window: "hann",
-};
 
 function isPowerOfTwo(value: number): boolean {
   return (
@@ -26,54 +21,59 @@ export function resolveConfig(
   if (!input.source && !input.audio)
     throw new Error("SpectrogramViewer requires either source or audio");
 
-  const stft = { ...DEFAULT_STFT, ...input.stft };
-  if (!isPowerOfTwo(stft.fftSize))
-    throw new Error("stft.fftSize must be a power of two");
-  if (stft.fftSize < stft.windowSize)
-    throw new Error(
-      "stft.fftSize must be greater than or equal to stft.windowSize",
-    );
-  if (stft.windowSize <= 0)
-    throw new Error("stft.windowSize must be greater than zero");
-  if (stft.hopSize <= 0)
-    throw new Error("stft.hopSize must be greater than zero");
+  const windowSize = input.windowSize ?? input.stft?.windowSize ?? 1024;
+  const fftSize = input.fftSize ?? input.stft?.fftSize ?? 1024;
+  const hopSize = input.hopSize ?? input.stft?.hopSize ?? 256;
+  const window: WindowName = input.window ?? input.stft?.window ?? "hann";
+
+  if (!isPowerOfTwo(fftSize)) throw new Error("fftSize must be a power of two");
+  if (fftSize < windowSize)
+    throw new Error("fftSize must be greater than or equal to windowSize");
+  if (windowSize <= 0) throw new Error("windowSize must be greater than zero");
+  if (hopSize <= 0) throw new Error("hopSize must be greater than zero");
 
   const sourceDuration = input.source?.duration ?? input.audio?.duration ?? 1;
-  const viewportConstraints = {
-    minDurationSeconds: 0.05,
-    maxDurationSeconds: Math.min(30, sourceDuration),
-    ...input.viewportConstraints,
-  };
-  if (viewportConstraints.minDurationSeconds <= 0)
+
+  const minViewportDuration =
+    input.minViewportDuration ??
+    input.viewportConstraints?.minDurationSeconds ??
+    0.05;
+  const maxViewportDuration =
+    input.maxViewportDuration ??
+    input.viewportConstraints?.maxDurationSeconds ??
+    Math.min(30, sourceDuration);
+
+  if (minViewportDuration <= 0)
+    throw new Error("minViewportDuration must be greater than zero");
+  if (maxViewportDuration < minViewportDuration)
     throw new Error(
-      "viewportConstraints.minDurationSeconds must be greater than zero",
-    );
-  if (
-    viewportConstraints.maxDurationSeconds <
-    viewportConstraints.minDurationSeconds
-  )
-    throw new Error(
-      "viewportConstraints.maxDurationSeconds must be greater than or equal to viewportConstraints.minDurationSeconds",
+      "maxViewportDuration must be greater than or equal to minViewportDuration",
     );
 
-  const viewport = clampViewport(
-    {
-      startTime: 0,
-      endTime: sourceDuration,
-      minFrequency: 0,
-      maxFrequency: input.source ? input.source.sampleRate / 2 : 22_050,
-      frequencyScale: "linear" as const,
-      ...input.viewport,
-    },
+  const initialStartTime = input.startTime ?? input.viewport?.startTime ?? 0;
+  const initialEndTime =
+    input.endTime ?? input.viewport?.endTime ?? sourceDuration;
+  const minFrequency = input.minFrequency ?? input.viewport?.minFrequency ?? 0;
+  const maxFrequency =
+    input.maxFrequency ??
+    input.viewport?.maxFrequency ??
+    (input.source ? input.source.sampleRate / 2 : 22_050);
+  const frequencyScale: FrequencyScale =
+    input.frequencyScale ?? input.viewport?.frequencyScale ?? "linear";
+
+  const clampedTimes = clampViewportTimes(
+    initialStartTime,
+    initialEndTime,
     sourceDuration,
-    viewportConstraints,
+    minViewportDuration,
+    maxViewportDuration,
   );
-  if (viewport.endTime <= viewport.startTime)
-    throw new Error("viewport.endTime must be greater than viewport.startTime");
-  if (viewport.maxFrequency <= viewport.minFrequency)
-    throw new Error(
-      "viewport.maxFrequency must be greater than viewport.minFrequency",
-    );
+
+  if (clampedTimes.endTime <= clampedTimes.startTime)
+    throw new Error("endTime must be greater than startTime");
+  if (maxFrequency <= minFrequency)
+    throw new Error("maxFrequency must be greater than minFrequency");
+
   const channel = input.channel ?? 0;
   if (!Number.isInteger(channel) || channel < 0)
     throw new Error("channel must be a non-negative integer");
@@ -82,6 +82,46 @@ export function resolveConfig(
       `channel ${channel} is outside source channel count ${input.source.channelCount}`,
     );
 
+  const valueMode: ValueMode =
+    input.valueMode ?? input.valueScale?.mode ?? "db";
+  const minValue = input.minValue ?? input.valueScale?.min ?? -100;
+  const maxValue = input.maxValue ?? input.valueScale?.max ?? 0;
+  const valueGamma = input.valueGamma ?? input.valueScale?.gamma ?? 1;
+  const clampValues = input.clampValues ?? input.valueScale?.clamp ?? true;
+
+  const showPlayhead =
+    input.showPlayhead ?? input.playback?.showPlayhead ?? true;
+  const followPlayback =
+    input.followPlayback ?? input.playback?.follow ?? false;
+  const followMargin =
+    input.followMargin ?? input.playback?.followMargin ?? 0.2;
+  const renderOnSeek =
+    input.renderOnSeek ?? input.playback?.renderOnSeek ?? true;
+
+  const tileDuration =
+    input.tileDuration ?? input.cache?.tileDurationSeconds ?? 5;
+  if (tileDuration <= 0)
+    throw new Error("tileDuration must be greater than zero");
+
+  const minimumTilesForMaxViewport =
+    Math.ceil(maxViewportDuration / tileDuration) + 2;
+  const prefetchTiles =
+    input.prefetchTiles ??
+    input.cache?.prefetchTiles ??
+    Math.max(8, minimumTilesForMaxViewport);
+  if (prefetchTiles < 0)
+    throw new Error("prefetchTiles must be greater than or equal to zero");
+
+  const maxCachedTiles = Math.max(
+    input.maxCachedTiles ?? input.cache?.maxCachedTiles ?? 64,
+    minimumTilesForMaxViewport + prefetchTiles * 2,
+  );
+
+  const secretSpectrogram3d =
+    input.secretSpectrogram3d ??
+    input.superpowers?.secretSpectrogram3d ??
+    false;
+
   return {
     ...(input.audio === undefined ? {} : { audio: input.audio }),
     canvas: input.canvas,
@@ -89,71 +129,66 @@ export function resolveConfig(
     renderer: input.renderer ?? "auto",
     backend: input.backend ?? "auto",
     channel,
-    stft,
-    viewport,
-    viewportConstraints,
-    valueScale: {
-      mode: "db",
-      min: -100,
-      max: 0,
-      gamma: 1,
-      clamp: true,
-      ...input.valueScale,
-    },
+
+    // STFT
+    windowSize,
+    fftSize,
+    hopSize,
+    window,
+
+    // Viewport & Constraints
+    startTime: clampedTimes.startTime,
+    endTime: clampedTimes.endTime,
+    minFrequency,
+    maxFrequency,
+    frequencyScale,
+    minViewportDuration,
+    maxViewportDuration,
+
+    // Value Scale
+    valueMode,
+    minValue,
+    maxValue,
+    valueGamma,
+    clampValues,
+
+    // Playback
+    showPlayhead,
+    followPlayback,
+    followMargin,
+    renderOnSeek,
+
+    // Cache
+    tileDuration,
+    maxCachedTiles,
+    prefetchTiles,
+
+    // Superpowers
+    secretSpectrogram3d,
+
+    // Modular
     colorMap: input.colorMap ?? "viridis",
-    playback: {
-      showPlayhead: true,
-      follow: false,
-      followMargin: 0.2,
-      renderOnSeek: true,
-      ...input.playback,
-    },
-    cache: resolveCache(input.cache, viewportConstraints),
     transforms: input.transforms ?? [],
-    superpowers: { secretSpectrogram3d: false, ...input.superpowers },
   };
 }
 
-function clampViewport<T extends { startTime: number; endTime: number }>(
-  viewport: T,
+function clampViewportTimes(
+  startTime: number,
+  endTime: number,
   sourceDuration: number,
-  constraints: { minDurationSeconds: number; maxDurationSeconds: number },
-): T {
+  minDuration: number,
+  maxDuration: number,
+): { startTime: number; endTime: number } {
   const duration = Math.min(
-    Math.max(
-      viewport.endTime - viewport.startTime,
-      constraints.minDurationSeconds,
-    ),
-    constraints.maxDurationSeconds,
+    Math.max(endTime - startTime, minDuration),
+    maxDuration,
     sourceDuration,
   );
-  const startTime = Math.min(
-    Math.max(0, viewport.startTime),
+  const clampedStart = Math.min(
+    Math.max(0, startTime),
     Math.max(0, sourceDuration - duration),
   );
-  return { ...viewport, startTime, endTime: startTime + duration };
-}
-
-function resolveCache(
-  input: SpectrogramConfig["cache"],
-  viewportConstraints: { maxDurationSeconds: number },
-) {
-  const tileDurationSeconds = input?.tileDurationSeconds ?? 5;
-  if (tileDurationSeconds <= 0)
-    throw new Error("cache.tileDurationSeconds must be greater than zero");
-  const minimumTilesForMaxViewport =
-    Math.ceil(viewportConstraints.maxDurationSeconds / tileDurationSeconds) + 2;
-  const prefetchTiles =
-    input?.prefetchTiles ?? Math.max(8, minimumTilesForMaxViewport);
-  const maxCachedTiles = Math.max(
-    input?.maxCachedTiles ?? 64,
-    minimumTilesForMaxViewport + prefetchTiles * 2,
-  );
-  if (prefetchTiles < 0)
-    throw new Error(
-      "cache.prefetchTiles must be greater than or equal to zero",
-    );
-  return { tileDurationSeconds, maxCachedTiles, prefetchTiles };
+  return { startTime: clampedStart, endTime: clampedStart + duration };
 }
 
 export function stableHash(value: unknown): string {

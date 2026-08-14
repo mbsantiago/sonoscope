@@ -106,16 +106,17 @@ export function attachCanvasNavigation(
       if (!pendingWheel) return;
       const wheel = pendingWheel;
       pendingWheel = undefined;
-      const source = viewer.getConfig().source;
-      if (!source) return;
       const viewport = viewer.getViewport();
-      const constraints = viewer.getConfig().viewportConstraints;
-      const bounds = {
-        startTime: 0,
-        endTime: source.duration,
-        minDurationSeconds: constraints?.minDurationSeconds,
-        maxDurationSeconds: constraints?.maxDurationSeconds,
-      };
+      const config = viewer.getConfig();
+      const bounds =
+        typeof viewer.getTimeBounds === "function"
+          ? viewer.getTimeBounds()
+          : {
+              startTime: 0,
+              endTime: config.source?.duration ?? 0,
+              minDurationSeconds: config.minViewportDuration ?? 0.05,
+              maxDurationSeconds: config.maxViewportDuration ?? 30,
+            };
       if (modifierPressed(wheel, zoomModifier)) {
         const rect = canvas.getBoundingClientRect();
         const { time } = viewer.canvasToTimeFrequency(

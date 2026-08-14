@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebCodecs MP3 Streaming Demo</title>
+    <style>
+      :root {
+        --bg-main: #0f172a;
+        --bg-panel: #1e293b;
+        --border-color: #334155;
+        --text-primary: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-hover: #0ea5e9;
+        --success: #34d399;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg-main);
+        color: var(--text-primary);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+
+      header {
+        margin-bottom: 1.5rem;
+      }
+
+      h1 {
+        margin: 0.5rem 0;
+        font-size: 1.75rem;
+        font-weight: 600;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: #1e293b;
+        border: 1px solid var(--border-color);
+      }
+      .badge-success {
+        border-color: #059669;
+        color: var(--success);
+        background: rgba(16, 185, 129, 0.1);
+      }
+
+      .card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      select,
+      button,
+      input {
+        background: #0f172a;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+      }
+
+      button {
+        cursor: pointer;
+        background: #2563eb;
+        border-color: #3b82f6;
+        font-weight: 500;
+        transition: background 0.15s ease;
+      }
+      button:hover {
+        background: var(--accent-hover);
+      }
+
+      button.secondary {
+        background: #1e293b;
+        border-color: var(--border-color);
+      }
+      button.secondary:hover {
+        background: #334155;
+      }
+
+      input[type="url"] {
+        flex: 1;
+        min-width: 260px;
+      }
+
+      .stage {
+        margin-top: 1rem;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+        background: #000;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 360px;
+      }
+
+      audio {
+        width: 100%;
+        margin-top: 1rem;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .stat-box {
+        background: #0f172a;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+      }
+
+      .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+      }
+
+      .stat-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .progress-bar-container {
+        margin-top: 1rem;
+      }
+
+      .progress-track {
+        height: 8px;
+        background: #0f172a;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: var(--accent);
+        width: 0%;
+        transition: width 0.1s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <p><a href="./index.html">← Back to demos</a></p>
+        <h1>WebCodecs MP3 Streaming Demo</h1>
+        <p style="color: var(--text-muted); margin-top: 0.25rem">
+          Progressive chunk-by-chunk MP3 decoding directly via the browser's
+          WebCodecs
+          <code>AudioDecoder</code> API. Spectrogram tiles render dynamically as
+          frames stream in.
+        </p>
+      </header>
+
+      <div class="card">
+        <div class="controls">
+          <label
+            for="preset-select"
+            style="font-size: 0.9rem; color: var(--text-muted)"
+            >Preset MP3 (CORS-enabled):</label
+          >
+          <select id="preset-select">
+            <option value="https://xeno-canto.org/380406/download">
+              XC380406 · Night Parrot · Pezoporus occidentalis (MP3)
+            </option>
+            <option value="https://xeno-canto.org/300000/download">
+              XC300000 · Cinnamon Bracken Warbler · Bradypterus cinnamomeus
+              (MP3)
+            </option>
+            <option value="https://xeno-canto.org/400000/download">
+              XC400000 · Copper Sunbird · Cinnyris cupreus (MP3)
+            </option>
+          </select>
+          <button type="button" id="btn-load-preset">Load Preset</button>
+        </div>
+
+        <div class="controls" style="margin-top: 0.75rem">
+          <input
+            id="url-input"
+            type="url"
+            placeholder="Or enter custom MP3 URL (must allow CORS)..."
+            value=""
+          />
+          <button type="button" class="secondary" id="btn-load-url">
+            Load URL
+          </button>
+          <label
+            class="button secondary"
+            style="
+              cursor: pointer;
+              padding: 0.5rem 0.75rem;
+              border: 1px solid var(--border-color);
+              border-radius: 6px;
+              font-size: 0.9rem;
+            "
+          >
+            📁 Open Local MP3
+            <input
+              type="file"
+              id="file-input"
+              accept="audio/mp3,audio/mpeg,audio/*"
+              style="display: none"
+            />
+          </label>
+        </div>
+
+        <div
+          id="cors-notice"
+          style="
+            display: none;
+            margin-top: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            font-size: 0.85rem;
+          "
+        >
+          <strong>⚠️ CORS Error:</strong> The remote server disallowed
+          cross-origin requests (<code id="cors-url"></code>). Audio streamed
+          directly via JavaScript requires the remote server to send the
+          <code>Access-Control-Allow-Origin: *</code> header. Try using one of
+          the presets above, or click <strong>Open Local MP3</strong> to test
+          any file from your computer!
+        </div>
+
+        <div class="progress-bar-container">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              font-size: 0.8rem;
+              color: var(--text-muted);
+              margin-bottom: 0.25rem;
+            "
+          >
+            <span>Decoded Stream Buffer</span>
+            <span id="progress-text">0.0s / 0.0s</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <canvas id="spectrogram-canvas"></canvas>
+        </div>
+
+        <audio id="audio-element" controls crossorigin="anonymous"></audio>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Source Decoder</div>
+            <div class="stat-value" id="stat-source">-</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Sample Rate / Channels</div>
+            <div class="stat-value" id="stat-format">-</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Stream Duration</div>
+            <div class="stat-value" id="stat-duration">-</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Decoded Range</div>
+            <div class="stat-value" id="stat-range">0.0s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { SpectrogramViewer, StreamingMp3Source } from "../../src";
+
+      const canvas = document.getElementById("spectrogram-canvas");
+      const audio = document.getElementById("audio-element");
+      const presetSelect = document.getElementById("preset-select");
+      const btnLoadPreset = document.getElementById("btn-load-preset");
+      const urlInput = document.getElementById("url-input");
+      const btnLoadUrl = document.getElementById("btn-load-url");
+      const fileInput = document.getElementById("file-input");
+
+      const statSource = document.getElementById("stat-source");
+      const statFormat = document.getElementById("stat-format");
+      const statDuration = document.getElementById("stat-duration");
+      const statRange = document.getElementById("stat-range");
+      const progressFill = document.getElementById("progress-fill");
+      const progressText = document.getElementById("progress-text");
+
+      const corsNotice = document.getElementById("cors-notice");
+      const corsUrl = document.getElementById("cors-url");
+
+      let viewer = null;
+      let maxDecodedTime = 0;
+
+      async function init() {
+        const webCodecsSupported = await StreamingMp3Source.isSupported();
+        statSource.textContent = webCodecsSupported
+          ? "WebCodecs AudioDecoder"
+          : "Web Audio DecodedAudioSource";
+
+        const initialUrl = presetSelect.value;
+        await loadUrl(initialUrl);
+      }
+
+      async function loadUrl(url) {
+        maxDecodedTime = 0;
+        updateProgress(0, 0);
+        statRange.textContent = "Loading stream...";
+        if (corsNotice) corsNotice.style.display = "none";
+
+        try {
+          if (!viewer) {
+            viewer = await SpectrogramViewer.fromUrl({
+              audio,
+              canvas,
+              url,
+              windowSize: 1024,
+              fftSize: 1024,
+              hopSize: 128,
+              window: "hann",
+              frequencyScale: "mel",
+              minViewportDuration: 2,
+              maxViewportDuration: 10,
+              valueMode: "db",
+              minValue: -80,
+              maxValue: 0,
+              colorMap: { base: "magma", gamma: 1.5 },
+              followPlayback: true,
+              renderOnSeek: true,
+            });
+          } else {
+            await viewer.updateSourceUrl(url);
+          }
+
+          const source = viewer.getSource();
+          statFormat.textContent = `${source.sampleRate.toLocaleString()} Hz · ${source.channelCount === 1 ? "Mono" : "Stereo"}`;
+          statDuration.textContent = `${source.duration.toFixed(2)}s`;
+          statSource.textContent = source.id.startsWith("streaming-mp3")
+            ? "WebCodecs Streaming"
+            : source.id.startsWith("streaming-wav")
+              ? "Streaming WAV"
+              : "DecodedAudioSource (Full)";
+
+          if (source.onRangeAvailable) {
+            source.onRangeAvailable((range) => {
+              maxDecodedTime = Math.max(maxDecodedTime, range.endTime);
+              const duration = source.duration || maxDecodedTime;
+              updateProgress(maxDecodedTime, duration);
+            });
+          }
+
+          viewer.requestRender();
+        } catch (err) {
+          console.error("Failed to load MP3:", err);
+          statRange.textContent = `Error: ${err.message}`;
+          if (
+            corsNotice &&
+            (err instanceof TypeError ||
+              err.message.includes("Failed to fetch") ||
+              err.message.includes("CORS") ||
+              err.message.includes("disallows"))
+          ) {
+            if (corsUrl)
+              corsUrl.textContent =
+                url.length > 50 ? `${url.slice(0, 47)}...` : url;
+            corsNotice.style.display = "block";
+          }
+        }
+      }
+
+      function updateProgress(decodedSec, totalSec) {
+        const safeTotal = Math.max(decodedSec, totalSec || 1);
+        const percent = Math.min(100, (decodedSec / safeTotal) * 100);
+        progressFill.style.width = `${percent.toFixed(1)}%`;
+        progressText.textContent = `${decodedSec.toFixed(1)}s / ${safeTotal.toFixed(1)}s (${percent.toFixed(0)}%)`;
+        statRange.textContent = `0.0s – ${decodedSec.toFixed(2)}s`;
+      }
+
+      btnLoadPreset.addEventListener("click", () => {
+        loadUrl(presetSelect.value);
+      });
+
+      btnLoadUrl.addEventListener("click", () => {
+        const url = urlInput.value.trim();
+        if (url) loadUrl(url);
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const blobUrl = URL.createObjectURL(file);
+          loadUrl(blobUrl);
+        }
+      });
+
+      init();
+    </script>
+  </body>
+</html>

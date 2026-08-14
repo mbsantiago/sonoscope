@@ -263,17 +263,14 @@
             audio,
             canvas,
             url,
-            viewportConstraints: {
-              minDurationSeconds: 0.05,
-              maxDurationSeconds: 30,
-            },
-            cache: {
-              tileDurationSeconds: 1,
-              maxCachedTiles: 96,
-              prefetchTiles: 8,
-            },
+            minViewportDuration: 0.05,
+            maxViewportDuration: 30,
+            tileDuration: 1,
+            maxCachedTiles: 96,
+            prefetchTiles: 8,
             renderer: summon.checked ? { type: "webgl", program: "terrain" } : "auto",
-            playback: { follow: true, renderOnSeek: true },
+            followPlayback: true,
+            renderOnSeek: true,
           });
         } catch (error) {
           status.textContent = error instanceof Error ? error.message : String(error);

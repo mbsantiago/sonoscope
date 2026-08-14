@@ -56,9 +56,18 @@
 
       function config() {
         return {
-          stft: { windowSize: Number(value('windowSize')), fftSize: Number(value('fftSize')), hopSize: Number(value('hopSize')), window: 'hann' },
-          viewport: { minFrequency: 0, ...(source ? { maxFrequency: source.sampleRate / 2 } : {}), frequencyScale: value('frequencyScale') },
-          valueScale: { mode: value('mode'), min: -100, max: 0, gamma: 1, clamp: true },
+          windowSize: Number(value('windowSize')),
+          fftSize: Number(value('fftSize')),
+          hopSize: Number(value('hopSize')),
+          window: 'hann',
+          minFrequency: 0,
+          ...(source ? { maxFrequency: source.sampleRate / 2 } : {}),
+          frequencyScale: value('frequencyScale'),
+          valueMode: value('mode'),
+          minValue: -100,
+          maxValue: 0,
+          valueGamma: 1,
+          clampValues: true,
           colorMap: value('colorMap'),
           renderer: rendererConfig(),
         };

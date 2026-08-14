@@ -112,6 +112,12 @@ describe("navigation utilities", () => {
     let current = { ...viewport };
     const viewer = {
       getConfig: () => ({ canvas, source: { duration: 20 } }),
+      getTimeBounds: () => ({
+        startTime: 0,
+        endTime: 20,
+        minDurationSeconds: 0.05,
+        maxDurationSeconds: 20,
+      }),
       getViewport: () => current,
       setViewport,
       requestRender: vi.fn(),
@@ -218,6 +224,12 @@ function setupWheelNavigation() {
   let current = { ...viewport };
   const viewer = {
     getConfig: () => ({ canvas, source: { duration: 20 } }),
+    getTimeBounds: () => ({
+      startTime: 0,
+      endTime: 20,
+      minDurationSeconds: 0.05,
+      maxDurationSeconds: 20,
+    }),
     getViewport: () => current,
     setViewport,
     requestRender: vi.fn(),

@@ -28,6 +28,15 @@ export {
   scaleToHz,
   timeFrequencyToCanvas,
 } from "./frequency-scale";
+export type { Mp3FrameHeader, Mp3Info } from "./mp3";
+export {
+  findNextMp3Frame,
+  isMp3Bytes,
+  parseId3Header,
+  parseMp3FrameHeader,
+  parseMp3Info,
+  parseXingHeader,
+} from "./mp3";
 export type { CanvasNavigationOptions, TimeBounds } from "./navigation";
 export {
   attachCanvasNavigation,
@@ -65,6 +74,7 @@ export { SobelSpectrogramProgram } from "./renderers/webgl2-sobel-program";
 export { TerrainSpectrogramProgram } from "./renderers/webgl2-terrain-program";
 export { createAudioSourceFromUrl, DecodedAudioSource } from "./source";
 export { computeStftMatrix, createWindow } from "./stft";
+export { StreamingMp3Source } from "./streaming-mp3-source";
 export { StreamingWavSource } from "./streaming-wav-source";
 export { applyTransforms, getTransformPadding } from "./transforms";
 export type * from "./types";
@@ -95,6 +105,15 @@ export {
   parseWavHeader,
   wavTimeToByteRange,
 } from "./wav";
+export type {
+  Mp3Decoder,
+  Mp3DecoderConfig,
+  Mp3DecoderFactory,
+} from "./webcodecs-mp3-decoder";
+export {
+  createWebCodecsMp3Decoder,
+  isWebCodecsMp3Supported,
+} from "./webcodecs-mp3-decoder";
 export type {
   SpectrogramWorkerLike,
   WorkerComputeBackendOptions,
