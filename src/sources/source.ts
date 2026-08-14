@@ -58,6 +58,7 @@ export async function createAudioSourceFromUrl(
 ): Promise<AudioSource> {
   const byteSource = FetchByteSource.fromUrl(url);
   const prefix = await readPrefix(byteSource, 64);
+
   if (isWavBytes(prefix)) {
     try {
       return await StreamingWavSource.fromByteSource(byteSource, { id: url });
@@ -65,6 +66,7 @@ export async function createAudioSourceFromUrl(
       return DecodedAudioSource.fromUrl(url, options);
     }
   }
+
   if (isMp3Bytes(prefix) && (await StreamingMp3Source.isSupported())) {
     try {
       return await StreamingMp3Source.fromByteSource(byteSource, { id: url });
@@ -72,6 +74,7 @@ export async function createAudioSourceFromUrl(
       return DecodedAudioSource.fromUrl(url, options);
     }
   }
+
   return DecodedAudioSource.fromUrl(url, options);
 }
 

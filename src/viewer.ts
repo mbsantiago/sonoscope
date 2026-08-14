@@ -50,6 +50,7 @@ export class SpectrogramViewer {
   private renderAgain = false;
   private animationFrame: number | undefined;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
+  private readonly sourceMap = new Map<string, AudioSource>();
   private requestCounter = 0;
   private renderGeneration = 0;
   private status: SpectrogramStatus = { state: "idle" };
@@ -97,7 +98,7 @@ export class SpectrogramViewer {
   static async fromUrl(input: FromUrlOptions): Promise<SpectrogramViewer> {
     if (input.audio) input.audio.src = input.url;
     const source = await createAudioSourceFromUrl(input.url);
-    return SpectrogramViewer.create({
+    const viewer = await SpectrogramViewer.create({
       startTime: 0,
       endTime: Math.min(10, source.duration),
       minFrequency: 0,
@@ -106,6 +107,8 @@ export class SpectrogramViewer {
       source,
       backend: input.backend ?? "auto",
     });
+    viewer.sourceMap.set(input.url, source);
+    return viewer;
   }
 
   static async fromAudio(input: FromAudioOptions): Promise<SpectrogramViewer> {
@@ -142,6 +145,13 @@ export class SpectrogramViewer {
   static renderLoading(canvas: HTMLCanvasElement, text?: string): void {
     new CanvasSpectrogramRenderer().renderLoading({
       canvas,
+      ...(text === undefined ? {} : { text }),
+    });
+  }
+
+  renderLoading(text?: string): void {
+    this.renderer.renderLoading({
+      canvas: this.config.canvas,
       ...(text === undefined ? {} : { text }),
     });
   }
@@ -252,7 +262,12 @@ export class SpectrogramViewer {
     options?: Partial<ViewportConfig>,
   ): Promise<void> {
     if (this.audioElement) this.audioElement.src = url;
-    this.setSource(await createAudioSourceFromUrl(url), options);
+    let source = this.sourceMap.get(url);
+    if (!source) {
+      source = await createAudioSourceFromUrl(url);
+      this.sourceMap.set(url, source);
+    }
+    this.setSource(source, options);
   }
 
   async updateSourceUrl(
@@ -645,6 +660,7 @@ export class SpectrogramViewer {
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
     this.cache.clear();
+    this.sourceMap.clear();
     this.backend.destroy?.();
     this.renderer.destroy?.();
     this.events.clear();
@@ -801,6 +817,14 @@ export class SpectrogramViewer {
     return false;
   }
 
+  private get effectiveTileDuration(): number {
+    const maxFrames = 2048;
+    const maxDurationForSampleRate =
+      (maxFrames * this.config.hopSize) /
+      Math.max(1, this.config.source.sampleRate);
+    return Math.min(this.config.tileDuration, maxDurationForSampleRate);
+  }
+
   private prefetchPlaybackLookahead(frameTime: number): void {
     const audio = this.audioElement;
     const source = this.config.source;
@@ -812,12 +836,12 @@ export class SpectrogramViewer {
     const margin = duration * this.config.followMargin;
     if (audio.currentTime < this.config.endTime - margin * 1.5) return;
 
-    this.prefetchAroundViewport("forward", margin + this.config.tileDuration);
+    this.prefetchAroundViewport("forward", margin + this.effectiveTileDuration);
   }
 
   private prefetchAroundViewport(
     direction: "both" | "forward" = "both",
-    seconds = this.config.tileDuration * this.config.prefetchTiles,
+    seconds = this.effectiveTileDuration * this.config.prefetchTiles,
   ): void {
     if (this.config.prefetchTiles <= 0) return;
     const before =
@@ -892,22 +916,14 @@ export class SpectrogramViewer {
       timeStart: number;
       timeEnd: number;
     }> = [];
-    const firstStart =
-      Math.floor(startTime / this.config.tileDuration) *
-      this.config.tileDuration;
+    const tileDuration = this.effectiveTileDuration;
+    const firstStart = Math.floor(startTime / tileDuration) * tileDuration;
     const channel = this.config.channel;
-    for (
-      let start = firstStart;
-      start < endTime;
-      start += this.config.tileDuration
-    ) {
+    for (let start = firstStart; start < endTime; start += tileDuration) {
       ranges.push({
         channel,
         timeStart: Math.max(0, start),
-        timeEnd: Math.min(
-          this.config.source.duration,
-          start + this.config.tileDuration,
-        ),
+        timeEnd: Math.min(this.config.source.duration, start + tileDuration),
       });
     }
     return ranges;
@@ -917,14 +933,11 @@ export class SpectrogramViewer {
     timeStart: number;
     timeEnd: number;
   } {
-    const start =
-      Math.floor(time / this.config.tileDuration) * this.config.tileDuration;
+    const tileDuration = this.effectiveTileDuration;
+    const start = Math.floor(time / tileDuration) * tileDuration;
     return {
       timeStart: Math.max(0, start),
-      timeEnd: Math.min(
-        this.config.source.duration,
-        start + this.config.tileDuration,
-      ),
+      timeEnd: Math.min(this.config.source.duration, start + tileDuration),
     };
   }
 
@@ -1015,13 +1028,12 @@ export class SpectrogramViewer {
 
   private tileConfigHash(): string {
     return stableHash({
-      sourceId: this.config.source.id,
       channel: this.config.channel,
       windowSize: this.config.windowSize,
       fftSize: this.config.fftSize,
       hopSize: this.config.hopSize,
       window: this.config.window,
-      tileDuration: this.config.tileDuration,
+      tileDuration: this.effectiveTileDuration,
       transforms: this.config.transforms.map((transform) => ({
         name: transform.name,
         version: transform.version,

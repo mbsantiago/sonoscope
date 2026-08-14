@@ -1148,4 +1148,83 @@ describe("SpectrogramViewer", () => {
       frequencyScale: "mel",
     });
   });
+
+  it("retains cached tiles across multiple sources in LRU cache", async () => {
+    const sourceA: AudioSource = {
+      id: "source-a",
+      sampleRate: 1000,
+      duration: 10,
+      channelCount: 1,
+      read: () => new Float32Array(1000),
+    };
+    const sourceB: AudioSource = {
+      id: "source-b",
+      sampleRate: 1000,
+      duration: 10,
+      channelCount: 1,
+      read: () => new Float32Array(1000),
+    };
+
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: sourceA,
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 500,
+    });
+
+    await viewer.render();
+    const cachedForA = viewer.getCacheStats().tiles;
+    expect(cachedForA).toBeGreaterThan(0);
+
+    viewer.setSource(sourceB);
+    await viewer.render();
+    expect(viewer.getCacheStats().tiles).toBeGreaterThan(cachedForA);
+
+    // Switch back to source A
+    viewer.setSource(sourceA);
+    expect(viewer.getCacheStats().tiles).toBeGreaterThan(cachedForA);
+  });
+
+  it("reuses cached AudioSource on repeated setSourceUrl without refetching", async () => {
+    const fromUrlSpy = vi
+      .spyOn(sourceModule, "createAudioSourceFromUrl")
+      .mockResolvedValue(source);
+
+    const viewer = await SpectrogramViewer.fromUrl({
+      canvas: canvas(),
+      url: "cached-track.wav",
+    });
+
+    expect(fromUrlSpy).toHaveBeenCalledTimes(1);
+
+    await viewer.setSourceUrl("cached-track.wav");
+    expect(fromUrlSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("dynamically adjusts tile duration for ultra-high sample rate sources", async () => {
+    const ultraHighRateSource: AudioSource = {
+      id: "bat-ultrasonic-500k",
+      sampleRate: 500_000,
+      duration: 5,
+      channelCount: 1,
+      read: () => new Float32Array(500_000),
+    };
+
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source: ultraHighRateSource,
+      hopSize: 128,
+      tileDuration: 5,
+      startTime: 0,
+      endTime: 5,
+    });
+
+    await viewer.render();
+
+    // 5s of 500kHz at hop 128 is ~19531 frames; with max 2048 frames/tile, it should be divided into ~10 tiles
+    const stats = viewer.getCacheStats();
+    expect(stats.tiles).toBeGreaterThanOrEqual(9);
+  });
 });

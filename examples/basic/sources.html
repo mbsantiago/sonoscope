@@ -80,6 +80,18 @@
           "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
           "After You’ve Gone (Harris 1918 recording).wav · Wikimedia Commons · Range-enabled WAV",
         ],
+        [
+          "https://upload.wikimedia.org/wikipedia/commons/0/01/Chant_serin.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          "Chant serin.wav · Wikimedia Commons · Range-enabled WAV",
+        ],
+        [
+          "https://upload.wikimedia.org/wikipedia/commons/6/65/Wikipedia_-_Earth_%28spoken_by_AI_voice%29.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          "Wikipedia - Earth (spoken by AI voice).mp3 · Wikimedia Commons · Range-enabled MP3",
+        ],
+        [
+          "https://upload.wikimedia.org/wikipedia/commons/5/52/Pench_Night_Safari_Sounds.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          "Pench Night Safari Sounds.wav · Wikimedia Commons · Range-enabled WAV",
+        ],
       ];
 
       const audio = document.querySelector("audio");
@@ -99,9 +111,9 @@
         renderOnSeek: true,
         frequencyScale: "mel",
         valueMode: "db",
-        minValue: -80,
+        minValue: -100,
         maxValue: 0,
-        colorMap: { base: "gray", gamma: 2 },
+        colorMap: { base: "gray" },
       });
 
       async function showRecording(nextIndex) {
@@ -109,6 +121,7 @@
         index = (nextIndex + recordings.length) % recordings.length;
         const [url, label] = recordings[index];
         title.textContent = `Loading ${label}...`;
+        spectrogram.renderLoading(`Loading ${label}...`);
         try {
           await spectrogram.updateSourceUrl(url);
           title.textContent = label;

@@ -7,6 +7,7 @@ export interface Mp3Decoder {
 export type Mp3DecoderConfig = {
   sampleRate: number;
   channelCount: number;
+  onOutput?: (pcmChannels: Float32Array[]) => void;
 };
 
 export type Mp3DecoderFactory = (
@@ -75,7 +76,11 @@ export async function createWebCodecsMp3Decoder(
           audioData.copyTo(pcm, { planeIndex: c, format: "f32-planar" });
           channelBuffers.push(pcm);
         }
-        decodedOutputs.push(channelBuffers);
+        if (config.onOutput) {
+          config.onOutput(channelBuffers);
+        } else {
+          decodedOutputs.push(channelBuffers);
+        }
       } finally {
         audioData.close();
       }

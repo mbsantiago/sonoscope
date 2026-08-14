@@ -255,7 +255,12 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const gl = this.gl;
     const texture = gl.createTexture();
     if (!texture) throw new Error("Unable to create WebGL2 tile texture");
-    const values = textureValuesForTile(tile, valueScale);
+    const width = Math.max(1, tile.frameCount);
+    const height = Math.max(1, tile.binCount);
+    const values =
+      tile.frameCount > 0 && tile.binCount > 0
+        ? textureValuesForTile(tile, valueScale)
+        : new Uint8Array(4);
     const activeTexture = gl.getParameter(gl.ACTIVE_TEXTURE) as number;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -268,8 +273,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       gl.TEXTURE_2D,
       0,
       gl.RGBA,
-      tile.frameCount,
-      tile.binCount,
+      width,
+      height,
       0,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
@@ -277,7 +282,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     );
     this.throwOnError("tile texture upload");
     gl.activeTexture(activeTexture);
-    const entry = { texture, width: tile.frameCount, height: tile.binCount };
+    const entry = { texture, width, height };
     this.tileTextures.set(key, entry);
     return entry;
   }
@@ -375,6 +380,7 @@ export function textureValuesForTile(
   tile: SpectrogramMatrix,
   valueScale: Required<ValueScaleConfig>,
 ): Uint8Array {
+  if (tile.frameCount === 0 || tile.binCount === 0) return new Uint8Array(4);
   const source = valueDataForMode(tile, valueScale.mode).values;
   const values = new Uint8Array(tile.frameCount * tile.binCount * 4);
   for (let frame = 0; frame < tile.frameCount; frame++) {

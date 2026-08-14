@@ -36,13 +36,13 @@ export class StreamingMp3Source implements AudioSource {
   private readonly pending: PendingRead[] = [];
   private readonly handlers = new Set<(range: AudioRange) => void>();
   private isStreamDone = false;
+  private decoder: Mp3Decoder | undefined;
 
   private constructor(
     private readonly reader: ReadableStreamDefaultReader<Uint8Array>,
     private initialChunks: Uint8Array[],
     info: Mp3Info,
-    private readonly decoder: Mp3Decoder,
-    options?: { id?: string },
+    options?: { id?: string; decoderFactory?: Mp3DecoderFactory },
   ) {
     this.sampleRate = info.sampleRate;
     this.duration = info.duration;
@@ -60,7 +60,8 @@ export class StreamingMp3Source implements AudioSource {
       () => new Float32Array(initialCapacity),
     );
 
-    void this.decodeSequentially().catch((error) =>
+    const decoderFactory = options?.decoderFactory ?? createWebCodecsMp3Decoder;
+    void this.initAndDecode(decoderFactory).catch((error) =>
       this.rejectPending(
         error instanceof Error ? error : new Error(String(error)),
       ),
@@ -71,30 +72,30 @@ export class StreamingMp3Source implements AudioSource {
     return isWebCodecsMp3Supported();
   }
 
-  static async fromByteSource(
-    byteSource: ByteStreamSource,
+  static async fromReader(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    initialChunks: Uint8Array[] = [],
+    totalBytes?: number,
     options?: { id?: string; decoderFactory?: Mp3DecoderFactory },
   ): Promise<StreamingMp3Source> {
-    const reader = byteSource.stream().getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-
+    const chunks: Uint8Array[] = [...initialChunks];
+    let total = chunks.reduce((acc, c) => acc + c.length, 0);
     let info: Mp3Info | undefined;
-    const totalBytes = isSeekableByteSource(byteSource)
-      ? byteSource.size
-      : undefined;
 
     while (total < INITIAL_READ_LIMIT) {
+      if (chunks.length > 0) {
+        try {
+          info = parseMp3Info(concatChunks(chunks), totalBytes);
+          break;
+        } catch {
+          // Need more bytes to parse MP3 frame/ID3
+        }
+      }
+
       const result = await reader.read();
       if (result.done) break;
       chunks.push(result.value);
       total += result.value.length;
-      try {
-        info = parseMp3Info(concatChunks(chunks), totalBytes);
-        break;
-      } catch {
-        // Need more bytes to parse MP3 frame/ID3
-      }
     }
 
     if (!info) {
@@ -102,13 +103,18 @@ export class StreamingMp3Source implements AudioSource {
       throw new Error("Failed to parse MP3 metadata from byte stream");
     }
 
-    const decoderFactory = options?.decoderFactory ?? createWebCodecsMp3Decoder;
-    const decoder = await decoderFactory({
-      sampleRate: info.sampleRate,
-      channelCount: info.channelCount,
-    });
+    return new StreamingMp3Source(reader, chunks, info, options);
+  }
 
-    return new StreamingMp3Source(reader, chunks, info, decoder, options);
+  static async fromByteSource(
+    byteSource: ByteStreamSource,
+    options?: { id?: string; decoderFactory?: Mp3DecoderFactory },
+  ): Promise<StreamingMp3Source> {
+    const reader = byteSource.stream().getReader();
+    const totalBytes = isSeekableByteSource(byteSource)
+      ? byteSource.size
+      : undefined;
+    return StreamingMp3Source.fromReader(reader, [], totalBytes, options);
   }
 
   read(options: {
@@ -161,7 +167,19 @@ export class StreamingMp3Source implements AudioSource {
     });
   }
 
+  private async initAndDecode(
+    decoderFactory: Mp3DecoderFactory,
+  ): Promise<void> {
+    this.decoder = await decoderFactory({
+      sampleRate: this.sampleRate,
+      channelCount: this.channelCount,
+      onOutput: (pcm) => this.appendPcm(pcm),
+    });
+    await this.decodeSequentially();
+  }
+
   private async decodeSequentially(): Promise<void> {
+    if (!this.decoder) return;
     const unconsumed = concatChunks(this.initialChunks);
     this.initialChunks = [];
 
@@ -202,6 +220,7 @@ export class StreamingMp3Source implements AudioSource {
     chunk: Uint8Array,
     _isLast: boolean,
   ): Promise<void> {
+    if (!this.decoder) return;
     const buffer =
       this.pendingBytes.length > 0
         ? concatChunks([this.pendingBytes, chunk])
@@ -312,7 +331,6 @@ export class StreamingMp3Source implements AudioSource {
   private resolveReadyPending(): void {
     for (let index = this.pending.length - 1; index >= 0; index--) {
       const pending = this.pending[index]!;
-      const availableEnd = Math.min(this.decodedFrameCount, pending.endFrame);
       if (this.isRangeDecoded(pending.startFrame, pending.endFrame)) {
         this.pending.splice(index, 1);
         const channelData = this.decoded[pending.channel];
@@ -321,13 +339,14 @@ export class StreamingMp3Source implements AudioSource {
             channelData.slice(pending.startFrame, pending.endFrame),
           );
         }
-      } else if (
-        this.isStreamDone &&
-        this.isRangeDecoded(pending.startFrame, availableEnd)
-      ) {
+      } else if (this.isStreamDone) {
         this.pending.splice(index, 1);
         const channelData = this.decoded[pending.channel];
         if (channelData) {
+          const availableEnd = Math.min(
+            this.decodedFrameCount,
+            pending.endFrame,
+          );
           pending.resolve(channelData.slice(pending.startFrame, availableEnd));
         }
       }
@@ -335,11 +354,16 @@ export class StreamingMp3Source implements AudioSource {
   }
 
   private rejectPending(error: Error): void {
-    while (this.pending.length > 0) this.pending.pop()?.reject(error);
+    while (this.pending.length > 0) {
+      const pending = this.pending.pop();
+      pending?.reject(error);
+    }
   }
 
   private emitRange(startTime: number, endTime: number): void {
-    const range = { startTime, endTime };
-    for (const handler of this.handlers) handler(range);
+    const range: AudioRange = { startTime, endTime };
+    for (const handler of this.handlers) {
+      handler(range);
+    }
   }
 }

@@ -158,4 +158,83 @@ describe("wav helpers", () => {
       parseWavHeader(wavBytes({ format: 6, bitsPerSample: 8, samples: [0] })),
     ).toThrow(/Unsupported WAV format/);
   });
+
+  it("decodes directly into provided target channel buffers at targetOffset", () => {
+    const bytes = wavBytes({
+      channels: 2,
+      sampleRate: 2,
+      bitsPerSample: 16,
+      samples: [16384, -16384],
+    });
+    const info = parseWavHeader(bytes);
+    const target = [new Float32Array(5), new Float32Array(5)];
+    const result = decodeWavPcm(
+      bytes.slice(info.dataOffset),
+      info,
+      info.dataOffset,
+      target,
+      2,
+    );
+
+    expect(result).toBe(target);
+    expect(target[0]![2]).toBeCloseTo(0.5, 4);
+    expect(target[1]![2]).toBeCloseTo(-0.5, 4);
+  });
+
+  it("decodes mono 16-bit PCM fast path correctly", () => {
+    const bytes = wavBytes({
+      channels: 1,
+      sampleRate: 4,
+      bitsPerSample: 16,
+      samples: [0, 32767, -32768, 16384],
+    });
+    const info = parseWavHeader(bytes);
+    const channels = decodeWavPcm(
+      bytes.slice(info.dataOffset),
+      info,
+      info.dataOffset,
+    );
+    expect(channels).toHaveLength(1);
+    expect(Array.from(channels[0]!).map((v) => Number(v.toFixed(4)))).toEqual([
+      0, 1, -1, 0.5,
+    ]);
+  });
+
+  it("decodes stereo 32-bit float fast path correctly", () => {
+    const bytes = wavBytes({
+      format: 3,
+      channels: 2,
+      sampleRate: 2,
+      bitsPerSample: 32,
+      samples: [0.125, -0.25, 0.5, -0.75],
+    });
+    const info = parseWavHeader(bytes);
+    const channels = decodeWavPcm(
+      bytes.slice(info.dataOffset),
+      info,
+      info.dataOffset,
+    );
+    expect(channels).toHaveLength(2);
+    expect(channels[0]![0]).toBeCloseTo(0.125, 5);
+    expect(channels[1]![0]).toBeCloseTo(-0.25, 5);
+    expect(channels[0]![1]).toBeCloseTo(0.5, 5);
+    expect(channels[1]![1]).toBeCloseTo(-0.75, 5);
+  });
+
+  it("handles unaligned byte slices without crashing", () => {
+    const bytes = wavBytes({
+      channels: 2,
+      sampleRate: 2,
+      bitsPerSample: 16,
+      samples: [16384, -16384, 8192, -8192],
+    });
+    const info = parseWavHeader(bytes);
+    // Create an unaligned Uint8Array by putting 1 prefix byte in a larger buffer
+    const padded = new Uint8Array(bytes.length + 1);
+    padded.set(bytes, 1);
+    const unalignedSlice = padded.subarray(1 + info.dataOffset);
+    const channels = decodeWavPcm(unalignedSlice, info, info.dataOffset);
+    expect(channels[0]![0]).toBeCloseTo(0.5, 4);
+    expect(channels[1]![0]).toBeCloseTo(-0.5, 4);
+  });
 });

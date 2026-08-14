@@ -48,7 +48,7 @@ export async function readPrefix(
 }
 
 export class FetchByteSource implements SeekableByteSource {
-  readonly size?: number;
+  size?: number;
 
   private constructor(
     readonly url: string,
@@ -68,6 +68,10 @@ export class FetchByteSource implements SeekableByteSource {
           const response = await fetch(this.url);
           if (!response.ok)
             throw new Error(`Failed to fetch byte stream: ${response.status}`);
+          const contentLength = response.headers?.get?.("content-length");
+          if (contentLength && !Number.isNaN(Number(contentLength))) {
+            this.size = Number(contentLength);
+          }
           if (!response.body)
             throw new Error("Fetch response does not expose a readable body");
           const reader = response.body.getReader();

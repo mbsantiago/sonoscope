@@ -34,12 +34,13 @@ export class StreamingWavSource implements AudioSource {
   private readonly decodedRanges: DecodedRange[] = [];
   private readonly pending: PendingRead[] = [];
   private readonly handlers = new Set<(range: AudioRange) => void>();
+  private isStreamDone = false;
 
   private constructor(
     private readonly reader: ReadableStreamDefaultReader<Uint8Array>,
-    private readonly chunks: Uint8Array[],
     private readonly info: WavInfo,
     private readonly seekable: SeekableByteSource | undefined,
+    initialDataBytes: Uint8Array | undefined,
     options?: { id?: string },
   ) {
     this.sampleRate = info.sampleRate;
@@ -52,11 +53,70 @@ export class StreamingWavSource implements AudioSource {
       { length: info.channelCount },
       () => new Float32Array(Math.floor(info.dataSize / info.blockAlign)),
     );
-    void this.decodeSequentially().catch((error) =>
+    void this.decodeSequentially(initialDataBytes).catch((error) =>
       this.rejectPending(
         error instanceof Error ? error : new Error(String(error)),
       ),
     );
+  }
+
+  static async fromReader(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    initialChunks: Uint8Array[] = [],
+    seekable?: SeekableByteSource,
+    options?: { id?: string },
+  ): Promise<StreamingWavSource> {
+    const chunks: Uint8Array[] = [...initialChunks];
+    let total = chunks.reduce((acc, c) => acc + c.length, 0);
+
+    while (total < HEADER_READ_LIMIT) {
+      if (chunks.length > 0) {
+        try {
+          const headerBytes = concatChunks(chunks);
+          const info = parseWavHeader(headerBytes);
+          const initialDataBytes =
+            headerBytes.length > info.dataOffset
+              ? headerBytes.subarray(info.dataOffset)
+              : undefined;
+          return new StreamingWavSource(
+            reader,
+            info,
+            seekable,
+            initialDataBytes,
+            options,
+          );
+        } catch (error) {
+          if (error instanceof Error && !shouldContinueHeaderRead(error)) {
+            reader.releaseLock();
+            throw error;
+          }
+        }
+      }
+
+      const result = await reader.read();
+      if (result.done) break;
+      chunks.push(result.value);
+      total += result.value.length;
+    }
+
+    try {
+      const headerBytes = concatChunks(chunks);
+      const info = parseWavHeader(headerBytes);
+      const initialDataBytes =
+        headerBytes.length > info.dataOffset
+          ? headerBytes.subarray(info.dataOffset)
+          : undefined;
+      return new StreamingWavSource(
+        reader,
+        info,
+        seekable,
+        initialDataBytes,
+        options,
+      );
+    } catch (error) {
+      reader.releaseLock();
+      throw error;
+    }
   }
 
   static async fromByteSource(
@@ -64,41 +124,12 @@ export class StreamingWavSource implements AudioSource {
     options?: { id?: string },
   ): Promise<StreamingWavSource> {
     const reader = byteSource.stream().getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-
-    while (total < HEADER_READ_LIMIT) {
-      const result = await reader.read();
-      if (result.done) break;
-      chunks.push(result.value);
-      total += result.value.length;
-      try {
-        return new StreamingWavSource(
-          reader,
-          chunks,
-          parseWavHeader(concatChunks(chunks)),
-          isSeekableByteSource(byteSource) ? byteSource : undefined,
-          options,
-        );
-      } catch (error) {
-        if (error instanceof Error && shouldContinueHeaderRead(error)) continue;
-        reader.releaseLock();
-        throw error;
-      }
-    }
-
-    try {
-      return new StreamingWavSource(
-        reader,
-        chunks,
-        parseWavHeader(concatChunks(chunks)),
-        isSeekableByteSource(byteSource) ? byteSource : undefined,
-        options,
-      );
-    } catch (error) {
-      reader.releaseLock();
-      throw error;
-    }
+    return StreamingWavSource.fromReader(
+      reader,
+      [],
+      isSeekableByteSource(byteSource) ? byteSource : undefined,
+      options,
+    );
   }
 
   read(options: {
@@ -120,6 +151,11 @@ export class StreamingWavSource implements AudioSource {
     );
     if (this.isRangeDecoded(startFrame, endFrame))
       return channelData.slice(startFrame, endFrame);
+    if (this.isStreamDone)
+      return channelData.slice(
+        startFrame,
+        Math.min(channelData.length, endFrame),
+      );
     if (this.seekable) {
       return this.readSeekableRange(
         options.channel,
@@ -148,56 +184,71 @@ export class StreamingWavSource implements AudioSource {
     return () => this.handlers.delete(handler);
   }
 
-  private async decodeSequentially(): Promise<void> {
-    this.decodeAvailableChunks();
+  private async decodeSequentially(
+    initialDataBytes?: Uint8Array,
+  ): Promise<void> {
     const totalFrames = this.decoded[0]?.length ?? 0;
+    let leftover: Uint8Array | undefined = initialDataBytes;
+
+    if (leftover && leftover.length > 0) {
+      leftover = this.processIncrementalChunk(leftover, totalFrames);
+    }
+
     while (this.decodedUntilFrame < totalFrames) {
       const result = await this.reader.read();
       if (result.done) break;
-      this.chunks.push(result.value);
-      this.decodeAvailableChunks();
+      const chunk = result.value;
+      if (chunk.length === 0) continue;
+
+      let combined: Uint8Array;
+      if (leftover && leftover.length > 0) {
+        combined = new Uint8Array(leftover.length + chunk.length);
+        combined.set(leftover, 0);
+        combined.set(chunk, leftover.length);
+        leftover = undefined;
+      } else {
+        combined = chunk;
+      }
+
+      leftover = this.processIncrementalChunk(combined, totalFrames);
     }
+
     this.reader.releaseLock();
-    if (this.pending.length > 0)
+    this.isStreamDone = true;
+    this.resolveReadyPending();
+    if (this.pending.length > 0) {
       this.rejectPending(
         new Error("WAV stream ended before requested samples were available"),
       );
+    }
   }
 
-  private decodeAvailableChunks(): void {
-    const bytes = concatChunks(this.chunks);
-    const totalFrames = this.decoded[0]?.length ?? 0;
-    const completeFrameCount = Math.min(
-      totalFrames,
-      Math.max(
-        0,
-        Math.floor(
-          (bytes.length - this.info.dataOffset) / this.info.blockAlign,
-        ),
-      ),
-    );
-    if (completeFrameCount <= this.decodedUntilFrame) return;
-    const startFrame = this.decodedUntilFrame;
-    const startByte = this.info.dataOffset + startFrame * this.info.blockAlign;
-    const endByte =
-      this.info.dataOffset + completeFrameCount * this.info.blockAlign;
-    this.copyDecoded(bytes.slice(startByte, endByte), startByte, startFrame);
-  }
-
-  private copyDecoded(
+  private processIncrementalChunk(
     bytes: Uint8Array,
-    byteOffset: number,
-    startFrame: number,
-  ): void {
-    const decoded = decodeWavPcm(bytes, this.info, byteOffset);
-    for (let channel = 0; channel < this.channelCount; channel++)
-      this.decoded[channel]?.set(decoded[channel]!, startFrame);
-    const firstDecoded = decoded[0];
-    const endFrame = startFrame + (firstDecoded ? firstDecoded.length : 0);
-    this.addDecodedRange(startFrame, endFrame);
-    if (endFrame > startFrame)
+    totalFrames: number,
+  ): Uint8Array | undefined {
+    const availableFrames = Math.floor(bytes.length / this.info.blockAlign);
+    const framesToDecode = Math.min(
+      availableFrames,
+      totalFrames - this.decodedUntilFrame,
+    );
+    if (framesToDecode > 0) {
+      const byteLength = framesToDecode * this.info.blockAlign;
+      decodeWavPcm(
+        bytes.subarray(0, byteLength),
+        this.info,
+        this.info.dataOffset + this.decodedUntilFrame * this.info.blockAlign,
+        this.decoded,
+        this.decodedUntilFrame,
+      );
+      const startFrame = this.decodedUntilFrame;
+      const endFrame = startFrame + framesToDecode;
+      this.addDecodedRange(startFrame, endFrame);
       this.emitRange(startFrame / this.sampleRate, endFrame / this.sampleRate);
-    this.resolveReadyPending();
+      this.resolveReadyPending();
+    }
+    const remainder = bytes.subarray(framesToDecode * this.info.blockAlign);
+    return remainder.length > 0 ? remainder.slice() : undefined;
   }
 
   private async readSeekableRange(
@@ -213,7 +264,19 @@ export class StreamingWavSource implements AudioSource {
     if (!bytes) throw new Error("No bytes returned from seekable range");
     if (bytes.length > range.end - range.start)
       throw new Error("Seekable WAV range returned more bytes than requested");
-    this.copyDecoded(bytes, range.start, startFrame);
+
+    const expectedFrames = Math.floor(bytes.length / this.info.blockAlign);
+    decodeWavPcm(bytes, this.info, range.start, this.decoded, startFrame);
+    const decodedEndFrame = startFrame + expectedFrames;
+    this.addDecodedRange(startFrame, decodedEndFrame);
+    if (decodedEndFrame > startFrame) {
+      this.emitRange(
+        startFrame / this.sampleRate,
+        decodedEndFrame / this.sampleRate,
+      );
+    }
+    this.resolveReadyPending();
+
     if (!this.isRangeDecoded(startFrame, endFrame))
       throw new Error(
         "Seekable WAV range ended before requested samples were available",
@@ -226,13 +289,25 @@ export class StreamingWavSource implements AudioSource {
   private resolveReadyPending(): void {
     for (let index = this.pending.length - 1; index >= 0; index--) {
       const pending = this.pending[index]!;
-      if (!this.isRangeDecoded(pending.startFrame, pending.endFrame)) continue;
-      this.pending.splice(index, 1);
-      const channelData = this.decoded[pending.channel];
-      if (channelData) {
-        pending.resolve(
-          channelData.slice(pending.startFrame, pending.endFrame),
-        );
+      if (this.isRangeDecoded(pending.startFrame, pending.endFrame)) {
+        this.pending.splice(index, 1);
+        const channelData = this.decoded[pending.channel];
+        if (channelData) {
+          pending.resolve(
+            channelData.slice(pending.startFrame, pending.endFrame),
+          );
+        }
+      } else if (this.isStreamDone) {
+        this.pending.splice(index, 1);
+        const channelData = this.decoded[pending.channel];
+        if (channelData) {
+          pending.resolve(
+            channelData.slice(
+              pending.startFrame,
+              Math.min(channelData.length, pending.endFrame),
+            ),
+          );
+        }
       }
     }
   }

@@ -237,4 +237,31 @@ describe("StreamingWavSource sequential decode", () => {
       [-1, 0.5],
     );
   });
+
+  it("resolves immediately when reading after stream is already done", async () => {
+    const bytes = wavBytes([0, 32767, -32768, 16384]);
+    const byteSource: ByteStreamSource = {
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes);
+            controller.close();
+          },
+        }),
+    };
+    const source = await StreamingWavSource.fromByteSource(byteSource);
+
+    // Wait a tick for sequential decode to complete
+    await new Promise((r) => setTimeout(r, 10));
+
+    const values = await source.read({
+      channel: 0,
+      startTime: 0,
+      endTime: 1,
+    });
+
+    expect(Array.from(values).map((v) => Number(v.toFixed(4)))).toEqual([
+      0, 1, -1, 0.5,
+    ]);
+  });
 });

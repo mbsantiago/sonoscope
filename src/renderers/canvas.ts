@@ -216,7 +216,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     input.canvas.height = Math.max(1, Math.round(height * dpr));
 
     const context = input.canvas.getContext("2d");
-    if (!context) throw new Error("Unable to get 2D canvas context");
+    if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
     context.save();
