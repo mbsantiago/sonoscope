@@ -53,9 +53,18 @@ export class WaveformPeakPyramid {
     const min = new Float32Array(outLength);
     const max = new Float32Array(outLength);
 
-    const padTime = 1 / sampleRate;
-    const readStart = Math.max(0, startTime - padTime);
-    const readEnd = Math.min(this.source.duration, endTime + padTime);
+    const padSamples = 2;
+    const startSampleIndex = Math.max(
+      0,
+      Math.floor(startTime * sampleRate) - padSamples,
+    );
+    const endSampleIndex = Math.min(
+      Math.round(this.source.duration * sampleRate),
+      Math.ceil(endTime * sampleRate) + padSamples,
+    );
+
+    const readStart = startSampleIndex / sampleRate;
+    const readEnd = endSampleIndex / sampleRate;
 
     const samples = await this.source.read({
       channel: this.channel,
@@ -75,7 +84,8 @@ export class WaveformPeakPyramid {
       // Sub-sample / high zoom mode: use continuous linear interpolation between samples
       for (let i = 0; i < outLength; i++) {
         const t = startTime + (i / Math.max(1, outLength - 1)) * timeSpan;
-        const s = (t - readStart) * sampleRate;
+        const targetSample = t * sampleRate;
+        const s = targetSample - startSampleIndex;
         const s0 = Math.max(0, Math.min(len - 1, Math.floor(s)));
         const s1 = Math.max(0, Math.min(len - 1, s0 + 1));
         const frac = Math.max(0, Math.min(1, s - s0));
@@ -88,17 +98,17 @@ export class WaveformPeakPyramid {
       return { min, max };
     }
 
-    // Envelope mode: contiguous exact partition without gaps or overlaps
+    // Envelope mode: contiguous exact partition anchored to absolute sample indices
     let prevOffset = Math.max(
       0,
-      Math.min(len - 1, Math.round((startTime - readStart) * sampleRate)),
+      Math.min(len - 1, Math.round(startTime * sampleRate - startSampleIndex)),
     );
 
     for (let i = 0; i < outLength; i++) {
       const t1 = startTime + ((i + 1) / outLength) * timeSpan;
       const nextOffset = Math.max(
         prevOffset + 1,
-        Math.min(len, Math.round((t1 - readStart) * sampleRate)),
+        Math.min(len, Math.round(t1 * sampleRate - startSampleIndex)),
       );
 
       let minVal = samples[prevOffset] ?? 0;
