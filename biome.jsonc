@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "formatter": {
+    "indentStyle": "space"
+  },
+  "linter": {
+    "includes": ["./src/**/*.js", "./src/**/*.ts"],
+    "rules": {
+      "preset": "recommended",
+      "a11y": "info"
+    }
+  }
+}

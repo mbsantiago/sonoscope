@@ -79,7 +79,7 @@ void main() {
 }`;
 
 export class SobelSpectrogramProgram extends NormalSpectrogramProgram {
-	constructor(gl: WebGL2RenderingContext) {
-		super(gl, WEBGL2_SOBEL_FRAGMENT_SHADER);
-	}
+  constructor(gl: WebGL2RenderingContext) {
+    super(gl, WEBGL2_SOBEL_FRAGMENT_SHADER);
+  }
 }

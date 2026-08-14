@@ -1,753 +1,753 @@
 import React, {
-	startTransition,
-	useEffect,
-	useRef,
-	useState,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
 } from "https://esm.sh/react@19.2.1";
 import { createRoot } from "https://esm.sh/react-dom@19.2.1/client";
 import { attachCanvasNavigation, SpectrogramViewer } from "../../src";
 import type {
-	BuiltInColorMap,
-	FrequencyScale,
-	ValueMode,
-	WindowName,
+  BuiltInColorMap,
+  FrequencyScale,
+  ValueMode,
+  WindowName,
 } from "../../src/types";
 
 const h = React.createElement;
 
 const RECORDINGS = [
-	[
-		"https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
-		"After You’ve Gone (Harris 1918 recording).wav · Wikimedia Commons · Range-enabled WAV",
-	],
-	[
-		"https://upload.wikimedia.org/wikipedia/commons/2/25/Same.wav",
-		"Same.wav",
-		"Range-enabled WAV from Wikimedia Commons",
-	],
-	[
-		"https://xeno-canto.org/944837/download",
-		"Western Barbastelle",
-		"XC944837 · Xeno-Canto",
-	],
-	[
-		"https://xeno-canto.org/380406/download",
-		"Night Parrot",
-		"XC380406 · Xeno-Canto",
-	],
+  [
+    "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "After You’ve Gone (Harris 1918 recording).wav · Wikimedia Commons · Range-enabled WAV",
+  ],
+  [
+    "https://upload.wikimedia.org/wikipedia/commons/2/25/Same.wav",
+    "Same.wav",
+    "Range-enabled WAV from Wikimedia Commons",
+  ],
+  [
+    "https://xeno-canto.org/944837/download",
+    "Western Barbastelle",
+    "XC944837 · Xeno-Canto",
+  ],
+  [
+    "https://xeno-canto.org/380406/download",
+    "Night Parrot",
+    "XC380406 · Xeno-Canto",
+  ],
 ] as const;
 
 type Settings = {
-	recording: number;
-	frequencyScale: FrequencyScale;
-	valueMode: ValueMode;
-	colorMap: BuiltInColorMap;
-	minDb: number;
-	maxDb: number;
-	windowSize: number;
-	hopSize: number;
-	window: WindowName;
-	shaderProgram: "auto" | "normal" | "dither" | "sobel" | "terrain";
+  recording: number;
+  frequencyScale: FrequencyScale;
+  valueMode: ValueMode;
+  colorMap: BuiltInColorMap;
+  minDb: number;
+  maxDb: number;
+  windowSize: number;
+  hopSize: number;
+  window: WindowName;
+  shaderProgram: "auto" | "normal" | "dither" | "sobel" | "terrain";
 };
 
 type ShaderProgram = Settings["shaderProgram"];
 
 const initialSettings: Settings = {
-	recording: 0,
-	frequencyScale: "mel",
-	valueMode: "db",
-	colorMap: "magma",
-	minDb: -86,
-	maxDb: -8,
-	windowSize: 1024,
-	hopSize: 128,
-	window: "hann",
-	shaderProgram:
-		new URLSearchParams(location.search).get("summon") === "mountains"
-			? "terrain"
-			: "auto",
+  recording: 0,
+  frequencyScale: "mel",
+  valueMode: "db",
+  colorMap: "magma",
+  minDb: -86,
+  maxDb: -8,
+  windowSize: 1024,
+  hopSize: 128,
+  window: "hann",
+  shaderProgram:
+    new URLSearchParams(location.search).get("summon") === "mountains"
+      ? "terrain"
+      : "auto",
 };
 
 function ReactSpectrogramDemo() {
-	const audioRef = useRef<HTMLAudioElement | null>(null);
-	const canvasRef = useRef<HTMLCanvasElement | null>(null);
-	const viewerRef = useRef<SpectrogramViewer | null>(null);
-	const dragRef = useRef<{
-		x: number;
-		startTime: number;
-		endTime: number;
-	} | null>(null);
-	const minimapDragRef = useRef<{
-		x: number;
-		startTime: number;
-		span: number;
-	} | null>(null);
-	const [settings, setSettings] = useState(initialSettings);
-	const [canvasKey, setCanvasKey] = useState(0);
-	const [duration, setDuration] = useState(30);
-	const [playheadTime, setPlayheadTime] = useState(0);
-	const [cacheSummary, setCacheSummary] = useState("cache: empty");
-	const [viewport, setViewport] = useState({
-		startTime: 0,
-		endTime: 12,
-		minFrequency: 20,
-		maxFrequency: 12_000,
-	});
-	const [status, setStatus] = useState("Preparing viewer...");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const viewerRef = useRef<SpectrogramViewer | null>(null);
+  const dragRef = useRef<{
+    x: number;
+    startTime: number;
+    endTime: number;
+  } | null>(null);
+  const minimapDragRef = useRef<{
+    x: number;
+    startTime: number;
+    span: number;
+  } | null>(null);
+  const [settings, setSettings] = useState(initialSettings);
+  const [canvasKey, setCanvasKey] = useState(0);
+  const [duration, setDuration] = useState(30);
+  const [playheadTime, setPlayheadTime] = useState(0);
+  const [cacheSummary, setCacheSummary] = useState("cache: empty");
+  const [viewport, setViewport] = useState({
+    startTime: 0,
+    endTime: 12,
+    minFrequency: 20,
+    maxFrequency: 12_000,
+  });
+  const [status, setStatus] = useState("Preparing viewer...");
 
-	useEffect(() => {
-		const audio = audioRef.current;
-		const canvas = canvasRef.current;
-		if (!audio || !canvas) return;
+  useEffect(() => {
+    const audio = audioRef.current;
+    const canvas = canvasRef.current;
+    if (!audio || !canvas) return;
 
-		let cancelled = false;
-		let cleanupNavigation: (() => void) | undefined;
-		let unsubscribeViewport: (() => void) | undefined;
-		let unsubscribeProfile: (() => void) | undefined;
-		setStatus("Loading source...");
-		SpectrogramViewer.fromUrl({
-			audio,
-			canvas,
-			url: RECORDINGS[settings.recording][0],
-			stft: {
-				windowSize: settings.windowSize,
-				fftSize: settings.windowSize,
-				hopSize: settings.hopSize,
-				window: settings.window,
-			},
-			viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
-			valueScale: {
-				mode: settings.valueMode,
-				min: settings.minDb,
-				max: settings.maxDb,
-				gamma: 1,
-				clamp: true,
-			},
-			colorMap: settings.colorMap,
-			renderer: rendererConfig(settings.shaderProgram),
-			playback: { follow: true, renderOnSeek: true },
-		})
-			.then((viewer) => {
-				if (cancelled) return;
-				viewerRef.current = viewer;
-				setDuration(viewer.getDuration());
-				unsubscribeViewport = viewer.on("viewportchange", (event) => {
-					startTransition(() => setViewport(event.viewport));
-				});
-				unsubscribeProfile = viewer.on("renderprofile", () =>
-					setCacheSummary(formatCacheStats(viewer.getCacheStats())),
-				);
-				cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
-					onNavigate: () => {
-						setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-					},
-				});
-				setStatus(
-					`Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Shader: ${settings.shaderProgram}.`,
-				);
-				setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-				viewer.requestRender();
-				if (cancelled) unsubscribeViewport();
-			})
-			.catch((error) => {
-				if (!cancelled)
-					setStatus(error instanceof Error ? error.message : String(error));
-			});
+    let cancelled = false;
+    let cleanupNavigation: (() => void) | undefined;
+    let unsubscribeViewport: (() => void) | undefined;
+    let unsubscribeProfile: (() => void) | undefined;
+    setStatus("Loading source...");
+    SpectrogramViewer.fromUrl({
+      audio,
+      canvas,
+      url: RECORDINGS[settings.recording][0],
+      stft: {
+        windowSize: settings.windowSize,
+        fftSize: settings.windowSize,
+        hopSize: settings.hopSize,
+        window: settings.window,
+      },
+      viewportConstraints: { minDurationSeconds: 0.08, maxDurationSeconds: 20 },
+      valueScale: {
+        mode: settings.valueMode,
+        min: settings.minDb,
+        max: settings.maxDb,
+        gamma: 1,
+        clamp: true,
+      },
+      colorMap: settings.colorMap,
+      renderer: rendererConfig(settings.shaderProgram),
+      playback: { follow: true, renderOnSeek: true },
+    })
+      .then((viewer) => {
+        if (cancelled) return;
+        viewerRef.current = viewer;
+        setDuration(viewer.getDuration());
+        unsubscribeViewport = viewer.on("viewportchange", (event) => {
+          startTransition(() => setViewport(event.viewport));
+        });
+        unsubscribeProfile = viewer.on("renderprofile", () =>
+          setCacheSummary(formatCacheStats(viewer.getCacheStats())),
+        );
+        cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
+          onNavigate: () => {
+            setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+          },
+        });
+        setStatus(
+          `Drag to pan. Wheel to pan; Ctrl+wheel to zoom around the cursor. Shader: ${settings.shaderProgram}.`,
+        );
+        setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+        viewer.requestRender();
+        if (cancelled) unsubscribeViewport();
+      })
+      .catch((error) => {
+        if (!cancelled)
+          setStatus(error instanceof Error ? error.message : String(error));
+      });
 
-		return () => {
-			cancelled = true;
-			cleanupNavigation?.();
-			unsubscribeViewport?.();
-			unsubscribeProfile?.();
-			viewerRef.current?.destroy();
-			viewerRef.current = null;
-		};
-	}, [settings.recording, settings.shaderProgram]);
+    return () => {
+      cancelled = true;
+      cleanupNavigation?.();
+      unsubscribeViewport?.();
+      unsubscribeProfile?.();
+      viewerRef.current?.destroy();
+      viewerRef.current = null;
+    };
+  }, [settings.recording, settings.shaderProgram]);
 
-	useEffect(() => {
-		const audio = audioRef.current;
-		if (!audio) return;
-		let frame: number | undefined;
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    let frame: number | undefined;
 
-		const update = () => setPlayheadTime(audio.currentTime || 0);
-		const tick = () => {
-			update();
-			frame = requestAnimationFrame(tick);
-		};
-		const start = () => {
-			if (frame === undefined) frame = requestAnimationFrame(tick);
-		};
-		const stop = () => {
-			if (frame !== undefined) cancelAnimationFrame(frame);
-			frame = undefined;
-			update();
-		};
+    const update = () => setPlayheadTime(audio.currentTime || 0);
+    const tick = () => {
+      update();
+      frame = requestAnimationFrame(tick);
+    };
+    const start = () => {
+      if (frame === undefined) frame = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      frame = undefined;
+      update();
+    };
 
-		audio.addEventListener("play", start);
-		audio.addEventListener("pause", stop);
-		audio.addEventListener("seeked", update);
-		audio.addEventListener("timeupdate", update);
-		update();
-		if (!audio.paused) start();
+    audio.addEventListener("play", start);
+    audio.addEventListener("pause", stop);
+    audio.addEventListener("seeked", update);
+    audio.addEventListener("timeupdate", update);
+    update();
+    if (!audio.paused) start();
 
-		return () => {
-			stop();
-			audio.removeEventListener("play", start);
-			audio.removeEventListener("pause", stop);
-			audio.removeEventListener("seeked", update);
-			audio.removeEventListener("timeupdate", update);
-		};
-	}, [settings.recording]);
+    return () => {
+      stop();
+      audio.removeEventListener("play", start);
+      audio.removeEventListener("pause", stop);
+      audio.removeEventListener("seeked", update);
+      audio.removeEventListener("timeupdate", update);
+    };
+  }, [settings.recording]);
 
-	useEffect(() => {
-		const viewer = viewerRef.current;
-		if (!viewer) return;
-		try {
-			viewer.updateConfig({
-				stft: {
-					windowSize: settings.windowSize,
-					fftSize: settings.windowSize,
-					hopSize: settings.hopSize,
-					window: settings.window,
-				},
-				viewportConstraints: {
-					minDurationSeconds: 0.08,
-					maxDurationSeconds: 20,
-				},
-				valueScale: {
-					mode: settings.valueMode,
-					min: settings.minDb,
-					max: settings.maxDb,
-					gamma: 1,
-					clamp: true,
-				},
-				colorMap: settings.colorMap,
-				renderer: rendererConfig(settings.shaderProgram),
-			});
-			setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-		} catch (error) {
-			setStatus(error instanceof Error ? error.message : String(error));
-		}
-	}, [
-		settings.windowSize,
-		settings.hopSize,
-		settings.window,
-		settings.valueMode,
-		settings.minDb,
-		settings.maxDb,
-		settings.colorMap,
-		settings.shaderProgram,
-	]);
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    try {
+      viewer.updateConfig({
+        stft: {
+          windowSize: settings.windowSize,
+          fftSize: settings.windowSize,
+          hopSize: settings.hopSize,
+          window: settings.window,
+        },
+        viewportConstraints: {
+          minDurationSeconds: 0.08,
+          maxDurationSeconds: 20,
+        },
+        valueScale: {
+          mode: settings.valueMode,
+          min: settings.minDb,
+          max: settings.maxDb,
+          gamma: 1,
+          clamp: true,
+        },
+        colorMap: settings.colorMap,
+        renderer: rendererConfig(settings.shaderProgram),
+      });
+      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  }, [
+    settings.windowSize,
+    settings.hopSize,
+    settings.window,
+    settings.valueMode,
+    settings.minDb,
+    settings.maxDb,
+    settings.colorMap,
+    settings.shaderProgram,
+  ]);
 
-	useEffect(() => {
-		const viewer = viewerRef.current;
-		if (!viewer) return;
-		viewer.updateViewport({
-			...viewport,
-			frequencyScale: settings.frequencyScale,
-		});
-		setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-	}, [viewport, settings.frequencyScale]);
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.updateViewport({
+      ...viewport,
+      frequencyScale: settings.frequencyScale,
+    });
+    setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+  }, [viewport, settings.frequencyScale]);
 
-	function updateSettings(update: Partial<Settings>) {
-		startTransition(() =>
-			setSettings((current) => ({ ...current, ...update })),
-		);
-	}
+  function updateSettings(update: Partial<Settings>) {
+    startTransition(() =>
+      setSettings((current) => ({ ...current, ...update })),
+    );
+  }
 
-	function setShaderProgram(shaderProgram: ShaderProgram) {
-		startTransition(() => {
-			setSettings((current) => ({ ...current, shaderProgram }));
-			setCanvasKey((current) => current + 1);
-		});
-	}
+  function setShaderProgram(shaderProgram: ShaderProgram) {
+    startTransition(() => {
+      setSettings((current) => ({ ...current, shaderProgram }));
+      setCanvasKey((current) => current + 1);
+    });
+  }
 
-	function updateViewport(
-		update: typeof viewport | ((current: typeof viewport) => typeof viewport),
-	) {
-		startTransition(() =>
-			setViewport((current) =>
-				clampViewport(
-					typeof update === "function" ? update(current) : update,
-					duration,
-				),
-			),
-		);
-	}
+  function updateViewport(
+    update: typeof viewport | ((current: typeof viewport) => typeof viewport),
+  ) {
+    startTransition(() =>
+      setViewport((current) =>
+        clampViewport(
+          typeof update === "function" ? update(current) : update,
+          duration,
+        ),
+      ),
+    );
+  }
 
-	function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-		event.currentTarget.setPointerCapture(event.pointerId);
-		dragRef.current = {
-			x: event.clientX,
-			startTime: viewport.startTime,
-			endTime: viewport.endTime,
-		};
-	}
+  function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      x: event.clientX,
+      startTime: viewport.startTime,
+      endTime: viewport.endTime,
+    };
+  }
 
-	function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
-		const drag = dragRef.current;
-		if (!drag) return;
-		const rect = event.currentTarget.getBoundingClientRect();
-		const secondsPerPixel = (drag.endTime - drag.startTime) / rect.width;
-		const delta = (event.clientX - drag.x) * secondsPerPixel;
-		updateViewport({
-			...viewport,
-			startTime: drag.startTime - delta,
-			endTime: drag.endTime - delta,
-		});
-	}
+  function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const secondsPerPixel = (drag.endTime - drag.startTime) / rect.width;
+    const delta = (event.clientX - drag.x) * secondsPerPixel;
+    updateViewport({
+      ...viewport,
+      startTime: drag.startTime - delta,
+      endTime: drag.endTime - delta,
+    });
+  }
 
-	function onPointerUp() {
-		dragRef.current = null;
-	}
+  function onPointerUp() {
+    dragRef.current = null;
+  }
 
-	const current = RECORDINGS[settings.recording];
-	return h(
-		"main",
-		{ className: "shell" },
-		h("style", null, styles),
-		h(
-			"section",
-			{ className: "hero" },
-			h("a", { href: "./index.html" }, "Back to demos"),
-			h("p", { className: "eyebrow" }, "React integration"),
-			h("h1", null, "One component, live spectrogram controls."),
-			h(
-				"p",
-				null,
-				"React owns the form state. ",
-				h("code", null, "SpectrogramViewer"),
-				" owns decoding, rendering, playback sync, and tile updates.",
-			),
-		),
-		h(
-			"section",
-			{ className: "workbench" },
-			h(
-				"div",
-				{ className: "display-card" },
-				h(
-					"div",
-					{ className: "display-topline" },
-					h(
-						"div",
-						null,
-						h("strong", null, current[1]),
-						h("span", null, current[2]),
-					),
-					h("span", { className: "status" }, status),
-				),
-				h("audio", { ref: audioRef, controls: true, crossOrigin: "anonymous" }),
-				h("canvas", {
-					key: canvasKey,
-					ref: canvasRef,
-					onPointerDown,
-					onPointerMove,
-					onPointerUp,
-					onPointerCancel: onPointerUp,
-				}),
-				h(Minimap, {
-					duration,
-					playheadTime,
-					viewport,
-					dragRef: minimapDragRef,
-					onViewportChange: updateViewport,
-				}),
-				h("div", { className: "cache-summary" }, cacheSummary),
-			),
-			h(
-				"aside",
-				{ className: "controls" },
-				h(
-					Control,
-					{ label: "Recording" },
-					h(
-						"select",
-						{
-							value: settings.recording,
-							onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
-								updateSettings({
-									recording: Number(event.currentTarget.value),
-								}),
-						},
-						RECORDINGS.map((recording, index) =>
-							h("option", { key: recording[0], value: index }, recording[1]),
-						),
-					),
-				),
-				h(
-					"div",
-					{ className: "control-grid" },
-					h(
-						Control,
-						{ label: "Frequency" },
-						h(
-							"select",
-							{
-								value: settings.frequencyScale,
-								onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
-									updateSettings({
-										frequencyScale: event.currentTarget.value as FrequencyScale,
-									}),
-							},
-							option("linear"),
-							option("log"),
-							option("mel"),
-						),
-					),
-					h(
-						Control,
-						{ label: "Color" },
-						h(
-							"select",
-							{
-								value: settings.colorMap,
-								onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
-									updateSettings({
-										colorMap: event.currentTarget.value as BuiltInColorMap,
-									}),
-							},
-							option("magma"),
-							option("viridis"),
-							option("turbo"),
-							option("gray"),
-						),
-					),
-					h(
-						Control,
-						{ label: "Value" },
-						h(
-							"select",
-							{
-								value: settings.valueMode,
-								onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
-									updateSettings({
-										valueMode: event.currentTarget.value as ValueMode,
-									}),
-							},
-							option("db"),
-							option("magnitude"),
-							option("power"),
-						),
-					),
-					h(
-						Control,
-						{ label: "Window" },
-						h(
-							"select",
-							{
-								value: settings.window,
-								onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
-									updateSettings({
-										window: event.currentTarget.value as WindowName,
-									}),
-							},
-							option("hann"),
-							option("hamming"),
-							option("blackman"),
-							option("rectangular"),
-						),
-					),
-				),
-				h(Slider, {
-					label: "Min dB",
-					value: settings.minDb,
-					min: -120,
-					max: -10,
-					step: 1,
-					onChange: (minDb: number) => updateSettings({ minDb }),
-				}),
-				h(Slider, {
-					label: "Max dB",
-					value: settings.maxDb,
-					min: -60,
-					max: 12,
-					step: 1,
-					onChange: (maxDb: number) => updateSettings({ maxDb }),
-				}),
-				h(Slider, {
-					label: "Window size",
-					value: settings.windowSize,
-					min: 256,
-					max: 2048,
-					step: 1,
-					values: [256, 512, 1024, 2048],
-					onChange: (windowSize: number) =>
-						updateSettings({
-							windowSize,
-							hopSize: Math.min(settings.hopSize, windowSize / 2),
-						}),
-				}),
-				h(Slider, {
-					label: "Hop size",
-					value: settings.hopSize,
-					min: 32,
-					max: 512,
-					step: 32,
-					onChange: (hopSize: number) => updateSettings({ hopSize }),
-				}),
-				h(Slider, {
-					label: "Max frequency",
-					value: viewport.maxFrequency,
-					min: 1000,
-					max: 24_000,
-					step: 500,
-					onChange: (maxFrequency: number) =>
-						updateViewport((current) => ({ ...current, maxFrequency })),
-				}),
-				h(
-					Control,
-					{ label: "Shader" },
-					h(
-						"select",
-						{
-							value: settings.shaderProgram,
-							onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
-								setShaderProgram(event.currentTarget.value as ShaderProgram),
-						},
-						option("auto"),
-						option("normal"),
-						option("dither"),
-						option("sobel"),
-						option("terrain"),
-					),
-				),
-				h(
-					"button",
-					{
-						type: "button",
-						onClick: () =>
-							updateViewport({
-								startTime: 0,
-								endTime: Math.min(12, duration),
-								minFrequency: 20,
-								maxFrequency: 12_000,
-							}),
-					},
-					"Reset view",
-				),
-			),
-		),
-	);
+  const current = RECORDINGS[settings.recording];
+  return h(
+    "main",
+    { className: "shell" },
+    h("style", null, styles),
+    h(
+      "section",
+      { className: "hero" },
+      h("a", { href: "./index.html" }, "Back to demos"),
+      h("p", { className: "eyebrow" }, "React integration"),
+      h("h1", null, "One component, live spectrogram controls."),
+      h(
+        "p",
+        null,
+        "React owns the form state. ",
+        h("code", null, "SpectrogramViewer"),
+        " owns decoding, rendering, playback sync, and tile updates.",
+      ),
+    ),
+    h(
+      "section",
+      { className: "workbench" },
+      h(
+        "div",
+        { className: "display-card" },
+        h(
+          "div",
+          { className: "display-topline" },
+          h(
+            "div",
+            null,
+            h("strong", null, current[1]),
+            h("span", null, current[2]),
+          ),
+          h("span", { className: "status" }, status),
+        ),
+        h("audio", { ref: audioRef, controls: true, crossOrigin: "anonymous" }),
+        h("canvas", {
+          key: canvasKey,
+          ref: canvasRef,
+          onPointerDown,
+          onPointerMove,
+          onPointerUp,
+          onPointerCancel: onPointerUp,
+        }),
+        h(Minimap, {
+          duration,
+          playheadTime,
+          viewport,
+          dragRef: minimapDragRef,
+          onViewportChange: updateViewport,
+        }),
+        h("div", { className: "cache-summary" }, cacheSummary),
+      ),
+      h(
+        "aside",
+        { className: "controls" },
+        h(
+          Control,
+          { label: "Recording" },
+          h(
+            "select",
+            {
+              value: settings.recording,
+              onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                updateSettings({
+                  recording: Number(event.currentTarget.value),
+                }),
+            },
+            RECORDINGS.map((recording, index) =>
+              h("option", { key: recording[0], value: index }, recording[1]),
+            ),
+          ),
+        ),
+        h(
+          "div",
+          { className: "control-grid" },
+          h(
+            Control,
+            { label: "Frequency" },
+            h(
+              "select",
+              {
+                value: settings.frequencyScale,
+                onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                  updateSettings({
+                    frequencyScale: event.currentTarget.value as FrequencyScale,
+                  }),
+              },
+              option("linear"),
+              option("log"),
+              option("mel"),
+            ),
+          ),
+          h(
+            Control,
+            { label: "Color" },
+            h(
+              "select",
+              {
+                value: settings.colorMap,
+                onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                  updateSettings({
+                    colorMap: event.currentTarget.value as BuiltInColorMap,
+                  }),
+              },
+              option("magma"),
+              option("viridis"),
+              option("turbo"),
+              option("gray"),
+            ),
+          ),
+          h(
+            Control,
+            { label: "Value" },
+            h(
+              "select",
+              {
+                value: settings.valueMode,
+                onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                  updateSettings({
+                    valueMode: event.currentTarget.value as ValueMode,
+                  }),
+              },
+              option("db"),
+              option("magnitude"),
+              option("power"),
+            ),
+          ),
+          h(
+            Control,
+            { label: "Window" },
+            h(
+              "select",
+              {
+                value: settings.window,
+                onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                  updateSettings({
+                    window: event.currentTarget.value as WindowName,
+                  }),
+              },
+              option("hann"),
+              option("hamming"),
+              option("blackman"),
+              option("rectangular"),
+            ),
+          ),
+        ),
+        h(Slider, {
+          label: "Min dB",
+          value: settings.minDb,
+          min: -120,
+          max: -10,
+          step: 1,
+          onChange: (minDb: number) => updateSettings({ minDb }),
+        }),
+        h(Slider, {
+          label: "Max dB",
+          value: settings.maxDb,
+          min: -60,
+          max: 12,
+          step: 1,
+          onChange: (maxDb: number) => updateSettings({ maxDb }),
+        }),
+        h(Slider, {
+          label: "Window size",
+          value: settings.windowSize,
+          min: 256,
+          max: 2048,
+          step: 1,
+          values: [256, 512, 1024, 2048],
+          onChange: (windowSize: number) =>
+            updateSettings({
+              windowSize,
+              hopSize: Math.min(settings.hopSize, windowSize / 2),
+            }),
+        }),
+        h(Slider, {
+          label: "Hop size",
+          value: settings.hopSize,
+          min: 32,
+          max: 512,
+          step: 32,
+          onChange: (hopSize: number) => updateSettings({ hopSize }),
+        }),
+        h(Slider, {
+          label: "Max frequency",
+          value: viewport.maxFrequency,
+          min: 1000,
+          max: 24_000,
+          step: 500,
+          onChange: (maxFrequency: number) =>
+            updateViewport((current) => ({ ...current, maxFrequency })),
+        }),
+        h(
+          Control,
+          { label: "Shader" },
+          h(
+            "select",
+            {
+              value: settings.shaderProgram,
+              onChange: (event: React.ChangeEvent<HTMLSelectElement>) =>
+                setShaderProgram(event.currentTarget.value as ShaderProgram),
+            },
+            option("auto"),
+            option("normal"),
+            option("dither"),
+            option("sobel"),
+            option("terrain"),
+          ),
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            onClick: () =>
+              updateViewport({
+                startTime: 0,
+                endTime: Math.min(12, duration),
+                minFrequency: 20,
+                maxFrequency: 12_000,
+              }),
+          },
+          "Reset view",
+        ),
+      ),
+    ),
+  );
 }
 
 function Control(props: { label: string; children: React.ReactNode }) {
-	return h("label", null, h("span", null, props.label), props.children);
+  return h("label", null, h("span", null, props.label), props.children);
 }
 
 function Slider(props: {
-	label: string;
-	value: number;
-	min: number;
-	max: number;
-	step: number;
-	values?: number[];
-	onChange: (value: number) => void;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  values?: number[];
+  onChange: (value: number) => void;
 }) {
-	const valueIndex = props.values?.indexOf(props.value) ?? -1;
-	const min = props.values ? 0 : props.min;
-	const max = props.values ? props.values.length - 1 : props.max;
-	const value = props.values ? Math.max(0, valueIndex) : props.value;
-	return h(
-		"label",
-		null,
-		h("span", null, props.label, h("b", null, props.value)),
-		h("input", {
-			type: "range",
-			min: String(min),
-			max: String(max),
-			step: String(props.step),
-			value: String(value),
-			onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
-				props.onChange(
-					props.values?.[Number(event.currentTarget.value)] ??
-						Number(event.currentTarget.value),
-				),
-		}),
-	);
+  const valueIndex = props.values?.indexOf(props.value) ?? -1;
+  const min = props.values ? 0 : props.min;
+  const max = props.values ? props.values.length - 1 : props.max;
+  const value = props.values ? Math.max(0, valueIndex) : props.value;
+  return h(
+    "label",
+    null,
+    h("span", null, props.label, h("b", null, props.value)),
+    h("input", {
+      type: "range",
+      min: String(min),
+      max: String(max),
+      step: String(props.step),
+      value: String(value),
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+        props.onChange(
+          props.values?.[Number(event.currentTarget.value)] ??
+            Number(event.currentTarget.value),
+        ),
+    }),
+  );
 }
 
 function Minimap(props: {
-	duration: number;
-	playheadTime: number;
-	viewport: {
-		startTime: number;
-		endTime: number;
-		minFrequency: number;
-		maxFrequency: number;
-	};
-	dragRef: React.MutableRefObject<{
-		x: number;
-		startTime: number;
-		span: number;
-	} | null>;
-	onViewportChange: (viewport: {
-		startTime: number;
-		endTime: number;
-		minFrequency: number;
-		maxFrequency: number;
-	}) => void;
+  duration: number;
+  playheadTime: number;
+  viewport: {
+    startTime: number;
+    endTime: number;
+    minFrequency: number;
+    maxFrequency: number;
+  };
+  dragRef: React.MutableRefObject<{
+    x: number;
+    startTime: number;
+    span: number;
+  } | null>;
+  onViewportChange: (viewport: {
+    startTime: number;
+    endTime: number;
+    minFrequency: number;
+    maxFrequency: number;
+  }) => void;
 }) {
-	const duration = Math.max(props.duration, 0.001);
-	const span = props.viewport.endTime - props.viewport.startTime;
-	const left = (props.viewport.startTime / duration) * 100;
-	const width = Math.min(100, (span / duration) * 100);
-	const playheadLeft = Math.min(
-		100,
-		Math.max(0, (props.playheadTime / duration) * 100),
-	);
+  const duration = Math.max(props.duration, 0.001);
+  const span = props.viewport.endTime - props.viewport.startTime;
+  const left = (props.viewport.startTime / duration) * 100;
+  const width = Math.min(100, (span / duration) * 100);
+  const playheadLeft = Math.min(
+    100,
+    Math.max(0, (props.playheadTime / duration) * 100),
+  );
 
-	function moveFromPointer(
-		event: React.PointerEvent<HTMLDivElement>,
-		mode: "center" | "drag",
-	) {
-		const rect = event.currentTarget.getBoundingClientRect();
-		const secondsPerPixel = duration / rect.width;
-		if (mode === "center") {
-			const centerTime = (event.clientX - rect.left) * secondsPerPixel;
-			const startTime = centerTime - span / 2;
-			props.dragRef.current = { x: event.clientX, startTime, span };
-			props.onViewportChange({
-				...props.viewport,
-				startTime,
-				endTime: startTime + span,
-			});
-			return;
-		}
+  function moveFromPointer(
+    event: React.PointerEvent<HTMLDivElement>,
+    mode: "center" | "drag",
+  ) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const secondsPerPixel = duration / rect.width;
+    if (mode === "center") {
+      const centerTime = (event.clientX - rect.left) * secondsPerPixel;
+      const startTime = centerTime - span / 2;
+      props.dragRef.current = { x: event.clientX, startTime, span };
+      props.onViewportChange({
+        ...props.viewport,
+        startTime,
+        endTime: startTime + span,
+      });
+      return;
+    }
 
-		const drag = props.dragRef.current;
-		if (!drag) return;
-		const startTime =
-			drag.startTime + (event.clientX - drag.x) * secondsPerPixel;
-		props.onViewportChange({
-			...props.viewport,
-			startTime,
-			endTime: startTime + drag.span,
-		});
-	}
+    const drag = props.dragRef.current;
+    if (!drag) return;
+    const startTime =
+      drag.startTime + (event.clientX - drag.x) * secondsPerPixel;
+    props.onViewportChange({
+      ...props.viewport,
+      startTime,
+      endTime: startTime + drag.span,
+    });
+  }
 
-	return h(
-		"div",
-		{ className: "minimap-block" },
-		h(
-			"div",
-			{ className: "minimap-label" },
-			h("span", null, "Recording overview"),
-			h(
-				"b",
-				null,
-				`${props.viewport.startTime.toFixed(2)}s-${props.viewport.endTime.toFixed(2)}s / ${duration.toFixed(2)}s`,
-			),
-		),
-		h(
-			"div",
-			{
-				className: "minimap",
-				role: "slider",
-				tabIndex: 0,
-				"aria-label": "Spectrogram viewport position",
-				"aria-valuemin": 0,
-				"aria-valuemax": Number(duration.toFixed(2)),
-				"aria-valuenow": Number(props.viewport.startTime.toFixed(2)),
-				onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-					event.currentTarget.setPointerCapture(event.pointerId);
-					moveFromPointer(event, "center");
-				},
-				onPointerMove: (event: React.PointerEvent<HTMLDivElement>) =>
-					moveFromPointer(event, "drag"),
-				onPointerUp: () => {
-					props.dragRef.current = null;
-				},
-				onPointerCancel: () => {
-					props.dragRef.current = null;
-				},
-				onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
-					if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-					event.preventDefault();
-					const step = span * (event.shiftKey ? 1 : 0.2);
-					const delta = event.key === "ArrowLeft" ? -step : step;
-					props.onViewportChange({
-						...props.viewport,
-						startTime: props.viewport.startTime + delta,
-						endTime: props.viewport.endTime + delta,
-					});
-				},
-			},
-			h(
-				"div",
-				{ className: "minimap-wave" },
-				Array.from({ length: 72 }, (_, index) =>
-					h("i", {
-						key: index,
-						style: { height: `${24 + pseudoLevel(index) * 68}%` },
-					}),
-				),
-			),
-			h("div", {
-				className: "minimap-window",
-				style: { left: `${left}%`, width: `${width}%` },
-			}),
-			h("div", {
-				className: "minimap-playhead",
-				style: { left: `${playheadLeft}%` },
-			}),
-		),
-	);
+  return h(
+    "div",
+    { className: "minimap-block" },
+    h(
+      "div",
+      { className: "minimap-label" },
+      h("span", null, "Recording overview"),
+      h(
+        "b",
+        null,
+        `${props.viewport.startTime.toFixed(2)}s-${props.viewport.endTime.toFixed(2)}s / ${duration.toFixed(2)}s`,
+      ),
+    ),
+    h(
+      "div",
+      {
+        className: "minimap",
+        role: "slider",
+        tabIndex: 0,
+        "aria-label": "Spectrogram viewport position",
+        "aria-valuemin": 0,
+        "aria-valuemax": Number(duration.toFixed(2)),
+        "aria-valuenow": Number(props.viewport.startTime.toFixed(2)),
+        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          moveFromPointer(event, "center");
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) =>
+          moveFromPointer(event, "drag"),
+        onPointerUp: () => {
+          props.dragRef.current = null;
+        },
+        onPointerCancel: () => {
+          props.dragRef.current = null;
+        },
+        onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const step = span * (event.shiftKey ? 1 : 0.2);
+          const delta = event.key === "ArrowLeft" ? -step : step;
+          props.onViewportChange({
+            ...props.viewport,
+            startTime: props.viewport.startTime + delta,
+            endTime: props.viewport.endTime + delta,
+          });
+        },
+      },
+      h(
+        "div",
+        { className: "minimap-wave" },
+        Array.from({ length: 72 }, (_, index) =>
+          h("i", {
+            key: index,
+            style: { height: `${24 + pseudoLevel(index) * 68}%` },
+          }),
+        ),
+      ),
+      h("div", {
+        className: "minimap-window",
+        style: { left: `${left}%`, width: `${width}%` },
+      }),
+      h("div", {
+        className: "minimap-playhead",
+        style: { left: `${playheadLeft}%` },
+      }),
+    ),
+  );
 }
 
 function option(value: string) {
-	return h("option", { value }, value);
+  return h("option", { value }, value);
 }
 
 function rendererConfig(shaderProgram: ShaderProgram) {
-	return shaderProgram === "auto"
-		? "auto"
-		: { type: "webgl" as const, program: shaderProgram };
+  return shaderProgram === "auto"
+    ? "auto"
+    : { type: "webgl" as const, program: shaderProgram };
 }
 
 function pseudoLevel(index: number) {
-	return Math.abs(Math.sin(index * 0.41) * Math.cos(index * 0.17));
+  return Math.abs(Math.sin(index * 0.41) * Math.cos(index * 0.17));
 }
 
 function formatCacheStats(stats: {
-	bytes: number;
-	peakBytes: number;
-	tiles: number;
-	peakTiles: number;
+  bytes: number;
+  peakBytes: number;
+  tiles: number;
+  peakTiles: number;
 }) {
-	return `cache: ${stats.tiles} tiles / ${formatBytes(stats.bytes)} · peak ${stats.peakTiles} tiles / ${formatBytes(stats.peakBytes)}`;
+  return `cache: ${stats.tiles} tiles / ${formatBytes(stats.bytes)} · peak ${stats.peakTiles} tiles / ${formatBytes(stats.peakBytes)}`;
 }
 
 function formatBytes(bytes: number) {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
 function clampViewport(
-	viewport: {
-		startTime: number;
-		endTime: number;
-		minFrequency: number;
-		maxFrequency: number;
-	},
-	duration: number,
+  viewport: {
+    startTime: number;
+    endTime: number;
+    minFrequency: number;
+    maxFrequency: number;
+  },
+  duration: number,
 ) {
-	const span = Math.min(
-		Math.max(viewport.endTime - viewport.startTime, 0.08),
-		Math.max(duration, 0.08),
-	);
-	const startTime = Math.min(
-		Math.max(0, viewport.startTime),
-		Math.max(0, duration - span),
-	);
-	return {
-		...viewport,
-		startTime,
-		endTime: startTime + span,
-		minFrequency: Math.max(0, viewport.minFrequency),
-		maxFrequency: Math.max(viewport.minFrequency + 10, viewport.maxFrequency),
-	};
+  const span = Math.min(
+    Math.max(viewport.endTime - viewport.startTime, 0.08),
+    Math.max(duration, 0.08),
+  );
+  const startTime = Math.min(
+    Math.max(0, viewport.startTime),
+    Math.max(0, duration - span),
+  );
+  return {
+    ...viewport,
+    startTime,
+    endTime: startTime + span,
+    minFrequency: Math.max(0, viewport.minFrequency),
+    maxFrequency: Math.max(viewport.minFrequency + 10, viewport.maxFrequency),
+  };
 }
 
 const styles = `

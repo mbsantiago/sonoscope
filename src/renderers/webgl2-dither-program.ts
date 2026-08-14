@@ -108,7 +108,7 @@ void main() {
 }`;
 
 export class DitherSpectrogramProgram extends NormalSpectrogramProgram {
-	constructor(gl: WebGL2RenderingContext) {
-		super(gl, WEBGL2_DITHER_FRAGMENT_SHADER);
-	}
+  constructor(gl: WebGL2RenderingContext) {
+    super(gl, WEBGL2_DITHER_FRAGMENT_SHADER);
+  }
 }
