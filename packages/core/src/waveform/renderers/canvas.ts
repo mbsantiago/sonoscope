@@ -55,6 +55,14 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     ctx.stroke();
 
     if (len > 0) {
+      // Determine if waveform is in sub-sample line mode vs envelope mode
+      let maxSpread = 0;
+      for (let i = 0; i < len; i++) {
+        const spread = peaks.max[i]! - peaks.min[i]!;
+        if (spread > maxSpread) maxSpread = spread;
+      }
+      const isLineMode = maxSpread < 0.04;
+
       const traceEnvelope = () => {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
@@ -73,7 +81,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         ctx.closePath();
       };
 
-      const traceCenterLine = () => {
+      const traceLine = () => {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
           const x = (i / Math.max(1, len - 1)) * width;
@@ -84,16 +92,16 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         }
       };
 
-      // Fill unplayed / full waveform envelope
-      traceEnvelope();
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      // Stroke center line for crisp continuous signal definition at high zoom
-      traceCenterLine();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5 * dpr;
-      ctx.stroke();
+      if (isLineMode) {
+        traceLine();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * dpr;
+        ctx.stroke();
+      } else {
+        traceEnvelope();
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
 
       // If progressColor and playheadTime are provided, fill played portion
       if (
@@ -112,13 +120,16 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         ctx.beginPath();
         ctx.rect(0, 0, playX, height);
         ctx.clip();
-        traceEnvelope();
-        ctx.fillStyle = progressColor;
-        ctx.fill();
-        traceCenterLine();
-        ctx.strokeStyle = progressColor;
-        ctx.lineWidth = 1.5 * dpr;
-        ctx.stroke();
+        if (isLineMode) {
+          traceLine();
+          ctx.strokeStyle = progressColor;
+          ctx.lineWidth = 2 * dpr;
+          ctx.stroke();
+        } else {
+          traceEnvelope();
+          ctx.fillStyle = progressColor;
+          ctx.fill();
+        }
         ctx.restore();
       }
     }

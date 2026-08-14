@@ -70,11 +70,31 @@ describe("WaveformPeakPyramid", () => {
     const p1 = await pyramid.getPeaks(1.0, 3.0, 200);
     const p2 = await pyramid.getPeaks(1.01, 3.01, 200); // 10ms forward (1 frame at 60fps)
 
-    // A small continuous translation in time should produce close values with no wild jumps
     expect(p1.max.length).toBe(200);
     expect(p2.max.length).toBe(200);
     // Values shifted slightly should correlate closely
     const diff = Math.abs(p1.max[100]! - p2.max[99]!);
     expect(diff).toBeLessThan(0.15);
+  });
+
+  it("produces exactly matching peak boundaries when shifted by integer pixel offsets", async () => {
+    const pyramid = new WaveformPeakPyramid(dummySource, 0);
+    const width = 100;
+    const duration = 2.0; // 2s across 100 pixels = 0.02s per pixel
+    const shiftPixels = 5;
+    const shiftTime = shiftPixels * (duration / width); // 0.1s shift
+
+    const p1 = await pyramid.getPeaks(1.0, 1.0 + duration, width);
+    const p2 = await pyramid.getPeaks(
+      1.0 + shiftTime,
+      1.0 + duration + shiftTime,
+      width,
+    );
+
+    // Pixel i in p2 must exactly equal pixel (i + shiftPixels) in p1!
+    for (let i = 0; i < width - shiftPixels; i++) {
+      expect(p2.max[i]).toBeCloseTo(p1.max[i + shiftPixels]!, 5);
+      expect(p2.min[i]).toBeCloseTo(p1.min[i + shiftPixels]!, 5);
+    }
   });
 });

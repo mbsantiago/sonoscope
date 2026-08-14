@@ -69,24 +69,42 @@ export class WaveformPeakPyramid {
     }
 
     const timeSpan = endTime - startTime;
+    const samplesPerPixel = (timeSpan * sampleRate) / outLength;
+
+    if (samplesPerPixel < 1) {
+      // Sub-sample / high zoom mode: use continuous linear interpolation between samples
+      for (let i = 0; i < outLength; i++) {
+        const t = startTime + (i / Math.max(1, outLength - 1)) * timeSpan;
+        const s = (t - readStart) * sampleRate;
+        const s0 = Math.max(0, Math.min(len - 1, Math.floor(s)));
+        const s1 = Math.max(0, Math.min(len - 1, s0 + 1));
+        const frac = Math.max(0, Math.min(1, s - s0));
+        const v0 = samples[s0] ?? 0;
+        const v1 = samples[s1] ?? 0;
+        const interpolated = v0 + (v1 - v0) * frac;
+        min[i] = interpolated;
+        max[i] = interpolated;
+      }
+      return { min, max };
+    }
+
+    // Envelope mode: contiguous exact partition without gaps or overlaps
+    let prevOffset = Math.max(
+      0,
+      Math.min(len - 1, Math.round((startTime - readStart) * sampleRate)),
+    );
 
     for (let i = 0; i < outLength; i++) {
-      const t0 = startTime + (i / outLength) * timeSpan;
       const t1 = startTime + ((i + 1) / outLength) * timeSpan;
-
-      const offset0 = Math.max(
-        0,
-        Math.min(len - 1, Math.floor((t0 - readStart) * sampleRate)),
-      );
-      const offset1 = Math.max(
-        offset0 + 1,
-        Math.min(len, Math.ceil((t1 - readStart) * sampleRate)),
+      const nextOffset = Math.max(
+        prevOffset + 1,
+        Math.min(len, Math.round((t1 - readStart) * sampleRate)),
       );
 
-      let minVal = samples[offset0] ?? 0;
-      let maxVal = samples[offset0] ?? 0;
+      let minVal = samples[prevOffset] ?? 0;
+      let maxVal = samples[prevOffset] ?? 0;
 
-      for (let j = offset0; j < offset1; j++) {
+      for (let j = prevOffset; j < nextOffset; j++) {
         const val = samples[j]!;
         if (val < minVal) minVal = val;
         if (val > maxVal) maxVal = val;
@@ -94,6 +112,7 @@ export class WaveformPeakPyramid {
 
       min[i] = minVal;
       max[i] = maxVal;
+      prevOffset = nextOffset;
     }
 
     return { min, max };
