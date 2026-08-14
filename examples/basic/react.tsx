@@ -30,13 +30,14 @@ export function ReactSpectrogramDemo(): React.ReactElement {
   const [settings, setSettings] =
     useState<SpectrogramSettings>(initialSettings);
   const [duration, setDuration] = useState(30);
+  const [nyquist, setNyquist] = useState(22050);
   const [playheadTime, setPlayheadTime] = useState(0);
   const [cacheSummary, setCacheSummary] = useState("cache: empty");
   const [viewport, setViewport] = useState<ViewportState>({
     startTime: 0,
     endTime: 12,
-    minFrequency: 20,
-    maxFrequency: 12_000,
+    minFrequency: 0,
+    maxFrequency: 22050,
   });
   const [status, setStatus] = useState("Ready");
 
@@ -50,17 +51,36 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     const viewer = handle.getViewer();
     if (!viewer) return;
 
-    setDuration(viewer.getDuration());
+    const sourceDuration = viewer.getDuration() || 30;
+    const sourceNyquist = viewer.getNyquist() || 22050;
+
+    setDuration(sourceDuration);
+    setNyquist(sourceNyquist);
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+
+    // Reset viewport on load to 0 and Nyquist limit
+    const initialVp: ViewportState = {
+      startTime: 0,
+      endTime: Math.min(12, sourceDuration),
+      minFrequency: 0,
+      maxFrequency: sourceNyquist,
+    };
+    setViewport(initialVp);
+    viewer.setViewport(initialVp);
 
     const unsubProfile = viewer.on("renderprofile", () => {
       setCacheSummary(formatCacheStats(viewer.getCacheStats()));
     });
-    const unsubComplete = viewer.on("rendercomplete", () => {
+    const unsubComplete = () => {
+      const liveNyquist = viewer.getNyquist();
+      if (liveNyquist > 0 && liveNyquist !== nyquist) {
+        setNyquist(liveNyquist);
+      }
       setStatus(
         `Drag to pan. Wheel to zoom. Shader: ${settings.shaderProgram}.`,
       );
-    });
+    };
+    const unsubComp = viewer.on("rendercomplete", unsubComplete);
     const unsubError = viewer.on("error", (event) => {
       setStatus(`Error: ${event.error.message}`);
     });
@@ -91,7 +111,7 @@ export function ReactSpectrogramDemo(): React.ReactElement {
 
     return () => {
       unsubProfile();
-      unsubComplete();
+      unsubComp();
       unsubError();
       stop();
       if (audio) {
@@ -127,8 +147,8 @@ export function ReactSpectrogramDemo(): React.ReactElement {
       const next: ViewportState = {
         startTime: 0,
         endTime: Math.min(12, duration),
-        minFrequency: 20,
-        maxFrequency: 12_000,
+        minFrequency: 0,
+        maxFrequency: nyquist,
       };
       setViewport(next);
       spectrogramRef.current?.getViewer()?.updateViewport(next);
@@ -154,10 +174,12 @@ export function ReactSpectrogramDemo(): React.ReactElement {
         />
         <ControlPanel
           settings={settings}
+          minFrequency={viewport.minFrequency}
           maxFrequency={viewport.maxFrequency}
+          nyquist={nyquist}
           onUpdateSettings={handleUpdateSettings}
-          onUpdateMaxFrequency={(maxFrequency) =>
-            handleUserNavigate({ ...viewport, maxFrequency })
+          onUpdateFrequencyRange={(minFrequency, maxFrequency) =>
+            handleUserNavigate({ ...viewport, minFrequency, maxFrequency })
           }
           onResetView={handleResetView}
         />

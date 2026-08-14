@@ -179,6 +179,14 @@ export class SpectrogramViewer {
     return this.getSource().duration;
   }
 
+  getSampleRate(): number {
+    return this.getSource().sampleRate;
+  }
+
+  getNyquist(): number {
+    return this.getSource().sampleRate / 2;
+  }
+
   getAudio(): HTMLAudioElement | undefined {
     return this.audioElement;
   }

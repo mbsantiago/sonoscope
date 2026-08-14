@@ -7,22 +7,26 @@ import type {
 import type React from "react";
 import { RECORDINGS } from "../recordings";
 import type { ShaderProgram, SpectrogramSettings } from "../types";
-import { ControlField, SliderControl } from "./ControlField";
+import { ControlField, DualRangeSlider, SliderControl } from "./ControlField";
 
 export type ControlPanelProps = {
   settings: SpectrogramSettings;
+  minFrequency: number;
   maxFrequency: number;
+  nyquist: number;
   onUpdateSettings: (update: Partial<SpectrogramSettings>) => void;
-  onUpdateMaxFrequency: (maxFrequency: number) => void;
+  onUpdateFrequencyRange: (minFrequency: number, maxFrequency: number) => void;
   onResetView: () => void;
 };
 
 export function ControlPanel(props: ControlPanelProps): React.ReactElement {
   const {
     settings,
+    minFrequency,
     maxFrequency,
+    nyquist,
     onUpdateSettings,
-    onUpdateMaxFrequency,
+    onUpdateFrequencyRange,
     onResetView,
   } = props;
 
@@ -114,22 +118,28 @@ export function ControlPanel(props: ControlPanelProps): React.ReactElement {
         </ControlField>
       </div>
 
-      <SliderControl
-        label="Min dB"
-        value={settings.minDb}
+      <DualRangeSlider
+        label="Dynamic range (dB)"
         min={-140}
-        max={-20}
-        step={1}
-        onChange={(minDb) => onUpdateSettings({ minDb })}
-      />
-
-      <SliderControl
-        label="Max dB"
-        value={settings.maxDb}
-        min={-60}
         max={12}
         step={1}
-        onChange={(maxDb) => onUpdateSettings({ maxDb })}
+        minValue={settings.minDb}
+        maxValue={settings.maxDb}
+        formatValue={(val) => `${val} dB`}
+        onChange={(minDb, maxDb) => onUpdateSettings({ minDb, maxDb })}
+      />
+
+      <DualRangeSlider
+        label="Frequency bounds"
+        min={0}
+        max={Math.max(1000, nyquist)}
+        step={50}
+        minValue={minFrequency}
+        maxValue={maxFrequency}
+        formatValue={(val) => `${Math.round(val).toLocaleString()} Hz`}
+        onChange={(minFreq, maxFreq) =>
+          onUpdateFrequencyRange(minFreq, maxFreq)
+        }
       />
 
       <SliderControl
@@ -154,15 +164,6 @@ export function ControlPanel(props: ControlPanelProps): React.ReactElement {
         max={512}
         step={32}
         onChange={(hopSize) => onUpdateSettings({ hopSize })}
-      />
-
-      <SliderControl
-        label="Max frequency"
-        value={maxFrequency}
-        min={1000}
-        max={24_000}
-        step={500}
-        onChange={(maxFreq) => onUpdateMaxFrequency(maxFreq)}
       />
 
       <ControlField label="Shader">

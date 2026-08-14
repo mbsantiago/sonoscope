@@ -47,3 +47,81 @@ export function SliderControl(props: {
     </label>
   );
 }
+
+export function DualRangeSlider(props: {
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  minValue: number;
+  maxValue: number;
+  formatValue?: (val: number) => string;
+  onChange: (minValue: number, maxValue: number) => void;
+}): React.ReactElement {
+  const {
+    label,
+    min,
+    max,
+    step = 1,
+    minValue,
+    maxValue,
+    formatValue = (val: number) => String(val),
+    onChange,
+  } = props;
+
+  const effectiveMin = Math.min(min, max);
+  const effectiveMax = Math.max(min, max);
+  const clampedMin = Math.max(effectiveMin, Math.min(effectiveMax, minValue));
+  const clampedMax = Math.max(clampedMin, Math.min(effectiveMax, maxValue));
+
+  const totalRange = effectiveMax - effectiveMin || 1;
+  const leftPercent = ((clampedMin - effectiveMin) / totalRange) * 100;
+  const rightPercent = ((clampedMax - effectiveMin) / totalRange) * 100;
+
+  return (
+    <div className="dual-range-container">
+      <div className="dual-range-header">
+        <span>{label}</span>
+        <b>
+          {formatValue(clampedMin)} – {formatValue(clampedMax)}
+        </b>
+      </div>
+      <div className="dual-range-track-wrapper">
+        <div className="dual-range-track-bg" />
+        <div
+          className="dual-range-track-active"
+          style={{
+            left: `${leftPercent}%`,
+            width: `${Math.max(0, rightPercent - leftPercent)}%`,
+          }}
+        />
+        <input
+          type="range"
+          aria-label={`${label} minimum`}
+          min={effectiveMin}
+          max={effectiveMax}
+          step={step}
+          value={clampedMin}
+          className="dual-range-input dual-range-min"
+          onChange={(event) => {
+            const nextMin = Number(event.currentTarget.value);
+            onChange(Math.min(nextMin, clampedMax), clampedMax);
+          }}
+        />
+        <input
+          type="range"
+          aria-label={`${label} maximum`}
+          min={effectiveMin}
+          max={effectiveMax}
+          step={step}
+          value={clampedMax}
+          className="dual-range-input dual-range-max"
+          onChange={(event) => {
+            const nextMax = Number(event.currentTarget.value);
+            onChange(clampedMin, Math.max(nextMax, clampedMin));
+          }}
+        />
+      </div>
+    </div>
+  );
+}

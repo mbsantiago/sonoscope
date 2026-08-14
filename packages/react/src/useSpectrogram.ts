@@ -24,6 +24,8 @@ export type UseSpectrogramResult = {
   status: SpectrogramStatus;
   viewport: ViewportConfig | null;
   duration: number;
+  sampleRate: number;
+  nyquist: number;
 };
 
 export function useSpectrogram(
@@ -41,6 +43,8 @@ export function useSpectrogram(
   const [status, setStatus] = useState<SpectrogramStatus>({ state: "idle" });
   const [viewport, setViewport] = useState<ViewportConfig | null>(null);
   const [duration, setDuration] = useState<number>(0);
+  const [sampleRate, setSampleRate] = useState<number>(0);
+  const [nyquist, setNyquist] = useState<number>(0);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: serialize config to avoid shallow object recreations
   const memoizedConfig = useMemo(
@@ -98,6 +102,8 @@ export function useSpectrogram(
 
         viewerRef.current = viewer;
         setDuration(viewer.getDuration());
+        setSampleRate(viewer.getSampleRate());
+        setNyquist(viewer.getNyquist());
         setViewport(viewer.getViewport());
         setStatus(viewer.getStatus());
 
@@ -157,5 +163,7 @@ export function useSpectrogram(
     status,
     viewport,
     duration,
+    sampleRate,
+    nyquist,
   };
 }

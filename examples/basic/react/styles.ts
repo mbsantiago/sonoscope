@@ -39,5 +39,48 @@ export const demoStyles = `
   select, button { width: 100%; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; background: #171a20; color: #f4efe7; padding: 10px 12px; font: 700 13px ui-monospace, monospace; }
   button { background: #e6e9ef; color: #101216; cursor: pointer; text-transform: uppercase; letter-spacing: .12em; }
   input[type='range'] { accent-color: #d7dce5; width: 100%; }
+
+  .dual-range-container { display: grid; gap: 7px; }
+  .dual-range-header { display: flex; justify-content: space-between; gap: 10px; color: #89919f; font: 700 12px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .12em; }
+  .dual-range-header b { color: #d7dce5; font-weight: 700; }
+  .dual-range-track-wrapper { position: relative; height: 26px; display: flex; align-items: center; }
+  .dual-range-track-bg { position: absolute; inset-inline: 0; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); }
+  .dual-range-track-active { position: absolute; height: 6px; border-radius: 3px; background: #d7dce5; z-index: 1; }
+  .dual-range-input {
+    position: absolute;
+    inset-inline: 0;
+    height: 26px;
+    margin: 0;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+  .dual-range-input::-webkit-slider-thumb {
+    pointer-events: auto;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #f4efe7;
+    border: 2px solid #12151a;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    cursor: pointer;
+    margin-top: 0;
+  }
+  .dual-range-input::-moz-range-thumb {
+    pointer-events: auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #f4efe7;
+    border: 2px solid #12151a;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    cursor: pointer;
+  }
+  .dual-range-min { z-index: 3; }
+  .dual-range-max { z-index: 4; }
+
   @media (max-width: 900px) { .workbench { grid-template-columns: 1fr; } .controls { position: static; } h1 { letter-spacing: -.05em; } }
 `;
