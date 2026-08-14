@@ -1,0 +1,44 @@
+{
+  "name": "@sonogram/react",
+  "version": "0.1.0",
+  "description": "React hooks and components for Sonogram spectrogram visualization.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Santiago",
+  "keywords": [
+    "audio",
+    "spectrogram",
+    "sonogram",
+    "react",
+    "hooks",
+    "visualization"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sonogram/core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "check:types": "tsc --noEmit"
+  }
+}

@@ -1,7 +1,14 @@
+import { resolve } from "node:path";
 import { playwright } from "@vitest/browser-playwright";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@sonogram/core": resolve(import.meta.dirname, "packages/core/src/index.ts"),
+      "@sonogram/react": resolve(import.meta.dirname, "packages/react/src/index.ts"),
+    },
+  },
   test: {
     browser: {
       enabled: true,
@@ -9,6 +16,6 @@ export default defineConfig({
       headless: true,
       instances: [{ browser: "chromium" }],
     },
-    include: ["src/**/*.browser.test.ts"],
+    include: ["packages/**/*.browser.test.ts"],
   },
 });

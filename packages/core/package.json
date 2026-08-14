@@ -1,0 +1,40 @@
+{
+  "name": "@sonogram/core",
+  "version": "0.1.0",
+  "description": "High-performance WebGL2 and WASM-accelerated audio spectrogram engine for the web.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Santiago",
+  "keywords": [
+    "audio",
+    "spectrogram",
+    "sonogram",
+    "stft",
+    "webgl",
+    "canvas",
+    "typescript"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build:wasm": "node ../../scripts/build-wasm.mjs",
+    "build": "npm run build:wasm && vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "check:types": "tsc --noEmit"
+  }
+}

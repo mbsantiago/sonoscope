@@ -2,17 +2,23 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
     "includes": [
-      "src/**",
+      "packages/*/src/**",
       "scripts/**",
       "examples/**",
-      "!src/backends/wasm-stft-binary.ts"
+      "!packages/core/src/backends/wasm-stft-binary.ts",
+      "!**/dist"
     ]
   },
   "formatter": {
     "indentStyle": "space"
   },
   "linter": {
-    "includes": ["./src/**/*.js", "./src/**/*.ts", "./scripts/**/*.mjs"],
+    "includes": [
+      "./packages/*/src/**/*.js",
+      "./packages/*/src/**/*.ts",
+      "./packages/*/src/**/*.tsx",
+      "./scripts/**/*.mjs"
+    ],
     "rules": {
       "preset": "recommended",
       "style": {

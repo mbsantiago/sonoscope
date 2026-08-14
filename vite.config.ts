@@ -1,17 +1,15 @@
-import { defineConfig } from "vite";
+import { resolve } from "node:path";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  build: {
-    lib: {
-      entry: "src/index.ts",
-      formats: ["es"],
-      fileName: "index",
+  resolve: {
+    alias: {
+      "@sonogram/core": resolve(import.meta.dirname, "packages/core/src/index.ts"),
+      "@sonogram/react": resolve(import.meta.dirname, "packages/react/src/index.ts"),
     },
-    sourcemap: true,
   },
   test: {
     environment: "node",
-    exclude: ["dist/**", "src/**/*.browser.test.ts"],
+    exclude: ["**/dist/**", "**/*.browser.test.ts"],
   },
 });
-

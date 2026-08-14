@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@sonogram/core": ["../core/dist/index.d.ts"]
+    }
+  },
+  "exclude": [
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
+}

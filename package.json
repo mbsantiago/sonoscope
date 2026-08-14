@@ -1,44 +1,18 @@
 {
-  "name": "espectro",
-  "version": "0.0.0",
-  "description": "Framework-agnostic TypeScript spectrogram rendering for browser audio.",
+  "name": "sonogram-monorepo",
+  "version": "0.1.0",
+  "description": "High-performance WebGL2 and WASM-accelerated audio spectrogram visualization ecosystem.",
+  "private": true,
   "type": "module",
-  "license": "MIT",
-  "author": "Santiago",
-  "keywords": [
-    "audio",
-    "spectrogram",
-    "stft",
-    "webgl",
-    "canvas",
-    "typescript"
+  "workspaces": [
+    "packages/*"
   ],
-  "sideEffects": false,
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
-    "build": "npm run build:wasm && vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "build": "npm run build:wasm && npm run --workspace=@sonogram/core build && npm run --workspace=@sonogram/react build",
     "bench": "vitest bench",
     "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
-    "pack:dry": "npm pack --dry-run",
-    "prepack": "npm run build",
     "test": "vitest run",
     "test:browser": "vitest run --config vite.browser.config.ts",
     "check:biome": "biome check",
@@ -49,9 +23,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@vitest/browser": "latest",
     "@vitest/browser-playwright": "latest",
     "pngjs": "^7.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"

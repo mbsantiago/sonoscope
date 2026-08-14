@@ -7,13 +7,22 @@
     "strict": true,
     "declaration": true,
     "declarationMap": true,
-    "emitDeclarationOnly": false,
-    "outDir": "dist",
-    "rootDir": "src",
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@sonogram/core": ["./packages/core/src/index.ts"],
+      "@sonogram/react": ["./packages/react/src/index.ts"]
+    }
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["dist"]
+  "include": [
+    "packages/*/src/**/*",
+    "examples/**/*",
+    "*.ts"
+  ],
+  "exclude": [
+    "**/dist",
+    "**/node_modules"
+  ]
 }

@@ -1,17 +1,13 @@
-import React, {
-  startTransition,
-  useEffect,
-  useRef,
-  useState,
-} from "https://esm.sh/react@19.2.1";
-import { createRoot } from "https://esm.sh/react-dom@19.2.1/client";
-import { attachCanvasNavigation, SpectrogramViewer } from "../../src";
-import type {
-  BuiltInColorMap,
-  FrequencyScale,
-  ValueMode,
-  WindowName,
-} from "../../src/types";
+import {
+  attachCanvasNavigation,
+  type BuiltInColorMap,
+  type FrequencyScale,
+  SpectrogramViewer,
+  type ValueMode,
+  type WindowName,
+} from "@sonogram/core";
+import React, { startTransition, useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 
 const h = React.createElement;
 
@@ -108,7 +104,7 @@ function ReactSpectrogramDemo() {
     SpectrogramViewer.fromUrl({
       audio,
       canvas,
-      url: RECORDINGS[settings.recording][0],
+      url: RECORDINGS[settings.recording]?.[0] ?? RECORDINGS[0]![0],
       windowSize: settings.windowSize,
       fftSize: settings.windowSize,
       hopSize: settings.hopSize,
@@ -243,14 +239,14 @@ function ReactSpectrogramDemo() {
 
   function updateSettings(update: Partial<Settings>) {
     startTransition(() =>
-      setSettings((current) => ({ ...current, ...update })),
+      setSettings((current: Settings) => ({ ...current, ...update })),
     );
   }
 
   function setShaderProgram(shaderProgram: ShaderProgram) {
     startTransition(() => {
-      setSettings((current) => ({ ...current, shaderProgram }));
-      setCanvasKey((current) => current + 1);
+      setSettings((current: Settings) => ({ ...current, shaderProgram }));
+      setCanvasKey((current: number) => current + 1);
     });
   }
 
@@ -258,7 +254,7 @@ function ReactSpectrogramDemo() {
     update: typeof viewport | ((current: typeof viewport) => typeof viewport),
   ) {
     startTransition(() =>
-      setViewport((current) =>
+      setViewport((current: typeof viewport) =>
         clampViewport(
           typeof update === "function" ? update(current) : update,
           duration,
@@ -293,7 +289,7 @@ function ReactSpectrogramDemo() {
     dragRef.current = null;
   }
 
-  const current = RECORDINGS[settings.recording];
+  const current = RECORDINGS[settings.recording] ?? RECORDINGS[0]!;
   return h(
     "main",
     { className: "shell" },
@@ -325,7 +321,9 @@ function ReactSpectrogramDemo() {
             "div",
             null,
             h("strong", null, current[1]),
-            h("span", null, current[2]),
+            current.length > 2
+              ? h("span", null, (current as readonly string[])[2])
+              : null,
           ),
           h("span", { className: "status" }, status),
         ),
@@ -485,7 +483,10 @@ function ReactSpectrogramDemo() {
           max: 24_000,
           step: 500,
           onChange: (maxFrequency: number) =>
-            updateViewport((current) => ({ ...current, maxFrequency })),
+            updateViewport((current: typeof viewport) => ({
+              ...current,
+              maxFrequency,
+            })),
         }),
         h(
           Control,
@@ -523,7 +524,7 @@ function ReactSpectrogramDemo() {
   );
 }
 
-function Control(props: { label: string; children: React.ReactNode }) {
+function Control(props: { label: string; children?: React.ReactNode }) {
   return h("label", null, h("span", null, props.label), props.children);
 }
 
