@@ -3,6 +3,8 @@ import { MainThreadComputeBackend } from "./backend";
 import { CanvasSpectrogramRenderer } from "./renderers/canvas";
 import { computeStftMatrix } from "./stft";
 import type { AudioSource, SpectrogramMatrix, StftConfig } from "./types";
+import { WasmComputeBackend } from "./wasm-backend";
+import { computeWasmStftMatrix } from "./wasm-stft";
 
 const sampleRate = 48_000;
 const durationSeconds = 2;
@@ -43,23 +45,52 @@ const renderMatrix = computeStftMatrix(data, {
 
 describe("STFT compute", () => {
   for (const stft of configs) {
-    bench(`computeStftMatrix fft=${stft.fftSize} hop=${stft.hopSize}`, () => {
-      computeStftMatrix(data, { channel: 0, timeStart: 0, sampleRate, stft });
-    });
+    bench(
+      `JS computeStftMatrix fft=${stft.fftSize} hop=${stft.hopSize}`,
+      () => {
+        computeStftMatrix(data, { channel: 0, timeStart: 0, sampleRate, stft });
+      },
+    );
+    bench(
+      `WASM computeWasmStftMatrix fft=${stft.fftSize} hop=${stft.hopSize}`,
+      async () => {
+        await computeWasmStftMatrix(data, {
+          channel: 0,
+          timeStart: 0,
+          sampleRate,
+          stft,
+        });
+      },
+    );
   }
 });
 
-describe("MainThreadComputeBackend", () => {
+describe("MainThreadComputeBackend vs WasmComputeBackend", () => {
   for (const stft of configs) {
-    bench(`computeTile fft=${stft.fftSize} hop=${stft.hopSize}`, async () => {
-      await new MainThreadComputeBackend().computeTile({
-        source: audioSource,
-        channel: 0,
-        timeStart: 0,
-        timeEnd: durationSeconds,
-        stft,
-      });
-    });
+    bench(
+      `JS computeTile fft=${stft.fftSize} hop=${stft.hopSize}`,
+      async () => {
+        await new MainThreadComputeBackend().computeTile({
+          source: audioSource,
+          channel: 0,
+          timeStart: 0,
+          timeEnd: durationSeconds,
+          stft,
+        });
+      },
+    );
+    bench(
+      `WASM computeTile fft=${stft.fftSize} hop=${stft.hopSize}`,
+      async () => {
+        await new WasmComputeBackend().computeTile({
+          source: audioSource,
+          channel: 0,
+          timeStart: 0,
+          timeEnd: durationSeconds,
+          stft,
+        });
+      },
+    );
   }
 });
 

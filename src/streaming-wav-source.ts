@@ -108,16 +108,18 @@ export class StreamingWavSource implements AudioSource {
   }): Float32Array | Promise<Float32Array> {
     if (options.channel < 0 || options.channel >= this.channelCount)
       throw new Error(`Invalid channel ${options.channel}`);
+    const channelData = this.decoded[options.channel];
+    if (!channelData) throw new Error(`Channel ${options.channel} not found`);
     const startFrame = Math.max(
       0,
       Math.floor(options.startTime * this.sampleRate),
     );
     const endFrame = Math.min(
-      this.decoded[options.channel]?.length,
+      channelData.length,
       Math.ceil(options.endTime * this.sampleRate),
     );
     if (this.isRangeDecoded(startFrame, endFrame))
-      return this.decoded[options.channel]?.slice(startFrame, endFrame);
+      return channelData.slice(startFrame, endFrame);
     if (this.seekable) {
       return this.readSeekableRange(
         options.channel,
@@ -148,7 +150,8 @@ export class StreamingWavSource implements AudioSource {
 
   private async decodeSequentially(): Promise<void> {
     this.decodeAvailableChunks();
-    while (this.decodedUntilFrame < this.decoded[0]?.length) {
+    const totalFrames = this.decoded[0]?.length ?? 0;
+    while (this.decodedUntilFrame < totalFrames) {
       const result = await this.reader.read();
       if (result.done) break;
       this.chunks.push(result.value);
@@ -163,8 +166,9 @@ export class StreamingWavSource implements AudioSource {
 
   private decodeAvailableChunks(): void {
     const bytes = concatChunks(this.chunks);
+    const totalFrames = this.decoded[0]?.length ?? 0;
     const completeFrameCount = Math.min(
-      this.decoded[0]?.length,
+      totalFrames,
       Math.max(
         0,
         Math.floor(
@@ -188,7 +192,8 @@ export class StreamingWavSource implements AudioSource {
     const decoded = decodeWavPcm(bytes, this.info, byteOffset);
     for (let channel = 0; channel < this.channelCount; channel++)
       this.decoded[channel]?.set(decoded[channel]!, startFrame);
-    const endFrame = startFrame + decoded[0]?.length;
+    const firstDecoded = decoded[0];
+    const endFrame = startFrame + (firstDecoded ? firstDecoded.length : 0);
     this.addDecodedRange(startFrame, endFrame);
     if (endFrame > startFrame)
       this.emitRange(startFrame / this.sampleRate, endFrame / this.sampleRate);
@@ -202,8 +207,10 @@ export class StreamingWavSource implements AudioSource {
     startFrame: number,
     endFrame: number,
   ): Promise<Float32Array> {
+    if (!this.seekable) throw new Error("Seekable source not available");
     const range = wavTimeToByteRange(this.info, startTime, endTime);
-    const bytes = await this.seekable?.readRange(range.start, range.end);
+    const bytes = await this.seekable.readRange(range.start, range.end);
+    if (!bytes) throw new Error("No bytes returned from seekable range");
     if (bytes.length > range.end - range.start)
       throw new Error("Seekable WAV range returned more bytes than requested");
     this.copyDecoded(bytes, range.start, startFrame);
@@ -211,7 +218,9 @@ export class StreamingWavSource implements AudioSource {
       throw new Error(
         "Seekable WAV range ended before requested samples were available",
       );
-    return this.decoded[channel]?.slice(startFrame, endFrame);
+    const channelData = this.decoded[channel];
+    if (!channelData) throw new Error(`Channel ${channel} not found`);
+    return channelData.slice(startFrame, endFrame);
   }
 
   private resolveReadyPending(): void {
@@ -219,12 +228,12 @@ export class StreamingWavSource implements AudioSource {
       const pending = this.pending[index]!;
       if (!this.isRangeDecoded(pending.startFrame, pending.endFrame)) continue;
       this.pending.splice(index, 1);
-      pending.resolve(
-        this.decoded[pending.channel]?.slice(
-          pending.startFrame,
-          pending.endFrame,
-        ),
-      );
+      const channelData = this.decoded[pending.channel];
+      if (channelData) {
+        pending.resolve(
+          channelData.slice(pending.startFrame, pending.endFrame),
+        );
+      }
     }
   }
 

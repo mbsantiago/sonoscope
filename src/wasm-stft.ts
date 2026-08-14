@@ -163,7 +163,7 @@ export async function createWasmStftEngine(
 ): Promise<WasmStftEngine> {
   let wasmBytes: BufferSource;
   if (!wasmSource) {
-    wasmBytes = getWasmStftBinary();
+    wasmBytes = getWasmStftBinary().buffer as ArrayBuffer;
   } else if (wasmSource instanceof Response) {
     wasmBytes = await wasmSource.arrayBuffer();
   } else if (

@@ -69,6 +69,18 @@ export {
   normalizeValue,
 } from "./value-scale";
 export { SpectrogramViewer } from "./viewer";
+export {
+  createDefaultWasmWorker,
+  WasmComputeBackend,
+  WasmWorkerComputeBackend,
+} from "./wasm-backend";
+export type { WasmStftEngine, WasmStftExports } from "./wasm-stft";
+export {
+  computeWasmStftMatrix,
+  createWasmStftEngine,
+  getWasmStftEngine,
+} from "./wasm-stft";
+export { getWasmStftBinary, WASM_STFT_BASE64 } from "./wasm-stft-binary";
 export type { WavInfo } from "./wav";
 export {
   decodeWavPcm,
