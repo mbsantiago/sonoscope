@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Query & Spectrum Inspection Demo</title>
+    <title>Query & Spectral Slice Inspection Demo</title>
     <style>
       :root {
         --bg-main: #0b0f19;
@@ -13,6 +13,7 @@
         --text-muted: #94a3b8;
         --accent: #38bdf8;
         --accent-glow: rgba(56, 189, 248, 0.2);
+        --highlight: #f59e0b;
       }
       * { box-sizing: border-box; }
       body {
@@ -25,7 +26,7 @@
       }
       a { color: var(--accent); text-decoration: none; }
       a:hover { text-decoration: underline; }
-      .container { max-width: 1040px; margin: 0 auto; }
+      .container { max-width: 1100px; margin: 0 auto; }
       header { margin-bottom: 1.5rem; }
       h1 { margin: 0.5rem 0; font-size: 1.6rem; font-weight: 600; }
       p.subtitle { color: var(--text-muted); margin: 0 0 1rem 0; }
@@ -40,7 +41,7 @@
       form {
         display: flex;
         flex: 1;
-        min-width: 280px;
+        min-width: 260px;
         gap: 0.5rem;
       }
       input[type='url'] {
@@ -52,13 +53,22 @@
         color: var(--text);
         font-size: 0.9rem;
       }
+      .ctrl-group {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
       button, select {
-        padding: 0.55rem 1rem;
+        padding: 0.55rem 0.9rem;
         background: #1e293b;
         border: 1px solid var(--border);
         border-radius: 6px;
         color: var(--text);
-        font-size: 0.9rem;
+        font-size: 0.88rem;
         cursor: pointer;
         transition: background 0.15s ease;
       }
@@ -66,14 +76,16 @@
       
       audio { width: 100%; margin-bottom: 1.25rem; border-radius: 6px; }
 
-      .grid-layout {
+      .viewer-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 1.25rem;
+        gap: 1rem;
         margin-bottom: 1.5rem;
       }
-      @media (min-width: 820px) {
-        .grid-layout { grid-template-columns: 3fr 2fr; }
+      @media (min-width: 860px) {
+        .viewer-grid {
+          grid-template-columns: 7fr 3fr;
+        }
       }
 
       .panel {
@@ -89,17 +101,17 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 0.88rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       
-      .spectrogram-wrapper {
+      .canvas-container {
         position: relative;
         width: 100%;
-        height: 280px;
+        height: 360px;
       }
       canvas.spec-canvas {
         display: block;
@@ -107,11 +119,12 @@
         height: 100%;
         border-radius: 6px;
         cursor: crosshair;
+        background: #050505;
       }
-      canvas.chart-canvas {
+      canvas.slice-canvas {
         display: block;
         width: 100%;
-        height: 280px;
+        height: 100%;
         border-radius: 6px;
         background: #060913;
       }
@@ -163,19 +176,29 @@
       <header>
         <p><a href="./index.html">← Back to demos</a></p>
         <h1>Spectral Frame & Point Inspector</h1>
-        <p class="subtitle">Hover or click over the spectrogram to query spectral slices and inspect real-time FFT values.</p>
+        <p class="subtitle">Hover over the spectrogram. The vertical spectrum slice is frequency-aligned with the Y-axis.</p>
       </header>
 
       <div class="toolbar">
         <form id="url-form">
           <input name="url" type="url" placeholder="Audio URL" aria-label="Audio URL" />
-          <button type="submit">Load Audio</button>
+          <button type="submit">Load</button>
         </form>
-        <div>
-          <label for="mode-select" style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.4rem;">Scale:</label>
+
+        <div class="ctrl-group">
+          <label for="scale-select">Freq Scale:</label>
+          <select id="scale-select">
+            <option value="mel" selected>Mel (Perceptual)</option>
+            <option value="log">Logarithmic</option>
+            <option value="linear">Linear</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label for="mode-select">Value Scale:</label>
           <select id="mode-select">
             <option value="db" selected>Decibels (dB)</option>
-            <option value="magnitude">Magnitude (Linear)</option>
+            <option value="magnitude">Magnitude</option>
             <option value="power">Power</option>
           </select>
         </div>
@@ -183,23 +206,25 @@
 
       <audio controls crossorigin="anonymous"></audio>
 
-      <div class="grid-layout">
+      <div class="viewer-grid">
         <div class="panel">
           <div class="panel-header">
             <span>Spectrogram Viewport</span>
             <span id="spec-status">Ready</span>
           </div>
-          <div class="spectrogram-wrapper">
+          <div class="canvas-container">
             <canvas class="spec-canvas"></canvas>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <span>FFT Frame Spectrum Slice</span>
-            <span id="chart-time-label">Hover spectrogram</span>
+            <span>FFT Slice (Vertical Alignment)</span>
+            <span id="slice-time-label">t = 0.000 s</span>
           </div>
-          <canvas class="chart-canvas"></canvas>
+          <div class="canvas-container">
+            <canvas class="slice-canvas"></canvas>
+          </div>
         </div>
       </div>
 
@@ -235,20 +260,21 @@
     </div>
 
     <script type="module">
-      import { SpectrogramViewer } from '@sonogram/core';
+      import { hzToScale, SpectrogramViewer, scaleToHz } from '@sonogram/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       
       const form = document.getElementById('url-form');
       const input = form.querySelector('input[name="url"]');
+      const scaleSelect = document.getElementById('scale-select');
       const modeSelect = document.getElementById('mode-select');
       const audio = document.querySelector('audio');
       let specCanvas = document.querySelector('.spec-canvas');
-      const chartCanvas = document.querySelector('.chart-canvas');
-      const chartCtx = chartCanvas.getContext('2d');
+      const sliceCanvas = document.querySelector('.slice-canvas');
+      const sliceCtx = sliceCanvas.getContext('2d');
 
       const statusEl = document.getElementById('spec-status');
-      const chartTimeEl = document.getElementById('chart-time-label');
+      const sliceTimeEl = document.getElementById('slice-time-label');
       const cursorPosEl = document.getElementById('cursor-pos');
       const valTimeEl = document.getElementById('val-time');
       const valFrameEl = document.getElementById('val-frame');
@@ -261,6 +287,7 @@
       let viewer = null;
       let lastPoint = null;
       let lastSpectrum = null;
+      let lastCanvasY = null;
 
       function resizeCanvas(c) {
         const rect = c.getBoundingClientRect();
@@ -269,21 +296,25 @@
         c.height = Math.floor(rect.height * dpr);
       }
 
-      function drawSpectrumChart(spectrum, activePoint) {
-        if (!spectrum || !chartCtx) return;
+      function drawVerticalSpectrumChart(spectrum, activePoint, canvasYRatio) {
+        if (!spectrum || !sliceCtx || !viewer) return;
         const dpr = window.devicePixelRatio || 1;
-        const w = chartCanvas.width;
-        const h = chartCanvas.height;
+        const w = sliceCanvas.width;
+        const h = sliceCanvas.height;
 
-        chartCtx.save();
-        chartCtx.clearRect(0, 0, w, h);
+        sliceCtx.save();
+        sliceCtx.clearRect(0, 0, w, h);
 
-        const padLeft = 46 * dpr;
-        const padRight = 16 * dpr;
-        const padTop = 18 * dpr;
-        const padBottom = 34 * dpr;
+        const padLeft = 44 * dpr;
+        const padRight = 18 * dpr;
+        const padTop = 10 * dpr;
+        const padBottom = 28 * dpr;
         const plotW = w - padLeft - padRight;
         const plotH = h - padTop - padBottom;
+
+        const vp = viewer.getViewport();
+        const minScale = hzToScale(vp.minFrequency, vp.frequencyScale);
+        const maxScale = hzToScale(vp.maxFrequency, vp.frequencyScale);
 
         // Determine value min/max bounds based on mode
         let minVal = -96;
@@ -296,93 +327,116 @@
           maxVal = 1;
         }
 
-        // Draw grid lines
-        chartCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        chartCtx.lineWidth = 1 * dpr;
-        chartCtx.fillStyle = '#64748b';
-        chartCtx.font = `${10 * dpr}px system-ui, sans-serif`;
-        chartCtx.textAlign = 'right';
-        chartCtx.textBaseline = 'middle';
+        // Draw horizontal frequency grid lines aligning with vertical scale
+        sliceCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        sliceCtx.lineWidth = 1 * dpr;
+        sliceCtx.fillStyle = '#64748b';
+        sliceCtx.font = `${10 * dpr}px system-ui, sans-serif`;
+        sliceCtx.textAlign = 'right';
+        sliceCtx.textBaseline = 'middle';
 
-        const ySteps = 4;
-        for (let i = 0; i <= ySteps; i++) {
-          const v = minVal + (maxVal - minVal) * (1 - i / ySteps);
-          const y = padTop + (plotH / ySteps) * i;
-          chartCtx.beginPath();
-          chartCtx.moveTo(padLeft, y);
-          chartCtx.lineTo(w - padRight, y);
-          chartCtx.stroke();
-          chartCtx.fillText(v.toFixed(0) + (spectrum.mode === 'db' ? ' dB' : ''), padLeft - 6 * dpr, y);
+        const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+        for (const ratio of yTicks) {
+          const scaledVal = maxScale - ratio * (maxScale - minScale);
+          const freqHz = scaleToHz(scaledVal, vp.frequencyScale);
+          const y = padTop + ratio * plotH;
+
+          sliceCtx.beginPath();
+          sliceCtx.moveTo(padLeft, y);
+          sliceCtx.lineTo(w - padRight, y);
+          sliceCtx.stroke();
+
+          sliceCtx.fillText(
+            freqHz >= 1000 ? `${(freqHz / 1000).toFixed(1)}k` : `${Math.round(freqHz)}`,
+            padLeft - 6 * dpr,
+            y
+          );
         }
 
-        // Frequency X-axis labels
-        chartCtx.textAlign = 'center';
-        chartCtx.textBaseline = 'top';
-        const freqs = spectrum.frequencies;
-        const maxFreq = freqs[freqs.length - 1] || 22050;
+        // Draw vertical amplitude grid lines & bottom X-axis labels
+        sliceCtx.textAlign = 'center';
+        sliceCtx.textBaseline = 'top';
         const xSteps = 3;
         for (let i = 0; i <= xSteps; i++) {
-          const f = (maxFreq / xSteps) * i;
+          const v = minVal + (maxVal - minVal) * (i / xSteps);
           const x = padLeft + (plotW / xSteps) * i;
-          chartCtx.fillText(`${(f / 1000).toFixed(1)}k`, x, h - padBottom + 8 * dpr);
+
+          sliceCtx.beginPath();
+          sliceCtx.moveTo(x, padTop);
+          sliceCtx.lineTo(x, padTop + plotH);
+          sliceCtx.stroke();
+
+          sliceCtx.fillText(
+            v.toFixed(0) + (spectrum.mode === 'db' ? '' : ''),
+            x,
+            h - padBottom + 6 * dpr
+          );
         }
 
-        // Draw spectrum line & area fill
-        const values = spectrum.values;
-        const len = values.length;
+        // Draw vertical spectrum curve (Y = Frequency, X = Amplitude/Energy)
+        const freqs = spectrum.frequencies;
+        const vals = spectrum.values;
+        const len = vals.length;
+
         if (len > 0) {
-          chartCtx.beginPath();
+          sliceCtx.beginPath();
           for (let i = 0; i < len; i++) {
-            const x = padLeft + (i / (len - 1)) * plotW;
-            const normY = Math.max(0, Math.min(1, (values[i] - minVal) / (maxVal - minVal || 1)));
-            const y = padTop + (1 - normY) * plotH;
-            if (i === 0) chartCtx.moveTo(x, y);
-            else chartCtx.lineTo(x, y);
+            const freq = freqs[i];
+            const scaled = hzToScale(freq, vp.frequencyScale);
+            const yNorm = (scaled - minScale) / (maxScale - minScale || 1);
+            const y = padTop + (1 - Math.max(0, Math.min(1, yNorm))) * plotH;
+
+            const valNorm = (vals[i] - minVal) / (maxVal - minVal || 1);
+            const x = padLeft + Math.max(0, Math.min(1, valNorm)) * plotW;
+
+            if (i === 0) sliceCtx.moveTo(x, y);
+            else sliceCtx.lineTo(x, y);
           }
 
-          chartCtx.strokeStyle = '#38bdf8';
-          chartCtx.lineWidth = 2 * dpr;
-          chartCtx.stroke();
+          // Stroke frequency curve
+          sliceCtx.strokeStyle = '#38bdf8';
+          sliceCtx.lineWidth = 2 * dpr;
+          sliceCtx.stroke();
 
-          // Gradient area fill
-          chartCtx.lineTo(padLeft + plotW, padTop + plotH);
-          chartCtx.lineTo(padLeft, padTop + plotH);
-          chartCtx.closePath();
-          const grad = chartCtx.createLinearGradient(0, padTop, 0, padTop + plotH);
-          grad.addColorStop(0, 'rgba(56, 189, 248, 0.28)');
-          grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
-          chartCtx.fillStyle = grad;
-          chartCtx.fill();
+          // Fill area towards the left axis
+          sliceCtx.lineTo(padLeft, padTop);
+          sliceCtx.lineTo(padLeft, padTop + plotH);
+          sliceCtx.closePath();
+
+          const grad = sliceCtx.createLinearGradient(padLeft, 0, padLeft + plotW, 0);
+          grad.addColorStop(0, 'rgba(56, 189, 248, 0.04)');
+          grad.addColorStop(1, 'rgba(56, 189, 248, 0.32)');
+          sliceCtx.fillStyle = grad;
+          sliceCtx.fill();
         }
 
-        // Draw active point highlight indicator
-        if (activePoint && typeof activePoint.value === 'number') {
-          const binRatio = Math.max(0, Math.min(1, activePoint.binIndex / (len - 1 || 1)));
-          const px = padLeft + binRatio * plotW;
-          const normY = Math.max(0, Math.min(1, (activePoint.value - minVal) / (maxVal - minVal || 1)));
-          const py = padTop + (1 - normY) * plotH;
+        // Draw horizontal cursor guide line & active point marker
+        if (canvasYRatio !== null && activePoint && typeof activePoint.value === 'number') {
+          const cy = padTop + canvasYRatio * plotH;
+          const valNorm = (activePoint.value - minVal) / (maxVal - minVal || 1);
+          const cx = padLeft + Math.max(0, Math.min(1, valNorm)) * plotW;
 
-          // Vertical guide line
-          chartCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-          chartCtx.lineWidth = 1 * dpr;
-          chartCtx.setLineDash([4 * dpr, 4 * dpr]);
-          chartCtx.beginPath();
-          chartCtx.moveTo(px, padTop);
-          chartCtx.lineTo(px, padTop + plotH);
-          chartCtx.stroke();
-          chartCtx.setLineDash([]);
+          // Horizontal alignment guide spanning the full slice plot
+          sliceCtx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+          sliceCtx.lineWidth = 1 * dpr;
+          sliceCtx.setLineDash([4 * dpr, 4 * dpr]);
+          sliceCtx.beginPath();
+          sliceCtx.moveTo(padLeft, cy);
+          sliceCtx.lineTo(w - padRight, cy);
+          sliceCtx.stroke();
+          sliceCtx.setLineDash([]);
 
-          // Glowing dot
-          chartCtx.beginPath();
-          chartCtx.arc(px, py, 5 * dpr, 0, Math.PI * 2);
-          chartCtx.fillStyle = '#f59e0b';
-          chartCtx.fill();
-          chartCtx.lineWidth = 2 * dpr;
-          chartCtx.strokeStyle = '#fff';
-          chartCtx.stroke();
+          // Glowing active point marker
+          sliceCtx.beginPath();
+          sliceCtx.arc(cx, cy, 5 * dpr, 0, Math.PI * 2);
+          sliceCtx.fillStyle = '#f59e0b';
+          sliceCtx.fill();
+          sliceCtx.lineWidth = 2 * dpr;
+          sliceCtx.strokeStyle = '#fff';
+          sliceCtx.stroke();
         }
 
-        chartCtx.restore();
+        sliceCtx.restore();
       }
 
       async function queryAtPoint(x, y) {
@@ -393,10 +447,12 @@
         
         lastPoint = point;
         lastSpectrum = spectrum;
+        const rect = specCanvas.getBoundingClientRect();
+        lastCanvasY = y / (rect.height || 1);
 
         // Update DOM metrics
         cursorPosEl.textContent = `x: ${Math.round(x)}px, y: ${Math.round(y)}px`;
-        chartTimeEl.textContent = `t = ${point.time.toFixed(3)} s`;
+        sliceTimeEl.textContent = `t = ${point.time.toFixed(3)} s`;
         valTimeEl.textContent = `${point.time.toFixed(3)} s`;
         valFrameEl.textContent = `Frame #${point.frameIndex}`;
         valFreqEl.textContent = `${Math.round(point.frequency).toLocaleString()} Hz`;
@@ -410,13 +466,14 @@
             time: spectrum.time,
             frameIndex: spectrum.frameIndex,
             mode: spectrum.mode,
+            frequencyScale: spectrum.frequencyScale,
             binCount: spectrum.frequencies.length,
             sampleFrequencies: Array.from(spectrum.frequencies.slice(0, 5)),
             sampleValues: Array.from(spectrum.values.slice(0, 5)),
           }
         }, null, 2);
 
-        drawSpectrumChart(spectrum, point);
+        drawVerticalSpectrumChart(spectrum, point, lastCanvasY);
       }
 
       async function load(url) {
@@ -424,12 +481,13 @@
         statusEl.textContent = 'Loading audio...';
         audio.src = url;
         try {
-          resizeCanvas(chartCanvas);
+          resizeCanvas(sliceCanvas);
           viewer = await SpectrogramViewer.fromUrl({
             audio,
             canvas: specCanvas,
             url,
             colorMap: 'magma',
+            frequencyScale: scaleSelect.value,
             valueMode: modeSelect.value,
           });
           await viewer.render();
@@ -437,7 +495,7 @@
           
           // Initial slice at t = 0
           const initialSpectrum = await viewer.querySpectrum({ time: 0, mode: modeSelect.value });
-          drawSpectrumChart(initialSpectrum, null);
+          drawVerticalSpectrumChart(initialSpectrum, null, null);
         } catch (error) {
           statusEl.textContent = 'Error';
           rawOutputEl.textContent = error instanceof Error ? error.message : String(error);
@@ -447,6 +505,14 @@
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
+      });
+
+      scaleSelect.addEventListener('change', () => {
+        if (!viewer) return;
+        viewer.updateConfig({ frequencyScale: scaleSelect.value });
+        if (lastSpectrum) {
+          drawVerticalSpectrumChart(lastSpectrum, lastPoint, lastCanvasY);
+        }
       });
 
       modeSelect.addEventListener('change', () => {
@@ -465,12 +531,12 @@
       });
 
       window.addEventListener('resize', () => {
-        resizeCanvas(chartCanvas);
-        if (lastSpectrum) drawSpectrumChart(lastSpectrum, lastPoint);
+        resizeCanvas(sliceCanvas);
+        if (lastSpectrum) drawVerticalSpectrumChart(lastSpectrum, lastPoint, lastCanvasY);
       });
 
       input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
-      resizeCanvas(chartCanvas);
+      resizeCanvas(sliceCanvas);
       await load(input.value);
     </script>
   </body>
