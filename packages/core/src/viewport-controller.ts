@@ -135,8 +135,12 @@ export class ViewportController implements IViewportController {
     vp: Partial<{ startTime: number; endTime: number }>,
     source?: string,
   ): void {
-    const targetStart = vp.startTime ?? this.startTime;
-    const targetEnd = vp.endTime ?? this.endTime;
+    const targetStart = Number.isFinite(vp.startTime)
+      ? (vp.startTime as number)
+      : this.startTime;
+    const targetEnd = Number.isFinite(vp.endTime)
+      ? (vp.endTime as number)
+      : this.endTime;
     const clamped = clampViewportTimes(
       targetStart,
       targetEnd,
@@ -165,8 +169,11 @@ export class ViewportController implements IViewportController {
   }
 
   zoom(factor: number, centerTime?: number, source?: string): void {
+    if (!Number.isFinite(factor) || factor <= 0) return;
     const duration = this.endTime - this.startTime;
-    const center = centerTime ?? (this.startTime + this.endTime) / 2;
+    const center = Number.isFinite(centerTime)
+      ? (centerTime as number)
+      : (this.startTime + this.endTime) / 2;
     const targetDuration = Math.max(
       this.minDuration,
       Math.min(this.maxDuration, this.totalDuration, duration * factor),
@@ -190,6 +197,7 @@ export class ViewportController implements IViewportController {
   }
 
   pan(deltaSeconds: number, source?: string): void {
+    if (!Number.isFinite(deltaSeconds)) return;
     const duration = this.endTime - this.startTime;
     const nextStart = Math.max(
       0,
@@ -202,6 +210,7 @@ export class ViewportController implements IViewportController {
   }
 
   panTo(startTime: number, source?: string): void {
+    if (!Number.isFinite(startTime)) return;
     const duration = this.endTime - this.startTime;
     const nextStart = Math.max(
       0,
@@ -227,6 +236,7 @@ export class ViewportController implements IViewportController {
   }
 
   setTotalDuration(totalDuration: number): void {
+    if (!Number.isFinite(totalDuration) || totalDuration <= 0) return;
     this.totalDuration = Math.max(0.01, totalDuration);
     this.setViewport({ startTime: this.startTime, endTime: this.endTime });
   }
@@ -326,15 +336,19 @@ export class ViewportController implements IViewportController {
   }
 
   private broadcast(source?: string): void {
+    if (this.isBroadcasting) return;
     this.isBroadcasting = true;
     const viewport = this.getViewport();
     this.events.emit("change", { viewport, source });
 
-    for (const [viewer] of this.boundViewers) {
-      viewer.updateViewport({
-        startTime: this.startTime,
-        endTime: this.endTime,
-      });
+    const snapshot = Array.from(this.boundViewers.keys());
+    for (const viewer of snapshot) {
+      if (this.boundViewers.has(viewer)) {
+        viewer.updateViewport({
+          startTime: this.startTime,
+          endTime: this.endTime,
+        });
+      }
     }
     this.isBroadcasting = false;
   }
