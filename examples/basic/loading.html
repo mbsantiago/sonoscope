@@ -60,7 +60,10 @@
     <p data-status></p>
 
     <script type="module">
-      import { SpectrogramViewer } from "@sonogram/core";
+      import {
+        attachCanvasNavigation,
+        SpectrogramViewer,
+      } from "@sonogram/core";
 
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
@@ -74,6 +77,11 @@
       });
 
       spectrogram.requestRender();
+
+      attachCanvasNavigation(spectrogram, canvas, {
+        enableWheel: true,
+        enableDrag: true,
+      });
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
