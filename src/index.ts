@@ -1,36 +1,83 @@
-export const version = '0.0.0';
-export { MainThreadComputeBackend } from './backend';
-export type { ComputeTileRequest, SpectrogramComputeBackend } from './backend';
-export { createTileKey, SpectrogramCache } from './cache';
-export type { TileKeyParts } from './cache';
-export { buildColorMap, parseColor } from './colormap';
-export { resolveConfig, stableHash } from './config';
-export { FetchByteSource, concatChunks, isSeekableByteSource, readPrefix } from './byte-source';
-export type { ByteStreamSource, SeekableByteSource } from './byte-source';
-export { TypedEventEmitter } from './events';
-export { canvasToTimeFrequency, hzToMel, hzToScale, melToHz, scaleToHz, timeFrequencyToCanvas } from './frequency-scale';
-export { attachCanvasNavigation, panViewportTime, setViewerViewport, zoomViewportTime } from './navigation';
-export type { CanvasNavigationOptions, TimeBounds } from './navigation';
-export { CanvasSpectrogramRenderer, pickNearestBin, pickNearestFrame } from './renderers/canvas';
-export type { RenderInput, RendererKind, SpectrogramRenderer } from './renderers/canvas';
-export { createSpectrogramRenderer } from './renderer-factory';
-export { WebGL2SpectrogramRenderer } from './renderers/webgl2';
-export { DitherSpectrogramProgram } from './renderers/webgl2-dither-program';
-export { NormalSpectrogramProgram } from './renderers/webgl2-normal-program';
-export { SobelSpectrogramProgram } from './renderers/webgl2-sobel-program';
-export { TerrainSpectrogramProgram } from './renderers/webgl2-terrain-program';
-export { WebGL2ShaderProgram } from './renderers/webgl2-program';
-export type { WebGL2Frame, WebGL2RenderProgram, WebGL2RenderResources } from './renderers/webgl2-program';
-export { FrameMeter } from './performance';
-export type { FrameStats, PerformanceDetail, PerformanceMeasure } from './performance';
-export { DecodedAudioSource, createAudioSourceFromUrl } from './source';
-export { computeStftMatrix, createWindow } from './stft';
-export { StreamingWavSource } from './streaming-wav-source';
-export { applyTransforms, getTransformPadding } from './transforms';
-export { dbFromMagnitude, deriveDb, derivePower, deriveValueArrays, normalizeValue } from './value-scale';
-export { SpectrogramViewer } from './viewer';
-export { decodeWavPcm, isWavBytes, parseWavHeader, wavTimeToByteRange } from './wav';
-export type { WavInfo } from './wav';
-export { WorkerComputeBackend, createDefaultWorker } from './worker-backend';
-export type { SpectrogramWorkerLike, WorkerComputeBackendOptions } from './worker-backend';
-export type * from './types';
+export const version = "0.0.0";
+export type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
+export { MainThreadComputeBackend } from "./backend";
+export type { ByteStreamSource, SeekableByteSource } from "./byte-source";
+export {
+	concatChunks,
+	FetchByteSource,
+	isSeekableByteSource,
+	readPrefix,
+} from "./byte-source";
+export type { TileKeyParts } from "./cache";
+export { createTileKey, SpectrogramCache } from "./cache";
+export { buildColorMap, parseColor } from "./colormap";
+export { resolveConfig, stableHash } from "./config";
+export { TypedEventEmitter } from "./events";
+export {
+	canvasToTimeFrequency,
+	hzToMel,
+	hzToScale,
+	melToHz,
+	scaleToHz,
+	timeFrequencyToCanvas,
+} from "./frequency-scale";
+export type { CanvasNavigationOptions, TimeBounds } from "./navigation";
+export {
+	attachCanvasNavigation,
+	panViewportTime,
+	setViewerViewport,
+	zoomViewportTime,
+} from "./navigation";
+export type {
+	FrameStats,
+	PerformanceDetail,
+	PerformanceMeasure,
+} from "./performance";
+export { FrameMeter } from "./performance";
+export { createSpectrogramRenderer } from "./renderer-factory";
+export type {
+	RendererKind,
+	RenderInput,
+	SpectrogramRenderer,
+} from "./renderers/canvas";
+export {
+	CanvasSpectrogramRenderer,
+	pickNearestBin,
+	pickNearestFrame,
+} from "./renderers/canvas";
+export { WebGL2SpectrogramRenderer } from "./renderers/webgl2";
+export { DitherSpectrogramProgram } from "./renderers/webgl2-dither-program";
+export { NormalSpectrogramProgram } from "./renderers/webgl2-normal-program";
+export type {
+	WebGL2Frame,
+	WebGL2RenderProgram,
+	WebGL2RenderResources,
+} from "./renderers/webgl2-program";
+export { WebGL2ShaderProgram } from "./renderers/webgl2-program";
+export { SobelSpectrogramProgram } from "./renderers/webgl2-sobel-program";
+export { TerrainSpectrogramProgram } from "./renderers/webgl2-terrain-program";
+export { createAudioSourceFromUrl, DecodedAudioSource } from "./source";
+export { computeStftMatrix, createWindow } from "./stft";
+export { StreamingWavSource } from "./streaming-wav-source";
+export { applyTransforms, getTransformPadding } from "./transforms";
+export type * from "./types";
+export {
+	dbFromMagnitude,
+	deriveDb,
+	derivePower,
+	deriveValueArrays,
+	normalizeValue,
+} from "./value-scale";
+export { SpectrogramViewer } from "./viewer";
+export type { WavInfo } from "./wav";
+export {
+	decodeWavPcm,
+	isWavBytes,
+	parseWavHeader,
+	wavTimeToByteRange,
+} from "./wav";
+export type {
+	SpectrogramWorkerLike,
+	WorkerComputeBackendOptions,
+} from "./worker-backend";
+export { createDefaultWorker, WorkerComputeBackend } from "./worker-backend";

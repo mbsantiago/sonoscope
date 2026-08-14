@@ -1,58 +1,58 @@
 {
-  "name": "espectro",
-  "version": "0.0.0",
-  "description": "Framework-agnostic TypeScript spectrogram rendering for browser audio.",
-  "type": "module",
-  "license": "MIT",
-  "author": "Santiago",
-  "keywords": [
-    "audio",
-    "spectrogram",
-    "stft",
-    "webgl",
-    "canvas",
-    "typescript"
-  ],
-  "sideEffects": false,
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "scripts": {
-    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
-    "bench": "vitest bench",
-    "capture:renderers": "node scripts/capture-renderers.mjs",
-    "dev:example": "vite --host 127.0.0.1 examples/basic",
-    "pack:dry": "npm pack --dry-run",
-    "prepack": "npm run build",
-    "test": "vitest run",
-    "test:browser": "vitest run --config vite.browser.config.ts",
-    "check:biome": "biome check",
-    "check:types": "tsc --noEmit",
-    "fix:format": "biome format --write",
-    "fix:lint": "biome check --write",
-    "fix:unsafe": "biome check --write --unsafe"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.8",
-    "@vitest/browser": "latest",
-    "@vitest/browser-playwright": "latest",
-    "pngjs": "^7.0.0",
-    "typescript": "latest",
-    "vite": "latest",
-    "vitest": "latest"
-  }
+	"name": "espectro",
+	"version": "0.0.0",
+	"description": "Framework-agnostic TypeScript spectrogram rendering for browser audio.",
+	"type": "module",
+	"license": "MIT",
+	"author": "Santiago",
+	"keywords": [
+		"audio",
+		"spectrogram",
+		"stft",
+		"webgl",
+		"canvas",
+		"typescript"
+	],
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+		"bench": "vitest bench",
+		"capture:renderers": "node scripts/capture-renderers.mjs",
+		"dev:example": "vite --host 127.0.0.1 examples/basic",
+		"pack:dry": "npm pack --dry-run",
+		"prepack": "npm run build",
+		"test": "vitest run",
+		"test:browser": "vitest run --config vite.browser.config.ts",
+		"check:biome": "biome check",
+		"check:types": "tsc --noEmit",
+		"fix:format": "biome format --write",
+		"fix:lint": "biome check --write",
+		"fix:unsafe": "biome check --write --unsafe"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.8",
+		"@vitest/browser": "latest",
+		"@vitest/browser-playwright": "latest",
+		"pngjs": "^7.0.0",
+		"typescript": "latest",
+		"vite": "latest",
+		"vitest": "latest"
+	}
 }

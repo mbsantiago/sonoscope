@@ -1,4 +1,4 @@
-import { NormalSpectrogramProgram } from './webgl2-normal-program';
+import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 
 export const WEBGL2_SOBEL_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
@@ -79,7 +79,7 @@ void main() {
 }`;
 
 export class SobelSpectrogramProgram extends NormalSpectrogramProgram {
-  constructor(gl: WebGL2RenderingContext) {
-    super(gl, WEBGL2_SOBEL_FRAGMENT_SHADER);
-  }
+	constructor(gl: WebGL2RenderingContext) {
+		super(gl, WEBGL2_SOBEL_FRAGMENT_SHADER);
+	}
 }

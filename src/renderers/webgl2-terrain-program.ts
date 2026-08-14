@@ -6,10 +6,17 @@
  * Chrome Music Lab is Copyright 2016 Google Inc. and licensed under Apache-2.0.
  * This shader is an original WebGL2 implementation adapted to espectro's tile texture layout.
  */
-import type { RenderInput } from './canvas';
-import { frequencyScaleCode, WebGL2ShaderProgram, type WebGL2Frame, type WebGL2RenderProgram, type WebGL2RenderResources } from './webgl2-program';
-import type { SpectrogramMatrix, ValueScaleConfig } from '../types';
-import { terrainVerticesForTile } from './webgl2-geometry';
+
+import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
+import type { RenderInput } from "./canvas";
+import { terrainVerticesForTile } from "./webgl2-geometry";
+import {
+	frequencyScaleCode,
+	type WebGL2Frame,
+	type WebGL2RenderProgram,
+	type WebGL2RenderResources,
+	WebGL2ShaderProgram,
+} from "./webgl2-program";
 
 export const WEBGL2_TERRAIN_VERTEX_SHADER = `#version 300 es
 precision highp float;
@@ -97,123 +104,204 @@ void main() {
 }`;
 
 export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
-  readonly shader: WebGL2ShaderProgram;
-  private readonly terrainBuffer: WebGLBuffer;
+	readonly shader: WebGL2ShaderProgram;
+	private readonly terrainBuffer: WebGLBuffer;
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
-    this.shader = new WebGL2ShaderProgram(gl, WEBGL2_TERRAIN_VERTEX_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER);
-    const terrainBuffer = gl.createBuffer();
-    if (!terrainBuffer) throw new Error('Unable to initialize WebGL2 terrain renderer resources');
-    this.terrainBuffer = terrainBuffer;
-  }
+	constructor(private readonly gl: WebGL2RenderingContext) {
+		this.shader = new WebGL2ShaderProgram(
+			gl,
+			WEBGL2_TERRAIN_VERTEX_SHADER,
+			WEBGL2_TERRAIN_FRAGMENT_SHADER,
+		);
+		const terrainBuffer = gl.createBuffer();
+		if (!terrainBuffer)
+			throw new Error("Unable to initialize WebGL2 terrain renderer resources");
+		this.terrainBuffer = terrainBuffer;
+	}
 
-  paint(input: RenderInput, frame: WebGL2Frame, resources: WebGL2RenderResources): void {
-    const gl = this.gl;
-    gl.enable(gl.DEPTH_TEST);
-    gl.disable(gl.BLEND);
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    this.shader.use();
-    this.bindAttributes();
-    this.shader.uniform4f('u_viewport', input.viewport.startTime, input.viewport.endTime, input.viewport.minFrequency, input.viewport.maxFrequency);
-    this.shader.uniform2f('u_terrainTimeRange', input.viewport.startTime, input.viewport.endTime);
-    this.shader.uniform2f('u_canvasSize', frame.deviceWidth, frame.deviceHeight);
-    this.shader.uniform1f('u_frequencyScale', frequencyScaleCode(input.viewport.frequencyScale));
-    this.shader.uniform1f('u_terrainHeight', 0.34);
-    this.shader.uniform1f('u_terrainPlayhead', 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
-    this.shader.uniform1i('u_colormap', 1);
-    for (const tile of input.tiles) this.drawTile(tile, input.valueScale, resources);
-    if (input.playheadTime !== undefined) this.drawPlayhead(input.playheadTime, input.valueScale, resources);
-    gl.disable(gl.DEPTH_TEST);
-  }
+	paint(
+		input: RenderInput,
+		frame: WebGL2Frame,
+		resources: WebGL2RenderResources,
+	): void {
+		const gl = this.gl;
+		gl.enable(gl.DEPTH_TEST);
+		gl.disable(gl.BLEND);
+		gl.clearColor(0, 0, 0, 1);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		this.shader.use();
+		this.bindAttributes();
+		this.shader.uniform4f(
+			"u_viewport",
+			input.viewport.startTime,
+			input.viewport.endTime,
+			input.viewport.minFrequency,
+			input.viewport.maxFrequency,
+		);
+		this.shader.uniform2f(
+			"u_terrainTimeRange",
+			input.viewport.startTime,
+			input.viewport.endTime,
+		);
+		this.shader.uniform2f(
+			"u_canvasSize",
+			frame.deviceWidth,
+			frame.deviceHeight,
+		);
+		this.shader.uniform1f(
+			"u_frequencyScale",
+			frequencyScaleCode(input.viewport.frequencyScale),
+		);
+		this.shader.uniform1f("u_terrainHeight", 0.34);
+		this.shader.uniform1f("u_terrainPlayhead", 0);
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
+		this.shader.uniform1i("u_colormap", 1);
+		for (const tile of input.tiles)
+			this.drawTile(tile, input.valueScale, resources);
+		if (input.playheadTime !== undefined)
+			this.drawPlayhead(input.playheadTime, input.valueScale, resources);
+		gl.disable(gl.DEPTH_TEST);
+	}
 
-  delete(): void {
-    this.gl.deleteBuffer(this.terrainBuffer);
-    this.shader.delete();
-  }
+	delete(): void {
+		this.gl.deleteBuffer(this.terrainBuffer);
+		this.shader.delete();
+	}
 
-  private bindAttributes(): void {
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
-    if (this.shader.position >= 0) {
-      this.gl.enableVertexAttribArray(this.shader.position);
-      this.gl.vertexAttribPointer(this.shader.position, 2, this.gl.FLOAT, false, 16, 0);
-    }
-    if (this.shader.tileUv >= 0) {
-      this.gl.enableVertexAttribArray(this.shader.tileUv);
-      this.gl.vertexAttribPointer(this.shader.tileUv, 2, this.gl.FLOAT, false, 16, 8);
-    }
-  }
+	private bindAttributes(): void {
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
+		if (this.shader.position >= 0) {
+			this.gl.enableVertexAttribArray(this.shader.position);
+			this.gl.vertexAttribPointer(
+				this.shader.position,
+				2,
+				this.gl.FLOAT,
+				false,
+				16,
+				0,
+			);
+		}
+		if (this.shader.tileUv >= 0) {
+			this.gl.enableVertexAttribArray(this.shader.tileUv);
+			this.gl.vertexAttribPointer(
+				this.shader.tileUv,
+				2,
+				this.gl.FLOAT,
+				false,
+				16,
+				8,
+			);
+		}
+	}
 
-  private drawTile(tile: SpectrogramMatrix, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
-    if (tile.frameCount < 2 || tile.binCount < 2) return;
-    const entry = resources.textureForTile(tile, valueScale);
-    this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
-    this.shader.uniform1i('u_tile', 0);
-    this.shader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
-    this.shader.uniform2f('u_tileFrequencyRange', tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2));
-    this.shader.uniform2f('u_tileSize', entry.width, entry.height);
-    const vertices = terrainVerticesForTile(tile, 96, 96);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
-  }
+	private drawTile(
+		tile: SpectrogramMatrix,
+		valueScale: Required<ValueScaleConfig>,
+		resources: WebGL2RenderResources,
+	): void {
+		if (tile.frameCount < 2 || tile.binCount < 2) return;
+		const entry = resources.textureForTile(tile, valueScale);
+		this.gl.activeTexture(this.gl.TEXTURE0);
+		this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
+		this.shader.uniform1i("u_tile", 0);
+		this.shader.uniform2f("u_tileTimeRange", tile.timeStart, tile.timeEnd);
+		this.shader.uniform2f(
+			"u_tileFrequencyRange",
+			tile.frequencies[0] ?? 0,
+			tile.frequencies[tile.frequencies.length - 1] ??
+				Math.max(1, tile.sampleRate / 2),
+		);
+		this.shader.uniform2f("u_tileSize", entry.width, entry.height);
+		const vertices = terrainVerticesForTile(tile, 96, 96);
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
+		this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
+	}
 
-  private drawPlayhead(time: number, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
-    this.gl.disable(this.gl.DEPTH_TEST);
-    this.gl.enable(this.gl.BLEND);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-    this.shader.uniform1f('u_terrainPlayhead', 1);
-    for (const tile of resources.tiles) {
-      if (time < tile.timeStart || time > tile.timeEnd) continue;
-      this.drawPlayheadForTile(tile, time, valueScale, resources);
-    }
-    this.shader.uniform1f('u_terrainPlayhead', 0);
-    this.gl.disable(this.gl.BLEND);
-    this.gl.enable(this.gl.DEPTH_TEST);
-  }
+	private drawPlayhead(
+		time: number,
+		valueScale: Required<ValueScaleConfig>,
+		resources: WebGL2RenderResources,
+	): void {
+		this.gl.disable(this.gl.DEPTH_TEST);
+		this.gl.enable(this.gl.BLEND);
+		this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+		this.shader.uniform1f("u_terrainPlayhead", 1);
+		for (const tile of resources.tiles) {
+			if (time < tile.timeStart || time > tile.timeEnd) continue;
+			this.drawPlayheadForTile(tile, time, valueScale, resources);
+		}
+		this.shader.uniform1f("u_terrainPlayhead", 0);
+		this.gl.disable(this.gl.BLEND);
+		this.gl.enable(this.gl.DEPTH_TEST);
+	}
 
-  private drawPlayheadForTile(tile: SpectrogramMatrix, time: number, valueScale: Required<ValueScaleConfig>, resources: WebGL2RenderResources): void {
-    if (tile.frameCount < 2 || tile.binCount < 2) return;
-    const entry = resources.textureForTile(tile, valueScale);
-    const timeUv = Math.max(0, Math.min(1, (time - tile.timeStart) / Math.max(0.000001, tile.timeEnd - tile.timeStart)));
-    this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
-    this.shader.uniform1i('u_tile', 0);
-    this.shader.uniform2f('u_tileTimeRange', tile.timeStart, tile.timeEnd);
-    this.shader.uniform2f('u_tileFrequencyRange', tile.frequencies[0] ?? 0, tile.frequencies[tile.frequencies.length - 1] ?? Math.max(1, tile.sampleRate / 2));
-    this.shader.uniform2f('u_tileSize', entry.width, entry.height);
-    const vertices = terrainPlayheadVertices(timeUv, 96, 0.0035);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
-  }
+	private drawPlayheadForTile(
+		tile: SpectrogramMatrix,
+		time: number,
+		valueScale: Required<ValueScaleConfig>,
+		resources: WebGL2RenderResources,
+	): void {
+		if (tile.frameCount < 2 || tile.binCount < 2) return;
+		const entry = resources.textureForTile(tile, valueScale);
+		const timeUv = Math.max(
+			0,
+			Math.min(
+				1,
+				(time - tile.timeStart) /
+					Math.max(0.000001, tile.timeEnd - tile.timeStart),
+			),
+		);
+		this.gl.activeTexture(this.gl.TEXTURE0);
+		this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
+		this.shader.uniform1i("u_tile", 0);
+		this.shader.uniform2f("u_tileTimeRange", tile.timeStart, tile.timeEnd);
+		this.shader.uniform2f(
+			"u_tileFrequencyRange",
+			tile.frequencies[0] ?? 0,
+			tile.frequencies[tile.frequencies.length - 1] ??
+				Math.max(1, tile.sampleRate / 2),
+		);
+		this.shader.uniform2f("u_tileSize", entry.width, entry.height);
+		const vertices = terrainPlayheadVertices(timeUv, 96, 0.0035);
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
+		this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
+	}
 }
 
-function terrainPlayheadVertices(timeUv: number, rows: number, halfWidth: number): Float32Array {
-  const vertices = new Float32Array((rows - 1) * 6 * 4);
-  let offset = 0;
-  for (let row = 0; row < rows - 1; row++) {
-    const v0 = row / (rows - 1);
-    const v1 = (row + 1) / (rows - 1);
-    const u0 = Math.max(0, timeUv - halfWidth);
-    const u1 = Math.min(1, timeUv + halfWidth);
-    offset = writeVertex(vertices, offset, u0, v0);
-    offset = writeVertex(vertices, offset, u1, v0);
-    offset = writeVertex(vertices, offset, u0, v1);
-    offset = writeVertex(vertices, offset, u1, v0);
-    offset = writeVertex(vertices, offset, u1, v1);
-    offset = writeVertex(vertices, offset, u0, v1);
-  }
-  return vertices;
+function terrainPlayheadVertices(
+	timeUv: number,
+	rows: number,
+	halfWidth: number,
+): Float32Array {
+	const vertices = new Float32Array((rows - 1) * 6 * 4);
+	let offset = 0;
+	for (let row = 0; row < rows - 1; row++) {
+		const v0 = row / (rows - 1);
+		const v1 = (row + 1) / (rows - 1);
+		const u0 = Math.max(0, timeUv - halfWidth);
+		const u1 = Math.min(1, timeUv + halfWidth);
+		offset = writeVertex(vertices, offset, u0, v0);
+		offset = writeVertex(vertices, offset, u1, v0);
+		offset = writeVertex(vertices, offset, u0, v1);
+		offset = writeVertex(vertices, offset, u1, v0);
+		offset = writeVertex(vertices, offset, u1, v1);
+		offset = writeVertex(vertices, offset, u0, v1);
+	}
+	return vertices;
 }
 
-function writeVertex(vertices: Float32Array, offset: number, u: number, v: number): number {
-  vertices[offset] = u;
-  vertices[offset + 1] = v;
-  vertices[offset + 2] = u;
-  vertices[offset + 3] = v;
-  return offset + 4;
+function writeVertex(
+	vertices: Float32Array,
+	offset: number,
+	u: number,
+	v: number,
+): number {
+	vertices[offset] = u;
+	vertices[offset + 1] = v;
+	vertices[offset + 2] = u;
+	vertices[offset + 3] = v;
+	return offset + 4;
 }
