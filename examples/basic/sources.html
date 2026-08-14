@@ -53,7 +53,7 @@
     <div class="stage"><canvas></canvas></div>
 
     <script type="module">
-      import { SpectrogramViewer } from "../../src";
+      import { SpectrogramViewer, attachCanvasNavigation } from "../../src";
 
       const recordings = [
         [
@@ -130,6 +130,8 @@
           title.textContent = `Could not load ${label}: ${error instanceof Error ? error.message : String(error)}`;
         }
       }
+
+      attachCanvasNavigation(spectrogram, canvas, {});
 
       document
         .querySelector('[data-action="previous"]')
