@@ -8,13 +8,22 @@ import {
 } from "@sonogram/core";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 
+export type SpectrogramReadyInfo = {
+  viewer: SpectrogramViewer;
+  duration: number;
+  sampleRate: number;
+  nyquist: number;
+  viewport: ViewportConfig;
+};
+
 export type UseSpectrogramOptions = Omit<
   SpectrogramConfig,
   "canvas" | "audio"
 > & {
-  url?: string;
-  navigation?: boolean | CanvasNavigationOptions;
-  onViewportChange?: (viewport: ViewportConfig) => void;
+  url?: string | undefined;
+  navigation?: boolean | CanvasNavigationOptions | undefined;
+  onViewportChange?: ((viewport: ViewportConfig) => void) | undefined;
+  onReady?: ((info: SpectrogramReadyInfo) => void) | undefined;
 };
 
 export type UseSpectrogramResult = {
@@ -31,14 +40,22 @@ export type UseSpectrogramResult = {
 export function useSpectrogram(
   options: UseSpectrogramOptions = {},
 ): UseSpectrogramResult {
-  const { url, source, navigation, onViewportChange, ...viewerConfig } =
-    options;
+  const {
+    url,
+    source,
+    navigation,
+    onViewportChange,
+    onReady,
+    ...viewerConfig
+  } = options;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const viewerRef = useRef<SpectrogramViewer | null>(null);
   const onViewportChangeRef = useRef(onViewportChange);
   onViewportChangeRef.current = onViewportChange;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   const [status, setStatus] = useState<SpectrogramStatus>({ state: "idle" });
   const [viewport, setViewport] = useState<ViewportConfig | null>(null);
@@ -101,11 +118,24 @@ export function useSpectrogram(
         }
 
         viewerRef.current = viewer;
-        setDuration(viewer.getDuration());
-        setSampleRate(viewer.getSampleRate());
-        setNyquist(viewer.getNyquist());
-        setViewport(viewer.getViewport());
+        const dur = viewer.getDuration();
+        const sr = viewer.getSampleRate();
+        const nq = viewer.getNyquist();
+        const vp = viewer.getViewport();
+
+        setDuration(dur);
+        setSampleRate(sr);
+        setNyquist(nq);
+        setViewport(vp);
         setStatus(viewer.getStatus());
+
+        onReadyRef.current?.({
+          viewer,
+          duration: dur,
+          sampleRate: sr,
+          nyquist: nq,
+          viewport: vp,
+        });
 
         unsubs.push(
           viewer.on("viewportchange", (event) => {

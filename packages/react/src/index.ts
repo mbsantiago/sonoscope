@@ -4,6 +4,7 @@ export {
   type SpectrogramProps,
 } from "./Spectrogram";
 export {
+  type SpectrogramReadyInfo,
   type UseSpectrogramOptions,
   type UseSpectrogramResult,
   useSpectrogram,

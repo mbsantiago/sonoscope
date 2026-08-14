@@ -1,4 +1,4 @@
-import type { SpectrogramHandle } from "@sonogram/react";
+import type { SpectrogramHandle, SpectrogramReadyInfo } from "@sonogram/react";
 import type React from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -27,7 +27,6 @@ const initialSettings: SpectrogramSettings = {
 
 export function ReactSpectrogramDemo(): React.ReactElement {
   const spectrogramRef = useRef<SpectrogramHandle | null>(null);
-  const prevRecordingRef = useRef<number | null>(null);
   const [settings, setSettings] =
     useState<SpectrogramSettings>(initialSettings);
   const [duration, setDuration] = useState(30);
@@ -45,6 +44,23 @@ export function ReactSpectrogramDemo(): React.ReactElement {
   const currentRecording =
     RECORDINGS[settings.recordingIndex] ?? RECORDINGS[0]!;
 
+  function handleSpectrogramReady(info: SpectrogramReadyInfo) {
+    const { duration: dur, nyquist: nq, viewer } = info;
+    startTransition(() => {
+      setDuration(dur);
+      setNyquist(nq);
+      const nextVp: ViewportState = {
+        startTime: 0,
+        endTime: Math.min(12, dur),
+        minFrequency: 0,
+        maxFrequency: nq,
+      };
+      setViewport(nextVp);
+      viewer.setViewport(nextVp);
+      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
+    });
+  }
+
   useEffect(() => {
     const handle = spectrogramRef.current;
     if (!handle) return;
@@ -52,30 +68,10 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     const viewer = handle.getViewer();
     if (!viewer) return;
 
-    const sourceDuration = viewer.getDuration() || 30;
-    const sourceNyquist = viewer.getNyquist() || 22050;
-
-    setDuration(sourceDuration);
-    setNyquist(sourceNyquist);
-    setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-
-    // Reset viewport to 0 and Nyquist limit only when recording changes
-    if (prevRecordingRef.current !== settings.recordingIndex) {
-      prevRecordingRef.current = settings.recordingIndex;
-      const initialVp: ViewportState = {
-        startTime: 0,
-        endTime: Math.min(12, sourceDuration),
-        minFrequency: 0,
-        maxFrequency: sourceNyquist,
-      };
-      setViewport(initialVp);
-      viewer.setViewport(initialVp);
-    }
-
     const unsubProfile = viewer.on("renderprofile", () => {
       setCacheSummary(formatCacheStats(viewer.getCacheStats()));
     });
-    const unsubComplete = () => {
+    const unsubComp = viewer.on("rendercomplete", () => {
       const liveNyquist = viewer.getNyquist();
       if (liveNyquist > 0) {
         setNyquist(liveNyquist);
@@ -83,8 +79,7 @@ export function ReactSpectrogramDemo(): React.ReactElement {
       setStatus(
         `Drag to pan. Wheel to zoom. Shader: ${settings.shaderProgram}.`,
       );
-    };
-    const unsubComp = viewer.on("rendercomplete", unsubComplete);
+    });
     const unsubError = viewer.on("error", (event) => {
       setStatus(`Error: ${event.error.message}`);
     });
@@ -136,6 +131,13 @@ export function ReactSpectrogramDemo(): React.ReactElement {
   function handlePassiveViewportChange(next: ViewportState) {
     startTransition(() => {
       setViewport(next);
+      const viewer = spectrogramRef.current?.getViewer();
+      if (viewer) {
+        const liveNyquist = viewer.getNyquist();
+        if (liveNyquist > 0 && liveNyquist !== nyquist) {
+          setNyquist(liveNyquist);
+        }
+      }
     });
   }
 
@@ -173,6 +175,7 @@ export function ReactSpectrogramDemo(): React.ReactElement {
           playheadTime={playheadTime}
           viewport={viewport}
           cacheSummary={cacheSummary}
+          onReady={handleSpectrogramReady}
           onViewportChange={handlePassiveViewportChange}
           onUserNavigate={handleUserNavigate}
         />

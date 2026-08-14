@@ -1,5 +1,9 @@
 import type { ViewportConfig } from "@sonogram/core";
-import { Spectrogram, type SpectrogramHandle } from "@sonogram/react";
+import {
+  Spectrogram,
+  type SpectrogramHandle,
+  type SpectrogramReadyInfo,
+} from "@sonogram/react";
 import type React from "react";
 import { type RefObject, useMemo } from "react";
 import type { RecordingItem } from "../recordings";
@@ -17,6 +21,7 @@ export type SpectrogramPanelProps = {
   cacheSummary: string;
   onViewportChange: (viewport: ViewportState) => void;
   onUserNavigate: (viewport: ViewportState) => void;
+  onReady?: (info: SpectrogramReadyInfo) => void;
 };
 
 export function SpectrogramPanel(
@@ -33,6 +38,7 @@ export function SpectrogramPanel(
     cacheSummary,
     onViewportChange,
     onUserNavigate,
+    onReady,
   } = props;
 
   const rendererConfig = useMemo(() => {
@@ -72,6 +78,7 @@ export function SpectrogramPanel(
         followPlayback={true}
         renderOnSeek={true}
         navigation={true}
+        onReady={onReady}
         onViewportChange={(vp: ViewportConfig) => {
           onViewportChange({
             startTime: vp.startTime,
