@@ -40,7 +40,11 @@
     "prepack": "npm run build",
     "test": "vitest run",
     "test:browser": "vitest run --config vite.browser.config.ts",
-    "typecheck": "tsc --noEmit"
+    "check:biome": "biome check",
+    "check:types": "tsc --noEmit",
+    "fix:format": "biome format --write",
+    "fix:lint": "biome check --write",
+    "fix:unsafe": "biome check --write --unsafe"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
