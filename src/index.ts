@@ -48,9 +48,16 @@ export {
   scaleToHz,
   timeFrequencyToCanvas,
 } from "./frequency-scale";
-export type { CanvasNavigationOptions, TimeBounds } from "./navigation";
+export type {
+  CanvasDragNavigationOptions,
+  CanvasNavigationOptions,
+  CanvasWheelNavigationOptions,
+  TimeBounds,
+} from "./navigation";
 export {
+  attachCanvasDragNavigation,
   attachCanvasNavigation,
+  attachCanvasWheelNavigation,
   panViewportTime,
   setViewerViewport,
   zoomViewportTime,

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  attachCanvasDragNavigation,
   attachCanvasNavigation,
+  attachCanvasWheelNavigation,
   panViewportTime,
   zoomViewportTime,
 } from "./navigation";
@@ -85,7 +87,9 @@ describe("navigation utilities", () => {
       ),
     ).toEqual(tinyViewport);
   });
+});
 
+describe("attachCanvasWheelNavigation", () => {
   it("coalesces wheel navigation to one viewport update per animation frame", () => {
     let frame: FrameRequestCallback | undefined;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -123,7 +127,7 @@ describe("navigation utilities", () => {
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
-    attachCanvasNavigation(viewer, canvas);
+    attachCanvasWheelNavigation(viewer, canvas);
     const wheel = listeners.get("wheel")!;
 
     wheel({
@@ -203,6 +207,210 @@ describe("navigation utilities", () => {
   });
 });
 
+describe("attachCanvasDragNavigation", () => {
+  it("pans time when dragging beyond threshold", () => {
+    const { listeners, setViewport, canvas } = setupDragNavigation();
+
+    const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
+    const move = listeners.get("pointermove") || listeners.get("mousemove")!;
+    const up = listeners.get("pointerup") || listeners.get("mouseup")!;
+
+    // 1. Mouse down at x=50
+    down({ button: 0, clientX: 50, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(setViewport).not.toHaveBeenCalled();
+
+    // 2. Small movement within threshold (2px < 3px threshold)
+    move({ button: 0, clientX: 52, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(setViewport).not.toHaveBeenCalled();
+
+    // 3. Drag left by 25px on 100px wide canvas -> duration is 4s -> delta is +1s (panning forward)
+    move({ button: 0, clientX: 25, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(setViewport.mock.calls[0]?.[0]).toMatchObject({
+      startTime: 5,
+      endTime: 9,
+    });
+
+    // 4. Drag right by 25px on 100px wide canvas -> delta is -1s (panning backward)
+    move({ button: 0, clientX: 75, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(setViewport.mock.calls[1]?.[0]).toMatchObject({
+      startTime: 3,
+      endTime: 7,
+    });
+
+    // 5. Mouse up
+    up({ button: 0, clientX: 75, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(canvas.style.cursor).toBe("grab");
+  });
+
+  it("respects button and modifier options", () => {
+    const { listeners, setViewport } = setupDragNavigation({
+      button: 0,
+      modifier: "shift",
+    });
+
+    const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
+    const move = listeners.get("pointermove") || listeners.get("mousemove")!;
+
+    // Down without shift -> should not start dragging
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      shiftKey: false,
+      pointerId: 1,
+    } as PointerEvent);
+    move({
+      button: 0,
+      clientX: 20,
+      clientY: 50,
+      shiftKey: false,
+      pointerId: 1,
+    } as PointerEvent);
+    expect(setViewport).not.toHaveBeenCalled();
+
+    // Down with right button -> should not start dragging
+    down({
+      button: 2,
+      clientX: 50,
+      clientY: 50,
+      shiftKey: true,
+      pointerId: 1,
+    } as PointerEvent);
+    move({
+      button: 2,
+      clientX: 20,
+      clientY: 50,
+      shiftKey: true,
+      pointerId: 1,
+    } as PointerEvent);
+    expect(setViewport).not.toHaveBeenCalled();
+
+    // Down with shift -> should drag
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      shiftKey: true,
+      pointerId: 1,
+    } as PointerEvent);
+    move({
+      button: 0,
+      clientX: 20,
+      clientY: 50,
+      shiftKey: true,
+      pointerId: 1,
+    } as PointerEvent);
+    expect(setViewport).toHaveBeenCalled();
+  });
+
+  it("calls onDragStart, onDragEnd, and onNavigate callbacks", () => {
+    const onDragStart = vi.fn();
+    const onDragEnd = vi.fn();
+    const onNavigate = vi.fn();
+
+    const { listeners } = setupDragNavigation({
+      onDragStart,
+      onDragEnd,
+      onNavigate,
+    });
+
+    const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
+    const move = listeners.get("pointermove") || listeners.get("mousemove")!;
+    const up = listeners.get("pointerup") || listeners.get("mouseup")!;
+
+    down({ button: 0, clientX: 50, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(onDragStart).not.toHaveBeenCalled();
+
+    move({ button: 0, clientX: 20, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+
+    up({ button: 0, clientX: 20, clientY: 50, pointerId: 1 } as PointerEvent);
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("cleans up event listeners and restores original cursor on destroy", () => {
+    const listeners = new Map<string, EventListener>();
+    const canvas = {
+      style: { cursor: "default" },
+      addEventListener: vi.fn((name: string, listener: EventListener) =>
+        listeners.set(name, listener),
+      ),
+      removeEventListener: vi.fn(),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 100,
+        height: 100,
+      }),
+    } as unknown as HTMLCanvasElement;
+
+    const viewer = {
+      getConfig: () => ({ canvas, source: { duration: 20 } }),
+      getTimeBounds: () => ({
+        startTime: 0,
+        endTime: 20,
+        minDurationSeconds: 0.05,
+        maxDurationSeconds: 20,
+      }),
+      getViewport: () => ({ ...viewport }),
+      setViewport: vi.fn(),
+      requestRender: vi.fn(),
+      canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+    } as unknown as SpectrogramViewer;
+
+    const cleanup = attachCanvasDragNavigation(viewer, canvas);
+    expect(canvas.style.cursor).toBe("grab");
+
+    cleanup();
+    expect(canvas.removeEventListener).toHaveBeenCalled();
+    expect(canvas.style.cursor).toBe("default");
+  });
+});
+
+describe("attachCanvasNavigation composite", () => {
+  it("attaches both wheel and drag navigation by default", () => {
+    const listeners = new Map<string, EventListener>();
+    const canvas = {
+      style: { cursor: "" },
+      addEventListener: vi.fn((name: string, listener: EventListener) =>
+        listeners.set(name, listener),
+      ),
+      removeEventListener: vi.fn(),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 100,
+        height: 100,
+      }),
+    } as unknown as HTMLCanvasElement;
+
+    const viewer = {
+      getConfig: () => ({ canvas, source: { duration: 20 } }),
+      getTimeBounds: () => ({
+        startTime: 0,
+        endTime: 20,
+        minDurationSeconds: 0.05,
+        maxDurationSeconds: 20,
+      }),
+      getViewport: () => ({ ...viewport }),
+      setViewport: vi.fn(),
+      requestRender: vi.fn(),
+      canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+    } as unknown as SpectrogramViewer;
+
+    const cleanup = attachCanvasNavigation(viewer, canvas);
+    expect(listeners.has("wheel")).toBe(true);
+    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
+      true,
+    );
+
+    cleanup();
+    expect(canvas.removeEventListener).toHaveBeenCalled();
+  });
+});
+
 function setupWheelNavigation() {
   let frame: FrameRequestCallback | undefined;
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -235,11 +443,51 @@ function setupWheelNavigation() {
     requestRender: vi.fn(),
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
   } as unknown as SpectrogramViewer;
-  attachCanvasNavigation(viewer, canvas);
+  attachCanvasWheelNavigation(viewer, canvas);
 
   return {
     runFrame: () => frame?.(0),
     setViewport,
     wheel: listeners.get("wheel")!,
+  };
+}
+
+function setupDragNavigation(options = {}) {
+  const listeners = new Map<string, EventListener>();
+  const canvas = {
+    style: { cursor: "" },
+    addEventListener: vi.fn((name: string, listener: EventListener) =>
+      listeners.set(name, listener),
+    ),
+    removeEventListener: vi.fn(),
+    setPointerCapture: vi.fn(),
+    releasePointerCapture: vi.fn(),
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+  } as unknown as HTMLCanvasElement;
+  const setViewport = vi.fn((update: Partial<ViewportConfig>) => {
+    current = { ...current, ...update };
+  });
+  let current = { ...viewport };
+  const viewer = {
+    getConfig: () => ({ canvas, source: { duration: 20 } }),
+    getTimeBounds: () => ({
+      startTime: 0,
+      endTime: 20,
+      minDurationSeconds: 0.05,
+      maxDurationSeconds: 20,
+    }),
+    getViewport: () => current,
+    setViewport,
+    requestRender: vi.fn(),
+    canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+  } as unknown as SpectrogramViewer;
+
+  const cleanup = attachCanvasDragNavigation(viewer, canvas, options);
+
+  return {
+    listeners,
+    setViewport,
+    canvas,
+    cleanup,
   };
 }

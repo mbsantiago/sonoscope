@@ -8,12 +8,28 @@ export type TimeBounds = {
   maxDurationSeconds?: number;
 };
 
-export type CanvasNavigationOptions = {
+export type CanvasWheelNavigationOptions = {
   panSensitivity?: number;
   zoomSensitivity?: number;
   zoomModifier?: "shift" | "ctrl" | "alt" | "meta";
   onNavigate?: (viewport: ViewportConfig) => void;
 };
+
+export type CanvasDragNavigationOptions = {
+  button?: number;
+  modifier?: "shift" | "ctrl" | "alt" | "meta";
+  dragThreshold?: number;
+  cursor?: boolean;
+  onNavigate?: (viewport: ViewportConfig) => void;
+  onDragStart?: (event: PointerEvent | MouseEvent) => void;
+  onDragEnd?: (event: PointerEvent | MouseEvent) => void;
+};
+
+export type CanvasNavigationOptions = CanvasWheelNavigationOptions &
+  CanvasDragNavigationOptions & {
+    enableWheel?: boolean;
+    enableDrag?: boolean;
+  };
 
 export function setViewerViewport(
   viewer: SpectrogramViewer,
@@ -64,10 +80,10 @@ export function zoomViewportTime(
   return { ...viewport, startTime, endTime: startTime + duration };
 }
 
-export function attachCanvasNavigation(
+export function attachCanvasWheelNavigation(
   viewer: SpectrogramViewer,
   canvas = viewer.getConfig().canvas,
-  options: CanvasNavigationOptions = {},
+  options: CanvasWheelNavigationOptions = {},
 ): () => void {
   const panSensitivity = options.panSensitivity ?? 260;
   const zoomSensitivity = options.zoomSensitivity ?? 0.055;
@@ -89,6 +105,7 @@ export function attachCanvasNavigation(
     const next = setViewerViewport(viewer, viewport);
     options.onNavigate?.(next);
   };
+
   const onWheel = (event: WheelEvent) => {
     event.preventDefault();
     pendingWheel = {
@@ -151,6 +168,156 @@ export function attachCanvasNavigation(
   };
 }
 
+export function attachCanvasDragNavigation(
+  viewer: SpectrogramViewer,
+  canvas = viewer.getConfig().canvas,
+  options: CanvasDragNavigationOptions = {},
+): () => void {
+  const targetButton = options.button ?? 0;
+  const dragThreshold = options.dragThreshold ?? 3;
+  const manageCursor = options.cursor ?? true;
+
+  let isPointerDown = false;
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startViewport: ViewportConfig | undefined;
+  let activePointerId: number | undefined;
+  const originalCursor = canvas.style?.cursor ?? "";
+
+  if (manageCursor && canvas.style) {
+    canvas.style.cursor = "grab";
+  }
+
+  const apply = (viewport: ViewportConfig) => {
+    const next = setViewerViewport(viewer, viewport);
+    options.onNavigate?.(next);
+  };
+
+  const onPointerDown = (event: PointerEvent | MouseEvent) => {
+    if (event.button !== targetButton) return;
+    if (options.modifier && !modifierPressed(event, options.modifier)) return;
+
+    isPointerDown = true;
+    isDragging = false;
+    startX = event.clientX;
+    startY = event.clientY;
+    startViewport = viewer.getViewport();
+
+    if ("pointerId" in event) {
+      activePointerId = event.pointerId;
+      try {
+        canvas.setPointerCapture?.(event.pointerId);
+      } catch {
+        // pointer capture may not be supported in some environments
+      }
+    }
+  };
+
+  const onPointerMove = (event: PointerEvent | MouseEvent) => {
+    if (!isPointerDown || !startViewport) return;
+
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+
+    if (!isDragging) {
+      if (Math.hypot(dx, dy) < dragThreshold) return;
+      isDragging = true;
+      if (manageCursor && canvas.style) {
+        canvas.style.cursor = "grabbing";
+      }
+      options.onDragStart?.(event);
+    }
+
+    const rect = canvas.getBoundingClientRect?.() ?? { width: 0 };
+    const canvasWidth = rect.width || canvas.clientWidth || 1;
+    const duration = startViewport.endTime - startViewport.startTime;
+    const deltaSeconds = -(dx / canvasWidth) * duration;
+
+    const config = viewer.getConfig();
+    const bounds =
+      typeof viewer.getTimeBounds === "function"
+        ? viewer.getTimeBounds()
+        : {
+            startTime: 0,
+            endTime: config.source?.duration ?? 0,
+            minDurationSeconds: config.minViewportDuration ?? 0.05,
+            maxDurationSeconds: config.maxViewportDuration ?? 30,
+          };
+
+    apply(panViewportTime(startViewport, bounds, deltaSeconds));
+  };
+
+  const onPointerUp = (event: PointerEvent | MouseEvent) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+
+    if (
+      activePointerId !== undefined &&
+      "releasePointerCapture" in canvas &&
+      typeof canvas.releasePointerCapture === "function"
+    ) {
+      try {
+        canvas.releasePointerCapture(activePointerId);
+      } catch {
+        // ignore release capture error
+      }
+      activePointerId = undefined;
+    }
+
+    if (isDragging) {
+      isDragging = false;
+      if (manageCursor && canvas.style) {
+        canvas.style.cursor = "grab";
+      }
+      options.onDragEnd?.(event);
+    }
+    startViewport = undefined;
+  };
+
+  const hasPointerEvents =
+    typeof window !== "undefined" && "PointerEvent" in window;
+  const downEvent = hasPointerEvents ? "pointerdown" : "mousedown";
+  const moveEvent = hasPointerEvents ? "pointermove" : "mousemove";
+  const upEvent = hasPointerEvents ? "pointerup" : "mouseup";
+  const cancelEvent = hasPointerEvents ? "pointercancel" : "mouseleave";
+
+  canvas.addEventListener(downEvent, onPointerDown as EventListener);
+  canvas.addEventListener(moveEvent, onPointerMove as EventListener);
+  canvas.addEventListener(upEvent, onPointerUp as EventListener);
+  canvas.addEventListener(cancelEvent, onPointerUp as EventListener);
+
+  return () => {
+    canvas.removeEventListener(downEvent, onPointerDown as EventListener);
+    canvas.removeEventListener(moveEvent, onPointerMove as EventListener);
+    canvas.removeEventListener(upEvent, onPointerUp as EventListener);
+    canvas.removeEventListener(cancelEvent, onPointerUp as EventListener);
+    if (manageCursor && canvas.style) {
+      canvas.style.cursor = originalCursor;
+    }
+  };
+}
+
+export function attachCanvasNavigation(
+  viewer: SpectrogramViewer,
+  canvas = viewer.getConfig().canvas,
+  options: CanvasNavigationOptions = {},
+): () => void {
+  const cleanups: Array<() => void> = [];
+
+  if (options.enableWheel !== false) {
+    cleanups.push(attachCanvasWheelNavigation(viewer, canvas, options));
+  }
+
+  if (options.enableDrag !== false) {
+    cleanups.push(attachCanvasDragNavigation(viewer, canvas, options));
+  }
+
+  return () => {
+    for (const cleanup of cleanups) cleanup();
+  };
+}
+
 function modifierPressed(
   event: {
     shiftKey: boolean;
@@ -158,7 +325,7 @@ function modifierPressed(
     altKey: boolean;
     metaKey: boolean;
   },
-  modifier: NonNullable<CanvasNavigationOptions["zoomModifier"]>,
+  modifier: NonNullable<CanvasWheelNavigationOptions["zoomModifier"]>,
 ): boolean {
   if (modifier === "shift") return event.shiftKey;
   if (modifier === "ctrl") return event.ctrlKey;

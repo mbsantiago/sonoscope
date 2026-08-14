@@ -5,15 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Controls demo</title>
     <style>
-      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
-      a { color: #93c5fd; }
-      form, audio, canvas, .stage, .controls, .note { width: min(100%, 960px); }
-      form, .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
-      label { display: inline-flex; gap: 0.25rem; align-items: center; }
-      input[type='url'] { flex: 1; min-width: 16rem; }
-      audio { margin-bottom: 1rem; }
-      canvas { display: block; height: 320px; border: 1px solid #334155; }
-      .note { color: #cbd5e1; }
+      body {
+        margin: 2rem;
+        background: #10131a;
+        color: #f8fafc;
+        font-family: system-ui, sans-serif;
+      }
+      a {
+        color: #93c5fd;
+      }
+      form,
+      audio,
+      canvas,
+      .stage,
+      .controls,
+      .note {
+        width: min(100%, 960px);
+      }
+      form,
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      label {
+        display: inline-flex;
+        gap: 0.25rem;
+        align-items: center;
+      }
+      input[type="url"] {
+        flex: 1;
+        min-width: 16rem;
+      }
+      audio {
+        margin-bottom: 1rem;
+      }
+      canvas {
+        display: block;
+        height: 320px;
+        border: 1px solid #334155;
+      }
+      .note {
+        color: #cbd5e1;
+      }
     </style>
   </head>
   <body>
@@ -24,31 +60,83 @@
       <button type="submit">Load</button>
     </form>
     <div class="controls">
-      <label>Window size <input name="windowSize" type="number" value="1024" min="128" step="128" /></label>
-      <label>FFT size <input name="fftSize" type="number" value="1024" min="128" step="128" /></label>
-      <label>Hop size <input name="hopSize" type="number" value="256" min="32" step="32" /></label>
-      <label>Scale <select name="frequencyScale"><option>linear</option><option>log</option><option>mel</option></select></label>
-      <label>Mode <select name="mode"><option>db</option><option>magnitude</option><option>power</option></select></label>
-      <label>Color <select name="colorMap"><option>viridis</option><option>gray</option><option>magma</option><option>inferno</option><option>plasma</option><option>turbo</option></select></label>
-      <label>Shader <select name="shader"><option value="auto">auto</option><option value="normal">normal</option><option value="dither">dither</option><option value="sobel">sobel</option><option value="terrain">terrain</option></select></label>
+      <label
+        >Window size
+        <input
+          name="windowSize"
+          type="number"
+          value="1024"
+          min="128"
+          step="128"
+      /></label>
+      <label
+        >FFT size
+        <input name="fftSize" type="number" value="1024" min="128" step="128"
+      /></label>
+      <label
+        >Hop size
+        <input name="hopSize" type="number" value="256" min="32" step="32"
+      /></label>
+      <label
+        >Scale
+        <select name="frequencyScale">
+          <option>linear</option>
+          <option>log</option>
+          <option>mel</option>
+        </select></label
+      >
+      <label
+        >Mode
+        <select name="mode">
+          <option>db</option>
+          <option>magnitude</option>
+          <option>power</option>
+        </select></label
+      >
+      <label
+        >Color
+        <select name="colorMap">
+          <option>viridis</option>
+          <option>gray</option>
+          <option>magma</option>
+          <option>inferno</option>
+          <option>plasma</option>
+          <option>turbo</option>
+        </select></label
+      >
+      <label
+        >Shader
+        <select name="shader">
+          <option value="auto">auto</option>
+          <option value="normal">normal</option>
+          <option value="dither">dither</option>
+          <option value="sobel">sobel</option>
+          <option value="terrain">terrain</option>
+        </select></label
+      >
       <button type="button" data-action="apply">Apply config</button>
       <span data-status></span>
     </div>
-    <p class="note">Change STFT and display settings, then apply them to rerender the current source.</p>
+    <p class="note">
+      Change STFT and display settings, then apply them to rerender the current
+      source.
+    </p>
     <audio controls crossorigin="anonymous"></audio>
     <div class="stage"><canvas></canvas></div>
 
     <script type="module">
-      import { SpectrogramViewer } from '../../src';
+      import { SpectrogramViewer, attachCanvasNavigation } from "../../src";
 
-      const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
-      const form = document.querySelector('form');
+      const DEFAULT_AUDIO_URL =
+        "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+      const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
-      const audio = document.querySelector('audio');
-      let canvas = document.querySelector('canvas');
-      const status = document.querySelector('[data-status]');
+      const audio = document.querySelector("audio");
+      let canvas = document.querySelector("canvas");
+      const status = document.querySelector("[data-status]");
       let viewer;
       let source;
+      let cleanupNavigation;
 
       function value(name) {
         return document.querySelector(`[name="${name}"]`).value;
@@ -56,26 +144,26 @@
 
       function config() {
         return {
-          windowSize: Number(value('windowSize')),
-          fftSize: Number(value('fftSize')),
-          hopSize: Number(value('hopSize')),
-          window: 'hann',
+          windowSize: Number(value("windowSize")),
+          fftSize: Number(value("fftSize")),
+          hopSize: Number(value("hopSize")),
+          window: "hann",
           minFrequency: 0,
           ...(source ? { maxFrequency: source.sampleRate / 2 } : {}),
-          frequencyScale: value('frequencyScale'),
-          valueMode: value('mode'),
+          frequencyScale: value("frequencyScale"),
+          valueMode: value("mode"),
           minValue: -100,
           maxValue: 0,
           valueGamma: 1,
           clampValues: true,
-          colorMap: value('colorMap'),
+          colorMap: value("colorMap"),
           renderer: rendererConfig(),
         };
       }
 
       function rendererConfig() {
-        const shader = value('shader');
-        return shader === 'auto' ? 'auto' : { type: 'webgl', program: shader };
+        const shader = value("shader");
+        return shader === "auto" ? "auto" : { type: "webgl", program: shader };
       }
 
       function statusText() {
@@ -84,10 +172,11 @@
       }
 
       async function load(url) {
+        cleanupNavigation?.();
         viewer?.destroy();
         canvas = resetCanvas(canvas);
         audio.src = url;
-        status.textContent = 'Loading and rendering...';
+        status.textContent = "Loading and rendering...";
         try {
           viewer = await SpectrogramViewer.fromUrl({
             audio,
@@ -98,8 +187,13 @@
           source = viewer.getSource();
           await viewer.render();
           status.textContent = statusText();
+          cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
+            enableWheel: true,
+            enableDrag: true,
+          });
         } catch (error) {
-          status.textContent = error instanceof Error ? error.message : String(error);
+          status.textContent =
+            error instanceof Error ? error.message : String(error);
         }
       }
 
@@ -109,24 +203,29 @@
         return next;
       }
 
-      form.addEventListener('submit', (event) => {
+      form.addEventListener("submit", (event) => {
         event.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
       });
-      document.querySelector('[data-action="apply"]').addEventListener('click', () => {
-        if (!viewer) return;
-        const previousRenderer = JSON.stringify(viewer.getConfig().renderer);
-        const nextConfig = config();
-        if (JSON.stringify(nextConfig.renderer) !== previousRenderer) {
-          const url = viewer.getConfig().audio?.currentSrc || input.value.trim();
-          if (url) void load(url);
-          return;
-        }
-        viewer.updateConfig(nextConfig);
-        status.textContent = statusText();
-      });
+      document
+        .querySelector('[data-action="apply"]')
+        .addEventListener("click", () => {
+          if (!viewer) return;
+          const previousRenderer = JSON.stringify(viewer.getConfig().renderer);
+          const nextConfig = config();
+          if (JSON.stringify(nextConfig.renderer) !== previousRenderer) {
+            const url =
+              viewer.getConfig().audio?.currentSrc || input.value.trim();
+            if (url) void load(url);
+            return;
+          }
+          viewer.updateConfig(nextConfig);
+          status.textContent = statusText();
+        });
 
-      input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
+      input.value =
+        new URLSearchParams(window.location.search).get("url") ||
+        DEFAULT_AUDIO_URL;
       await load(input.value);
     </script>
   </body>
