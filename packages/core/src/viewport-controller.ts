@@ -38,6 +38,33 @@ export interface ITimeBoundViewer {
   getDuration?(): number;
 }
 
+export interface IViewportController {
+  getViewport(): ViewportState;
+  setViewport(
+    vp: Partial<{ startTime: number; endTime: number }>,
+    source?: string,
+  ): void;
+  updateViewport(
+    vp: Partial<{ startTime: number; endTime: number }>,
+    source?: string,
+  ): void;
+  bind(viewer: ITimeBoundViewer): () => void;
+  unbind?(viewer: ITimeBoundViewer): void;
+  on<Name extends keyof ViewportControllerEvents>(
+    name: Name,
+    handler: (event: ViewportControllerEvents[Name]) => void,
+  ): () => void;
+
+  zoom?(factor: number, centerTime?: number, source?: string): void;
+  pan?(deltaSeconds: number, source?: string): void;
+  panTo?(startTime: number, source?: string): void;
+  getFollowPlayback?(): FollowPlaybackMode;
+  setFollowPlayback?(mode: FollowPlaybackMode): void;
+  attachAudio?(audio: HTMLAudioElement): void;
+  detachAudio?(): void;
+  destroy?(): void;
+}
+
 function safeRequestAnimationFrame(callback: () => void): number {
   if (typeof requestAnimationFrame !== "undefined") {
     return requestAnimationFrame(callback);
@@ -53,7 +80,7 @@ function safeCancelAnimationFrame(id: number): void {
   }
 }
 
-export class ViewportController {
+export class ViewportController implements IViewportController {
   private readonly events = new TypedEventEmitter<ViewportControllerEvents>();
   private startTime: number;
   private endTime: number;
@@ -375,6 +402,102 @@ export function linkViewports(
     unlink: () => {
       for (const unbind of unbinds) unbind();
       controller.destroy();
+    },
+  };
+}
+
+export type CustomViewportStore = {
+  getViewport: () => {
+    startTime: number;
+    endTime: number;
+    totalDuration?: number;
+  };
+  setViewport: (
+    viewport: { startTime: number; endTime: number },
+    source?: string,
+  ) => void;
+  subscribe: (
+    callback: (viewport: { startTime: number; endTime: number }) => void,
+  ) => () => void;
+};
+
+export function createCustomViewportController(
+  store: CustomViewportStore,
+): IViewportController {
+  const events = new TypedEventEmitter<ViewportControllerEvents>();
+  const boundViewers = new Set<ITimeBoundViewer>();
+  let isBroadcasting = false;
+
+  const getFullState = (): ViewportState => {
+    const vp = store.getViewport();
+    const duration = vp.endTime - vp.startTime;
+    return {
+      startTime: vp.startTime,
+      endTime: vp.endTime,
+      duration,
+      totalDuration: vp.totalDuration ?? Math.max(vp.endTime, 10),
+    };
+  };
+
+  const unsubscribe = store.subscribe((vp) => {
+    if (isBroadcasting) return;
+    const full = getFullState();
+    events.emit("change", { viewport: full, source: "store" });
+    for (const viewer of boundViewers) {
+      viewer.updateViewport({ startTime: vp.startTime, endTime: vp.endTime });
+    }
+  });
+
+  return {
+    getViewport: getFullState,
+    setViewport(vp, source) {
+      const current = getFullState();
+      const next = {
+        startTime: vp.startTime ?? current.startTime,
+        endTime: vp.endTime ?? current.endTime,
+      };
+      store.setViewport(next, source);
+    },
+    updateViewport(vp, source) {
+      this.setViewport(vp, source);
+    },
+    bind(viewer) {
+      boundViewers.add(viewer);
+      const vp = getFullState();
+      viewer.updateViewport({ startTime: vp.startTime, endTime: vp.endTime });
+
+      const unlisten = viewer.on("viewportchange", (event) => {
+        if (isBroadcasting) return;
+        const v = event.viewport;
+        if (
+          v &&
+          typeof v.startTime === "number" &&
+          typeof v.endTime === "number"
+        ) {
+          isBroadcasting = true;
+          store.setViewport(
+            { startTime: v.startTime, endTime: v.endTime },
+            "viewer",
+          );
+          isBroadcasting = false;
+        }
+      });
+
+      return () => {
+        unlisten();
+        boundViewers.delete(viewer);
+      };
+    },
+    unbind(viewer) {
+      boundViewers.delete(viewer);
+    },
+    on(name, handler) {
+      return events.on(name, handler);
+    },
+    destroy() {
+      unsubscribe();
+      boundViewers.clear();
+      events.clear();
     },
   };
 }

@@ -142,13 +142,19 @@ export {
 } from "./value-scale";
 export { SpectrogramViewer } from "./viewer";
 export type {
+  CustomViewportStore,
   FollowPlaybackMode,
   ITimeBoundViewer,
+  IViewportController,
   ViewportControllerConfig,
   ViewportControllerEvents,
   ViewportState,
 } from "./viewport-controller";
-export { linkViewports, ViewportController } from "./viewport-controller";
+export {
+  createCustomViewportController,
+  linkViewports,
+  ViewportController,
+} from "./viewport-controller";
 export { computePeaks, WaveformPeakPyramid } from "./waveform/peaks";
 export { CanvasWaveformRenderer } from "./waveform/renderers/canvas";
 export type {

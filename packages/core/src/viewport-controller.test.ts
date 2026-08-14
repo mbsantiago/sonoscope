@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  createCustomViewportController,
   type ITimeBoundViewer,
   linkViewports,
   ViewportController,
@@ -179,5 +180,39 @@ describe("ViewportController", () => {
     // After unlinking, updates to controller do not affect viewerA
     controller.updateViewport({ startTime: 10, endTime: 15 });
     expect(viewerA.currentVp).toEqual({ startTime: 1, endTime: 5 });
+  });
+
+  it("supports user-defined custom viewport controller via createCustomViewportController", () => {
+    let externalState = { startTime: 0, endTime: 4 };
+    const listeners = new Set<
+      (vp: { startTime: number; endTime: number }) => void
+    >();
+
+    const customController = createCustomViewportController({
+      getViewport: () => ({ ...externalState, totalDuration: 50 }),
+      setViewport: (next) => {
+        externalState = next;
+        for (const cb of listeners) cb(externalState);
+      },
+      subscribe: (cb) => {
+        listeners.add(cb);
+        return () => listeners.delete(cb);
+      },
+    });
+
+    const viewer = createMockViewer();
+    customController.bind(viewer);
+
+    // Initial sync
+    expect(viewer.currentVp).toEqual({ startTime: 0, endTime: 4 });
+
+    // When external state updates, viewer updates
+    externalState = { startTime: 5, endTime: 10 };
+    for (const cb of listeners) cb(externalState);
+    expect(viewer.currentVp).toEqual({ startTime: 5, endTime: 10 });
+
+    // When viewer moves, external store updates
+    viewer.emit({ startTime: 12, endTime: 18 });
+    expect(externalState).toEqual({ startTime: 12, endTime: 18 });
   });
 });
