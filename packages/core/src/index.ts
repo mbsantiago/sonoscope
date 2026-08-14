@@ -37,7 +37,7 @@ export {
 } from "./backends/worker-backend";
 export type { TileKeyParts } from "./cache";
 export { createTileKey, SpectrogramCache } from "./cache";
-export { buildColorMap, parseColor } from "./colormap";
+export { buildColorMap, colorMapToRgb, parseColor } from "./colormap";
 export { resolveConfig, stableHash } from "./config";
 export { TypedEventEmitter } from "./events";
 export {

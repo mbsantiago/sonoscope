@@ -132,9 +132,28 @@ describe("WaveformViewer", () => {
     });
 
     expect(viewer.getAudio()).toBe(audio);
+    expect(viewer.getConfig().cursorColor).toBe("#ffffff");
 
     viewer.detachAudio();
     expect(viewer.getAudio()).toBeUndefined();
     expect(audio.removeEventListener).toHaveBeenCalled();
+  });
+
+  it("derives waveform colors from colorMap", async () => {
+    const canvas = createMockCanvas();
+    const viewer = await WaveformViewer.create({
+      canvas,
+      source: dummySource,
+      colorMap: "magma",
+    });
+
+    const config = viewer.getConfig();
+    expect(config.color).toContain("rgb(");
+    expect(config.progressColor).toContain("rgb(");
+    expect(config.color).not.toBe(config.progressColor);
+
+    viewer.updateConfig({ colorMap: "viridis" });
+    const nextConfig = viewer.getConfig();
+    expect(nextConfig.color).not.toBe(config.color);
   });
 });

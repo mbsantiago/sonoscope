@@ -10,7 +10,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       color = "#38bdf8",
       progressColor,
       backgroundColor = "transparent",
-      cursorColor = "#f59e0b",
+      cursorColor = "#ffffff",
       playheadTime,
       startTime,
       endTime,

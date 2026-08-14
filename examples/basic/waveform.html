@@ -266,9 +266,8 @@
             audio,
             startTime: initialStartTime,
             endTime: initialEndTime,
-            color: '#38bdf8',
-            progressColor: '#0284c7',
-            cursorColor: '#f59e0b',
+            colorMap: colorSelect.value,
+            cursorColor: '#ffffff',
             amplitudeScale: parseFloat(gainSelect.value),
           });
 
@@ -335,8 +334,10 @@
       });
 
       colorSelect.addEventListener('change', () => {
-        if (!specViewer) return;
-        specViewer.updateConfig({ colorMap: colorSelect.value });
+        if (!specViewer || !waveViewer) return;
+        const newColorMap = colorSelect.value;
+        specViewer.updateConfig({ colorMap: newColorMap });
+        waveViewer.updateConfig({ colorMap: newColorMap });
       });
 
       form.addEventListener('submit', (e) => {

@@ -468,3 +468,10 @@ export function buildColorMap(config: ColorMapConfig): Rgba[] {
   // Fallback to viridis
   return interpolate(ANCHORS.viridis!, gamma, contrast, brightness);
 }
+
+export function colorMapToRgb(config: ColorMapConfig, index = 220): string {
+  const map = buildColorMap(config);
+  const clampedIdx = Math.max(0, Math.min(map.length - 1, Math.round(index)));
+  const [r, g, b] = map[clampedIdx]!;
+  return `rgb(${r}, ${g}, ${b})`;
+}

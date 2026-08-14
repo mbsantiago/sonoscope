@@ -1,3 +1,4 @@
+import { colorMapToRgb } from "../colormap";
 import { clampViewportTimes } from "../config";
 import { TypedEventEmitter } from "../events";
 import { createAudioSourceFromUrl } from "../sources/source";
@@ -36,6 +37,13 @@ function resolveWaveformConfig(
     maxViewportDuration,
   );
 
+  const defaultColor = input.colorMap
+    ? colorMapToRgb(input.colorMap, 210)
+    : "#38bdf8";
+  const defaultProgressColor = input.colorMap
+    ? colorMapToRgb(input.colorMap, 255)
+    : "#0284c7";
+
   return {
     canvas: input.canvas,
     source: input.source,
@@ -44,11 +52,12 @@ function resolveWaveformConfig(
     endTime: clamped.endTime,
     minViewportDuration,
     maxViewportDuration,
-    color: input.color ?? "#38bdf8",
-    progressColor: input.progressColor ?? "#0284c7",
+    color: input.color ?? defaultColor,
+    progressColor: input.progressColor ?? defaultProgressColor,
     backgroundColor: input.backgroundColor ?? "transparent",
-    cursorColor: input.cursorColor ?? "#f59e0b",
+    cursorColor: input.cursorColor ?? "#ffffff",
     amplitudeScale: input.amplitudeScale ?? 1.0,
+    colorMap: input.colorMap,
     renderer: input.renderer ?? "canvas2d",
   };
 }
@@ -215,8 +224,19 @@ export class WaveformViewer implements IWaveformViewer {
     const cleanInput = Object.fromEntries(
       Object.entries(input).filter(([_, v]) => v !== undefined),
     );
+    const shouldDeriveColors =
+      input.colorMap !== undefined &&
+      input.color === undefined &&
+      input.progressColor === undefined;
+
+    const baseConfig = { ...this.config };
+    if (shouldDeriveColors) {
+      delete (baseConfig as Partial<ResolvedWaveformConfig>).color;
+      delete (baseConfig as Partial<ResolvedWaveformConfig>).progressColor;
+    }
+
     this.config = resolveWaveformConfig({
-      ...this.config,
+      ...baseConfig,
       ...cleanInput,
       canvas: input.canvas ?? this.config.canvas,
       source: input.source ?? this.config.source,

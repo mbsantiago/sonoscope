@@ -1,4 +1,4 @@
-import type { AudioSource } from "../types";
+import type { AudioSource, ColorMapConfig } from "../types";
 
 export type PeakBlock = {
   min: Float32Array;
@@ -21,6 +21,7 @@ export type WaveformRenderInput = {
   startTime: number;
   endTime: number;
   amplitudeScale?: number | undefined;
+  colorMap?: ColorMapConfig | undefined;
 };
 
 export interface WaveformRenderer {
@@ -43,6 +44,7 @@ export type WaveformConfig = {
   backgroundColor?: string | undefined;
   cursorColor?: string | undefined;
   amplitudeScale?: number | undefined;
+  colorMap?: ColorMapConfig | undefined;
   renderer?: "canvas2d" | WaveformRenderer | undefined;
 };
 
@@ -59,6 +61,7 @@ export type ResolvedWaveformConfig = {
   backgroundColor: string;
   cursorColor: string;
   amplitudeScale: number;
+  colorMap?: ColorMapConfig | undefined;
   renderer: "canvas2d" | WaveformRenderer;
 };
 
