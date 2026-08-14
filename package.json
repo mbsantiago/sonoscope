@@ -28,9 +28,11 @@
     "@types/react-dom": "^19.2.4",
     "@vitest/browser": "latest",
     "@vitest/browser-playwright": "latest",
+    "esbuild": "^0.28.2",
     "pngjs": "^7.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "terser": "^5.50.0",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"

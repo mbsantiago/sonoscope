@@ -19,6 +19,17 @@ export default defineConfig({
       },
     },
     sourcemap: true,
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        passes: 3,
+        drop_console: false,
+        pure_getters: true,
+      },
+      format: {
+        comments: false,
+      },
+    },
   },
   resolve: {
     alias: {

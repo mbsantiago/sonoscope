@@ -1,5 +1,5 @@
 use std::alloc::{alloc, dealloc, Layout};
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -21,7 +21,7 @@ impl WindowType {
     }
 }
 
-pub fn generate_window(window_type: WindowType, size: usize) -> Vec<f64> {
+pub fn generate_window(window_type: WindowType, size: usize) -> Vec<f32> {
     if size == 0 {
         return Vec::new();
     }
@@ -29,9 +29,9 @@ pub fn generate_window(window_type: WindowType, size: usize) -> Vec<f64> {
         return vec![1.0];
     }
     let mut window = Vec::with_capacity(size);
-    let size_f = (size - 1) as f64;
+    let size_f = (size - 1) as f32;
     for n in 0..size {
-        let n_f = n as f64;
+        let n_f = n as f32;
         let val = match window_type {
             WindowType::Rectangular => 1.0,
             WindowType::Hann => 0.5 * (1.0 - (2.0 * PI * n_f / size_f).cos()),
@@ -49,13 +49,13 @@ pub fn generate_window(window_type: WindowType, size: usize) -> Vec<f64> {
 pub struct FftContext {
     pub n: usize,
     pub bit_rev: Vec<usize>,
-    pub twiddles_cos: Vec<Vec<f64>>,
-    pub twiddles_sin: Vec<Vec<f64>>,
+    pub twiddles_cos: Vec<Vec<f32>>,
+    pub twiddles_sin: Vec<Vec<f32>>,
 }
 
 impl FftContext {
     pub fn new(n: usize) -> Self {
-        assert!(n > 0 && (n & (n - 1)) == 0, "FFT size must be a power of 2");
+        let n = if n > 0 && (n & (n - 1)) == 0 { n } else { 1024 };
         let mut bit_rev = vec![0; n];
         for i in 0..n {
             let mut rev = 0;
@@ -77,11 +77,11 @@ impl FftContext {
         let mut len = 2;
         while len <= n {
             let half_len = len / 2;
-            let angle = -2.0 * PI / (len as f64);
+            let angle = -2.0 * PI / (len as f32);
             let mut cos_table = Vec::with_capacity(half_len);
             let mut sin_table = Vec::with_capacity(half_len);
             for j in 0..half_len {
-                let a = angle * (j as f64);
+                let a = angle * (j as f32);
                 cos_table.push(a.cos());
                 sin_table.push(a.sin());
             }
@@ -98,7 +98,8 @@ impl FftContext {
         }
     }
 
-    pub fn compute_magnitudes(&self, real_input: &[f64], real: &mut [f64], imag: &mut [f64], out_mag: &mut [f32]) {
+    #[inline]
+    pub fn compute_magnitudes(&self, real_input: &[f32], real: &mut [f32], imag: &mut [f32], out_mag: &mut [f32]) {
         let n = self.n;
         for i in 0..n {
             let rev = self.bit_rev[i];
@@ -142,13 +143,12 @@ impl FftContext {
             len <<= 1;
         }
 
-        let inv_n = 1.0 / (n as f64);
+        let inv_n = 1.0 / (n as f32);
         let half_n = n / 2;
         for i in 0..half_n {
             let r = real[i];
             let im = imag[i];
-            let mag = (r * r + im * im).sqrt() * inv_n;
-            out_mag[i] = mag as f32;
+            out_mag[i] = (r * r + im * im).sqrt() * inv_n;
         }
     }
 }
@@ -156,15 +156,21 @@ impl FftContext {
 // Memory allocation exports for JS/WASM
 #[no_mangle]
 pub extern "C" fn stft_alloc(size: usize) -> *mut u8 {
-    let layout = Layout::from_size_align(size, 8).unwrap();
-    unsafe { alloc(layout) }
+    if size == 0 {
+        return std::ptr::null_mut();
+    }
+    match Layout::from_size_align(size, 8) {
+        Ok(layout) => unsafe { alloc(layout) },
+        Err(_) => std::ptr::null_mut(),
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn stft_dealloc(ptr: *mut u8, size: usize) {
     if !ptr.is_null() && size > 0 {
-        let layout = Layout::from_size_align(size, 8).unwrap();
-        unsafe { dealloc(ptr, layout) }
+        if let Ok(layout) = Layout::from_size_align(size, 8) {
+            unsafe { dealloc(ptr, layout) }
+        }
     }
 }
 
@@ -183,7 +189,7 @@ pub extern "C" fn stft_process(
     if samples_ptr.is_null() || out_mag_ptr.is_null() || window_size == 0 || hop_size == 0 || fft_size == 0 {
         return 0;
     }
-    if samples_len < window_size {
+    if (fft_size & (fft_size - 1)) != 0 || samples_len < window_size {
         return 0;
     }
 
@@ -208,17 +214,18 @@ pub extern "C" fn stft_process(
     let window = generate_window(window_type, window_size);
     let fft = FftContext::new(fft_size);
 
-    let mut frame_real_input = vec![0.0f64; fft_size];
-    let mut real = vec![0.0f64; fft_size];
-    let mut imag = vec![0.0f64; fft_size];
+    let mut frame_real_input = vec![0.0f32; fft_size];
+    let mut real = vec![0.0f32; fft_size];
+    let mut imag = vec![0.0f32; fft_size];
 
     let min_db_floor = 1e-12f32;
+    let copy_len = window_size.min(fft_size);
 
     for frame_idx in 0..frame_count {
         frame_real_input.fill(0.0);
         let sample_offset = frame_idx * hop_size;
-        for i in 0..window_size {
-            frame_real_input[i] = (samples[sample_offset + i] as f64) * window[i];
+        for i in 0..copy_len {
+            frame_real_input[i] = samples[sample_offset + i] * window[i];
         }
 
         let mag_offset = frame_idx * bin_count;
@@ -266,7 +273,6 @@ mod tests {
         let mut imag = vec![0.0; 4];
         let mut out = vec![0.0f32; 2];
 
-        // Impulse input: [1, 0, 0, 0] -> FFT is flat 1/4 = 0.25
         let input = vec![1.0, 0.0, 0.0, 0.0];
         fft.compute_magnitudes(&input, &mut real, &mut imag, &mut out);
         assert!((out[0] - 0.25).abs() < 1e-6);
@@ -292,10 +298,7 @@ mod tests {
             db.as_mut_ptr(),
         );
 
-        // (8 - 4) / 2 + 1 = 3 frames
         assert_eq!(count, 3);
-        // bin_count = 4 / 2 = 2
-        // All DC frame of 4 ones: DC bin magnitude = 4 / 4 = 1.0
         assert!((mag[0] - 1.0).abs() < 1e-5);
         assert!((power[0] - 1.0).abs() < 1e-5);
         assert!((db[0] - 0.0).abs() < 1e-5);
