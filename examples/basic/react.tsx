@@ -109,7 +109,13 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     });
   }
 
-  function handleUpdateViewport(next: ViewportState) {
+  function handlePassiveViewportChange(next: ViewportState) {
+    startTransition(() => {
+      setViewport(next);
+    });
+  }
+
+  function handleUserNavigate(next: ViewportState) {
     startTransition(() => {
       setViewport(next);
       spectrogramRef.current?.getViewer()?.updateViewport(next);
@@ -143,14 +149,15 @@ export function ReactSpectrogramDemo(): React.ReactElement {
           playheadTime={playheadTime}
           viewport={viewport}
           cacheSummary={cacheSummary}
-          onViewportChange={handleUpdateViewport}
+          onViewportChange={handlePassiveViewportChange}
+          onUserNavigate={handleUserNavigate}
         />
         <ControlPanel
           settings={settings}
           maxFrequency={viewport.maxFrequency}
           onUpdateSettings={handleUpdateSettings}
           onUpdateMaxFrequency={(maxFrequency) =>
-            handleUpdateViewport({ ...viewport, maxFrequency })
+            handleUserNavigate({ ...viewport, maxFrequency })
           }
           onResetView={handleResetView}
         />

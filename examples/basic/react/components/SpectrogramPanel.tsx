@@ -16,6 +16,7 @@ export type SpectrogramPanelProps = {
   viewport: ViewportState;
   cacheSummary: string;
   onViewportChange: (viewport: ViewportState) => void;
+  onUserNavigate: (viewport: ViewportState) => void;
 };
 
 export function SpectrogramPanel(
@@ -31,6 +32,7 @@ export function SpectrogramPanel(
     viewport,
     cacheSummary,
     onViewportChange,
+    onUserNavigate,
   } = props;
 
   const rendererConfig = useMemo(() => {
@@ -97,7 +99,7 @@ export function SpectrogramPanel(
         duration={duration}
         playheadTime={playheadTime}
         viewport={viewport}
-        onViewportChange={onViewportChange}
+        onViewportChange={onUserNavigate}
       />
 
       <div className="cache-summary">{cacheSummary}</div>

@@ -289,12 +289,23 @@ export class SpectrogramViewer {
   }
 
   setViewport(viewport: Partial<ViewportConfig>): void {
-    this.config = resolveConfig({
+    const prev = this.getViewport();
+    const nextConfig = resolveConfig({
       ...this.config,
       ...viewport,
       canvas: this.config.canvas,
       source: this.config.source,
     });
+    if (
+      Math.abs(prev.startTime - nextConfig.startTime) < 1e-6 &&
+      Math.abs(prev.endTime - nextConfig.endTime) < 1e-6 &&
+      Math.abs(prev.minFrequency - nextConfig.minFrequency) < 1e-6 &&
+      Math.abs(prev.maxFrequency - nextConfig.maxFrequency) < 1e-6 &&
+      prev.frequencyScale === nextConfig.frequencyScale
+    ) {
+      return;
+    }
+    this.config = nextConfig;
     this.renderGeneration += 1;
     this.events.emit("viewportchange", { viewport: this.getViewport() });
   }
