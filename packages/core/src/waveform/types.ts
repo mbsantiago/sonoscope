@@ -45,7 +45,7 @@ export type WaveformConfig = {
   cursorColor?: string | undefined;
   amplitudeScale?: number | undefined;
   colorMap?: ColorMapConfig | undefined;
-  renderer?: "canvas2d" | WaveformRenderer | undefined;
+  renderer?: "canvas2d" | "webgl2" | WaveformRenderer | undefined;
 };
 
 export type ResolvedWaveformConfig = {
@@ -62,7 +62,7 @@ export type ResolvedWaveformConfig = {
   cursorColor: string;
   amplitudeScale: number;
   colorMap?: ColorMapConfig | undefined;
-  renderer: "canvas2d" | WaveformRenderer;
+  renderer: "canvas2d" | "webgl2" | WaveformRenderer;
 };
 
 export type WaveformStatus =

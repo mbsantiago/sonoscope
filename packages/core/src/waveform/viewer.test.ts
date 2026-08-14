@@ -7,20 +7,23 @@ function createMockCanvas(): HTMLCanvasElement {
     width: 200,
     height: 80,
     getBoundingClientRect: () => ({ width: 200, height: 80 }),
-    getContext: () => ({
-      save: vi.fn(),
-      restore: vi.fn(),
-      clearRect: vi.fn(),
-      fillRect: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      closePath: vi.fn(),
-      stroke: vi.fn(),
-      fill: vi.fn(),
-      rect: vi.fn(),
-      clip: vi.fn(),
-    }),
+    getContext: (type?: string) => {
+      if (type === "webgl2") return null;
+      return {
+        save: vi.fn(),
+        restore: vi.fn(),
+        clearRect: vi.fn(),
+        fillRect: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        closePath: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        rect: vi.fn(),
+        clip: vi.fn(),
+      };
+    },
   } as unknown as HTMLCanvasElement;
 }
 
@@ -155,5 +158,21 @@ describe("WaveformViewer", () => {
     viewer.updateConfig({ colorMap: "viridis" });
     const nextConfig = viewer.getConfig();
     expect(nextConfig.color).not.toBe(config.color);
+  });
+
+  it("supports webgl2 renderer option and dynamic renderer switching", async () => {
+    const canvas = createMockCanvas();
+    const viewer = await WaveformViewer.create({
+      canvas,
+      source: dummySource,
+      renderer: "webgl2",
+    });
+
+    expect(viewer.getConfig().renderer).toBe("webgl2");
+    await viewer.render();
+    expect(viewer.getStatus().state).toBe("ready");
+
+    viewer.updateConfig({ renderer: "canvas2d" });
+    expect(viewer.getConfig().renderer).toBe("canvas2d");
   });
 });

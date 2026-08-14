@@ -5,6 +5,7 @@ import { createAudioSourceFromUrl } from "../sources/source";
 import type { AudioSource } from "../types";
 import { WaveformPeakPyramid } from "./peaks";
 import { CanvasWaveformRenderer } from "./renderers/canvas";
+import { WebGL2WaveformRenderer } from "./renderers/webgl2";
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
@@ -101,10 +102,14 @@ export class WaveformViewer implements IWaveformViewer {
       throw new Error("WaveformViewer requires a source");
     }
     const resolved = resolveWaveformConfig({ ...input, source });
-    const renderer =
-      typeof resolved.renderer === "object"
-        ? resolved.renderer
-        : new CanvasWaveformRenderer();
+    let renderer: WaveformRenderer;
+    if (typeof resolved.renderer === "object") {
+      renderer = resolved.renderer;
+    } else if (resolved.renderer === "webgl2") {
+      renderer = new WebGL2WaveformRenderer();
+    } else {
+      renderer = new CanvasWaveformRenderer();
+    }
     return new WaveformViewer(resolved, renderer, input.audio);
   }
 
@@ -247,6 +252,18 @@ export class WaveformViewer implements IWaveformViewer {
       canvas: input.canvas ?? this.config.canvas,
       source: input.source ?? this.config.source,
     });
+
+    if (input.renderer !== undefined) {
+      this.renderer.destroy?.();
+      if (typeof input.renderer === "object") {
+        this.renderer = input.renderer;
+      } else if (input.renderer === "webgl2") {
+        this.renderer = new WebGL2WaveformRenderer();
+      } else {
+        this.renderer = new CanvasWaveformRenderer();
+      }
+    }
+
     this.events.emit("configchange", { config: this.config });
   }
 

@@ -182,6 +182,14 @@
         </div>
 
         <div class="ctrl-group">
+          <label for="renderer-select">Renderer:</label>
+          <select id="renderer-select">
+            <option value="webgl2" selected>WebGL2 (GPU)</option>
+            <option value="canvas2d">Canvas 2D</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
           <label for="color-select">ColorMap:</label>
           <select id="color-select">
             <option value="magma" selected>Magma</option>
@@ -244,6 +252,7 @@
       const input = form.querySelector('input[name="url"]');
       const gainSelect = document.getElementById('gain-select');
       const followSelect = document.getElementById('follow-select');
+      const rendererSelect = document.getElementById('renderer-select');
       const colorSelect = document.getElementById('color-select');
       const audio = document.querySelector('audio');
       const waveCanvas = document.querySelector('.wave-canvas');
@@ -281,6 +290,7 @@
             colorMap: colorSelect.value,
             cursorColor: '#ffffff',
             amplitudeScale: parseFloat(gainSelect.value),
+            renderer: rendererSelect.value,
           });
 
           // 3. Initialize SpectrogramViewer
@@ -291,6 +301,7 @@
             startTime: initialStartTime,
             endTime: initialEndTime,
             colorMap: colorSelect.value,
+            renderer: rendererSelect.value,
           });
 
           // 4. Link viewports using single source of truth controller
@@ -402,6 +413,15 @@
       followSelect.addEventListener('change', () => {
         if (!linkedCoordinator) return;
         linkedCoordinator.controller.setFollowPlayback(followSelect.value);
+      });
+
+      rendererSelect.addEventListener('change', () => {
+        if (!waveViewer) return;
+        const newRenderer = rendererSelect.value;
+        waveViewer.updateConfig({ renderer: newRenderer });
+        if (specViewer) {
+          specViewer.updateConfig({ renderer: newRenderer });
+        }
       });
 
       colorSelect.addEventListener('change', () => {

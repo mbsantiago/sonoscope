@@ -157,6 +157,7 @@ export {
 } from "./viewport-controller";
 export { computePeaks, WaveformPeakPyramid } from "./waveform/peaks";
 export { CanvasWaveformRenderer } from "./waveform/renderers/canvas";
+export { WebGL2WaveformRenderer } from "./waveform/renderers/webgl2";
 export type {
   IWaveformViewer,
   PeakBlock,
