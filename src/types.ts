@@ -71,11 +71,6 @@ export type ViewportConfig = {
   frequencyScale: FrequencyScale;
 };
 
-export type ViewportConstraintsConfig = {
-  minDurationSeconds: number;
-  maxDurationSeconds: number;
-};
-
 export type ValueScaleConfig = {
   mode: ValueMode;
   min?: number;
@@ -106,19 +101,6 @@ export type ColorMapConfig =
       contrast?: number;
       brightness?: number;
     };
-
-export type PlaybackConfig = {
-  showPlayhead: boolean;
-  follow: boolean;
-  followMargin: number;
-  renderOnSeek: boolean;
-};
-
-export type CacheConfig = {
-  tileDurationSeconds: number;
-  maxCachedTiles: number;
-  prefetchTiles: number;
-};
 
 export type CacheStats = {
   tiles: number;
@@ -263,14 +245,6 @@ export type SpectrogramConfig = {
   // Modular
   colorMap?: ColorMapConfig;
   transforms?: SpectrogramTransform[];
-
-  // Legacy nested properties supported during transition
-  stft?: Partial<StftConfig>;
-  viewport?: Partial<ViewportConfig>;
-  viewportConstraints?: Partial<ViewportConstraintsConfig>;
-  valueScale?: Partial<ValueScaleConfig>;
-  playback?: Partial<PlaybackConfig>;
-  cache?: Partial<CacheConfig>;
 };
 
 export type ResolvedSpectrogramConfig = {

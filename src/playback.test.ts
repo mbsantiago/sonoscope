@@ -86,8 +86,12 @@ describe("playback sync", () => {
       audio: element,
       canvas: canvas(),
       source,
-      viewport: { startTime: 0, endTime: 2, minFrequency: 0, maxFrequency: 50 },
-      playback: { follow: true, renderOnSeek: false },
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 50,
+      followPlayback: true,
+      renderOnSeek: false,
     });
     element.currentTime = 5;
     element.emit("seeked");
@@ -100,7 +104,7 @@ describe("playback sync", () => {
       audio: element,
       canvas: canvas(),
       source,
-      playback: { renderOnSeek: true },
+      renderOnSeek: true,
     });
     const render = vi.spyOn(viewer, "render").mockResolvedValue();
     element.emit("seeked");
@@ -114,7 +118,7 @@ describe("playback sync", () => {
       audio: element,
       canvas: canvas(),
       source,
-      playback: { renderOnSeek: true },
+      renderOnSeek: true,
     });
     const render = vi.spyOn(viewer, "render").mockResolvedValue();
 
@@ -241,9 +245,12 @@ describe("playback sync", () => {
       audio: element,
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      cache: { tileDurationSeconds: 1 },
-      viewport: { startTime: 0, endTime: 2, minFrequency: 0, maxFrequency: 50 },
-      playback: { follow: true },
+      tileDuration: 1,
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 50,
+      followPlayback: true,
       backend,
     });
     await viewer.render();
@@ -277,7 +284,10 @@ describe("playback sync", () => {
       audio: element,
       canvas: canvas(),
       source: streamingSource,
-      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 50 },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 50,
     });
     await viewer.render();
     const render = vi.spyOn(viewer, "render").mockResolvedValue();
@@ -304,7 +314,10 @@ describe("playback sync", () => {
       audio: element,
       canvas: canvas(),
       source,
-      viewport: { startTime: 0, endTime: 1, minFrequency: 0, maxFrequency: 50 },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 50,
     });
     await viewer.render();
     const render = vi.spyOn(viewer, "render").mockResolvedValue();

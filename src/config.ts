@@ -21,10 +21,10 @@ export function resolveConfig(
   if (!input.canvas) throw new Error("SpectrogramViewer requires a canvas");
   if (!input.source) throw new Error("SpectrogramViewer requires a source");
 
-  const windowSize = input.windowSize ?? input.stft?.windowSize ?? 1024;
-  const fftSize = input.fftSize ?? input.stft?.fftSize ?? 1024;
-  const hopSize = input.hopSize ?? input.stft?.hopSize ?? 256;
-  const window: WindowName = input.window ?? input.stft?.window ?? "hann";
+  const windowSize = input.windowSize ?? 1024;
+  const fftSize = input.fftSize ?? 1024;
+  const hopSize = input.hopSize ?? 256;
+  const window: WindowName = input.window ?? "hann";
 
   if (!isPowerOfTwo(fftSize)) throw new Error("fftSize must be a power of two");
   if (fftSize < windowSize)
@@ -34,14 +34,9 @@ export function resolveConfig(
 
   const sourceDuration = input.source.duration;
 
-  const minViewportDuration =
-    input.minViewportDuration ??
-    input.viewportConstraints?.minDurationSeconds ??
-    0.05;
+  const minViewportDuration = input.minViewportDuration ?? 0.05;
   const maxViewportDuration =
-    input.maxViewportDuration ??
-    input.viewportConstraints?.maxDurationSeconds ??
-    Math.min(30, sourceDuration);
+    input.maxViewportDuration ?? Math.min(30, sourceDuration);
 
   if (minViewportDuration <= 0)
     throw new Error("minViewportDuration must be greater than zero");
@@ -50,16 +45,11 @@ export function resolveConfig(
       "maxViewportDuration must be greater than or equal to minViewportDuration",
     );
 
-  const initialStartTime = input.startTime ?? input.viewport?.startTime ?? 0;
-  const initialEndTime =
-    input.endTime ?? input.viewport?.endTime ?? sourceDuration;
-  const minFrequency = input.minFrequency ?? input.viewport?.minFrequency ?? 0;
-  const maxFrequency =
-    input.maxFrequency ??
-    input.viewport?.maxFrequency ??
-    input.source.sampleRate / 2;
-  const frequencyScale: FrequencyScale =
-    input.frequencyScale ?? input.viewport?.frequencyScale ?? "linear";
+  const initialStartTime = input.startTime ?? 0;
+  const initialEndTime = input.endTime ?? sourceDuration;
+  const minFrequency = input.minFrequency ?? 0;
+  const maxFrequency = input.maxFrequency ?? input.source.sampleRate / 2;
+  const frequencyScale: FrequencyScale = input.frequencyScale ?? "linear";
 
   const clampedTimes = clampViewportTimes(
     initialStartTime,
@@ -82,38 +72,30 @@ export function resolveConfig(
       `channel ${channel} is outside source channel count ${input.source.channelCount}`,
     );
 
-  const valueMode: ValueMode =
-    input.valueMode ?? input.valueScale?.mode ?? "db";
-  const minValue = input.minValue ?? input.valueScale?.min ?? -100;
-  const maxValue = input.maxValue ?? input.valueScale?.max ?? 0;
-  const valueGamma = input.valueGamma ?? input.valueScale?.gamma ?? 1;
-  const clampValues = input.clampValues ?? input.valueScale?.clamp ?? true;
+  const valueMode: ValueMode = input.valueMode ?? "db";
+  const minValue = input.minValue ?? -100;
+  const maxValue = input.maxValue ?? 0;
+  const valueGamma = input.valueGamma ?? 1;
+  const clampValues = input.clampValues ?? true;
 
-  const showPlayhead =
-    input.showPlayhead ?? input.playback?.showPlayhead ?? true;
-  const followPlayback =
-    input.followPlayback ?? input.playback?.follow ?? false;
-  const followMargin =
-    input.followMargin ?? input.playback?.followMargin ?? 0.2;
-  const renderOnSeek =
-    input.renderOnSeek ?? input.playback?.renderOnSeek ?? true;
+  const showPlayhead = input.showPlayhead ?? true;
+  const followPlayback = input.followPlayback ?? false;
+  const followMargin = input.followMargin ?? 0.2;
+  const renderOnSeek = input.renderOnSeek ?? true;
 
-  const tileDuration =
-    input.tileDuration ?? input.cache?.tileDurationSeconds ?? 5;
+  const tileDuration = input.tileDuration ?? 5;
   if (tileDuration <= 0)
     throw new Error("tileDuration must be greater than zero");
 
   const minimumTilesForMaxViewport =
     Math.ceil(maxViewportDuration / tileDuration) + 2;
   const prefetchTiles =
-    input.prefetchTiles ??
-    input.cache?.prefetchTiles ??
-    Math.max(8, minimumTilesForMaxViewport);
+    input.prefetchTiles ?? Math.max(8, minimumTilesForMaxViewport);
   if (prefetchTiles < 0)
     throw new Error("prefetchTiles must be greater than or equal to zero");
 
   const maxCachedTiles = Math.max(
-    input.maxCachedTiles ?? input.cache?.maxCachedTiles ?? 64,
+    input.maxCachedTiles ?? 64,
     minimumTilesForMaxViewport + prefetchTiles * 2,
   );
 

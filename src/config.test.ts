@@ -89,51 +89,6 @@ describe("resolveConfig", () => {
     expect(config.tileDuration).toBe(10);
   });
 
-  it("supports legacy nested config inputs during transition", () => {
-    const config = resolveConfig({
-      canvas,
-      source,
-      stft: {
-        windowSize: 2048,
-        fftSize: 2048,
-        hopSize: 512,
-        window: "hamming",
-      },
-      viewport: { startTime: 1, endTime: 6, frequencyScale: "log" },
-      viewportConstraints: { minDurationSeconds: 0.1, maxDurationSeconds: 15 },
-      valueScale: { mode: "power", min: 0.01, max: 10, gamma: 2, clamp: false },
-      playback: {
-        showPlayhead: false,
-        follow: true,
-        followMargin: 0.3,
-        renderOnSeek: false,
-      },
-      cache: { tileDurationSeconds: 8, maxCachedTiles: 128, prefetchTiles: 12 },
-    });
-
-    expect(config.windowSize).toBe(2048);
-    expect(config.fftSize).toBe(2048);
-    expect(config.hopSize).toBe(512);
-    expect(config.window).toBe("hamming");
-    expect(config.startTime).toBe(1);
-    expect(config.endTime).toBe(6);
-    expect(config.frequencyScale).toBe("log");
-    expect(config.minViewportDuration).toBe(0.1);
-    expect(config.maxViewportDuration).toBe(15);
-    expect(config.valueMode).toBe("power");
-    expect(config.minValue).toBe(0.01);
-    expect(config.maxValue).toBe(10);
-    expect(config.valueGamma).toBe(2);
-    expect(config.clampValues).toBe(false);
-    expect(config.showPlayhead).toBe(false);
-    expect(config.followPlayback).toBe(true);
-    expect(config.followMargin).toBe(0.3);
-    expect(config.renderOnSeek).toBe(false);
-    expect(config.tileDuration).toBe(8);
-    expect(config.maxCachedTiles).toBe(128);
-    expect(config.prefetchTiles).toBe(12);
-  });
-
   it("preserves explicit renderer modes", () => {
     expect(
       resolveConfig({ canvas, source, renderer: "canvas2d" }).renderer,

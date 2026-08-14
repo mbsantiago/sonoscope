@@ -314,12 +314,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: {
-        startTime: 0.2,
-        endTime: 0.5,
-        minFrequency: 100,
-        maxFrequency: 400,
-      },
+      startTime: 0.2,
+      endTime: 0.5,
+      minFrequency: 100,
+      maxFrequency: 400,
     });
     const nextSource = {
       ...source,
@@ -376,7 +374,8 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: { startTime: 0, endTime: 1 },
+      startTime: 0,
+      endTime: 1,
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
@@ -393,8 +392,9 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: { startTime: 0, endTime: 1 },
-      viewportConstraints: { maxDurationSeconds: 1 },
+      startTime: 0,
+      endTime: 1,
+      maxViewportDuration: 1,
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
@@ -508,12 +508,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
     });
     const progress: number[] = [];
     viewer.on("renderprogress", (event) => progress.push(event.progress));
@@ -536,13 +534,13 @@ describe("SpectrogramViewer", () => {
       canvas: canvas(),
       source: { ...source, channelCount: 2, duration: 2 },
       channel: 1,
-      cache: { tileDurationSeconds: 1, maxCachedTiles: 8, prefetchTiles: 0 },
-      viewport: {
-        startTime: 0,
-        endTime: 2,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      maxCachedTiles: 8,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
 
@@ -556,12 +554,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
     });
     const profiles: Array<{
       requestId: string;
@@ -599,13 +595,11 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      cache: { tileDurationSeconds: 1 },
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
     const completed: string[] = [];
@@ -635,13 +629,11 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 4 },
-      cache: { tileDurationSeconds: 1 },
-      viewport: {
-        startTime: 0,
-        endTime: 4,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      startTime: 0,
+      endTime: 4,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
 
@@ -665,13 +657,11 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 2 },
-      cache: { tileDurationSeconds: 1 },
-      viewport: {
-        startTime: 0,
-        endTime: 2,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
     const renderer = (
@@ -703,13 +693,12 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 1 },
-      cache: { tileDurationSeconds: 1, prefetchTiles: 0 },
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
     const renderer = (
@@ -736,13 +725,13 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      cache: { tileDurationSeconds: 1, maxCachedTiles: 6, prefetchTiles: 2 },
-      viewport: {
-        startTime: 3,
-        endTime: 5,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      maxCachedTiles: 6,
+      prefetchTiles: 2,
+      startTime: 3,
+      endTime: 5,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
 
@@ -781,13 +770,13 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      cache: { tileDurationSeconds: 1, maxCachedTiles: 6, prefetchTiles: 2 },
-      viewport: {
-        startTime: 3,
-        endTime: 5,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      maxCachedTiles: 6,
+      prefetchTiles: 2,
+      startTime: 3,
+      endTime: 5,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
 
@@ -830,13 +819,13 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      cache: { tileDurationSeconds: 1, maxCachedTiles: 2, prefetchTiles: 4 },
-      viewport: {
-        startTime: 0,
-        endTime: 2,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      maxCachedTiles: 2,
+      prefetchTiles: 4,
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
 
@@ -867,13 +856,13 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 3 },
-      cache: { tileDurationSeconds: 1, maxCachedTiles: 4, prefetchTiles: 0 },
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      tileDuration: 1,
+      maxCachedTiles: 4,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend,
     });
 
@@ -904,13 +893,11 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      cache: { prefetchTiles: 0 },
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
       backend: {
         computeTile: (request) =>
           Promise.resolve(matrix(request.timeStart, request.timeEnd)),
@@ -943,12 +930,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: streamingSource,
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
     });
     const render = vi.spyOn(viewer, "render").mockResolvedValue(undefined);
 
@@ -975,12 +960,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source: streamingSource,
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
     });
     const render = vi.spyOn(viewer, "render").mockResolvedValue(undefined);
 
@@ -994,12 +977,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 512,
-      },
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
     });
     const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });
     expect(spectrum.values.frequency.length).toBeGreaterThan(0);
@@ -1012,13 +993,11 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: sizedCanvas(250, 100, 500, 200),
       source: { ...source, duration: 10 },
-      viewport: {
-        startTime: 7.5,
-        endTime: 9,
-        minFrequency: 0,
-        maxFrequency: 500,
-      },
-      viewportConstraints: { maxDurationSeconds: 10 },
+      startTime: 7.5,
+      endTime: 9,
+      minFrequency: 0,
+      maxFrequency: 500,
+      maxViewportDuration: 10,
     });
     const queryPoint = vi.spyOn(viewer, "queryPoint").mockResolvedValue({
       time: 8.25,
@@ -1041,12 +1020,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: {
-        startTime: 0.1,
-        endTime: 0.5,
-        minFrequency: 100,
-        maxFrequency: 400,
-      },
+      startTime: 0.1,
+      endTime: 0.5,
+      minFrequency: 100,
+      maxFrequency: 400,
     });
     const viewport = { ...viewer.getViewport() };
 
@@ -1059,12 +1036,10 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       source,
-      viewport: {
-        startTime: 0.1,
-        endTime: 0.5,
-        minFrequency: 100,
-        maxFrequency: 400,
-      },
+      startTime: 0.1,
+      endTime: 0.5,
+      minFrequency: 100,
+      maxFrequency: 400,
     });
     const viewport = { ...viewer.getViewport() };
 
