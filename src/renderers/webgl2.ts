@@ -141,6 +141,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   render(input: RenderInput): void {
+    if (this.gl.isContextLost()) {
+      this.fallback.render(input);
+      return;
+    }
     const paint = () => this.paint(input, this.programFor(input));
     if (input.profile) {
       input.profile.measure(
@@ -154,6 +158,9 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   renderPlayhead(input: PlayheadRenderInput): boolean {
+    if (this.gl.isContextLost()) {
+      return this.fallback.renderPlayhead(input);
+    }
     const frame = this.frameState;
     if (
       !frame ||
@@ -178,6 +185,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   renderLoading(input: LoadingRenderInput): void {
+    if (this.gl.isContextLost()) {
+      this.fallback.renderLoading(input);
+      return;
+    }
     this.frameState = undefined;
     const gl = this.gl;
     const { deviceWidth, deviceHeight } = canvasSize(input.canvas);

@@ -36,6 +36,9 @@ export class StreamingWavSource implements AudioSource {
   private readonly handlers = new Set<(range: AudioRange) => void>();
   private isStreamDone = false;
 
+  private requestedUntilFrame = 0;
+  private demandResolver: (() => void) | undefined;
+
   private constructor(
     private readonly reader: ReadableStreamDefaultReader<Uint8Array>,
     private readonly info: WavInfo,
@@ -53,6 +56,12 @@ export class StreamingWavSource implements AudioSource {
       { length: info.channelCount },
       () => new Float32Array(Math.floor(info.dataSize / info.blockAlign)),
     );
+
+    this.requestedUntilFrame = Math.max(
+      1024 * 10,
+      Math.ceil(Math.min(30, info.duration) * info.sampleRate),
+    );
+
     void this.decodeSequentially(initialDataBytes).catch((error) =>
       this.rejectPending(
         error instanceof Error ? error : new Error(String(error)),
@@ -149,6 +158,9 @@ export class StreamingWavSource implements AudioSource {
       channelData.length,
       Math.ceil(options.endTime * this.sampleRate),
     );
+
+    this.requestFrames(endFrame);
+
     if (this.isRangeDecoded(startFrame, endFrame))
       return channelData.slice(startFrame, endFrame);
     if (this.isStreamDone)
@@ -184,6 +196,30 @@ export class StreamingWavSource implements AudioSource {
     return () => this.handlers.delete(handler);
   }
 
+  private waitForDemand(): Promise<void> {
+    if (
+      this.decodedUntilFrame < this.requestedUntilFrame ||
+      this.isStreamDone
+    ) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      this.demandResolver = resolve;
+    });
+  }
+
+  private requestFrames(endFrame: number): void {
+    const target = endFrame + this.sampleRate * 15;
+    if (target > this.requestedUntilFrame) {
+      this.requestedUntilFrame = target;
+      if (this.demandResolver) {
+        const resolve = this.demandResolver;
+        this.demandResolver = undefined;
+        resolve();
+      }
+    }
+  }
+
   private async decodeSequentially(
     initialDataBytes?: Uint8Array,
   ): Promise<void> {
@@ -195,6 +231,10 @@ export class StreamingWavSource implements AudioSource {
     }
 
     while (this.decodedUntilFrame < totalFrames) {
+      if (this.decodedUntilFrame >= this.requestedUntilFrame) {
+        await this.waitForDemand();
+      }
+
       const result = await this.reader.read();
       if (result.done) break;
       const chunk = result.value;

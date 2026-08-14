@@ -22,8 +22,8 @@ export class DecodedAudioSource implements AudioSource {
   static async fromUrl(
     url: string,
     options?:
-      | AudioContext
-      | { audioContext?: AudioContext; sampleRate?: number },
+      | AudioContextLike
+      | { audioContext?: AudioContextLike; sampleRate?: number },
   ): Promise<DecodedAudioSource> {
     const response = await fetch(url);
     if (!response.ok)
@@ -54,7 +54,9 @@ export class DecodedAudioSource implements AudioSource {
 
 export async function createAudioSourceFromUrl(
   url: string,
-  options?: AudioContext | { audioContext?: AudioContext; sampleRate?: number },
+  options?:
+    | AudioContextLike
+    | { audioContext?: AudioContextLike; sampleRate?: number },
 ): Promise<AudioSource> {
   const byteSource = FetchByteSource.fromUrl(url);
   const prefix = await readPrefix(byteSource, 64);
@@ -78,10 +80,34 @@ export async function createAudioSourceFromUrl(
   return DecodedAudioSource.fromUrl(url, options);
 }
 
+export type AudioContextLike = {
+  decodeAudioData(data: ArrayBuffer): Promise<AudioBuffer>;
+};
+
+function getSharedDecodeContext(sampleRate?: number): AudioContextLike {
+  if (typeof OfflineAudioContext !== "undefined") {
+    try {
+      return new OfflineAudioContext(1, 1, sampleRate ?? 44100);
+    } catch {
+      return new OfflineAudioContext(1, 1, 44100);
+    }
+  }
+
+  if (typeof AudioContext !== "undefined") {
+    return new AudioContext(
+      sampleRate === undefined ? undefined : { sampleRate },
+    );
+  }
+
+  throw new Error("Web Audio API is not supported in this environment");
+}
+
 function resolveAudioContext(
   data: ArrayBuffer,
-  options?: AudioContext | { audioContext?: AudioContext; sampleRate?: number },
-): AudioContext {
+  options?:
+    | AudioContextLike
+    | { audioContext?: AudioContextLike; sampleRate?: number },
+): AudioContextLike {
   if (isAudioContext(options)) return options;
   if (options && "audioContext" in options && options.audioContext)
     return options.audioContext;
@@ -89,14 +115,15 @@ function resolveAudioContext(
     options && "sampleRate" in options
       ? (options.sampleRate ?? readWavSampleRate(data))
       : readWavSampleRate(data);
-  return new AudioContext(
-    sampleRate === undefined ? undefined : { sampleRate },
-  );
+  return getSharedDecodeContext(sampleRate);
 }
 
-function isAudioContext(value: unknown): value is AudioContext {
+function isAudioContext(value: unknown): value is AudioContextLike {
   return (
-    typeof value === "object" && value !== null && "decodeAudioData" in value
+    typeof value === "object" &&
+    value !== null &&
+    "decodeAudioData" in value &&
+    typeof (value as AudioContextLike).decodeAudioData === "function"
   );
 }
 

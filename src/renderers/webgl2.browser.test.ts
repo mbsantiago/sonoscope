@@ -496,7 +496,13 @@ describe("WebGL2 shaders", () => {
 
     const previousFetch = globalThis.fetch;
     const previousAudioContext = globalThis.AudioContext;
-    globalThis.fetch = async () => new Response(new ArrayBuffer(8));
+    const previousOfflineAudioContext = globalThis.OfflineAudioContext;
+    globalThis.fetch = async () =>
+      new Response(new ArrayBuffer(8), {
+        status: 200,
+        headers: { "Content-Type": "audio/wav" },
+      });
+    delete (globalThis as Partial<typeof globalThis>).OfflineAudioContext;
     globalThis.AudioContext = class {
       decodeAudioData() {
         return Promise.resolve({
@@ -528,6 +534,7 @@ describe("WebGL2 shaders", () => {
     } finally {
       globalThis.fetch = previousFetch;
       globalThis.AudioContext = previousAudioContext;
+      globalThis.OfflineAudioContext = previousOfflineAudioContext;
     }
   });
 });

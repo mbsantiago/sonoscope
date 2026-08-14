@@ -46,6 +46,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete (globalThis as Partial<typeof globalThis>).fetch;
   delete (globalThis as Partial<typeof globalThis>).AudioContext;
+  delete (globalThis as Partial<typeof globalThis>).OfflineAudioContext;
 });
 
 describe("DecodedAudioSource", () => {
@@ -66,6 +67,7 @@ describe("DecodedAudioSource", () => {
   });
 
   it("decodes WAV files using the file sample rate by default", async () => {
+    delete (globalThis as Partial<typeof globalThis>).OfflineAudioContext;
     const contexts: Array<{ sampleRate?: number }> = [];
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -89,6 +91,7 @@ describe("DecodedAudioSource", () => {
   });
 
   it("allows callers to force the decode sample rate", async () => {
+    delete (globalThis as Partial<typeof globalThis>).OfflineAudioContext;
     const contexts: Array<{ sampleRate?: number }> = [];
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

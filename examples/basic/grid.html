@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>4x4 Spectrogram Grid Demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 1.5rem;
+        background: #0b0f17;
+        color: #f1f5f9;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .nav-link {
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 0.875rem;
+      }
+      .nav-link:hover {
+        color: #38bdf8;
+      }
+      .header-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      button {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      button:hover {
+        background: #334155;
+        border-color: #475569;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+      }
+      @media (max-width: 1200px) {
+        .grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .cell {
+        background: #131b2a;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .cell-header {
+        padding: 0.4rem 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        background: #0f172a;
+        border-bottom: 1px solid #1e293b;
+        font-size: 0.75rem;
+      }
+      .cell-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #cbd5e1;
+        font-weight: 500;
+      }
+      .cell-play {
+        padding: 0.15rem 0.45rem;
+        font-size: 0.7rem;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+      .canvas-wrap {
+        position: relative;
+        width: 100%;
+        height: 140px;
+        background: #080c14;
+        cursor: pointer;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .cell-footer {
+        padding: 0.25rem 0.6rem;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.6875rem;
+        color: #64748b;
+        background: #0f172a;
+        border-top: 1px solid #1e293b;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <a class="nav-link" href="./index.html">← Back to demos</a>
+        <h1>4×4 Spectrogram Grid</h1>
+      </div>
+      <div class="header-actions">
+        <label style="font-size: 0.8125rem; color: #94a3b8; display: flex; align-items: center; gap: 0.35rem;">
+          Renderer:
+          <select id="renderer-select" style="background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+            <option value="auto">Auto</option>
+            <option value="canvas2d">Canvas2D</option>
+            <option value="webgl2">WebGL2</option>
+          </select>
+        </label>
+        <button type="button" id="toggle-all">Play All</button>
+        <button type="button" id="restart-all">Restart All</button>
+      </div>
+    </header>
+
+    <div class="grid" id="grid"></div>
+
+    <script type="module">
+      import { SpectrogramViewer } from "../../src";
+
+      const ITEMS = [
+        {
+          name: "1. Birdsong Bourne",
+          url: "https://upload.wikimedia.org/wikipedia/commons/0/01/20210321_0900_Birdsong_Bourne_Lincolnshire.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "2. Backyard Ambience",
+          url: "https://upload.wikimedia.org/wikipedia/commons/0/0c/Backyard_ambience_%28Gravity_Sound%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "3. Covid Dawn",
+          url: "https://upload.wikimedia.org/wikipedia/commons/c/cd/Covid_dawn_2020-05-13_0500_part_1.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "4. Dawn Chorus",
+          url: "https://upload.wikimedia.org/wikipedia/commons/9/9a/Dawn_Chorus_2020-05-06_0500.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "5. Santa María la Ribera",
+          url: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Paisaje_sonoro_en_el_quiosco_de_Santa_Mar%C3%ADa_la_Ribera.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "6. Río en Pimampiro",
+          url: "https://upload.wikimedia.org/wikipedia/commons/4/42/Registro_sonoro_del_r%C3%ADo_en_San_Franscisco_de_Sigsipamba_-_Pimampiro_%28Ecuador%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "7. Lesser Redpoll",
+          url: "https://upload.wikimedia.org/wikipedia/commons/6/63/Acanthis_cabaret_-_Lesser_Redpoll_XC482789.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "8. Northern Goshawk",
+          url: "https://upload.wikimedia.org/wikipedia/commons/5/50/Accipiter_gentilis_-_Northern_Goshawk_XC418044.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "9. Wood Duck",
+          url: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Aix_sponsa_-_Wood_Duck_-_XC63109.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "10. Black-capped Sparrow",
+          url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Arremon_abeillei_-_Black-capped_Sparrow_XC250490.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "11. Hooded Mountain Tanager",
+          url: "https://upload.wikimedia.org/wikipedia/commons/2/2c/Buthraupis_montana_-_Hooded_Mountain_Tanager_XC242271.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "12. Band-backed Wren",
+          url: "https://upload.wikimedia.org/wikipedia/commons/d/d3/Campylorhynchus_zonatus_-_Band-backed_Wren_XC242309.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "13. Northern Cardinal",
+          url: "https://upload.wikimedia.org/wikipedia/commons/1/10/Cardinalis_cardinalis_cardinalis_-_Northern_Cardinal_-_XC77572.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "14. Common Rosefinch",
+          url: "https://upload.wikimedia.org/wikipedia/commons/1/16/Carpodacus_erythrinus_-_Common_Rosefinch_XC446039.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "15. Blue-backed Manakin",
+          url: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Chiroxiphia_pareola_-_Blue-backed_Manakin_XC248828.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+        {
+          name: "16. Yellow-billed Cuckoo",
+          url: "https://upload.wikimedia.org/wikipedia/commons/c/c3/Coccyzus_americanus_-_Yellow-billed_Cuckoo_-_XC80747.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+        },
+      ];
+
+      const gridEl = document.getElementById("grid");
+      const rendererSelect = document.getElementById("renderer-select");
+      let currentRenderer = "auto";
+      const viewers = [];
+      const audios = [];
+
+      for (let i = 0; i < ITEMS.length; i++) {
+        const item = ITEMS[i];
+        const cell = document.createElement("div");
+        cell.className = "cell";
+
+        cell.innerHTML = `
+          <div class="cell-header">
+            <span class="cell-title" title="${item.name}">${item.name}</span>
+            <button type="button" class="cell-play" data-index="${i}">Play</button>
+          </div>
+          <div class="canvas-wrap" data-wrap="${i}">
+            <canvas data-canvas="${i}"></canvas>
+          </div>
+          <div class="cell-footer">
+            <span class="cell-rate" data-rate="${i}">Queued...</span>
+            <span class="cell-time" data-time="${i}">--:--</span>
+          </div>
+          <audio preload="none" crossorigin="anonymous"></audio>
+        `;
+
+        gridEl.appendChild(cell);
+
+        const canvas = cell.querySelector(`[data-canvas="${i}"]`);
+        const audio = cell.querySelector("audio");
+        const playBtn = cell.querySelector(".cell-play");
+        const wrap = cell.querySelector(`[data-wrap="${i}"]`);
+        const timeEl = cell.querySelector(`[data-time="${i}"]`);
+
+        audios.push(audio);
+
+        playBtn.addEventListener("click", () => {
+          if (!audio.src) audio.src = item.url;
+          if (audio.paused) {
+            audio.play();
+          } else {
+            audio.pause();
+          }
+        });
+
+        wrap.addEventListener("click", (e) => {
+          if (e.target === playBtn) return;
+          if (!audio.src) audio.src = item.url;
+          if (audio.paused) {
+            audio.play();
+          } else {
+            audio.pause();
+          }
+        });
+
+        audio.addEventListener("play", () => {
+          playBtn.textContent = "Pause";
+        });
+
+        audio.addEventListener("pause", () => {
+          playBtn.textContent = "Play";
+        });
+
+        audio.addEventListener("timeupdate", () => {
+          const current = Math.floor(audio.currentTime);
+          const total = Math.floor(audio.duration || 0);
+          timeEl.textContent = `${formatTime(current)} / ${formatTime(total)}`;
+        });
+      }
+
+      async function loadAllViewers(renderer) {
+        for (const v of viewers) {
+          try { v.destroy?.(); } catch {}
+        }
+        viewers.length = 0;
+
+        // Concurrency queue: load up to 4 streams in parallel
+        const concurrency = 4;
+        let nextIndex = 0;
+
+        async function worker() {
+          while (nextIndex < ITEMS.length) {
+            const i = nextIndex++;
+            const item = ITEMS[i];
+            const cell = gridEl.children[i];
+            const canvas = cell.querySelector(`[data-canvas="${i}"]`);
+            const audio = cell.querySelector("audio");
+            const rateEl = cell.querySelector(`[data-rate="${i}"]`);
+
+            rateEl.textContent = "Loading...";
+
+            try {
+              const viewer = await SpectrogramViewer.fromUrl({
+                audio,
+                canvas,
+                url: item.url,
+                renderer,
+                windowSize: 1024,
+                fftSize: 1024,
+                hopSize: 256,
+                window: "hann",
+                followPlayback: true,
+                renderOnSeek: true,
+                frequencyScale: "mel",
+                valueMode: "db",
+                minValue: -90,
+                maxValue: 0,
+                colorMap: { base: "magma" },
+              });
+
+              viewers[i] = viewer;
+              const source = viewer.getSource();
+              rateEl.textContent = `${(source.sampleRate / 1000).toFixed(1)} kHz · ${source.duration.toFixed(1)}s`;
+            } catch (err) {
+              rateEl.textContent = "Failed";
+              console.error(`Failed to load ${item.name}:`, err);
+            }
+          }
+        }
+
+        const workers = Array.from({ length: concurrency }, () => worker());
+        await Promise.all(workers);
+      }
+
+      rendererSelect.addEventListener("change", (e) => {
+        currentRenderer = e.target.value;
+        loadAllViewers(currentRenderer);
+      });
+
+      loadAllViewers(currentRenderer);
+
+      function formatTime(sec) {
+        if (!sec || isNaN(sec)) return "0:00";
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s < 10 ? "0" : ""}${s}`;
+      }
+
+      const toggleAllBtn = document.getElementById("toggle-all");
+      let allPlaying = false;
+
+      toggleAllBtn.addEventListener("click", () => {
+        if (allPlaying) {
+          audios.forEach((a) => a.pause());
+          toggleAllBtn.textContent = "Play All";
+          allPlaying = false;
+        } else {
+          audios.forEach((a, i) => {
+            if (!a.src) a.src = ITEMS[i].url;
+            a.play().catch(() => {});
+          });
+          toggleAllBtn.textContent = "Pause All";
+          allPlaying = true;
+        }
+      });
+
+      document.getElementById("restart-all").addEventListener("click", () => {
+        audios.forEach((a) => {
+          a.currentTime = 0;
+        });
+      });
+    </script>
+  </body>
+</html>

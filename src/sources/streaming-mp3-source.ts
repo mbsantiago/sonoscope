@@ -38,6 +38,9 @@ export class StreamingMp3Source implements AudioSource {
   private isStreamDone = false;
   private decoder: Mp3Decoder | undefined;
 
+  private requestedUntilFrame = 0;
+  private demandResolver: (() => void) | undefined;
+
   private constructor(
     private readonly reader: ReadableStreamDefaultReader<Uint8Array>,
     private initialChunks: Uint8Array[],
@@ -58,6 +61,11 @@ export class StreamingMp3Source implements AudioSource {
     this.decoded = Array.from(
       { length: info.channelCount },
       () => new Float32Array(initialCapacity),
+    );
+
+    this.requestedUntilFrame = Math.max(
+      1152 * 10,
+      Math.ceil(Math.min(30, info.duration) * info.sampleRate),
     );
 
     const decoderFactory = options?.decoderFactory ?? createWebCodecsMp3Decoder;
@@ -135,6 +143,8 @@ export class StreamingMp3Source implements AudioSource {
       Math.ceil(options.endTime * this.sampleRate),
     );
 
+    this.requestFrames(endFrame);
+
     if (this.isRangeDecoded(startFrame, endFrame)) {
       const channelData = this.decoded[options.channel];
       if (!channelData) throw new Error(`Channel ${options.channel} not found`);
@@ -167,6 +177,30 @@ export class StreamingMp3Source implements AudioSource {
     });
   }
 
+  private waitForDemand(): Promise<void> {
+    if (
+      this.decodedFrameCount < this.requestedUntilFrame ||
+      this.isStreamDone
+    ) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      this.demandResolver = resolve;
+    });
+  }
+
+  private requestFrames(endFrame: number): void {
+    const target = endFrame + this.sampleRate * 15;
+    if (target > this.requestedUntilFrame) {
+      this.requestedUntilFrame = target;
+      if (this.demandResolver) {
+        const resolve = this.demandResolver;
+        this.demandResolver = undefined;
+        resolve();
+      }
+    }
+  }
+
   private async initAndDecode(
     decoderFactory: Mp3DecoderFactory,
   ): Promise<void> {
@@ -186,6 +220,10 @@ export class StreamingMp3Source implements AudioSource {
     await this.processBuffer(unconsumed, false);
 
     while (true) {
+      if (this.decodedFrameCount >= this.requestedUntilFrame) {
+        await this.waitForDemand();
+      }
+
       const result = await this.reader.read();
       if (result.done) break;
       await this.processBuffer(result.value, false);
