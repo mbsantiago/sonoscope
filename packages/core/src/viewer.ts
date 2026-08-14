@@ -217,9 +217,12 @@ export class SpectrogramViewer {
         this.detachAudio();
       }
     }
+    const cleanInput = Object.fromEntries(
+      Object.entries(input).filter(([_, v]) => v !== undefined),
+    );
     this.config = resolveConfig({
       ...this.config,
-      ...input,
+      ...cleanInput,
       canvas: input.canvas ?? this.config.canvas,
       source,
     });
@@ -298,9 +301,12 @@ export class SpectrogramViewer {
 
   setViewport(viewport: Partial<ViewportConfig>): void {
     const prev = this.getViewport();
+    const cleanViewport = Object.fromEntries(
+      Object.entries(viewport).filter(([_, v]) => v !== undefined),
+    );
     const nextConfig = resolveConfig({
       ...this.config,
-      ...viewport,
+      ...cleanViewport,
       canvas: this.config.canvas,
       source: this.config.source,
     });

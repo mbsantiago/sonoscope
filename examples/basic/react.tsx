@@ -27,6 +27,7 @@ const initialSettings: SpectrogramSettings = {
 
 export function ReactSpectrogramDemo(): React.ReactElement {
   const spectrogramRef = useRef<SpectrogramHandle | null>(null);
+  const prevRecordingRef = useRef<number | null>(null);
   const [settings, setSettings] =
     useState<SpectrogramSettings>(initialSettings);
   const [duration, setDuration] = useState(30);
@@ -58,22 +59,25 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     setNyquist(sourceNyquist);
     setCacheSummary(formatCacheStats(viewer.getCacheStats()));
 
-    // Reset viewport on load to 0 and Nyquist limit
-    const initialVp: ViewportState = {
-      startTime: 0,
-      endTime: Math.min(12, sourceDuration),
-      minFrequency: 0,
-      maxFrequency: sourceNyquist,
-    };
-    setViewport(initialVp);
-    viewer.setViewport(initialVp);
+    // Reset viewport to 0 and Nyquist limit only when recording changes
+    if (prevRecordingRef.current !== settings.recordingIndex) {
+      prevRecordingRef.current = settings.recordingIndex;
+      const initialVp: ViewportState = {
+        startTime: 0,
+        endTime: Math.min(12, sourceDuration),
+        minFrequency: 0,
+        maxFrequency: sourceNyquist,
+      };
+      setViewport(initialVp);
+      viewer.setViewport(initialVp);
+    }
 
     const unsubProfile = viewer.on("renderprofile", () => {
       setCacheSummary(formatCacheStats(viewer.getCacheStats()));
     });
     const unsubComplete = () => {
       const liveNyquist = viewer.getNyquist();
-      if (liveNyquist > 0 && liveNyquist !== nyquist) {
+      if (liveNyquist > 0) {
         setNyquist(liveNyquist);
       }
       setStatus(
