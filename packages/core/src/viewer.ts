@@ -390,6 +390,7 @@ export class SpectrogramViewer {
   }
 
   async render(): Promise<void> {
+    if (this.isDestroyed()) return;
     const requestId = `render-${++this.requestCounter}`;
     const generation = ++this.renderGeneration;
     const profile = new PerformanceProfiler();
@@ -403,6 +404,7 @@ export class SpectrogramViewer {
       "render.total",
       { tiles: tiles.length },
       async () => {
+        if (this.isDestroyed()) return;
         this.status = { state: "rendering" };
         this.events.emit("renderstart", { requestId, total: tiles.length });
         profile.record("render.visibleTiles", performance.now(), 0, {
@@ -417,12 +419,13 @@ export class SpectrogramViewer {
             tile.timeEnd,
             profile,
           );
+          if (this.isDestroyed() || generation !== this.renderGeneration)
+            return;
           completed += 1;
           matrices.set(
             `${tile.channel}:${tile.timeStart}:${tile.timeEnd}`,
             matrix,
           );
-          if (generation !== this.renderGeneration) return;
           this.events.emit("renderprogress", {
             requestId,
             completed,
@@ -435,6 +438,7 @@ export class SpectrogramViewer {
             await Promise.resolve();
             partialPaintQueued = false;
             if (
+              !this.isDestroyed() &&
               generation === this.renderGeneration &&
               matrices.size < tiles.length
             ) {
@@ -452,7 +456,7 @@ export class SpectrogramViewer {
           }
         });
         await Promise.all(jobs);
-        if (generation !== this.renderGeneration) return;
+        if (this.isDestroyed() || generation !== this.renderGeneration) return;
         this.prefetchAroundViewport();
 
         profile.record("render.paint.final", performance.now(), 0, {
@@ -487,7 +491,7 @@ export class SpectrogramViewer {
       },
     );
 
-    if (generation === this.renderGeneration) {
+    if (generation === this.renderGeneration && !this.isDestroyed()) {
       this.events.emit("renderprofile", {
         requestId,
         generation,
@@ -497,7 +501,7 @@ export class SpectrogramViewer {
   }
 
   requestRender(): void {
-    if (this.status.state === "destroyed") return;
+    if (this.isDestroyed()) return;
     this.renderAgain = true;
     if (this.renderQueued || this.renderRunning) return;
     this.renderQueued = true;
@@ -509,6 +513,7 @@ export class SpectrogramViewer {
     placeholders: Array<{ timeStart: number; timeEnd: number }>,
     profile: PerformanceProfiler,
   ): void {
+    if (this.isDestroyed()) return;
     this.renderer.render({
       canvas: this.config.canvas,
       viewport: this.getViewport(),
@@ -654,6 +659,8 @@ export class SpectrogramViewer {
   }
 
   destroy(): void {
+    this.status = { state: "destroyed" };
+    this.events.clear();
     this.stopPlaybackLoop();
     for (const cleanup of this.playbackCleanup) cleanup();
     this.playbackCleanup = [];
@@ -661,10 +668,9 @@ export class SpectrogramViewer {
     this.sourceRangeCleanup = undefined;
     this.cache.clear();
     this.sourceMap.clear();
+    this.pendingTiles.clear();
     this.backend.destroy?.();
     this.renderer.destroy?.();
-    this.events.clear();
-    this.status = { state: "destroyed" };
   }
 
   private attachSourceRangeSync(): void {
@@ -876,6 +882,7 @@ export class SpectrogramViewer {
       started += 1;
       void this.getTile(tile.channel, tile.timeStart, tile.timeEnd).catch(
         (error) => {
+          if (this.isDestroyed()) return;
           this.events.emit("error", {
             error: error instanceof Error ? error : new Error(String(error)),
             recoverable: true,
@@ -968,36 +975,55 @@ export class SpectrogramViewer {
     if (pending) return pending;
 
     const promise = (async () => {
-      const raw = await this.backend.computeTile({
-        source,
-        channel,
-        timeStart,
-        timeEnd,
-        stft,
-        ...(profile ? { profile } : {}),
-      });
-      const transform = async () =>
-        applyTransforms(raw, transforms, {
-          requestedTimeStart: timeStart,
-          requestedTimeEnd: timeEnd,
-          sampleRate: source.sampleRate,
+      try {
+        const raw = await this.backend.computeTile({
+          source,
+          channel,
+          timeStart,
+          timeEnd,
           stft,
+          ...(profile ? { profile } : {}),
         });
-      const transformed = profile
-        ? await profile.measureAsync(
-            "tile.transforms.apply",
-            { channel, timeStart, timeEnd },
-            transform,
-          )
-        : await transform();
-      this.cache.set(key, transformed);
-      this.events.emit("tileload", {
-        tileId: key,
-        timeStart,
-        timeEnd,
-        channel,
-      });
-      return transformed;
+        const transform = async () =>
+          applyTransforms(raw, transforms, {
+            requestedTimeStart: timeStart,
+            requestedTimeEnd: timeEnd,
+            sampleRate: source.sampleRate,
+            stft,
+          });
+        const transformed = profile
+          ? await profile.measureAsync(
+              "tile.transforms.apply",
+              { channel, timeStart, timeEnd },
+              transform,
+            )
+          : await transform();
+        if (this.isDestroyed()) return transformed;
+        this.cache.set(key, transformed);
+        this.events.emit("tileload", {
+          tileId: key,
+          timeStart,
+          timeEnd,
+          channel,
+        });
+        return transformed;
+      } catch (error) {
+        if (this.isDestroyed()) {
+          return {
+            channel,
+            timeStart,
+            timeEnd,
+            frameStart: 0,
+            frameCount: 0,
+            binCount: 0,
+            sampleRate: source.sampleRate,
+            times: new Float32Array(0),
+            frequencies: new Float32Array(0),
+            magnitude: new Float32Array(0),
+          };
+        }
+        throw error;
+      }
     })();
     this.pendingTiles.set(key, promise);
     promise.finally(() => this.pendingTiles.delete(key));

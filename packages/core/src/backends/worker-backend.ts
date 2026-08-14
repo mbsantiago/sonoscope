@@ -258,10 +258,20 @@ export class WorkerComputeBackend implements SpectrogramComputeBackend {
   destroy(): void {
     this.destroyed = true;
     const error = new Error("WorkerComputeBackend has been destroyed");
-    for (const job of this.queue.splice(0)) job.reject(error);
+    for (const job of this.queue.splice(0)) {
+      try {
+        job.reject(error);
+      } catch {}
+    }
     for (const slot of this.slots) {
-      if (slot.job) slot.job.reject(error);
+      if (slot.job) {
+        try {
+          slot.job.reject(error);
+        } catch {}
+      }
       slot.job = undefined;
+      slot.worker.onmessage = null;
+      slot.worker.onerror = null;
       slot.worker.terminate();
     }
   }

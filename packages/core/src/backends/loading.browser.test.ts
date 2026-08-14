@@ -57,4 +57,28 @@ describe("loading demo in browser", () => {
     expect(viewer.getStatus().state).toBe("ready");
     viewer.destroy();
   });
+
+  it("safely handles rapid destruction during in-flight render without unhandled rejections", async () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+
+    for (let i = 0; i < 5; i++) {
+      const viewer = await SpectrogramViewer.create({
+        canvas,
+        source: {
+          id: `rapid-source-${i}`,
+          sampleRate: 44100,
+          duration: 10,
+          channelCount: 1,
+          read: ({ startTime, endTime }) => {
+            const len = Math.round((endTime - startTime) * 44100);
+            return new Float32Array(len).fill(0.05);
+          },
+        },
+      });
+
+      void viewer.render();
+      viewer.destroy();
+    }
+  });
 });
