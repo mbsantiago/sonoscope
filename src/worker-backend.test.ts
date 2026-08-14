@@ -77,7 +77,7 @@ describe("WorkerComputeBackend", () => {
 		});
 
 		expect(matrix.magnitude[0]).toBe(1);
-		expect(workers[0]!.posted).toHaveLength(1);
+		expect(workers[0]?.posted).toHaveLength(1);
 	});
 
 	it("records queue, source read, worker compute, and total timings", async () => {

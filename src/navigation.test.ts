@@ -142,10 +142,10 @@ describe("navigation utilities", () => {
 		} as unknown as WheelEvent);
 		expect(setViewport).not.toHaveBeenCalled();
 
-		frame!(0);
+		frame?.(0);
 
 		expect(setViewport).toHaveBeenCalledTimes(1);
-		expect(setViewport.mock.calls[0]![0].startTime).toBeGreaterThan(
+		expect(setViewport.mock.calls[0]?.[0].startTime).toBeGreaterThan(
 			viewport.startTime,
 		);
 	});
@@ -165,7 +165,7 @@ describe("navigation utilities", () => {
 		} as unknown as WheelEvent);
 		runFrame();
 
-		expect(setViewport.mock.calls[0]![0]).toMatchObject({
+		expect(setViewport.mock.calls[0]?.[0]).toMatchObject({
 			startTime: 5.846153846153847,
 			endTime: 9.846153846153847,
 		});
@@ -186,11 +186,11 @@ describe("navigation utilities", () => {
 		} as unknown as WheelEvent);
 		runFrame();
 
-		expect(setViewport.mock.calls[0]![0].startTime).toBeCloseTo(
+		expect(setViewport.mock.calls[0]?.[0].startTime).toBeCloseTo(
 			4.107029704093033,
 			12,
 		);
-		expect(setViewport.mock.calls[0]![0].endTime).toBeCloseTo(
+		expect(setViewport.mock.calls[0]?.[0].endTime).toBeCloseTo(
 			7.892970295906968,
 			12,
 		);
@@ -226,7 +226,7 @@ function setupWheelNavigation() {
 	attachCanvasNavigation(viewer, canvas);
 
 	return {
-		runFrame: () => frame!(0),
+		runFrame: () => frame?.(0),
 		setViewport,
 		wheel: listeners.get("wheel")!,
 	};

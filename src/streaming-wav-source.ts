@@ -113,11 +113,11 @@ export class StreamingWavSource implements AudioSource {
 			Math.floor(options.startTime * this.sampleRate),
 		);
 		const endFrame = Math.min(
-			this.decoded[options.channel]!.length,
+			this.decoded[options.channel]?.length,
 			Math.ceil(options.endTime * this.sampleRate),
 		);
 		if (this.isRangeDecoded(startFrame, endFrame))
-			return this.decoded[options.channel]!.slice(startFrame, endFrame);
+			return this.decoded[options.channel]?.slice(startFrame, endFrame);
 		if (this.seekable) {
 			return this.readSeekableRange(
 				options.channel,
@@ -148,7 +148,7 @@ export class StreamingWavSource implements AudioSource {
 
 	private async decodeSequentially(): Promise<void> {
 		this.decodeAvailableChunks();
-		while (this.decodedUntilFrame < this.decoded[0]!.length) {
+		while (this.decodedUntilFrame < this.decoded[0]?.length) {
 			const result = await this.reader.read();
 			if (result.done) break;
 			this.chunks.push(result.value);
@@ -164,7 +164,7 @@ export class StreamingWavSource implements AudioSource {
 	private decodeAvailableChunks(): void {
 		const bytes = concatChunks(this.chunks);
 		const completeFrameCount = Math.min(
-			this.decoded[0]!.length,
+			this.decoded[0]?.length,
 			Math.max(
 				0,
 				Math.floor(
@@ -187,8 +187,8 @@ export class StreamingWavSource implements AudioSource {
 	): void {
 		const decoded = decodeWavPcm(bytes, this.info, byteOffset);
 		for (let channel = 0; channel < this.channelCount; channel++)
-			this.decoded[channel]!.set(decoded[channel]!, startFrame);
-		const endFrame = startFrame + decoded[0]!.length;
+			this.decoded[channel]?.set(decoded[channel]!, startFrame);
+		const endFrame = startFrame + decoded[0]?.length;
 		this.addDecodedRange(startFrame, endFrame);
 		if (endFrame > startFrame)
 			this.emitRange(startFrame / this.sampleRate, endFrame / this.sampleRate);
@@ -203,7 +203,7 @@ export class StreamingWavSource implements AudioSource {
 		endFrame: number,
 	): Promise<Float32Array> {
 		const range = wavTimeToByteRange(this.info, startTime, endTime);
-		const bytes = await this.seekable!.readRange(range.start, range.end);
+		const bytes = await this.seekable?.readRange(range.start, range.end);
 		if (bytes.length > range.end - range.start)
 			throw new Error("Seekable WAV range returned more bytes than requested");
 		this.copyDecoded(bytes, range.start, startFrame);
@@ -211,7 +211,7 @@ export class StreamingWavSource implements AudioSource {
 			throw new Error(
 				"Seekable WAV range ended before requested samples were available",
 			);
-		return this.decoded[channel]!.slice(startFrame, endFrame);
+		return this.decoded[channel]?.slice(startFrame, endFrame);
 	}
 
 	private resolveReadyPending(): void {
@@ -220,7 +220,7 @@ export class StreamingWavSource implements AudioSource {
 			if (!this.isRangeDecoded(pending.startFrame, pending.endFrame)) continue;
 			this.pending.splice(index, 1);
 			pending.resolve(
-				this.decoded[pending.channel]!.slice(
+				this.decoded[pending.channel]?.slice(
 					pending.startFrame,
 					pending.endFrame,
 				),
@@ -260,7 +260,7 @@ export class StreamingWavSource implements AudioSource {
 	}
 
 	private rejectPending(error: Error): void {
-		while (this.pending.length > 0) this.pending.pop()!.reject(error);
+		while (this.pending.length > 0) this.pending.pop()?.reject(error);
 	}
 
 	private emitRange(startTime: number, endTime: number): void {

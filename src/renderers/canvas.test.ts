@@ -326,8 +326,8 @@ describe("renderer helpers", () => {
 		const placeholderPixel = (0 * 100 + 24) * 4;
 		const tilePixel = (0 * 100 + 0) * 4;
 		expect(
-			Array.from(data!.slice(placeholderPixel, placeholderPixel + 4)),
+			Array.from(data?.slice(placeholderPixel, placeholderPixel + 4)),
 		).toEqual([71, 85, 105, 255]);
-		expect(data![tilePixel + 3]).toBe(255);
+		expect(data?.[tilePixel + 3]).toBe(255);
 	});
 });

@@ -283,7 +283,7 @@ describe("playback sync", () => {
 		const render = vi.spyOn(viewer, "render").mockResolvedValue();
 		element.paused = false;
 
-		rangeHandler!({ startTime: 0, endTime: 1 });
+		rangeHandler?.({ startTime: 0, endTime: 1 });
 		await Promise.resolve();
 
 		expect(render).not.toHaveBeenCalled();

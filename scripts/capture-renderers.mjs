@@ -55,7 +55,7 @@ try {
 					undefined,
 					{ timeout: 10_000 },
 				);
-			} catch (error) {
+			} catch (_error) {
 				const status = await page.locator("#status").textContent();
 				throw new Error(
 					`Timed out waiting for WebGL2 render. Status: ${status}`,

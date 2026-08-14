@@ -140,7 +140,7 @@ describe("SpectrogramViewer", () => {
 		await Promise.resolve();
 
 		expect(renderLoading).not.toHaveBeenCalled();
-		release!();
+		release?.();
 		await created;
 		fromUrl.mockRestore();
 		renderLoading.mockRestore();
@@ -469,10 +469,10 @@ describe("SpectrogramViewer", () => {
 		await viewer.render();
 
 		expect(profiles).toHaveLength(1);
-		expect(profiles[0]!.generation).toBeGreaterThan(0);
-		expect(profiles[0]!.names).toContain("render.total");
-		expect(profiles[0]!.names).toContain("renderer.paint");
-		expect(profiles[0]!.names).toContain("render.paint.count");
+		expect(profiles[0]?.generation).toBeGreaterThan(0);
+		expect(profiles[0]?.names).toContain("render.total");
+		expect(profiles[0]?.names).toContain("renderer.paint");
+		expect(profiles[0]?.names).toContain("render.paint.count");
 	});
 
 	it("does not let an older render complete after a newer viewport render", async () => {
@@ -504,7 +504,7 @@ describe("SpectrogramViewer", () => {
 		const first = viewer.render();
 		viewer.setViewport({ startTime: 1, endTime: 2 });
 		await viewer.render();
-		resolveFirst!(matrix(0, 1));
+		resolveFirst?.(matrix(0, 1));
 		await first;
 
 		expect(completed).toEqual(["render-2"]);
@@ -571,18 +571,18 @@ describe("SpectrogramViewer", () => {
 
 		const rendered = viewer.render();
 		await Promise.resolve();
-		releaseSecond!();
+		releaseSecond?.();
 		await rendered;
 
 		expect(render).toHaveBeenCalledTimes(2);
-		expect(render.mock.calls[0]![0]).toMatchObject({
+		expect(render.mock.calls[0]?.[0]).toMatchObject({
 			placeholders: expect.any(Array),
 		});
 		expect(
-			(render.mock.calls[0]![0] as { placeholders: unknown[] }).placeholders
+			(render.mock.calls[0]?.[0] as { placeholders: unknown[] }).placeholders
 				.length,
 		).toBeGreaterThan(0);
-		expect(render.mock.calls[1]![0]).toMatchObject({ placeholders: [] });
+		expect(render.mock.calls[1]?.[0]).toMatchObject({ placeholders: [] });
 	});
 
 	it("shows a loading overlay while visible tiles are computing", async () => {
@@ -780,7 +780,7 @@ describe("SpectrogramViewer", () => {
 			"uncomputed",
 		]);
 
-		release!();
+		release?.();
 		await render;
 		expect(viewer.getTileStates().map((tile) => tile.state)).toEqual([
 			"computed",
@@ -841,7 +841,7 @@ describe("SpectrogramViewer", () => {
 		});
 		const render = vi.spyOn(viewer, "render").mockResolvedValue(undefined);
 
-		rangeHandler!({ startTime: 0.25, endTime: 0.5 });
+		rangeHandler?.({ startTime: 0.25, endTime: 0.5 });
 		await Promise.resolve();
 
 		expect(render).toHaveBeenCalledTimes(1);
@@ -873,7 +873,7 @@ describe("SpectrogramViewer", () => {
 		});
 		const render = vi.spyOn(viewer, "render").mockResolvedValue(undefined);
 
-		rangeHandler!({ startTime: 2, endTime: 3 });
+		rangeHandler?.({ startTime: 2, endTime: 3 });
 		await Promise.resolve();
 
 		expect(render).not.toHaveBeenCalled();

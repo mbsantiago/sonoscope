@@ -49,10 +49,10 @@ function controllableSource(): {
 				}),
 		},
 		push(chunk) {
-			controller!.enqueue(chunk);
+			controller?.enqueue(chunk);
 		},
 		close() {
-			controller!.close();
+			controller?.close();
 		},
 	};
 }
@@ -178,7 +178,7 @@ describe("StreamingWavSource sequential decode", () => {
 
 		expect(earlierResolved).toBe(false);
 
-		resolveEarlierRange!(bytes.slice(44, 48));
+		resolveEarlierRange?.(bytes.slice(44, 48));
 		expect(
 			Array.from(await earlier).map((value) => Number(value.toFixed(4))),
 		).toEqual([0, 1]);
