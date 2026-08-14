@@ -19,10 +19,10 @@ export function computePeaks(
     const start = Math.floor(i * blockSize);
     const end = Math.min(len, Math.floor((i + 1) * blockSize));
 
-    let minVal = 0;
-    let maxVal = 0;
+    let minVal = samples[start] ?? 0;
+    let maxVal = samples[start] ?? 0;
 
-    for (let j = start; j < end; j++) {
+    for (let j = start + 1; j < end; j++) {
       const val = samples[j]!;
       if (val < minVal) minVal = val;
       if (val > maxVal) maxVal = val;

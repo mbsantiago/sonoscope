@@ -59,24 +59,41 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
           const x = (i / Math.max(1, len - 1)) * width;
-          const maxVal = Math.max(0, peaks.max[i]!);
+          const maxVal = peaks.max[i]!;
           const y = centerY - maxVal * halfH;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         for (let i = len - 1; i >= 0; i--) {
           const x = (i / Math.max(1, len - 1)) * width;
-          const minVal = Math.min(0, peaks.min[i]!);
+          const minVal = peaks.min[i]!;
           const y = centerY - minVal * halfH;
           ctx.lineTo(x, y);
         }
         ctx.closePath();
       };
 
-      // Fill unplayed / full waveform
+      const traceCenterLine = () => {
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const x = (i / Math.max(1, len - 1)) * width;
+          const sample = (peaks.max[i]! + peaks.min[i]!) / 2;
+          const y = centerY - sample * halfH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+      };
+
+      // Fill unplayed / full waveform envelope
       traceEnvelope();
       ctx.fillStyle = color;
       ctx.fill();
+
+      // Stroke center line for crisp continuous signal definition at high zoom
+      traceCenterLine();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.stroke();
 
       // If progressColor and playheadTime are provided, fill played portion
       if (
@@ -98,6 +115,10 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         traceEnvelope();
         ctx.fillStyle = progressColor;
         ctx.fill();
+        traceCenterLine();
+        ctx.strokeStyle = progressColor;
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.stroke();
         ctx.restore();
       }
     }
