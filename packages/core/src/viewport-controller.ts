@@ -102,7 +102,7 @@ export class ViewportController implements IViewportController {
       this.minDuration,
       config.maxDuration ?? Math.min(30, this.totalDuration),
     );
-    this.followPlayback = config.followPlayback ?? "off";
+    this.followPlayback = config.followPlayback ?? "page";
     this.smoothAnchor = Math.max(0, Math.min(1, config.smoothAnchor ?? 0.5));
 
     const initialStart = config.startTime ?? 0;

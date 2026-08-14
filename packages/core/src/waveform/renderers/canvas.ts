@@ -63,19 +63,22 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       }
       const isLineMode = maxSpread < 0.04;
 
-      const traceEnvelopeColumns = () => {
+      const traceEnvelope = () => {
         ctx.beginPath();
-        const step = width / Math.max(1, len);
-        const colWidth = Math.max(1, step);
         for (let i = 0; i < len; i++) {
-          const x = i * step;
+          const x = (i / Math.max(1, len - 1)) * width;
           const maxVal = peaks.max[i]!;
-          const minVal = peaks.min[i]!;
-          const top = centerY - maxVal * halfH;
-          const bottom = centerY - minVal * halfH;
-          const h = Math.max(1 * dpr, bottom - top);
-          ctx.rect(x, top, colWidth, h);
+          const y = centerY - maxVal * halfH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
+        for (let i = len - 1; i >= 0; i--) {
+          const x = (i / Math.max(1, len - 1)) * width;
+          const minVal = peaks.min[i]!;
+          const y = centerY - minVal * halfH;
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath();
       };
 
       const traceLine = () => {
@@ -95,7 +98,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         ctx.lineWidth = 2 * dpr;
         ctx.stroke();
       } else {
-        traceEnvelopeColumns();
+        traceEnvelope();
         ctx.fillStyle = color;
         ctx.fill();
       }
@@ -123,7 +126,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
           ctx.lineWidth = 2 * dpr;
           ctx.stroke();
         } else {
-          traceEnvelopeColumns();
+          traceEnvelope();
           ctx.fillStyle = progressColor;
           ctx.fill();
         }
