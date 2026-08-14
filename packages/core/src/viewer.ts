@@ -37,8 +37,10 @@ import type {
   SpectrumSlice,
   StftConfig,
   TileStateInfo,
+  ValueMode,
   ViewportConfig,
 } from "./types";
+import { deriveDb, derivePower } from "./value-scale";
 
 export class SpectrogramViewer implements ISpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
@@ -644,34 +646,30 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     time: number;
     frequency: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumPoint> {
+    const mode = input.mode ?? this.config.valueMode;
     const spectrum = await this.querySpectrum({
       time: input.time,
       channel: input.channel ?? this.config.channel,
+      mode,
     });
     let binIndex = 0;
-    for (let i = 1; i < spectrum.values.frequency.length; i++) {
+    for (let i = 1; i < spectrum.frequencies.length; i++) {
       if (
-        Math.abs(spectrum.values.frequency[i]! - input.frequency) <
-        Math.abs(spectrum.values.frequency[binIndex]! - input.frequency)
+        Math.abs(spectrum.frequencies[i]! - input.frequency) <
+        Math.abs(spectrum.frequencies[binIndex]! - input.frequency)
       )
         binIndex = i;
     }
     return {
       time: spectrum.time,
-      frequency: spectrum.values.frequency[binIndex]!,
+      frequency: spectrum.frequencies[binIndex]!,
       frameIndex: spectrum.frameIndex,
       binIndex,
       channel: spectrum.channel,
-      ...(spectrum.values.magnitude?.[binIndex] === undefined
-        ? {}
-        : { magnitude: spectrum.values.magnitude[binIndex] }),
-      ...(spectrum.values.power?.[binIndex] === undefined
-        ? {}
-        : { power: spectrum.values.power[binIndex] }),
-      ...(spectrum.values.db?.[binIndex] === undefined
-        ? {}
-        : { db: spectrum.values.db[binIndex] }),
+      mode,
+      value: spectrum.values[binIndex]!,
     };
   }
 
@@ -679,19 +677,23 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     x: number;
     y: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumPoint> {
     const point = this.canvasToTimeFrequency(input.x, input.y);
     return this.queryPoint({
       ...point,
       ...(input.channel === undefined ? {} : { channel: input.channel }),
+      ...(input.mode === undefined ? {} : { mode: input.mode }),
     });
   }
 
   async querySpectrum(input: {
     time: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumSlice> {
     const channel = input.channel ?? this.config.channel;
+    const mode = input.mode ?? this.config.valueMode;
     const range = this.tileRangeForTime(input.time);
     const matrix = await this.getTile(channel, range.timeStart, range.timeEnd);
     let frameIndex = 0;
@@ -704,32 +706,46 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     }
     const start = frameIndex * matrix.binCount;
     const end = start + matrix.binCount;
+
+    let values: Float32Array;
+    if (mode === "db") {
+      if (matrix.db) {
+        values = matrix.db.slice(start, end);
+      } else {
+        values = deriveDb(matrix.magnitude.subarray(start, end));
+      }
+    } else if (mode === "power") {
+      if (matrix.power) {
+        values = matrix.power.slice(start, end);
+      } else {
+        values = derivePower(matrix.magnitude.subarray(start, end));
+      }
+    } else {
+      values = matrix.magnitude.slice(start, end);
+    }
+
     return {
       time: matrix.times[frameIndex]!,
       frameIndex,
       channel,
+      mode,
       frequencyScale: this.config.frequencyScale,
-      values: {
-        frequency: matrix.frequencies,
-        magnitude: matrix.magnitude.slice(start, end),
-        ...(matrix.power ? { power: matrix.power.slice(start, end) } : {}),
-        ...(matrix.db ? { db: matrix.db.slice(start, end) } : {}),
-        ...(matrix.normalized
-          ? { normalized: matrix.normalized.slice(start, end) }
-          : {}),
-      },
+      frequencies: matrix.frequencies,
+      values,
     };
   }
 
   async queryFrame(input: {
     frameIndex: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumSlice> {
     const time =
       (input.frameIndex * this.config.hopSize) / this.config.source.sampleRate;
     return this.querySpectrum({
       time,
       ...(input.channel === undefined ? {} : { channel: input.channel }),
+      ...(input.mode === undefined ? {} : { mode: input.mode }),
     });
   }
 

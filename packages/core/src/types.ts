@@ -390,14 +390,10 @@ export type SpectrumSlice = {
   time: number;
   frameIndex: number;
   channel: number;
+  mode: ValueMode;
   frequencyScale: FrequencyScale;
-  values: {
-    frequency: Float32Array;
-    magnitude: Float32Array;
-    power?: Float32Array | undefined;
-    db?: Float32Array | undefined;
-    normalized?: Uint8Array | Float32Array | undefined;
-  };
+  frequencies: Float32Array;
+  values: Float32Array;
 };
 
 export type SpectrumPoint = {
@@ -406,9 +402,8 @@ export type SpectrumPoint = {
   frameIndex: number;
   binIndex: number;
   channel: number;
-  magnitude?: number | undefined;
-  power?: number | undefined;
-  db?: number | undefined;
+  mode: ValueMode;
+  value: number;
 };
 
 export interface ISpectrogramViewer {
@@ -479,20 +474,24 @@ export interface ISpectrogramViewer {
   querySpectrum(input: {
     time: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumSlice>;
   queryFrame(input: {
     frameIndex: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumSlice>;
   queryPoint(input: {
     time: number;
     frequency: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumPoint>;
   queryCanvasPoint(input: {
     x: number;
     y: number;
     channel?: number;
+    mode?: ValueMode;
   }): Promise<SpectrumPoint>;
   getCacheStats(): CacheStats;
   getTileStates(): TileStateInfo[];

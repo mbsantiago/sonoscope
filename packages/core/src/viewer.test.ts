@@ -1045,11 +1045,23 @@ describe("SpectrogramViewer", () => {
       minFrequency: 0,
       maxFrequency: 512,
     });
-    const spectrum = await viewer.querySpectrum({ time: 0.25, channel: 0 });
-    expect(spectrum.values.frequency.length).toBeGreaterThan(0);
-    expect(spectrum.values.magnitude?.length).toBe(
-      spectrum.values.frequency.length,
-    );
+    const spectrum = await viewer.querySpectrum({
+      time: 0.25,
+      channel: 0,
+      mode: "db",
+    });
+    expect(spectrum.frequencies.length).toBeGreaterThan(0);
+    expect(spectrum.values.length).toBe(spectrum.frequencies.length);
+    expect(spectrum.mode).toBe("db");
+
+    const point = await viewer.queryPoint({
+      time: 0.25,
+      frequency: 200,
+      mode: "magnitude",
+    });
+    expect(point.mode).toBe("magnitude");
+    expect(typeof point.value).toBe("number");
+    expect(point.frequency).toBeCloseTo(200, -1);
   });
 
   it("converts queryCanvasPoint from CSS pixels, not high-DPR backing pixels", async () => {
@@ -1068,6 +1080,8 @@ describe("SpectrogramViewer", () => {
       frameIndex: 0,
       binIndex: 0,
       channel: 0,
+      mode: "magnitude",
+      value: 0.5,
     });
 
     await viewer.queryCanvasPoint({ x: 125, y: 50, channel: 0 });
