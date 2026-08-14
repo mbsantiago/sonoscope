@@ -355,15 +355,77 @@ const ANCHORS: Record<string, Stop[]> = {
 };
 
 export function parseColor(color: string | Rgba): Rgba {
-  if (Array.isArray(color)) return color;
-  const match = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(color);
-  if (!match) throw new Error(`Unsupported color format: ${color}`);
-  return [
-    Number.parseInt(match[1]!, 16),
-    Number.parseInt(match[2]!, 16),
-    Number.parseInt(match[3]!, 16),
-    255,
-  ];
+  if (Array.isArray(color)) {
+    return [color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, color[3] ?? 255];
+  }
+
+  const str = color.trim().toLowerCase();
+  if (str === "transparent") {
+    return [0, 0, 0, 0];
+  }
+
+  // 6-digit hex: #rrggbb
+  const hex6 = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(str);
+  if (hex6) {
+    return [
+      Number.parseInt(hex6[1]!, 16),
+      Number.parseInt(hex6[2]!, 16),
+      Number.parseInt(hex6[3]!, 16),
+      255,
+    ];
+  }
+
+  // 8-digit hex: #rrggbbaa
+  const hex8 = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(str);
+  if (hex8) {
+    return [
+      Number.parseInt(hex8[1]!, 16),
+      Number.parseInt(hex8[2]!, 16),
+      Number.parseInt(hex8[3]!, 16),
+      Number.parseInt(hex8[4]!, 16),
+    ];
+  }
+
+  // 3-digit hex: #rgb
+  const hex3 = /^#([\da-f])([\da-f])([\da-f])$/i.exec(str);
+  if (hex3) {
+    return [
+      Number.parseInt(hex3[1]! + hex3[1]!, 16),
+      Number.parseInt(hex3[2]! + hex3[2]!, 16),
+      Number.parseInt(hex3[3]! + hex3[3]!, 16),
+      255,
+    ];
+  }
+
+  // 4-digit hex: #rgba
+  const hex4 = /^#([\da-f])([\da-f])([\da-f])([\da-f])$/i.exec(str);
+  if (hex4) {
+    return [
+      Number.parseInt(hex4[1]! + hex4[1]!, 16),
+      Number.parseInt(hex4[2]! + hex4[2]!, 16),
+      Number.parseInt(hex4[3]! + hex4[3]!, 16),
+      Number.parseInt(hex4[4]! + hex4[4]!, 16),
+    ];
+  }
+
+  // rgb(r, g, b) or rgba(r, g, b, a)
+  const rgbMatch =
+    /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i.exec(
+      str,
+    );
+  if (rgbMatch) {
+    const r = Math.round(Number.parseFloat(rgbMatch[1]!));
+    const g = Math.round(Number.parseFloat(rgbMatch[2]!));
+    const b = Math.round(Number.parseFloat(rgbMatch[3]!));
+    let a = 255;
+    if (rgbMatch[4] !== undefined) {
+      const alphaVal = Number.parseFloat(rgbMatch[4]);
+      a = Math.round(alphaVal <= 1 ? alphaVal * 255 : alphaVal);
+    }
+    return [r, g, b, Math.max(0, Math.min(255, a))];
+  }
+
+  throw new Error(`Unsupported color format: ${color}`);
 }
 
 function adjust(

@@ -3,8 +3,12 @@ import { buildColorMap, parseColor } from "./colormap";
 import type { BuiltInColorMap } from "./types";
 
 describe("colormap", () => {
-  it("parses hex colors to rgba bytes", () => {
+  it("parses hex, rgb, rgba, and transparent colors to rgba bytes", () => {
     expect(parseColor("#336699")).toEqual([51, 102, 153, 255]);
+    expect(parseColor("#fff")).toEqual([255, 255, 255, 255]);
+    expect(parseColor("transparent")).toEqual([0, 0, 0, 0]);
+    expect(parseColor("rgb(100, 150, 200)")).toEqual([100, 150, 200, 255]);
+    expect(parseColor("rgba(10, 20, 30, 0.5)")).toEqual([10, 20, 30, 128]);
   });
 
   it("builds named maps with 256 entries", () => {

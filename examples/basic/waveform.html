@@ -318,7 +318,12 @@
           });
 
           // 5. Attach canvas navigation to spectrogram
-          attachCanvasNavigation(specViewer, specCanvas);
+          waveViewer.on('error', (event) => {
+            waveStatusEl.textContent = `Error: ${event.error.message}`;
+          });
+          specViewer.on('error', (event) => {
+            specStatusEl.textContent = `Error: ${event.error.message}`;
+          });
 
           // Render both
           await Promise.all([specViewer.render(), waveViewer.render()]);
@@ -327,8 +332,9 @@
           specStatusEl.textContent = `Ready (${source.sampleRate.toLocaleString()} Hz)`;
           vpDisplayEl.textContent = `${initialStartTime.toFixed(2)}s - ${initialEndTime.toFixed(2)}s`;
         } catch (error) {
-          waveStatusEl.textContent = 'Error';
-          specStatusEl.textContent = error instanceof Error ? error.message : String(error);
+          const msg = error instanceof Error ? error.message : String(error);
+          waveStatusEl.textContent = `Error: ${msg}`;
+          specStatusEl.textContent = `Error: ${msg}`;
         }
       }
 
