@@ -16,10 +16,13 @@
   <body>
     <main>
       <h1>Performance profile</h1>
-      <p class="note">Compare main-thread and worker tile computation on synthetic audio.</p>
+      <p class="note">Compare auto, WASM worker, WASM main-thread, JS worker, and JS main-thread tile computation on synthetic audio.</p>
       <div class="controls">
-        <button id="main">Render main-thread backend</button>
-        <button id="worker">Render worker backend</button>
+        <button id="auto">Render auto backend</button>
+        <button id="wasm-worker">Render WASM worker</button>
+        <button id="wasm-main">Render WASM main-thread</button>
+        <button id="worker">Render JS worker</button>
+        <button id="main">Render JS main-thread</button>
         <button id="pan">Pan viewport</button>
         <label>Renderer
           <select id="renderer">
@@ -30,11 +33,17 @@
         </label>
       </div>
       <canvas id="spectrogram"></canvas>
-      <pre id="profile">Rendering initial main-thread profile...</pre>
+      <pre id="profile">Rendering initial profile...</pre>
     </main>
 
     <script type="module">
-      import { MainThreadComputeBackend, SpectrogramViewer, WorkerComputeBackend } from '../../src';
+      import {
+        MainThreadComputeBackend,
+        SpectrogramViewer,
+        WasmComputeBackend,
+        WasmWorkerComputeBackend,
+        WorkerComputeBackend,
+      } from '../../src';
 
       class SyntheticSource {
         id = 'synthetic-performance';
@@ -97,15 +106,18 @@
         }
       }
 
-      document.querySelector('#main').addEventListener('click', () => void renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend()));
-      document.querySelector('#worker').addEventListener('click', () => void renderWithBackend('WorkerComputeBackend', new WorkerComputeBackend()));
+      document.querySelector('#auto').addEventListener('click', () => void renderWithBackend('auto (WASM worker)', 'auto'));
+      document.querySelector('#wasm-worker').addEventListener('click', () => void renderWithBackend('WasmWorkerComputeBackend', new WasmWorkerComputeBackend()));
+      document.querySelector('#wasm-main').addEventListener('click', () => void renderWithBackend('WasmComputeBackend', new WasmComputeBackend()));
+      document.querySelector('#worker').addEventListener('click', () => void renderWithBackend('WorkerComputeBackend (JS)', new WorkerComputeBackend()));
+      document.querySelector('#main').addEventListener('click', () => void renderWithBackend('MainThreadComputeBackend (JS)', new MainThreadComputeBackend()));
       document.querySelector('#pan').addEventListener('click', () => {
         if (!viewer) return;
         viewportStart = (viewportStart + 2) % 40;
         viewer.updateViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
       });
 
-      await renderWithBackend('MainThreadComputeBackend', new MainThreadComputeBackend());
+      await renderWithBackend('auto (WASM worker)', 'auto');
 
       function resetCanvas(current) {
         const next = current.cloneNode(false);
