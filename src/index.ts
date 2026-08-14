@@ -1,6 +1,13 @@
 export const version = "0.0.0";
 export type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
 export { MainThreadComputeBackend } from "./backend";
+export type { BackendFactoryOptions } from "./backend-factory";
+export {
+  createSpectrogramBackend,
+  isSpectrogramComputeBackend,
+  isWasmSupported,
+  isWorkerSupported,
+} from "./backend-factory";
 export type { ByteStreamSource, SeekableByteSource } from "./byte-source";
 export {
   concatChunks,

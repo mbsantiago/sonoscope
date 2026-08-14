@@ -1,7 +1,8 @@
+import type { SpectrogramComputeBackend } from "./backend";
 import {
-  MainThreadComputeBackend,
-  type SpectrogramComputeBackend,
-} from "./backend";
+  createSpectrogramBackend,
+  isSpectrogramComputeBackend,
+} from "./backend-factory";
 import { createTileKey, SpectrogramCache } from "./cache";
 import { resolveConfig, stableHash } from "./config";
 import { TypedEventEmitter } from "./events";
@@ -30,7 +31,6 @@ import type {
   SpectrogramStatus,
   TileStateInfo,
 } from "./types";
-import { WorkerComputeBackend } from "./worker-backend";
 
 export class SpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
@@ -62,9 +62,7 @@ export class SpectrogramViewer {
     this.attachSourceRangeSync();
   }
 
-  static async create(
-    input: SpectrogramConfig & { backend?: SpectrogramComputeBackend },
-  ): Promise<SpectrogramViewer> {
+  static async create(input: SpectrogramConfig): Promise<SpectrogramViewer> {
     if (!input.source && input.audio) {
       const url = input.audio.currentSrc || input.audio.src;
       if (!url)
@@ -75,23 +73,22 @@ export class SpectrogramViewer {
         ...input,
         source: await DecodedAudioSource.fromUrl(url),
       });
-      return new SpectrogramViewer(
-        config,
-        input.backend ?? new MainThreadComputeBackend(),
-      );
+      const backend = isSpectrogramComputeBackend(input.backend)
+        ? input.backend
+        : createSpectrogramBackend(config.backend);
+      return new SpectrogramViewer(config, backend);
     }
     const config = resolveConfig(input);
-    return new SpectrogramViewer(
-      config,
-      input.backend ?? new MainThreadComputeBackend(),
-    );
+    const backend = isSpectrogramComputeBackend(input.backend)
+      ? input.backend
+      : createSpectrogramBackend(config.backend);
+    return new SpectrogramViewer(config, backend);
   }
 
   static async fromUrl(
     input: Omit<SpectrogramConfig, "audio" | "source"> & {
       audio: HTMLAudioElement;
       url: string;
-      backend?: SpectrogramComputeBackend;
     },
   ): Promise<SpectrogramViewer> {
     input.audio.src = input.url;
@@ -99,7 +96,7 @@ export class SpectrogramViewer {
     const viewer = await SpectrogramViewer.create({
       ...input,
       source,
-      backend: input.backend ?? new WorkerComputeBackend(),
+      backend: input.backend ?? "auto",
       viewport: {
         startTime: 0,
         endTime: Math.min(10, source.duration),

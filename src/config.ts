@@ -87,6 +87,7 @@ export function resolveConfig(
     canvas: input.canvas,
     ...(input.source === undefined ? {} : { source: input.source }),
     renderer: input.renderer ?? "auto",
+    backend: input.backend ?? "auto",
     channel,
     stft,
     viewport,

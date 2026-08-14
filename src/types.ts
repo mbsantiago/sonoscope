@@ -1,5 +1,7 @@
+import type { SpectrogramComputeBackend } from "./backend";
 import type { FrameStats, PerformanceMeasure } from "./performance";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
+import type { SpectrogramWorkerLike } from "./worker-backend";
 
 export type FrequencyScale = "linear" | "log" | "mel";
 export type ValueMode = "magnitude" | "power" | "db";
@@ -19,6 +21,37 @@ export type RendererMode =
   | "webgl2"
   | "canvas2d"
   | WebGLRendererConfig;
+
+export type WasmBackendConfig = {
+  type: "wasm";
+  worker?: boolean;
+  workerCount?: number;
+  workerUrl?: URL | string;
+  createWorker?: () => SpectrogramWorkerLike;
+  wasmSource?: BufferSource | Response | PromiseLike<BufferSource | Response>;
+};
+
+export type WorkerBackendConfig = {
+  type: "worker";
+  workerCount?: number;
+  workerUrl?: URL | string;
+  createWorker?: () => SpectrogramWorkerLike;
+};
+
+export type MainThreadBackendConfig = {
+  type: "main-thread";
+};
+
+export type BackendMode =
+  | "auto"
+  | "wasm"
+  | "worker"
+  | "main-thread"
+  | WasmBackendConfig
+  | WorkerBackendConfig
+  | MainThreadBackendConfig
+  | SpectrogramComputeBackend;
+
 export type WindowName = "hann" | "hamming" | "blackman" | "rectangular";
 
 export type Rgba = [number, number, number, number];
@@ -195,6 +228,7 @@ export type SpectrogramConfig = {
   canvas: HTMLCanvasElement;
   source?: AudioSource;
   renderer?: RendererMode;
+  backend?: BackendMode;
   channel?: number;
   stft?: Partial<StftConfig>;
   viewport?: Partial<ViewportConfig>;
@@ -212,6 +246,7 @@ export type ResolvedSpectrogramConfig = {
   canvas: HTMLCanvasElement;
   source?: AudioSource;
   renderer: RendererMode;
+  backend: BackendMode;
   channel: number;
   stft: StftConfig;
   viewport: ViewportConfig;
