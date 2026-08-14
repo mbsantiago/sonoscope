@@ -5,35 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>espectro performance</title>
     <style>
-      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
+      body { margin: 2rem; background: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; }
       canvas, .controls, pre, .note { width: min(100%, 960px); }
-      .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-      canvas { display: block; height: 320px; border: 1px solid #334155; }
-      pre { box-sizing: border-box; overflow: auto; padding: 1rem; background: #020617; border: 1px solid #334155; }
-      .note { color: #cbd5e1; }
+      .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
+      button { background: #1e293b; color: #f8fafc; border: 1px solid #475569; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: background 0.15s; }
+      button:hover { background: #334155; }
+      button.primary { background: #0284c7; border-color: #0369a1; }
+      button.primary:hover { background: #0369a1; }
+      label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.875rem; color: #cbd5e1; }
+      select, input[type="number"] { background: #1e293b; color: #f8fafc; border: 1px solid #475569; padding: 0.35rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
+      canvas { display: block; height: 320px; border: 1px solid #334155; border-radius: 4px; }
+      pre { box-sizing: border-box; overflow: auto; padding: 1.25rem; background: #020617; border: 1px solid #334155; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85rem; line-height: 1.6; color: #e2e8f0; min-height: 240px; }
+      .note { color: #94a3b8; font-size: 0.9rem; margin-top: -0.25rem; margin-bottom: 1.25rem; }
     </style>
   </head>
   <body>
     <main>
-      <h1>Performance profile</h1>
-      <p class="note">Compare auto, WASM worker, WASM main-thread, JS worker, and JS main-thread tile computation on synthetic audio.</p>
+      <h1>Performance profiler & benchmark</h1>
+      <p class="note">Run repeated compute and draw cycles (e.g. 20 iterations) to measure statistical distribution across backends.</p>
+      
       <div class="controls">
-        <button id="auto">Render auto backend</button>
-        <button id="wasm-worker">Render WASM worker</button>
-        <button id="wasm-main">Render WASM main-thread</button>
-        <button id="worker">Render JS worker</button>
-        <button id="main">Render JS main-thread</button>
-        <button id="pan">Pan viewport</button>
-        <label>Renderer
+        <button id="benchmark-all" class="primary">⚡ Benchmark all backends</button>
+        <button id="auto">Auto (WASM worker)</button>
+        <button id="wasm-worker">WASM worker</button>
+        <button id="wasm-main">WASM main-thread</button>
+        <button id="worker">JS worker</button>
+        <button id="main">JS main-thread</button>
+      </div>
+
+      <div class="controls">
+        <label>
+          Iterations:
+          <input type="number" id="iterations" value="20" min="1" max="100" style="width: 60px;" />
+        </label>
+        <label>
+          Renderer:
           <select id="renderer">
             <option value="auto">auto</option>
             <option value="canvas2d">canvas2d</option>
             <option value="webgl">webgl</option>
           </select>
         </label>
+        <button id="pan">Pan viewport</button>
       </div>
+
       <canvas id="spectrogram"></canvas>
-      <pre id="profile">Rendering initial profile...</pre>
+      <pre id="profile">Ready. Click any button above to profile or benchmark backends.</pre>
     </main>
 
     <script type="module">
@@ -65,24 +82,50 @@
       let canvas = document.querySelector('#spectrogram');
       const profile = document.querySelector('#profile');
       const rendererMode = document.querySelector('#renderer');
+      const iterationsInput = document.querySelector('#iterations');
       const source = new SyntheticSource();
       let viewer;
       let viewportStart = 0;
+      let running = false;
 
-      function summarize(measures) {
-        const totals = new Map();
-        for (const measure of measures) totals.set(measure.name, (totals.get(measure.name) ?? 0) + measure.duration);
-        return Array.from(totals.entries())
-          .sort((a, b) => b[1] - a[1])
-          .map(([name, duration]) => `${name.padEnd(24)} ${duration.toFixed(1)} ms`)
-          .join('\n');
+      function computeStats(values) {
+        if (!values || values.length === 0) return { min: 0, max: 0, mean: 0, median: 0, std: 0, count: 0 };
+        const sorted = [...values].sort((a, b) => a - b);
+        const count = sorted.length;
+        const sum = sorted.reduce((acc, v) => acc + v, 0);
+        const mean = sum / count;
+        const median =
+          count % 2 === 0
+            ? (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+            : sorted[Math.floor(count / 2)];
+        const variance = sorted.reduce((acc, v) => acc + (v - mean) ** 2, 0) / count;
+        const std = Math.sqrt(variance);
+        return {
+          count,
+          min: sorted[0],
+          max: sorted[count - 1],
+          mean,
+          median,
+          std,
+        };
       }
 
-      async function renderWithBackend(name, backend) {
+      function formatStatsRow(name, stats) {
+        return `${name.padEnd(24)} | ${stats.mean.toFixed(2).padStart(8)} ms | ${stats.median.toFixed(2).padStart(8)} ms | ${stats.min.toFixed(2).padStart(8)} ms | ${stats.max.toFixed(2).padStart(8)} ms | ±${stats.std.toFixed(2).padStart(6)} ms`;
+      }
+
+      async function profileBackend(name, backendFactory, iterations = 20) {
+        if (running) return null;
+        running = true;
         viewer?.destroy();
         canvas = resetCanvas(canvas);
-        profile.textContent = `Rendering with ${name}...`;
+        profile.textContent = `Initializing ${name} for ${iterations} iterations...\n`;
+
+        const measuresMap = new Map();
+        const totalDurations = [];
+
         try {
+          const backend = typeof backendFactory === 'function' ? backendFactory() : backendFactory;
           viewer = await SpectrogramViewer.create({
             canvas,
             source,
@@ -93,31 +136,129 @@
             valueScale: { mode: 'db', min: -45, max: 15 },
             stft: { windowSize: 2048, fftSize: 2048, hopSize: 512, window: 'hann' },
           });
-          profile.textContent = `Renderer mode: ${viewer.getConfig().renderer}\nRendering with ${name}...`;
-          viewer.on('error', (event) => {
-            profile.textContent = `renderer: ${viewer.getConfig().renderer}\nbackend: ${name}\nerror: ${event.error.message}`;
-          });
+
+          let latestMeasures = [];
           viewer.on('renderprofile', (event) => {
-            profile.textContent = `renderer: ${viewer.getConfig().renderer}\nbackend: ${name}\nrequest: ${event.requestId}\ngeneration: ${event.generation}\n\n${summarize(event.measures)}`;
+            latestMeasures = event.measures;
           });
-          await viewer.render();
+
+          for (let iter = 1; iter <= iterations; iter++) {
+            profile.textContent = `[${iter}/${iterations}] Running compute & draw on ${name}...`;
+
+            // Clear cache & invalidate renderer to force clean compute + draw every iteration
+            viewer.setConfig({ viewport: { startTime: (viewportStart + (iter * 0.1) % 10), endTime: (viewportStart + (iter * 0.1) % 10) + 8 } });
+
+            const start = performance.now();
+            await viewer.render();
+            const elapsed = performance.now() - start;
+            totalDurations.push(elapsed);
+
+            // Group profiler measures
+            const iterTotals = new Map();
+            for (const measure of latestMeasures) {
+              iterTotals.set(measure.name, (iterTotals.get(measure.name) ?? 0) + measure.duration);
+            }
+            for (const [measureName, duration] of iterTotals.entries()) {
+              if (!measuresMap.has(measureName)) measuresMap.set(measureName, []);
+              measuresMap.get(measureName).push(duration);
+            }
+          }
+
+          const totalStats = computeStats(totalDurations);
+          const header = `========================================================================================================\n` +
+            ` PERFORMANCE PROFILE: ${name} (${iterations} iterations)\n` +
+            ` Renderer: ${viewer.getConfig().renderer} | Viewport: 8.0s (4 tiles) | STFT: 2048 FFT / 512 hop\n` +
+            `========================================================================================================\n` +
+            `Metric                   |     Mean   |   Median   |      Min   |      Max   |   StdDev\n` +
+            `-------------------------+------------+------------+------------+------------+----------\n`;
+
+          let body = formatStatsRow('TOTAL (Compute+Draw)', totalStats) + '\n';
+          body += `-------------------------+------------+------------+------------+------------+----------\n`;
+
+          for (const [measureName, values] of measuresMap.entries()) {
+            body += formatStatsRow(measureName, computeStats(values)) + '\n';
+          }
+
+          const fps = (1000 / totalStats.mean).toFixed(1);
+          const summary = `--------------------------------------------------------------------------------------------------------\n` +
+            `Throughput: ~${fps} frames/sec (avg ${totalStats.mean.toFixed(2)} ms per full frame render)`;
+
+          const resultText = header + body + summary;
+          profile.textContent = resultText;
+
+          running = false;
+          return {
+            name,
+            totalStats,
+            stftStats: computeStats(measuresMap.get('tile.stft.compute') || []),
+            sourceStats: computeStats(measuresMap.get('tile.source.read') || []),
+            paintStats: computeStats(measuresMap.get('renderer.paint') || []),
+          };
         } catch (error) {
+          running = false;
           profile.textContent = error instanceof Error ? error.message : String(error);
+          return null;
         }
       }
 
-      document.querySelector('#auto').addEventListener('click', () => void renderWithBackend('auto (WASM worker)', 'auto'));
-      document.querySelector('#wasm-worker').addEventListener('click', () => void renderWithBackend('WasmWorkerComputeBackend', new WasmWorkerComputeBackend()));
-      document.querySelector('#wasm-main').addEventListener('click', () => void renderWithBackend('WasmComputeBackend', new WasmComputeBackend()));
-      document.querySelector('#worker').addEventListener('click', () => void renderWithBackend('WorkerComputeBackend (JS)', new WorkerComputeBackend()));
-      document.querySelector('#main').addEventListener('click', () => void renderWithBackend('MainThreadComputeBackend (JS)', new MainThreadComputeBackend()));
+      async function runAllBenchmarks() {
+        if (running) return;
+        const iterations = Math.max(1, parseInt(iterationsInput.value, 10) || 20);
+        const suite = [
+          { name: 'Auto (WASM Worker)', factory: () => 'auto' },
+          { name: 'WASM Worker Pool', factory: () => new WasmWorkerComputeBackend() },
+          { name: 'WASM Main-Thread', factory: () => new WasmComputeBackend() },
+          { name: 'JS Worker Pool', factory: () => new WorkerComputeBackend() },
+          { name: 'JS Main-Thread', factory: () => new MainThreadComputeBackend() },
+        ];
+
+        const results = [];
+        for (const item of suite) {
+          profile.textContent = `Benchmarking ${item.name} (${suite.indexOf(item) + 1}/${suite.length})...\n`;
+          const res = await profileBackend(item.name, item.factory, iterations);
+          if (res) results.push(res);
+        }
+
+        if (results.length > 0) {
+          const baseline = results.find(r => r.name.includes('JS Main-Thread')) || results[results.length - 1];
+          const baseMean = baseline.totalStats.mean;
+
+          let comparison = `========================================================================================================\n` +
+            ` BENCHMARK COMPARISON SUMMARY (${iterations} iterations each)\n` +
+            ` Renderer: ${rendererMode.value} | Viewport: 8.0s (4 tiles) | STFT: 2048 FFT / 512 hop\n` +
+            `========================================================================================================\n` +
+            `Backend                  |   Total Mean   |   Total Med.   |    STFT Mean   |   Paint Mean   |    Speedup\n` +
+            `-------------------------+----------------+----------------+----------------+----------------+-----------\n`;
+
+          for (const res of results) {
+            const speedup = (baseMean / res.totalStats.mean).toFixed(2);
+            comparison += `${res.name.padEnd(24)} | ${res.totalStats.mean.toFixed(2).padStart(11)} ms | ${res.totalStats.median.toFixed(2).padStart(11)} ms | ${res.stftStats.mean.toFixed(2).padStart(11)} ms | ${res.paintStats.mean.toFixed(2).padStart(11)} ms |   ${speedup.padStart(6)}x\n`;
+          }
+
+          comparison += `========================================================================================================\n` +
+            `* Speedup is calculated relative to ${baseline.name} baseline (${baseMean.toFixed(2)} ms mean total render).`;
+
+          profile.textContent = comparison;
+        }
+      }
+
+      const getIters = () => Math.max(1, parseInt(iterationsInput.value, 10) || 20);
+
+      document.querySelector('#benchmark-all').addEventListener('click', () => void runAllBenchmarks());
+      document.querySelector('#auto').addEventListener('click', () => void profileBackend('Auto (WASM Worker)', () => 'auto', getIters()));
+      document.querySelector('#wasm-worker').addEventListener('click', () => void profileBackend('WasmWorkerComputeBackend', () => new WasmWorkerComputeBackend(), getIters()));
+      document.querySelector('#wasm-main').addEventListener('click', () => void profileBackend('WasmComputeBackend', () => new WasmComputeBackend(), getIters()));
+      document.querySelector('#worker').addEventListener('click', () => void profileBackend('WorkerComputeBackend (JS)', () => new WorkerComputeBackend(), getIters()));
+      document.querySelector('#main').addEventListener('click', () => void profileBackend('MainThreadComputeBackend (JS)', () => new MainThreadComputeBackend(), getIters()));
+      
       document.querySelector('#pan').addEventListener('click', () => {
         if (!viewer) return;
         viewportStart = (viewportStart + 2) % 40;
         viewer.updateViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
       });
 
-      await renderWithBackend('auto (WASM worker)', 'auto');
+      // Initial run
+      void profileBackend('Auto (WASM Worker)', () => 'auto', getIters());
 
       function resetCanvas(current) {
         const next = current.cloneNode(false);
