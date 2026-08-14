@@ -32,7 +32,8 @@
     "access": "public"
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "npm run build:wasm && vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "bench": "vitest bench",
     "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
