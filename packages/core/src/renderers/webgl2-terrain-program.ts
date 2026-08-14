@@ -106,6 +106,7 @@ void main() {
 export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
   readonly shader: WebGL2ShaderProgram;
   private readonly terrainBuffer: WebGLBuffer;
+  private readonly vao: WebGLVertexArrayObject | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     this.shader = new WebGL2ShaderProgram(
@@ -117,6 +118,15 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     if (!terrainBuffer)
       throw new Error("Unable to initialize WebGL2 terrain renderer resources");
     this.terrainBuffer = terrainBuffer;
+
+    this.vao =
+      typeof gl.createVertexArray === "function"
+        ? gl.createVertexArray()
+        : null;
+
+    if (this.vao) {
+      this.setupVao();
+    }
   }
 
   paint(
@@ -130,7 +140,11 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.shader.use();
-    this.bindAttributes();
+    if (this.vao) {
+      gl.bindVertexArray(this.vao);
+    } else {
+      this.bindAttributes();
+    }
     this.shader.uniform4f(
       "u_viewport",
       input.viewport.startTime,
@@ -162,11 +176,24 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     if (input.playheadTime !== undefined)
       this.drawPlayhead(input.playheadTime, input.valueScale, resources);
     gl.disable(gl.DEPTH_TEST);
+    if (this.vao) {
+      gl.bindVertexArray(null);
+    }
   }
 
   delete(): void {
+    if (this.vao) {
+      this.gl.deleteVertexArray(this.vao);
+    }
     this.gl.deleteBuffer(this.terrainBuffer);
     this.shader.delete();
+  }
+
+  private setupVao(): void {
+    if (!this.vao) return;
+    this.gl.bindVertexArray(this.vao);
+    this.bindAttributes();
+    this.gl.bindVertexArray(null);
   }
 
   private bindAttributes(): void {

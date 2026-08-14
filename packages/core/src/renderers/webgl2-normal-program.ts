@@ -99,6 +99,7 @@ void main() {
 export class NormalSpectrogramProgram implements WebGL2RenderProgram {
   readonly shader: WebGL2ShaderProgram;
   private readonly quadBuffer: WebGLBuffer;
+  private readonly vao: WebGLVertexArrayObject | null;
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
@@ -113,7 +114,16 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     if (!quadBuffer)
       throw new Error("Unable to initialize WebGL2 normal renderer resources");
     this.quadBuffer = quadBuffer;
+
+    this.vao =
+      typeof gl.createVertexArray === "function"
+        ? gl.createVertexArray()
+        : null;
+
     this.setFullViewportQuad();
+    if (this.vao) {
+      this.setupVao();
+    }
   }
 
   paint(
@@ -127,7 +137,11 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     gl.clearColor(0.02, 0.025, 0.035, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.shader.use();
-    this.bindAttributes();
+    if (this.vao) {
+      gl.bindVertexArray(this.vao);
+    } else {
+      this.bindAttributes();
+    }
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
     this.shader.uniform1i("u_colormap", 1);
@@ -163,11 +177,24 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
       this.drawTile(tile, input.valueScale, resources);
     if (input.playheadTime !== undefined)
       this.drawPlayhead(input.playheadTime, input.viewport, frame.deviceWidth);
+    if (this.vao) {
+      gl.bindVertexArray(null);
+    }
   }
 
   delete(): void {
+    if (this.vao) {
+      this.gl.deleteVertexArray(this.vao);
+    }
     this.gl.deleteBuffer(this.quadBuffer);
     this.shader.delete();
+  }
+
+  private setupVao(): void {
+    if (!this.vao) return;
+    this.gl.bindVertexArray(this.vao);
+    this.bindAttributes();
+    this.gl.bindVertexArray(null);
   }
 
   private bindAttributes(): void {
@@ -206,21 +233,15 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
     this.shader.uniform1i("u_tile", 0);
-    this.shader.uniform1f("u_overlayMode", 0);
-    this.setFullViewportQuad();
     this.shader.uniform2f("u_tileTimeRange", tile.timeStart, tile.timeEnd);
-    const frequencyRange = tileFrequencyRange(tile);
-    this.shader.uniform2f(
-      "u_tileFrequencyRange",
-      frequencyRange.min,
-      frequencyRange.max,
-    );
+    const range = tileFrequencyRange(tile);
+    this.shader.uniform2f("u_tileFrequencyRange", range.min, range.max);
     this.shader.uniform2f("u_tileSize", entry.width, entry.height);
+    this.shader.uniform1f("u_overlayMode", 0);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
   private drawPlaceholder(): void {
-    this.setFullViewportQuad();
     this.shader.uniform1f("u_overlayMode", 1);
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
@@ -230,51 +251,52 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     viewport: ViewportConfig,
     deviceWidth: number,
   ): void {
-    if (time < viewport.startTime || time > viewport.endTime) return;
-    const x =
-      (time - viewport.startTime) / (viewport.endTime - viewport.startTime);
-    this.gl.enable(this.gl.BLEND);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    const playheadTime = Number(time);
+    if (
+      !Number.isFinite(playheadTime) ||
+      playheadTime < viewport.startTime ||
+      playheadTime > viewport.endTime
+    )
+      return;
+    const position =
+      (playheadTime - viewport.startTime) /
+      Math.max(0.000001, viewport.endTime - viewport.startTime);
+    const halfWidth = 1 / Math.max(1, deviceWidth);
+    const left = position * 2 - 1 - halfWidth;
+    const right = position * 2 - 1 + halfWidth;
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
+    this.gl.bufferSubData(
+      this.gl.ARRAY_BUFFER,
+      0,
+      new Float32Array([
+        left,
+        -1,
+        0,
+        0,
+        right,
+        -1,
+        1,
+        0,
+        left,
+        1,
+        0,
+        1,
+        right,
+        1,
+        1,
+        1,
+      ]),
+    );
     this.shader.uniform1f("u_overlayMode", 2);
-    const pixelWidth = 1 / Math.max(1, deviceWidth);
-    this.setLineQuad(x, Math.min(1, x + pixelWidth));
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-    this.gl.disable(this.gl.BLEND);
+    this.setFullViewportQuad();
   }
 
   private setFullViewportQuad(): void {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
     this.gl.bufferData(
       this.gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0]),
-      this.gl.DYNAMIC_DRAW,
-    );
-  }
-
-  private setLineQuad(start: number, end: number): void {
-    const left = start * 2 - 1;
-    const right = end * 2 - 1;
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
-    this.gl.bufferData(
-      this.gl.ARRAY_BUFFER,
-      new Float32Array([
-        left,
-        -1,
-        0,
-        1,
-        right,
-        -1,
-        1,
-        1,
-        left,
-        1,
-        0,
-        0,
-        right,
-        1,
-        1,
-        0,
-      ]),
+      new Float32Array([-1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1, 1, 1, 1, 1]),
       this.gl.DYNAMIC_DRAW,
     );
   }

@@ -45,7 +45,7 @@ describe("loading and profiler backends in browser", () => {
     });
   }
 
-  it("tests loading URL in SpectrogramViewer", async () => {
+  it("tests loading URL in SpectrogramViewer and switching all shader programs", async () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     const audio = document.createElement("audio");
@@ -68,6 +68,20 @@ describe("loading and profiler backends in browser", () => {
 
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
+
+    const programs = [
+      "normal",
+      "dither",
+      "sobel",
+      "terrain",
+      "normal",
+    ] as const;
+    for (const program of programs) {
+      viewer.updateConfig({ renderer: { type: "webgl", program } });
+      await viewer.render();
+      expect(viewer.getStatus().state).toBe("ready");
+    }
+
     viewer.destroy();
   });
 

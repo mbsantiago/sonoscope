@@ -537,6 +537,61 @@ describe("WebGL2 shaders", () => {
       globalThis.OfflineAudioContext = previousOfflineAudioContext;
     }
   });
+
+  it("renders all shader programs (normal, dither, sobel, terrain) without WebGL errors or warnings", () => {
+    const canvas = document.createElement("canvas");
+    Object.defineProperty(canvas, "getBoundingClientRect", {
+      value: () => ({ width: 64, height: 48 }),
+    });
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return;
+    const renderer = new WebGL2SpectrogramRenderer(gl);
+
+    const programs = [
+      "normal",
+      "dither",
+      "sobel",
+      "terrain",
+      "normal",
+    ] as const;
+    for (const program of programs) {
+      renderer.render({
+        canvas,
+        viewport: {
+          startTime: 0,
+          endTime: 1,
+          minFrequency: 0,
+          maxFrequency: 100,
+          frequencyScale: "linear",
+        },
+        valueScale: {
+          mode: "magnitude",
+          min: 0,
+          max: 1,
+          gamma: 1,
+          clamp: true,
+        },
+        colorMap: "viridis",
+        tiles: [brightBandTile()],
+        webglProgram: program,
+      });
+
+      expect(gl.getError()).toBe(gl.NO_ERROR);
+
+      const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        pixels,
+      );
+      expect(pixels.some((v) => v > 0)).toBe(true);
+    }
+    renderer.destroy();
+  });
 });
 
 function brightBandTile(timeStart = 0, timeEnd = 1): SpectrogramMatrix {
