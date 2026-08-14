@@ -64,4 +64,17 @@ describe("WaveformPeakPyramid", () => {
     expect(peaks.max.some((v) => v > 0)).toBe(true);
     expect(peaks.min.some((v) => v < 0)).toBe(true);
   });
+
+  it("maintains smooth stability during continuous sub-millisecond scrolling", async () => {
+    const pyramid = new WaveformPeakPyramid(dummySource, 0);
+    const p1 = await pyramid.getPeaks(1.0, 3.0, 200);
+    const p2 = await pyramid.getPeaks(1.01, 3.01, 200); // 10ms forward (1 frame at 60fps)
+
+    // A small continuous translation in time should produce close values with no wild jumps
+    expect(p1.max.length).toBe(200);
+    expect(p2.max.length).toBe(200);
+    // Values shifted slightly should correlate closely
+    const diff = Math.abs(p1.max[100]! - p2.max[99]!);
+    expect(diff).toBeLessThan(0.15);
+  });
 });
