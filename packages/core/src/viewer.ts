@@ -23,22 +23,24 @@ import { applyTransforms } from "./transforms";
 import type {
   AudioSource,
   CacheStats,
-  FrequencyScale,
   FromAudioOptions,
   FromSourceOptions,
   FromUrlOptions,
+  ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
   SpectrogramConfig,
   SpectrogramEvents,
   SpectrogramMatrix,
   SpectrogramStatus,
+  SpectrumPoint,
+  SpectrumSlice,
   StftConfig,
   TileStateInfo,
   ViewportConfig,
 } from "./types";
 
-export class SpectrogramViewer {
+export class SpectrogramViewer implements ISpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
   private readonly cache: SpectrogramCache;
   private renderer: SpectrogramRenderer;
@@ -576,16 +578,7 @@ export class SpectrogramViewer {
     time: number;
     frequency: number;
     channel?: number;
-  }): Promise<{
-    time: number;
-    frequency: number;
-    frameIndex: number;
-    binIndex: number;
-    channel: number;
-    magnitude?: number;
-    power?: number;
-    db?: number;
-  }> {
+  }): Promise<SpectrumPoint> {
     const spectrum = await this.querySpectrum({
       time: input.time,
       channel: input.channel ?? this.config.channel,
@@ -620,7 +613,7 @@ export class SpectrogramViewer {
     x: number;
     y: number;
     channel?: number;
-  }): ReturnType<SpectrogramViewer["queryPoint"]> {
+  }): Promise<SpectrumPoint> {
     const point = this.canvasToTimeFrequency(input.x, input.y);
     return this.queryPoint({
       ...point,
@@ -628,19 +621,10 @@ export class SpectrogramViewer {
     });
   }
 
-  async querySpectrum(input: { time: number; channel?: number }): Promise<{
+  async querySpectrum(input: {
     time: number;
-    frameIndex: number;
-    channel: number;
-    frequencyScale: FrequencyScale;
-    values: {
-      frequency: Float32Array;
-      magnitude: Float32Array;
-      power?: Float32Array;
-      db?: Float32Array;
-      normalized?: Uint8Array | Float32Array;
-    };
-  }> {
+    channel?: number;
+  }): Promise<SpectrumSlice> {
     const channel = input.channel ?? this.config.channel;
     const range = this.tileRangeForTime(input.time);
     const matrix = await this.getTile(channel, range.timeStart, range.timeEnd);
@@ -674,7 +658,7 @@ export class SpectrogramViewer {
   async queryFrame(input: {
     frameIndex: number;
     channel?: number;
-  }): ReturnType<SpectrogramViewer["querySpectrum"]> {
+  }): Promise<SpectrumSlice> {
     const time =
       (input.frameIndex * this.config.hopSize) / this.config.source.sampleRate;
     return this.querySpectrum({

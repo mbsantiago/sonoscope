@@ -385,3 +385,106 @@ export interface AudioSource {
   }): Float32Array | Promise<Float32Array>;
   onRangeAvailable?(handler: (range: AudioRange) => void): () => void;
 }
+
+export type SpectrumSlice = {
+  time: number;
+  frameIndex: number;
+  channel: number;
+  frequencyScale: FrequencyScale;
+  values: {
+    frequency: Float32Array;
+    magnitude: Float32Array;
+    power?: Float32Array | undefined;
+    db?: Float32Array | undefined;
+    normalized?: Uint8Array | Float32Array | undefined;
+  };
+};
+
+export type SpectrumPoint = {
+  time: number;
+  frequency: number;
+  frameIndex: number;
+  binIndex: number;
+  channel: number;
+  magnitude?: number | undefined;
+  power?: number | undefined;
+  db?: number | undefined;
+};
+
+export interface ISpectrogramViewer {
+  // Rendering & Lifecycle
+  render(): Promise<void>;
+  destroy(): void;
+  getStatus(): SpectrogramStatus;
+
+  // Viewport & Navigation
+  getViewport(): ViewportConfig;
+  updateViewport(viewport: Partial<ViewportConfig>): void;
+  setViewport(viewport: Partial<ViewportConfig>): void;
+  getTimeBounds(): {
+    startTime: number;
+    endTime: number;
+    minDurationSeconds: number;
+    maxDurationSeconds: number;
+  };
+  zoomTime(factor: number, centerTime?: number): void;
+
+  // Configuration & Source
+  getConfig(): ResolvedSpectrogramConfig;
+  updateConfig(input: Partial<SpectrogramConfig>): void;
+  setConfig(input: Partial<SpectrogramConfig>): void;
+  updateSource(source: AudioSource, options?: Partial<ViewportConfig>): void;
+  setSource(source: AudioSource, options?: Partial<ViewportConfig>): void;
+  updateSourceUrl(
+    url: string,
+    options?: Partial<ViewportConfig>,
+  ): Promise<void>;
+  setSourceUrl(url: string, options?: Partial<ViewportConfig>): Promise<void>;
+  getRendererKind(): "webgl2" | "canvas2d";
+
+  // Audio & Metadata
+  getDuration(): number;
+  getSampleRate(): number;
+  getNyquist(): number;
+  getAudio(): HTMLAudioElement | undefined;
+  attachAudio(audio: HTMLAudioElement): void;
+  detachAudio(): void;
+
+  // Coordinates (Annotations & Overlays)
+  canvasToTimeFrequency(
+    x: number,
+    y: number,
+  ): { time: number; frequency: number };
+  timeFrequencyToCanvas(
+    time: number,
+    frequency: number,
+  ): { x: number; y: number };
+
+  // Events
+  on<Name extends keyof SpectrogramEvents>(
+    name: Name,
+    handler: (event: SpectrogramEvents[Name]) => void,
+  ): () => void;
+
+  // Data Inspection & Spectrum Queries
+  querySpectrum(input: {
+    time: number;
+    channel?: number;
+  }): Promise<SpectrumSlice>;
+  queryFrame(input: {
+    frameIndex: number;
+    channel?: number;
+  }): Promise<SpectrumSlice>;
+  queryPoint(input: {
+    time: number;
+    frequency: number;
+    channel?: number;
+  }): Promise<SpectrumPoint>;
+  queryCanvasPoint(input: {
+    x: number;
+    y: number;
+    channel?: number;
+  }): Promise<SpectrumPoint>;
+  getCacheStats(): CacheStats;
+  getTileStates(): TileStateInfo[];
+}
