@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synchronized Waveform & Spectrogram Demo</title>
+    <style>
+      :root {
+        --bg-main: #0b0f19;
+        --bg-card: #131b2e;
+        --border: rgba(255, 255, 255, 0.12);
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent-wave: #38bdf8;
+        --accent-progress: #0284c7;
+        --highlight: #f59e0b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg-main);
+        color: var(--text);
+        font-family: system-ui, -apple-system, sans-serif;
+        line-height: 1.5;
+      }
+      a { color: var(--accent-wave); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .container { max-width: 1040px; margin: 0 auto; }
+      header { margin-bottom: 1.5rem; }
+      h1 { margin: 0.5rem 0; font-size: 1.6rem; font-weight: 600; }
+      p.subtitle { color: var(--text-muted); margin: 0 0 1rem 0; }
+      
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        align-items: center;
+      }
+      form {
+        display: flex;
+        flex: 1;
+        min-width: 260px;
+        gap: 0.5rem;
+      }
+      input[type='url'] {
+        flex: 1;
+        padding: 0.55rem 0.85rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+      .ctrl-group {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+      button, select {
+        padding: 0.55rem 0.9rem;
+        background: #1e293b;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+      button:hover, select:hover { background: #334155; }
+      
+      audio { width: 100%; margin-bottom: 1.25rem; border-radius: 6px; }
+
+      .stack-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .canvas-wrap-wave {
+        position: relative;
+        width: 100%;
+        height: 110px;
+      }
+      canvas.wave-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 6px;
+        cursor: ew-resize;
+        background: #060913;
+      }
+
+      .canvas-wrap-spec {
+        position: relative;
+        width: 100%;
+        height: 320px;
+      }
+      canvas.spec-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 6px;
+        cursor: grab;
+        background: #050505;
+      }
+
+      .info-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+      }
+      .time-display {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        color: var(--accent-wave);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <p><a href="./index.html">← Back to demos</a></p>
+        <h1>Synchronized Waveform & Spectrogram</h1>
+        <p class="subtitle">Decoupled dual viewers sharing the exact same audio source and time viewport in real-time.</p>
+      </header>
+
+      <div class="toolbar">
+        <form id="url-form">
+          <input name="url" type="url" placeholder="Audio URL" aria-label="Audio URL" />
+          <button type="submit">Load</button>
+        </form>
+
+        <div class="ctrl-group">
+          <label for="gain-select">Wave Amp:</label>
+          <select id="gain-select">
+            <option value="1.0" selected>1.0x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2.0">2.0x</option>
+            <option value="3.0">3.0x</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label for="color-select">ColorMap:</label>
+          <select id="color-select">
+            <option value="magma" selected>Magma</option>
+            <option value="viridis">Viridis</option>
+            <option value="inferno">Inferno</option>
+            <option value="turbo">Turbo</option>
+          </select>
+        </div>
+      </div>
+
+      <audio controls crossorigin="anonymous"></audio>
+
+      <div class="stack-container">
+        <!-- 1. Waveform Strip -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>Waveform Envelope (Peak Decimation)</span>
+            <span id="wave-status">Ready</span>
+          </div>
+          <div class="canvas-wrap-wave">
+            <canvas class="wave-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- 2. Spectrogram -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>Spectrogram Viewport (STFT)</span>
+            <span id="spec-status">Ready</span>
+          </div>
+          <div class="canvas-wrap-spec">
+            <canvas class="spec-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div>
+          <span>Active Viewport: </span>
+          <span class="time-display" id="vp-display">0.00s - 10.00s</span>
+        </div>
+        <div>
+          <span>Drag spectrogram to pan. Wheel to zoom. Both views stay locked in time.</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        attachCanvasNavigation,
+        createAudioSourceFromUrl,
+        SpectrogramViewer,
+        WaveformViewer,
+      } from '@sonogram/core';
+
+      const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
+      
+      const form = document.getElementById('url-form');
+      const input = form.querySelector('input[name="url"]');
+      const gainSelect = document.getElementById('gain-select');
+      const colorSelect = document.getElementById('color-select');
+      const audio = document.querySelector('audio');
+      const waveCanvas = document.querySelector('.wave-canvas');
+      const specCanvas = document.querySelector('.spec-canvas');
+      const waveStatusEl = document.getElementById('wave-status');
+      const specStatusEl = document.getElementById('spec-status');
+      const vpDisplayEl = document.getElementById('vp-display');
+
+      let specViewer = null;
+      let waveViewer = null;
+      let isSyncing = false;
+
+      async function load(url) {
+        specViewer?.destroy();
+        waveViewer?.destroy();
+        waveStatusEl.textContent = 'Loading audio...';
+        specStatusEl.textContent = 'Loading audio...';
+        audio.src = url;
+
+        try {
+          // 1. Create single decoded AudioSource shared by both viewers
+          const source = await createAudioSourceFromUrl(url);
+
+          const initialStartTime = 0;
+          const initialEndTime = Math.min(10, source.duration);
+
+          // 2. Initialize WaveformViewer
+          waveViewer = await WaveformViewer.create({
+            canvas: waveCanvas,
+            source,
+            audio,
+            startTime: initialStartTime,
+            endTime: initialEndTime,
+            color: '#38bdf8',
+            progressColor: '#0284c7',
+            cursorColor: '#f59e0b',
+            amplitudeScale: parseFloat(gainSelect.value),
+          });
+
+          // 3. Initialize SpectrogramViewer
+          specViewer = await SpectrogramViewer.create({
+            canvas: specCanvas,
+            source,
+            audio,
+            startTime: initialStartTime,
+            endTime: initialEndTime,
+            colorMap: colorSelect.value,
+          });
+
+          // 4. Attach synchronized viewport events
+          specViewer.on('viewportchange', (event) => {
+            if (isSyncing) return;
+            isSyncing = true;
+            waveViewer.updateViewport({
+              startTime: event.viewport.startTime,
+              endTime: event.viewport.endTime,
+            });
+            vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
+            isSyncing = false;
+          });
+
+          waveViewer.on('viewportchange', (event) => {
+            if (isSyncing) return;
+            isSyncing = true;
+            specViewer.updateViewport({
+              startTime: event.viewport.startTime,
+              endTime: event.viewport.endTime,
+            });
+            vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
+            isSyncing = false;
+          });
+
+          // 5. Attach canvas navigation to spectrogram
+          attachCanvasNavigation(specViewer, specCanvas);
+
+          // Render both
+          await Promise.all([specViewer.render(), waveViewer.render()]);
+
+          waveStatusEl.textContent = 'Ready';
+          specStatusEl.textContent = `Ready (${source.sampleRate.toLocaleString()} Hz)`;
+          vpDisplayEl.textContent = `${initialStartTime.toFixed(2)}s - ${initialEndTime.toFixed(2)}s`;
+        } catch (error) {
+          waveStatusEl.textContent = 'Error';
+          specStatusEl.textContent = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      // Waveform click to seek
+      waveCanvas.addEventListener('click', (e) => {
+        if (!waveViewer) return;
+        const rect = waveCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const targetTime = waveViewer.canvasToTime(clickX);
+        audio.currentTime = targetTime;
+      });
+
+      gainSelect.addEventListener('change', () => {
+        if (!waveViewer) return;
+        waveViewer.updateConfig({ amplitudeScale: parseFloat(gainSelect.value) });
+      });
+
+      colorSelect.addEventListener('change', () => {
+        if (!specViewer) return;
+        specViewer.updateConfig({ colorMap: colorSelect.value });
+      });
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (input.value.trim()) void load(input.value.trim());
+      });
+
+      input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
+      await load(input.value);
+    </script>
+  </body>
+</html>

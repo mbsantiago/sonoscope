@@ -141,3 +141,17 @@ export {
   normalizeValue,
 } from "./value-scale";
 export { SpectrogramViewer } from "./viewer";
+export { computePeaks, WaveformPeakPyramid } from "./waveform/peaks";
+export { CanvasWaveformRenderer } from "./waveform/renderers/canvas";
+export type {
+  IWaveformViewer,
+  PeakBlock,
+  ResolvedWaveformConfig,
+  WaveformConfig,
+  WaveformEvents,
+  WaveformRenderer,
+  WaveformRenderInput,
+  WaveformStatus,
+  WaveformViewport,
+} from "./waveform/types";
+export { WaveformViewer } from "./waveform/viewer";

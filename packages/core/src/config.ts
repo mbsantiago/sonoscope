@@ -145,7 +145,7 @@ export function resolveConfig(
   };
 }
 
-function clampViewportTimes(
+export function clampViewportTimes(
   startTime: number,
   endTime: number,
   sourceDuration: number,
