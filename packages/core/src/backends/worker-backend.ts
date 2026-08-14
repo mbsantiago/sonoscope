@@ -84,12 +84,14 @@ function fftMagnitudes(realInput) {
       for (let j = 0; j < len / 2; j++) {
         const oddIdx = i + j + len / 2;
         const evenIdx = i + j;
+        const evenReal = real[evenIdx];
+        const evenImag = imag[evenIdx];
         const oddReal = real[oddIdx] * wReal - imag[oddIdx] * wImag;
         const oddImag = real[oddIdx] * wImag + imag[oddIdx] * wReal;
-        real[oddIdx] = real[evenIdx] - oddReal;
+        real[oddIdx] = evenReal - oddReal;
         imag[oddIdx] = evenImag - oddImag;
-        real[evenIdx] += oddReal;
-        imag[evenIdx] += oddImag;
+        real[evenIdx] = evenReal + oddReal;
+        imag[evenIdx] = evenImag + oddImag;
         const nextReal = wReal * wLenReal - wImag * wLenImag;
         wImag = wReal * wLenImag + wImag * wLenReal;
         wReal = nextReal;
