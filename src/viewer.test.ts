@@ -579,6 +579,7 @@ describe("SpectrogramViewer", () => {
       placeholders: expect.any(Array),
     });
     expect(
+      // biome-ignore lint/correctness/noUnsafeOptionalChaining: false positive
       (render.mock.calls[0]?.[0] as { placeholders: unknown[] }).placeholders
         .length,
     ).toBeGreaterThan(0);
