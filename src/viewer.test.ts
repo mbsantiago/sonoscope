@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SpectrogramComputeBackend } from "./backend";
-import { DecodedAudioSource } from "./source";
+import * as sourceModule from "./source";
 import type { AudioSource, SpectrogramMatrix } from "./types";
 import { SpectrogramViewer } from "./viewer";
 
@@ -102,8 +102,8 @@ function matrix(timeStart: number, timeEnd: number): SpectrogramMatrix {
 describe("SpectrogramViewer", () => {
   it("defaults audio-only viewport max frequency to decoded source Nyquist", async () => {
     const fromUrl = vi
-      .spyOn(DecodedAudioSource, "fromUrl")
-      .mockResolvedValue(highRateSource as DecodedAudioSource);
+      .spyOn(sourceModule, "createAudioSourceFromUrl")
+      .mockResolvedValue(highRateSource);
     const audio = {
       src: "test.wav",
       currentSrc: "",
@@ -122,11 +122,13 @@ describe("SpectrogramViewer", () => {
 
   it("does not claim a 2d canvas context while audio-only sources decode", async () => {
     let release: (() => void) | undefined;
-    const fromUrl = vi.spyOn(DecodedAudioSource, "fromUrl").mockReturnValue(
-      new Promise((resolve) => {
-        release = () => resolve(highRateSource as DecodedAudioSource);
-      }),
-    );
+    const fromUrl = vi
+      .spyOn(sourceModule, "createAudioSourceFromUrl")
+      .mockReturnValue(
+        new Promise((resolve) => {
+          release = () => resolve(highRateSource);
+        }),
+      );
     const renderLoading = vi.spyOn(SpectrogramViewer, "renderLoading");
     const audio = {
       src: "test.wav",
@@ -198,6 +200,114 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 96_000,
     });
     renderLoading.mockRestore();
+  });
+
+  it("creates viewer from a URL without an audio element", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(Uint8Array.from([1, 2, 3, 4]));
+            controller.close();
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      }) as typeof fetch;
+    globalThis.AudioContext = vi.fn(function AudioContext(this: {
+      decodeAudioData: () => Promise<AudioBuffer>;
+    }) {
+      this.decodeAudioData = () =>
+        Promise.resolve(highRateSource as unknown as AudioBuffer);
+    }) as unknown as typeof AudioContext;
+
+    const viewer = await SpectrogramViewer.fromUrl({
+      canvas: canvas(),
+      url: "test.wav",
+    });
+
+    expect(viewer.getSource()).toBeDefined();
+    expect(viewer.getAudio()).toBeUndefined();
+    expect(viewer.getConfig().source).toBeDefined();
+    expect("audio" in viewer.getConfig()).toBe(false);
+  });
+
+  it("creates viewer from an audio element using fromAudio", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(Uint8Array.from([1, 2, 3, 4]));
+            controller.close();
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      }) as typeof fetch;
+    globalThis.AudioContext = vi.fn(function AudioContext(this: {
+      decodeAudioData: () => Promise<AudioBuffer>;
+    }) {
+      this.decodeAudioData = () =>
+        Promise.resolve(highRateSource as unknown as AudioBuffer);
+    }) as unknown as typeof AudioContext;
+
+    const audio = {
+      src: "audio-elem.wav",
+      currentSrc: "",
+      duration: 1,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as HTMLAudioElement;
+
+    const viewer = await SpectrogramViewer.fromAudio({
+      canvas: canvas(),
+      audio,
+    });
+
+    expect(viewer.getAudio()).toBe(audio);
+    expect(viewer.getSource()).toBeDefined();
+  });
+
+  it("creates viewer from an AudioSource using fromSource", async () => {
+    const viewer = await SpectrogramViewer.fromSource({
+      canvas: canvas(),
+      source,
+    });
+
+    expect(viewer.getSource()).toBe(source);
+    expect(viewer.getAudio()).toBeUndefined();
+  });
+
+  it("attaches and detaches companion audio element dynamically", async () => {
+    const viewer = await SpectrogramViewer.fromSource({
+      canvas: canvas(),
+      source,
+    });
+    expect(viewer.getAudio()).toBeUndefined();
+
+    const audio = {
+      src: "sync.wav",
+      currentSrc: "",
+      duration: 1,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as HTMLAudioElement;
+
+    viewer.attachAudio(audio);
+    expect(viewer.getAudio()).toBe(audio);
+    expect(audio.addEventListener).toHaveBeenCalled();
+
+    viewer.detachAudio();
+    expect(viewer.getAudio()).toBeUndefined();
+    expect(audio.removeEventListener).toHaveBeenCalled();
   });
 
   it("sets a new source on an existing viewer and resets source state", async () => {
@@ -340,8 +450,8 @@ describe("SpectrogramViewer", () => {
 
   it("allows audio-only min frequency above fallback Nyquist when decoded source supports it", async () => {
     const fromUrl = vi
-      .spyOn(DecodedAudioSource, "fromUrl")
-      .mockResolvedValue(highRateSource as DecodedAudioSource);
+      .spyOn(sourceModule, "createAudioSourceFromUrl")
+      .mockResolvedValue(highRateSource);
     const audio = {
       src: "test.wav",
       currentSrc: "",
@@ -353,7 +463,7 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       audio,
-      viewport: { minFrequency: 30_000 },
+      minFrequency: 30_000,
     });
 
     expect(viewer.getViewport().minFrequency).toBe(30_000);
@@ -363,8 +473,8 @@ describe("SpectrogramViewer", () => {
 
   it("preserves explicit audio-only viewport max frequency after decoding", async () => {
     const fromUrl = vi
-      .spyOn(DecodedAudioSource, "fromUrl")
-      .mockResolvedValue(highRateSource as DecodedAudioSource);
+      .spyOn(sourceModule, "createAudioSourceFromUrl")
+      .mockResolvedValue(highRateSource);
     const audio = {
       src: "test.wav",
       currentSrc: "",
@@ -376,7 +486,7 @@ describe("SpectrogramViewer", () => {
     const viewer = await SpectrogramViewer.create({
       canvas: canvas(),
       audio,
-      viewport: { maxFrequency: 24_000 },
+      maxFrequency: 24_000,
     });
 
     expect(viewer.getViewport().maxFrequency).toBe(24_000);

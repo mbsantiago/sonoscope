@@ -102,7 +102,7 @@
         canvas = resetCanvas(canvas);
         status.textContent = `Creating viewer with renderer: ${rendererMode.value}, frequency scale: ${frequencyScale.value}${summon.checked ? ', invoking forbidden geometry' : ''}...`;
         try {
-          viewer = await SpectrogramViewer.create({
+          viewer = await SpectrogramViewer.fromSource({
             canvas,
             source,
             renderer: summon.checked ? { type: 'webgl', program: 'terrain' } : rendererMode.value,

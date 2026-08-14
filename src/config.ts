@@ -1,4 +1,5 @@
 import type {
+  AudioSource,
   FrequencyScale,
   ResolvedSpectrogramConfig,
   SpectrogramConfig,
@@ -15,11 +16,10 @@ function isPowerOfTwo(value: number): boolean {
 }
 
 export function resolveConfig(
-  input: SpectrogramConfig,
+  input: SpectrogramConfig & { source: AudioSource },
 ): ResolvedSpectrogramConfig {
   if (!input.canvas) throw new Error("SpectrogramViewer requires a canvas");
-  if (!input.source && !input.audio)
-    throw new Error("SpectrogramViewer requires either source or audio");
+  if (!input.source) throw new Error("SpectrogramViewer requires a source");
 
   const windowSize = input.windowSize ?? input.stft?.windowSize ?? 1024;
   const fftSize = input.fftSize ?? input.stft?.fftSize ?? 1024;
@@ -32,7 +32,7 @@ export function resolveConfig(
   if (windowSize <= 0) throw new Error("windowSize must be greater than zero");
   if (hopSize <= 0) throw new Error("hopSize must be greater than zero");
 
-  const sourceDuration = input.source?.duration ?? input.audio?.duration ?? 1;
+  const sourceDuration = input.source.duration;
 
   const minViewportDuration =
     input.minViewportDuration ??
@@ -57,7 +57,7 @@ export function resolveConfig(
   const maxFrequency =
     input.maxFrequency ??
     input.viewport?.maxFrequency ??
-    (input.source ? input.source.sampleRate / 2 : 22_050);
+    input.source.sampleRate / 2;
   const frequencyScale: FrequencyScale =
     input.frequencyScale ?? input.viewport?.frequencyScale ?? "linear";
 
@@ -77,7 +77,7 @@ export function resolveConfig(
   const channel = input.channel ?? 0;
   if (!Number.isInteger(channel) || channel < 0)
     throw new Error("channel must be a non-negative integer");
-  if (input.source && channel >= input.source.channelCount)
+  if (channel >= input.source.channelCount)
     throw new Error(
       `channel ${channel} is outside source channel count ${input.source.channelCount}`,
     );
@@ -117,15 +117,9 @@ export function resolveConfig(
     minimumTilesForMaxViewport + prefetchTiles * 2,
   );
 
-  const secretSpectrogram3d =
-    input.secretSpectrogram3d ??
-    input.superpowers?.secretSpectrogram3d ??
-    false;
-
   return {
-    ...(input.audio === undefined ? {} : { audio: input.audio }),
     canvas: input.canvas,
-    ...(input.source === undefined ? {} : { source: input.source }),
+    source: input.source,
     renderer: input.renderer ?? "auto",
     backend: input.backend ?? "auto",
     channel,
@@ -162,9 +156,6 @@ export function resolveConfig(
     tileDuration,
     maxCachedTiles,
     prefetchTiles,
-
-    // Superpowers
-    secretSpectrogram3d,
 
     // Modular
     colorMap: input.colorMap ?? "viridis",

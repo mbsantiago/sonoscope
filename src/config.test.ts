@@ -52,8 +52,7 @@ describe("resolveConfig", () => {
     expect(config.prefetchTiles).toBeGreaterThanOrEqual(4);
     expect(config.maxCachedTiles).toBeGreaterThanOrEqual(64);
 
-    // Superpowers & Modular
-    expect(config.secretSpectrogram3d).toBe(false);
+    // Modular
     expect(config.colorMap).toBe("viridis");
     expect(config.transforms).toEqual([]);
   });
@@ -74,7 +73,6 @@ describe("resolveConfig", () => {
       maxValue: 1,
       followPlayback: true,
       tileDuration: 10,
-      secretSpectrogram3d: true,
     });
 
     expect(config.windowSize).toBe(512);
@@ -89,7 +87,6 @@ describe("resolveConfig", () => {
     expect(config.maxValue).toBe(1);
     expect(config.followPlayback).toBe(true);
     expect(config.tileDuration).toBe(10);
-    expect(config.secretSpectrogram3d).toBe(true);
   });
 
   it("supports legacy nested config inputs during transition", () => {
@@ -112,7 +109,6 @@ describe("resolveConfig", () => {
         renderOnSeek: false,
       },
       cache: { tileDurationSeconds: 8, maxCachedTiles: 128, prefetchTiles: 12 },
-      superpowers: { secretSpectrogram3d: true },
     });
 
     expect(config.windowSize).toBe(2048);
@@ -136,7 +132,6 @@ describe("resolveConfig", () => {
     expect(config.tileDuration).toBe(8);
     expect(config.maxCachedTiles).toBe(128);
     expect(config.prefetchTiles).toBe(12);
-    expect(config.secretSpectrogram3d).toBe(true);
   });
 
   it("preserves explicit renderer modes", () => {
@@ -180,8 +175,12 @@ describe("resolveConfig", () => {
     );
   });
 
-  it("throws when neither source nor audio is provided", () => {
-    expect(() => resolveConfig({ canvas })).toThrow(/source or audio/);
+  it("throws when source is not provided", () => {
+    expect(() =>
+      resolveConfig({ canvas } as unknown as Parameters<
+        typeof resolveConfig
+      >[0]),
+    ).toThrow(/requires a source/);
   });
 
   it("clamps viewport duration to configured bounds", () => {

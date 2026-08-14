@@ -126,7 +126,7 @@
 
         try {
           const backend = typeof backendFactory === 'function' ? backendFactory() : backendFactory;
-          viewer = await SpectrogramViewer.create({
+          viewer = await SpectrogramViewer.fromSource({
             canvas,
             source,
             renderer: rendererMode.value,

@@ -18,12 +18,15 @@ import {
   type RenderInput,
   type SpectrogramRenderer,
 } from "./renderers/canvas";
-import { createAudioSourceFromUrl, DecodedAudioSource } from "./source";
+import { createAudioSourceFromUrl } from "./source";
 import { applyTransforms } from "./transforms";
 import type {
   AudioSource,
   CacheStats,
   FrequencyScale,
+  FromAudioOptions,
+  FromSourceOptions,
+  FromUrlOptions,
   RendererMode,
   ResolvedSpectrogramConfig,
   SpectrogramConfig,
@@ -39,6 +42,7 @@ export class SpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
   private readonly cache: SpectrogramCache;
   private renderer: SpectrogramRenderer;
+  private audioElement: HTMLAudioElement | undefined = undefined;
   private playbackCleanup: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
   private renderQueued = false;
@@ -56,7 +60,9 @@ export class SpectrogramViewer {
   private constructor(
     private config: ResolvedSpectrogramConfig,
     private readonly backend: SpectrogramComputeBackend,
+    audioElement?: HTMLAudioElement,
   ) {
+    this.audioElement = audioElement;
     this.cache = new SpectrogramCache({
       maxCachedTiles: config.maxCachedTiles,
     });
@@ -66,37 +72,32 @@ export class SpectrogramViewer {
   }
 
   static async create(input: SpectrogramConfig): Promise<SpectrogramViewer> {
-    if (!input.source && input.audio) {
+    let source = input.source;
+    if (!source && input.audio) {
       const url = input.audio.currentSrc || input.audio.src;
       if (!url)
         throw new Error(
           "SpectrogramViewer requires audio.currentSrc or audio.src when source is omitted",
         );
-      const config = resolveConfig({
-        ...input,
-        source: await DecodedAudioSource.fromUrl(url),
-      });
-      const backend = isSpectrogramComputeBackend(input.backend)
-        ? input.backend
-        : createSpectrogramBackend(config.backend);
-      return new SpectrogramViewer(config, backend);
+      source = await createAudioSourceFromUrl(url);
     }
-    const config = resolveConfig(input);
+    if (!source) {
+      throw new Error("SpectrogramViewer requires a source");
+    }
+    const config = resolveConfig({
+      ...input,
+      source,
+    });
     const backend = isSpectrogramComputeBackend(input.backend)
       ? input.backend
       : createSpectrogramBackend(config.backend);
-    return new SpectrogramViewer(config, backend);
+    return new SpectrogramViewer(config, backend, input.audio);
   }
 
-  static async fromUrl(
-    input: Omit<SpectrogramConfig, "audio" | "source"> & {
-      audio?: HTMLAudioElement;
-      url: string;
-    },
-  ): Promise<SpectrogramViewer> {
+  static async fromUrl(input: FromUrlOptions): Promise<SpectrogramViewer> {
     if (input.audio) input.audio.src = input.url;
     const source = await createAudioSourceFromUrl(input.url);
-    const viewer = await SpectrogramViewer.create({
+    return SpectrogramViewer.create({
       startTime: 0,
       endTime: Math.min(10, source.duration),
       minFrequency: 0,
@@ -105,7 +106,37 @@ export class SpectrogramViewer {
       source,
       backend: input.backend ?? "auto",
     });
-    return viewer;
+  }
+
+  static async fromAudio(input: FromAudioOptions): Promise<SpectrogramViewer> {
+    const url = input.audio.currentSrc || input.audio.src;
+    if (!url)
+      throw new Error(
+        "SpectrogramViewer.fromAudio requires audio.currentSrc or audio.src to be set",
+      );
+    const source = await createAudioSourceFromUrl(url);
+    return SpectrogramViewer.create({
+      startTime: 0,
+      endTime: Math.min(10, source.duration),
+      minFrequency: 0,
+      maxFrequency: source.sampleRate / 2,
+      ...input,
+      source,
+      backend: input.backend ?? "auto",
+    });
+  }
+
+  static async fromSource(
+    input: FromSourceOptions,
+  ): Promise<SpectrogramViewer> {
+    return SpectrogramViewer.create({
+      startTime: 0,
+      endTime: Math.min(10, input.source.duration),
+      minFrequency: 0,
+      maxFrequency: input.source.sampleRate / 2,
+      ...input,
+      backend: input.backend ?? "auto",
+    });
   }
 
   static renderLoading(canvas: HTMLCanvasElement, text?: string): void {
@@ -131,8 +162,6 @@ export class SpectrogramViewer {
   }
 
   getSource(): AudioSource {
-    if (!this.config.source)
-      throw new Error("SpectrogramViewer has no AudioSource");
     return this.config.source;
   }
 
@@ -140,15 +169,41 @@ export class SpectrogramViewer {
     return this.getSource().duration;
   }
 
+  getAudio(): HTMLAudioElement | undefined {
+    return this.audioElement;
+  }
+
+  attachAudio(audio: HTMLAudioElement): void {
+    this.detachAudio();
+    this.audioElement = audio;
+    this.attachPlaybackSync();
+    this.requestRender();
+  }
+
+  detachAudio(): void {
+    this.stopPlaybackLoop();
+    for (const cleanup of this.playbackCleanup) cleanup();
+    this.playbackCleanup = [];
+    this.audioElement = undefined;
+    this.requestRender();
+  }
+
   setConfig(input: Partial<SpectrogramConfig>): void {
     const previousTileConfigHash = this.tileConfigHash();
     const previousRenderer = this.config.renderer;
     const source = input.source ?? this.config.source;
+    if (input.audio !== undefined) {
+      if (input.audio) {
+        this.attachAudio(input.audio);
+      } else {
+        this.detachAudio();
+      }
+    }
     this.config = resolveConfig({
       ...this.config,
       ...input,
       canvas: input.canvas ?? this.config.canvas,
-      ...(source ? { source } : {}),
+      source,
     });
     this.renderGeneration += 1;
     if (this.tileConfigHash() !== previousTileConfigHash) {
@@ -196,7 +251,7 @@ export class SpectrogramViewer {
     url: string,
     options?: Partial<ViewportConfig>,
   ): Promise<void> {
-    if (this.config.audio) this.config.audio.src = url;
+    if (this.audioElement) this.audioElement.src = url;
     this.setSource(await createAudioSourceFromUrl(url), options);
   }
 
@@ -223,7 +278,7 @@ export class SpectrogramViewer {
       ...this.config,
       ...viewport,
       canvas: this.config.canvas,
-      ...(this.config.source ? { source: this.config.source } : {}),
+      source: this.config.source,
     });
     this.renderGeneration += 1;
     this.events.emit("viewportchange", { viewport: this.getViewport() });
@@ -272,7 +327,6 @@ export class SpectrogramViewer {
   }
 
   getTileStates(): TileStateInfo[] {
-    if (!this.config.source) return [];
     return this.tileRangesForTimeRange(0, this.config.source.duration).map(
       (tile) => {
         const key = this.tileKey(tile.channel, tile.timeStart, tile.timeEnd);
@@ -321,8 +375,6 @@ export class SpectrogramViewer {
   }
 
   async render(): Promise<void> {
-    if (!this.config.source)
-      throw new Error("Cannot render without an AudioSource");
     const requestId = `render-${++this.requestCounter}`;
     const generation = ++this.renderGeneration;
     const profile = new PerformanceProfiler();
@@ -456,10 +508,9 @@ export class SpectrogramViewer {
       tiles: matrices,
       placeholders,
       profile,
-      ...(this.config.showPlayhead && this.config.audio
-        ? { playheadTime: this.config.audio.currentTime }
+      ...(this.config.showPlayhead && this.audioElement
+        ? { playheadTime: this.audioElement.currentTime }
         : {}),
-      secretSpectrogram3d: this.config.secretSpectrogram3d,
       ...webglProgramRenderInput(this.config.renderer),
     });
   }
@@ -579,8 +630,6 @@ export class SpectrogramViewer {
     frameIndex: number;
     channel?: number;
   }): ReturnType<SpectrogramViewer["querySpectrum"]> {
-    if (!this.config.source)
-      throw new Error("Cannot query without an AudioSource");
     const time =
       (input.frameIndex * this.config.hopSize) / this.config.source.sampleRate;
     return this.querySpectrum({
@@ -606,7 +655,7 @@ export class SpectrogramViewer {
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
     const source = this.config.source;
-    if (!source?.onRangeAvailable) return;
+    if (!source.onRangeAvailable) return;
     this.sourceRangeCleanup = source.onRangeAvailable((range) => {
       if (!this.rangeIntersectsViewport(range.startTime, range.endTime)) return;
       this.queueSourceRangeRender();
@@ -619,8 +668,8 @@ export class SpectrogramViewer {
 
   private queueSourceRangeRender(): void {
     if (
-      this.config.audio &&
-      !this.config.audio.paused &&
+      this.audioElement &&
+      !this.audioElement.paused &&
       this.visibleTilesCached()
     )
       return;
@@ -628,7 +677,6 @@ export class SpectrogramViewer {
   }
 
   private visibleTilesCached(): boolean {
-    if (!this.config.source) return false;
     return this.visibleTileRanges().every((tile) =>
       this.cache.has(this.tileKey(tile.channel, tile.timeStart, tile.timeEnd)),
     );
@@ -642,8 +690,8 @@ export class SpectrogramViewer {
       this.renderAgain = false;
       if (
         this.suppressCachedPlaybackRender &&
-        this.config.audio &&
-        !this.config.audio.paused &&
+        this.audioElement &&
+        !this.audioElement.paused &&
         this.visibleTilesCached()
       ) {
         this.suppressCachedPlaybackRender = false;
@@ -668,8 +716,11 @@ export class SpectrogramViewer {
   }
 
   private attachPlaybackSync(): void {
-    const audio = this.config.audio;
+    const audio = this.audioElement;
     if (!audio) return;
+    for (const cleanup of this.playbackCleanup) cleanup();
+    this.playbackCleanup = [];
+
     const onSeeked = () => {
       this.followPlayheadIfNeeded();
       if (this.config.renderOnSeek) this.requestRender();
@@ -732,7 +783,7 @@ export class SpectrogramViewer {
   }
 
   private followPlayheadIfNeeded(): boolean {
-    const audio = this.config.audio;
+    const audio = this.audioElement;
     if (!audio || !this.config.followPlayback) return false;
     const duration = this.config.endTime - this.config.startTime;
     const margin = duration * this.config.followMargin;
@@ -751,7 +802,7 @@ export class SpectrogramViewer {
   }
 
   private prefetchPlaybackLookahead(frameTime: number): void {
-    const audio = this.config.audio;
+    const audio = this.audioElement;
     const source = this.config.source;
     if (!audio || !source || !this.config.followPlayback) return;
     if (frameTime - this.lastPlaybackPrefetchTime < 250) return;
@@ -768,7 +819,7 @@ export class SpectrogramViewer {
     direction: "both" | "forward" = "both",
     seconds = this.config.tileDuration * this.config.prefetchTiles,
   ): void {
-    if (!this.config.source || this.config.prefetchTiles <= 0) return;
+    if (this.config.prefetchTiles <= 0) return;
     const before =
       direction === "forward"
         ? []
@@ -812,7 +863,7 @@ export class SpectrogramViewer {
   }
 
   private renderPlaybackPlayhead(): boolean {
-    const audio = this.config.audio;
+    const audio = this.audioElement;
     if (!audio || !this.config.showPlayhead) return true;
     return this.renderer.renderPlayhead({
       canvas: this.config.canvas,
@@ -826,8 +877,6 @@ export class SpectrogramViewer {
     timeStart: number;
     timeEnd: number;
   }> {
-    if (!this.config.source)
-      throw new Error("Cannot render without an AudioSource");
     return this.tileRangesForTimeRange(
       this.config.startTime,
       this.config.endTime,
@@ -838,8 +887,6 @@ export class SpectrogramViewer {
     startTime: number,
     endTime: number,
   ): Array<{ channel: number; timeStart: number; timeEnd: number }> {
-    if (!this.config.source)
-      throw new Error("Cannot compute tile ranges without an AudioSource");
     const ranges: Array<{
       channel: number;
       timeStart: number;
@@ -870,8 +917,6 @@ export class SpectrogramViewer {
     timeStart: number;
     timeEnd: number;
   } {
-    if (!this.config.source)
-      throw new Error("Cannot query without an AudioSource");
     const start =
       Math.floor(time / this.config.tileDuration) * this.config.tileDuration;
     return {
@@ -889,8 +934,6 @@ export class SpectrogramViewer {
     timeEnd: number,
     profile?: PerformanceProfiler,
   ): Promise<SpectrogramMatrix> {
-    if (!this.config.source)
-      throw new Error("Cannot compute tile without an AudioSource");
     const source = this.config.source;
     const stft: StftConfig = {
       windowSize: this.config.windowSize,
@@ -949,8 +992,6 @@ export class SpectrogramViewer {
   }
 
   private tileKey(channel: number, timeStart: number, timeEnd: number): string {
-    if (!this.config.source)
-      throw new Error("Cannot key tile without an AudioSource");
     return createTileKey({
       sourceId: this.config.source.id,
       channel,
@@ -974,7 +1015,7 @@ export class SpectrogramViewer {
 
   private tileConfigHash(): string {
     return stableHash({
-      sourceId: this.config.source?.id,
+      sourceId: this.config.source.id,
       channel: this.config.channel,
       windowSize: this.config.windowSize,
       fftSize: this.config.fftSize,

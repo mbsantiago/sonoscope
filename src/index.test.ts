@@ -5,6 +5,7 @@ import {
   isWebCodecsMp3Supported,
   parseMp3FrameHeader,
   parseMp3Info,
+  SpectrogramViewer,
   StreamingMp3Source,
   version,
 } from "./index";
@@ -21,5 +22,12 @@ describe("public entrypoint", () => {
     expect(typeof StreamingMp3Source).toBe("function");
     expect(typeof isWebCodecsMp3Supported).toBe("function");
     expect(typeof createWebCodecsMp3Decoder).toBe("function");
+  });
+
+  it("exports SpectrogramViewer with fromUrl, fromAudio, fromSource, and create", () => {
+    expect(typeof SpectrogramViewer.create).toBe("function");
+    expect(typeof SpectrogramViewer.fromUrl).toBe("function");
+    expect(typeof SpectrogramViewer.fromAudio).toBe("function");
+    expect(typeof SpectrogramViewer.fromSource).toBe("function");
   });
 });

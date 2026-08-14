@@ -120,10 +120,6 @@ export type CacheConfig = {
   prefetchTiles: number;
 };
 
-export type SuperpowersConfig = {
-  secretSpectrogram3d: boolean;
-};
-
 export type CacheStats = {
   tiles: number;
   bytes: number;
@@ -264,9 +260,6 @@ export type SpectrogramConfig = {
   maxCachedTiles?: number;
   prefetchTiles?: number;
 
-  // Superpowers
-  secretSpectrogram3d?: boolean;
-
   // Modular
   colorMap?: ColorMapConfig;
   transforms?: SpectrogramTransform[];
@@ -278,13 +271,11 @@ export type SpectrogramConfig = {
   valueScale?: Partial<ValueScaleConfig>;
   playback?: Partial<PlaybackConfig>;
   cache?: Partial<CacheConfig>;
-  superpowers?: Partial<SuperpowersConfig>;
 };
 
 export type ResolvedSpectrogramConfig = {
-  audio?: HTMLAudioElement;
   canvas: HTMLCanvasElement;
-  source?: AudioSource;
+  source: AudioSource;
   renderer: RendererMode;
   backend: BackendMode;
   channel: number;
@@ -322,12 +313,23 @@ export type ResolvedSpectrogramConfig = {
   maxCachedTiles: number;
   prefetchTiles: number;
 
-  // Superpowers
-  secretSpectrogram3d: boolean;
-
   // Modular
   colorMap: ColorMapConfig;
   transforms: SpectrogramTransform[];
+};
+
+export type FromUrlOptions = Omit<SpectrogramConfig, "source"> & {
+  url: string;
+  audio?: HTMLAudioElement;
+};
+
+export type FromAudioOptions = Omit<SpectrogramConfig, "source"> & {
+  audio: HTMLAudioElement;
+};
+
+export type FromSourceOptions = Omit<SpectrogramConfig, "audio"> & {
+  source: AudioSource;
+  audio?: HTMLAudioElement;
 };
 
 export type AudioRange = { startTime: number; endTime: number };

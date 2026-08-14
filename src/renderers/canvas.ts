@@ -36,7 +36,6 @@ export type RenderInput = {
     | "sobel"
     | "terrain"
     | WebGL2RenderProgram;
-  secretSpectrogram3d?: boolean;
   profile?: PerformanceProfiler;
 };
 

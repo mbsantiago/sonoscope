@@ -232,7 +232,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     if (input.webglProgram === "dither") return this.ditherProgram;
     if (input.webglProgram === "normal") return this.normalProgram;
     if (this.customProgram) return this.customProgram;
-    return input.secretSpectrogram3d ? this.terrainProgram : this.normalProgram;
+    return this.normalProgram;
   }
 
   private renderResources(input: RenderInput): WebGL2RenderResources {
