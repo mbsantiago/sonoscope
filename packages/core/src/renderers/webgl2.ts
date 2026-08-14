@@ -207,7 +207,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.sobelProgram.delete();
     this.terrainProgram.delete();
     this.customProgram?.delete();
-    this.gl.getExtension("WEBGL_lose_context")?.loseContext();
   }
 
   private paint(input: RenderInput, program: WebGL2RenderProgram): void {

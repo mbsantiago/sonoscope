@@ -48,6 +48,14 @@ export function useSpectrogram(
     [JSON.stringify(viewerConfig)],
   );
 
+  const navSerialized = useMemo(
+    () =>
+      typeof navigation === "object"
+        ? JSON.stringify(navigation)
+        : String(navigation),
+    [navigation],
+  );
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses source identity; in-place option updates are handled reactively below
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -131,7 +139,7 @@ export function useSpectrogram(
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [url, source, navigation]);
+  }, [url, source, navSerialized]);
 
   // Handle in-place reactive config updates on existing viewer
   useEffect(() => {
