@@ -52,14 +52,17 @@ export type {
   CanvasDragNavigationOptions,
   CanvasNavigationOptions,
   CanvasWheelNavigationOptions,
+  FrequencyBounds,
   TimeBounds,
 } from "./navigation";
 export {
   attachCanvasDragNavigation,
   attachCanvasNavigation,
   attachCanvasWheelNavigation,
+  panViewportFrequency,
   panViewportTime,
   setViewerViewport,
+  zoomViewportFrequency,
   zoomViewportTime,
 } from "./navigation";
 export type {

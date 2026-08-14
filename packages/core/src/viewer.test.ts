@@ -404,6 +404,69 @@ describe("SpectrogramViewer", () => {
     expect(requestRender).not.toHaveBeenCalled();
   });
 
+  it("zooms frequency around an anchor and schedules a render", async () => {
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source,
+      minFrequency: 0,
+      maxFrequency: 400,
+    });
+    const requestRender = vi.spyOn(viewer, "requestRender");
+
+    viewer.zoomFreq(0.5, 200);
+
+    expect(viewer.getViewport()).toMatchObject({
+      minFrequency: 100,
+      maxFrequency: 300,
+    });
+    expect(requestRender).toHaveBeenCalledTimes(1);
+  });
+
+  it("zooms both time and frequency with a uniform factor", async () => {
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 400,
+    });
+    const requestRender = vi.spyOn(viewer, "requestRender");
+
+    viewer.zoomBoth(0.5, { time: 0.5, frequency: 200 });
+
+    expect(viewer.getViewport()).toMatchObject({
+      startTime: 0.25,
+      endTime: 0.75,
+      minFrequency: 100,
+      maxFrequency: 300,
+    });
+    expect(requestRender).toHaveBeenCalledTimes(1);
+  });
+
+  it("zooms both time and frequency with separate factors", async () => {
+    const viewer = await SpectrogramViewer.create({
+      canvas: canvas(),
+      source,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 400,
+    });
+
+    viewer.zoomBoth(
+      { time: 0.5, frequency: 0.25 },
+      { time: 0.5, frequency: 200 },
+    );
+
+    expect(viewer.getViewport()).toMatchObject({
+      startTime: 0.25,
+      endTime: 0.75,
+      minFrequency: 150,
+      maxFrequency: 250,
+    });
+  });
+
   it("loads a new source URL into an existing viewer", async () => {
     const audio = {
       src: "old.wav",

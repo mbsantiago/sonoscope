@@ -31,6 +31,12 @@ export type CanvasNavigationOptions = CanvasWheelNavigationOptions &
     enableDrag?: boolean;
   };
 
+export type FrequencyBounds = {
+  minFrequency: number;
+  maxFrequency: number;
+  minSpanHz?: number;
+};
+
 export function setViewerViewport(
   viewer: SpectrogramViewer,
   viewport: Partial<ViewportConfig>,
@@ -52,6 +58,20 @@ export function panViewportTime(
     Math.max(bounds.startTime, bounds.endTime - duration),
   );
   return { ...viewport, startTime, endTime: startTime + duration };
+}
+
+export function panViewportFrequency(
+  viewport: ViewportConfig,
+  bounds: FrequencyBounds,
+  deltaHz: number,
+): ViewportConfig {
+  const span = viewport.maxFrequency - viewport.minFrequency;
+  const minFrequency = clamp(
+    viewport.minFrequency + deltaHz,
+    bounds.minFrequency,
+    Math.max(bounds.minFrequency, bounds.maxFrequency - span),
+  );
+  return { ...viewport, minFrequency, maxFrequency: minFrequency + span };
 }
 
 export function zoomViewportTime(
@@ -78,6 +98,29 @@ export function zoomViewportTime(
     Math.max(bounds.startTime, bounds.endTime - duration),
   );
   return { ...viewport, startTime, endTime: startTime + duration };
+}
+
+export function zoomViewportFrequency(
+  viewport: ViewportConfig,
+  bounds: FrequencyBounds,
+  centerFrequency: number,
+  factor: number,
+): ViewportConfig {
+  const currentSpan = viewport.maxFrequency - viewport.minFrequency;
+  const maxSpan = bounds.maxFrequency - bounds.minFrequency;
+  const minSpan = Math.min(bounds.minSpanHz ?? 10, maxSpan);
+  const span = clamp(currentSpan * factor, minSpan, maxSpan);
+  if (Math.abs(span - currentSpan) < 1e-9) return viewport;
+  const ratio =
+    currentSpan <= 0
+      ? 0.5
+      : (centerFrequency - viewport.minFrequency) / currentSpan;
+  const minFrequency = clamp(
+    centerFrequency - span * ratio,
+    bounds.minFrequency,
+    Math.max(bounds.minFrequency, bounds.maxFrequency - span),
+  );
+  return { ...viewport, minFrequency, maxFrequency: minFrequency + span };
 }
 
 export function attachCanvasWheelNavigation(

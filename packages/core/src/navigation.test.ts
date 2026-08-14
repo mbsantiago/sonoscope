@@ -3,7 +3,9 @@ import {
   attachCanvasDragNavigation,
   attachCanvasNavigation,
   attachCanvasWheelNavigation,
+  panViewportFrequency,
   panViewportTime,
+  zoomViewportFrequency,
   zoomViewportTime,
 } from "./navigation";
 import type { ViewportConfig } from "./types";
@@ -31,10 +33,40 @@ describe("navigation utilities", () => {
     ).toMatchObject({ startTime: 0, endTime: 4 });
   });
 
+  it("pans frequency while preserving span and bounds", () => {
+    const vp: ViewportConfig = {
+      ...viewport,
+      minFrequency: 200,
+      maxFrequency: 800,
+    };
+    expect(
+      panViewportFrequency(vp, { minFrequency: 0, maxFrequency: 1000 }, 100),
+    ).toMatchObject({ minFrequency: 300, maxFrequency: 900 });
+    expect(
+      panViewportFrequency(vp, { minFrequency: 0, maxFrequency: 1000 }, -500),
+    ).toMatchObject({ minFrequency: 0, maxFrequency: 600 });
+  });
+
   it("zooms around a time anchor", () => {
     expect(
       zoomViewportTime(viewport, { startTime: 0, endTime: 20 }, 5, 0.5),
     ).toMatchObject({ startTime: 4.5, endTime: 6.5 });
+  });
+
+  it("zooms around a frequency anchor", () => {
+    const vp: ViewportConfig = {
+      ...viewport,
+      minFrequency: 0,
+      maxFrequency: 1000,
+    };
+    expect(
+      zoomViewportFrequency(
+        vp,
+        { minFrequency: 0, maxFrequency: 1000 },
+        500,
+        0.5,
+      ),
+    ).toMatchObject({ minFrequency: 250, maxFrequency: 750 });
   });
 
   it("keeps an off-center time anchor under the same cursor ratio after zooming", () => {
@@ -50,6 +82,24 @@ describe("navigation utilities", () => {
     );
     const ratioAfter =
       (anchorTime - next.startTime) / (next.endTime - next.startTime);
+
+    expect(ratioAfter).toBeCloseTo(ratioBefore, 12);
+  });
+
+  it("keeps an off-center frequency anchor under the same ratio after zooming", () => {
+    const anchorFreq = 300;
+    const ratioBefore =
+      (anchorFreq - viewport.minFrequency) /
+      (viewport.maxFrequency - viewport.minFrequency);
+    const next = zoomViewportFrequency(
+      viewport,
+      { minFrequency: 0, maxFrequency: 1000 },
+      anchorFreq,
+      0.5,
+    );
+    const ratioAfter =
+      (anchorFreq - next.minFrequency) /
+      (next.maxFrequency - next.minFrequency);
 
     expect(ratioAfter).toBeCloseTo(ratioBefore, 12);
   });

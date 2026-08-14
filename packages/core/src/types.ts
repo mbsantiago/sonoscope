@@ -427,7 +427,16 @@ export interface ISpectrogramViewer {
     minDurationSeconds: number;
     maxDurationSeconds: number;
   };
+  getFrequencyBounds(): {
+    minFrequency: number;
+    maxFrequency: number;
+  };
   zoomTime(factor: number, centerTime?: number): void;
+  zoomFreq(factor: number, centerFrequency?: number): void;
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
+  ): void;
 
   // Configuration & Source
   getConfig(): ResolvedSpectrogramConfig;

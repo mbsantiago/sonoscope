@@ -10,7 +10,7 @@ import {
   canvasToTimeFrequency as mapCanvasToTimeFrequency,
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
-import { zoomViewportTime } from "./navigation";
+import { zoomViewportFrequency, zoomViewportTime } from "./navigation";
 import { FrameMeter, PerformanceProfiler } from "./performance";
 import {
   CanvasSpectrogramRenderer,
@@ -357,11 +357,77 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       factor,
     );
     if (
-      next.startTime === currentViewport.startTime &&
-      next.endTime === currentViewport.endTime
+      Math.abs(next.startTime - currentViewport.startTime) < 1e-6 &&
+      Math.abs(next.endTime - currentViewport.endTime) < 1e-6
     )
       return;
     this.updateViewport(next);
+  }
+
+  getFrequencyBounds(): {
+    minFrequency: number;
+    maxFrequency: number;
+  } {
+    return {
+      minFrequency: 0,
+      maxFrequency: this.getNyquist(),
+    };
+  }
+
+  zoomFreq(
+    factor: number,
+    centerFrequency = (this.config.minFrequency + this.config.maxFrequency) / 2,
+  ): void {
+    const currentViewport = this.getViewport();
+    const next = zoomViewportFrequency(
+      currentViewport,
+      this.getFrequencyBounds(),
+      centerFrequency,
+      factor,
+    );
+    if (
+      Math.abs(next.minFrequency - currentViewport.minFrequency) < 1e-6 &&
+      Math.abs(next.maxFrequency - currentViewport.maxFrequency) < 1e-6
+    )
+      return;
+    this.updateViewport(next);
+  }
+
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
+  ): void {
+    const timeFactor = typeof factor === "number" ? factor : factor.time;
+    const freqFactor = typeof factor === "number" ? factor : factor.frequency;
+    const currentViewport = this.getViewport();
+    const timeCenter =
+      center?.time ?? (currentViewport.startTime + currentViewport.endTime) / 2;
+    const freqCenter =
+      center?.frequency ??
+      (currentViewport.minFrequency + currentViewport.maxFrequency) / 2;
+
+    const afterTime = zoomViewportTime(
+      currentViewport,
+      this.getTimeBounds(),
+      timeCenter,
+      timeFactor,
+    );
+    const afterBoth = zoomViewportFrequency(
+      afterTime,
+      this.getFrequencyBounds(),
+      freqCenter,
+      freqFactor,
+    );
+
+    if (
+      Math.abs(afterBoth.startTime - currentViewport.startTime) < 1e-6 &&
+      Math.abs(afterBoth.endTime - currentViewport.endTime) < 1e-6 &&
+      Math.abs(afterBoth.minFrequency - currentViewport.minFrequency) < 1e-6 &&
+      Math.abs(afterBoth.maxFrequency - currentViewport.maxFrequency) < 1e-6
+    )
+      return;
+
+    this.updateViewport(afterBoth);
   }
 
   getStatus(): SpectrogramStatus {
