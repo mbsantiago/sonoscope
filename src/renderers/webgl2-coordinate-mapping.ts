@@ -1,5 +1,5 @@
-import { canvasToTimeFrequency } from "./frequency-scale";
-import type { FrequencyScale } from "./types";
+import { canvasToTimeFrequency } from "../frequency-scale";
+import type { FrequencyScale } from "../types";
 
 export function viewportPixelToFrequency(input: {
   y: number;

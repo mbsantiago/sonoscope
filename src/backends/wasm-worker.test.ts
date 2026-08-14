@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PerformanceProfiler } from "./performance";
-import type { AudioSource } from "./types";
+import { PerformanceProfiler } from "../performance";
+import type { AudioSource } from "../types";
 import { WasmComputeBackend, WasmWorkerComputeBackend } from "./wasm-backend";
 import { computeWasmStftMatrix } from "./wasm-stft";
 import type { SpectrogramWorkerLike } from "./worker-backend";

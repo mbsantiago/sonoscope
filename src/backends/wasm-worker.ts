@@ -1,5 +1,5 @@
-import { computeStftMatrix } from "./stft";
-import type { SpectrogramMatrix, StftConfig } from "./types";
+import type { SpectrogramMatrix, StftConfig } from "../types";
+import { computeWasmStftMatrix } from "./wasm-stft";
 
 type WorkerGlobal = {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
@@ -32,11 +32,11 @@ function matrixTransferables(matrix: SpectrogramMatrix): Transferable[] {
   ];
 }
 
-workerSelf.onmessage = (event: MessageEvent<WorkerRequest>) => {
+workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const start = performance.now();
   try {
     const request = event.data;
-    const matrix = computeStftMatrix(request.samples, {
+    const matrix = await computeWasmStftMatrix(request.samples, {
       channel: request.channel,
       timeStart: request.timeStart,
       sampleRate: request.sampleRate,

@@ -1,4 +1,4 @@
-import type { SpectrogramMatrix, StftConfig, WindowName } from "./types";
+import type { SpectrogramMatrix, StftConfig, WindowName } from "../types";
 import { getWasmStftBinary } from "./wasm-stft-binary";
 
 export interface WasmStftExports {

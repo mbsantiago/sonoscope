@@ -1,10 +1,10 @@
 import { bench, describe } from "vitest";
-import { MainThreadComputeBackend } from "./backend";
+import { MainThreadComputeBackend } from "./backends/backend";
+import { computeStftMatrix } from "./backends/stft";
+import { WasmComputeBackend } from "./backends/wasm-backend";
+import { computeWasmStftMatrix } from "./backends/wasm-stft";
 import { CanvasSpectrogramRenderer } from "./renderers/canvas";
-import { computeStftMatrix } from "./stft";
 import type { AudioSource, SpectrogramMatrix, StftConfig } from "./types";
-import { WasmComputeBackend } from "./wasm-backend";
-import { computeWasmStftMatrix } from "./wasm-stft";
 
 const sampleRate = 48_000;
 const durationSeconds = 2;

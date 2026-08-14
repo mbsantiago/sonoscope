@@ -1,8 +1,8 @@
+import type { AudioSource } from "../types";
 import { FetchByteSource, readPrefix } from "./byte-source";
 import { isMp3Bytes } from "./mp3";
 import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
-import type { AudioSource } from "./types";
 import { isWavBytes } from "./wav";
 
 export class DecodedAudioSource implements AudioSource {

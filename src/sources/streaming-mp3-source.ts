@@ -1,10 +1,10 @@
+import type { AudioRange, AudioSource } from "../types";
 import {
   type ByteStreamSource,
   concatChunks,
   isSeekableByteSource,
 } from "./byte-source";
 import { findNextMp3Frame, type Mp3Info, parseMp3Info } from "./mp3";
-import type { AudioRange, AudioSource } from "./types";
 import {
   createWebCodecsMp3Decoder,
   isWebCodecsMp3Supported,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { CanvasSpectrogramRenderer } from "./canvas";
 import { createSpectrogramRenderer } from "./renderer-factory";
-import { CanvasSpectrogramRenderer } from "./renderers/canvas";
 
 function canvas(context: unknown = null): HTMLCanvasElement {
   return { getContext: vi.fn(() => context) } as unknown as HTMLCanvasElement;

@@ -1,7 +1,7 @@
-import type { SpectrogramComputeBackend } from "./backend";
+import type { SpectrogramComputeBackend } from "./backends/backend";
+import type { SpectrogramWorkerLike } from "./backends/worker-backend";
 import type { FrameStats, PerformanceMeasure } from "./performance";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
-import type { SpectrogramWorkerLike } from "./worker-backend";
 
 export type FrequencyScale = "linear" | "log" | "mel";
 export type ValueMode = "magnitude" | "power" | "db";

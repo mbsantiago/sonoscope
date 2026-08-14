@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { SpectrogramMatrix } from "../types";
+import { SpectrogramViewer } from "../viewer";
 import {
   MainThreadComputeBackend,
   type SpectrogramComputeBackend,
@@ -7,8 +9,6 @@ import {
   createSpectrogramBackend,
   isSpectrogramComputeBackend,
 } from "./backend-factory";
-import type { SpectrogramMatrix } from "./types";
-import { SpectrogramViewer } from "./viewer";
 import { WasmComputeBackend, WasmWorkerComputeBackend } from "./wasm-backend";
 import type { SpectrogramWorkerLike } from "./worker-backend";
 import { WorkerComputeBackend } from "./worker-backend";

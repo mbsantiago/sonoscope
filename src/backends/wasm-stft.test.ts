@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { StftConfig } from "../types";
 import { computeStftMatrix } from "./stft";
-import type { StftConfig } from "./types";
 import { computeWasmStftMatrix, getWasmStftEngine } from "./wasm-stft";
 
 function generateSineWave(

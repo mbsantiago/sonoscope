@@ -1,5 +1,5 @@
-import type { SpectrogramMatrix, StftConfig, WindowName } from "./types";
-import { deriveDb, derivePower } from "./value-scale";
+import type { SpectrogramMatrix, StftConfig, WindowName } from "../types";
+import { deriveDb, derivePower } from "../value-scale";
 
 export function createWindow(name: WindowName, size: number): Float32Array {
   return Float32Array.from({ length: size }, (_, n) => {

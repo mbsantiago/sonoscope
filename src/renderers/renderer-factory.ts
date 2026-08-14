@@ -1,9 +1,6 @@
-import {
-  CanvasSpectrogramRenderer,
-  type SpectrogramRenderer,
-} from "./renderers/canvas";
-import { WebGL2SpectrogramRenderer } from "./renderers/webgl2";
-import type { RendererMode } from "./types";
+import type { RendererMode } from "../types";
+import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from "./canvas";
+import { WebGL2SpectrogramRenderer } from "./webgl2";
 
 export function createSpectrogramRenderer(
   canvas: HTMLCanvasElement,

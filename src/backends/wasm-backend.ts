@@ -1,22 +1,25 @@
-import type { PerformanceProfiler } from "./performance";
-import { computeStftMatrix } from "./stft";
-import type { AudioSource, SpectrogramMatrix, StftConfig } from "./types";
+import type { SpectrogramMatrix } from "../types";
+import type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
+import { getWasmStftEngine, type WasmStftEngine } from "./wasm-stft";
+import {
+  type SpectrogramWorkerLike,
+  WorkerComputeBackend,
+  type WorkerComputeBackendOptions,
+} from "./worker-backend";
 
-export type ComputeTileRequest = {
-  source: AudioSource;
-  channel: number;
-  timeStart: number;
-  timeEnd: number;
-  stft: StftConfig;
-  profile?: PerformanceProfiler;
-};
-
-export interface SpectrogramComputeBackend {
-  computeTile(request: ComputeTileRequest): Promise<SpectrogramMatrix>;
-  destroy?(): void;
+export function createDefaultWasmWorker(
+  workerUrl: URL | string = new URL("./wasm-worker.ts", import.meta.url),
+): SpectrogramWorkerLike {
+  return new Worker(workerUrl, { type: "module" });
 }
 
-export class MainThreadComputeBackend implements SpectrogramComputeBackend {
+export class WasmComputeBackend implements SpectrogramComputeBackend {
+  private enginePromise: Promise<WasmStftEngine>;
+
+  constructor(engine?: WasmStftEngine | Promise<WasmStftEngine>) {
+    this.enginePromise = engine ? Promise.resolve(engine) : getWasmStftEngine();
+  }
+
   async computeTile(request: ComputeTileRequest): Promise<SpectrogramMatrix> {
     const compute = async () => {
       const samples = request.profile
@@ -40,6 +43,8 @@ export class MainThreadComputeBackend implements SpectrogramComputeBackend {
             endTime: request.timeEnd,
           });
 
+      const engine = await this.enginePromise;
+
       return request.profile
         ? request.profile.measure(
             "tile.stft.compute",
@@ -49,14 +54,14 @@ export class MainThreadComputeBackend implements SpectrogramComputeBackend {
               fftSize: request.stft.fftSize,
             },
             () =>
-              computeStftMatrix(samples, {
+              engine.computeMatrix(samples, {
                 channel: request.channel,
                 timeStart: request.timeStart,
                 sampleRate: request.source.sampleRate,
                 stft: request.stft,
               }),
           )
-        : computeStftMatrix(samples, {
+        : engine.computeMatrix(samples, {
             channel: request.channel,
             timeStart: request.timeStart,
             sampleRate: request.source.sampleRate,
@@ -75,5 +80,16 @@ export class MainThreadComputeBackend implements SpectrogramComputeBackend {
           compute,
         )
       : compute();
+  }
+}
+
+export class WasmWorkerComputeBackend extends WorkerComputeBackend {
+  constructor(options: WorkerComputeBackendOptions = {}) {
+    super({
+      ...options,
+      createWorker:
+        options.createWorker ??
+        (() => createDefaultWasmWorker(options.workerUrl)),
+    });
   }
 }

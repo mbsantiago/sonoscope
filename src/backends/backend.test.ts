@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { PerformanceProfiler } from "../performance";
+import type { AudioSource } from "../types";
 import { MainThreadComputeBackend } from "./backend";
-import { PerformanceProfiler } from "./performance";
-import type { AudioSource } from "./types";
 
 describe("MainThreadComputeBackend", () => {
   it("reads a source range and computes a matrix", async () => {

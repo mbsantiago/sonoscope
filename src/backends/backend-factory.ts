@@ -1,6 +1,6 @@
+import type { BackendMode } from "../types";
 import type { SpectrogramComputeBackend } from "./backend";
 import { MainThreadComputeBackend } from "./backend";
-import type { BackendMode } from "./types";
 import { WasmComputeBackend, WasmWorkerComputeBackend } from "./wasm-backend";
 import { createWasmStftEngine } from "./wasm-stft";
 import { WorkerComputeBackend } from "./worker-backend";

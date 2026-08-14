@@ -1,10 +1,10 @@
+import type { AudioRange, AudioSource } from "../types";
 import {
   type ByteStreamSource,
   concatChunks,
   isSeekableByteSource,
   type SeekableByteSource,
 } from "./byte-source";
-import type { AudioRange, AudioSource } from "./types";
 import {
   decodeWavPcm,
   parseWavHeader,

@@ -10,7 +10,7 @@ const wasmOut = resolve(
   rootDir,
   "wasm/stft/target/wasm32-unknown-unknown/release/stft_wasm.wasm",
 );
-const targetTs = resolve(rootDir, "src/wasm-stft-binary.ts");
+const targetTs = resolve(rootDir, "src/backends/wasm-stft-binary.ts");
 
 console.log("[build-wasm] Building Rust crate to wasm32-unknown-unknown...");
 execSync(

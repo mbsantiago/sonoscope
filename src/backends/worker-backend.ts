@@ -1,6 +1,6 @@
+import type { PerformanceProfiler } from "../performance";
+import type { SpectrogramMatrix, StftConfig } from "../types";
 import type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
-import type { PerformanceProfiler } from "./performance";
-import type { SpectrogramMatrix, StftConfig } from "./types";
 
 export type SpectrogramWorkerLike = {
   onmessage: ((event: MessageEvent) => void) | null;

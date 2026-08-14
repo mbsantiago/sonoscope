@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SpectrogramComputeBackend } from "./backend";
-import * as sourceModule from "./source";
+import type { SpectrogramComputeBackend } from "./backends/backend";
+import * as sourceModule from "./sources/source";
 import type { AudioSource, SpectrogramMatrix } from "./types";
 import { SpectrogramViewer } from "./viewer";
 

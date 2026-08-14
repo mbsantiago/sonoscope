@@ -1,8 +1,8 @@
-import type { SpectrogramComputeBackend } from "./backend";
+import type { SpectrogramComputeBackend } from "./backends/backend";
 import {
   createSpectrogramBackend,
   isSpectrogramComputeBackend,
-} from "./backend-factory";
+} from "./backends/backend-factory";
 import { createTileKey, SpectrogramCache } from "./cache";
 import { resolveConfig, stableHash } from "./config";
 import { TypedEventEmitter } from "./events";
@@ -12,13 +12,13 @@ import {
 } from "./frequency-scale";
 import { zoomViewportTime } from "./navigation";
 import { FrameMeter, PerformanceProfiler } from "./performance";
-import { createSpectrogramRenderer } from "./renderer-factory";
 import {
   CanvasSpectrogramRenderer,
   type RenderInput,
   type SpectrogramRenderer,
 } from "./renderers/canvas";
-import { createAudioSourceFromUrl } from "./source";
+import { createSpectrogramRenderer } from "./renderers/renderer-factory";
+import { createAudioSourceFromUrl } from "./sources/source";
 import { applyTransforms } from "./transforms";
 import type {
   AudioSource,
