@@ -432,6 +432,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.updateViewport(afterBoth);
   }
 
+  bindViewport(controller: {
+    bind: (viewer: unknown) => () => void;
+  }): () => void {
+    return controller.bind(this);
+  }
+
   getStatus(): SpectrogramStatus {
     return this.status;
   }

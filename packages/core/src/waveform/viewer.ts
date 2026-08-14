@@ -216,6 +216,12 @@ export class WaveformViewer implements IWaveformViewer {
     this.updateViewport(next);
   }
 
+  bindViewport(controller: {
+    bind: (viewer: unknown) => () => void;
+  }): () => void {
+    return controller.bind(this);
+  }
+
   getConfig(): ResolvedWaveformConfig {
     return this.config;
   }

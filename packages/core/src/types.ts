@@ -432,6 +432,9 @@ export interface ISpectrogramViewer {
     factor: number | { time: number; frequency: number },
     center?: { time?: number; frequency?: number },
   ): void;
+  bindViewport?(controller: {
+    bind: (viewer: unknown) => () => void;
+  }): () => void;
 
   // Configuration & Source
   getConfig(): ResolvedSpectrogramConfig;

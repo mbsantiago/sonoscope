@@ -173,6 +173,15 @@
         </div>
 
         <div class="ctrl-group">
+          <label for="follow-select">Follow Playback:</label>
+          <select id="follow-select">
+            <option value="page" selected>Page Follow</option>
+            <option value="smooth">Smooth Center</option>
+            <option value="off">Off (Free)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
           <label for="color-select">ColorMap:</label>
           <select id="color-select">
             <option value="magma" selected>Magma</option>
@@ -215,7 +224,7 @@
           <span class="time-display" id="vp-display">0.00s - 10.00s</span>
         </div>
         <div>
-          <span>Drag spectrogram to pan. Wheel to zoom. Both views stay locked in time.</span>
+          <span>Drag spectrogram to pan. Wheel to zoom. Play audio to see automatic follow tracking.</span>
         </div>
       </div>
     </div>
@@ -224,6 +233,7 @@
       import {
         attachCanvasNavigation,
         createAudioSourceFromUrl,
+        linkViewports,
         SpectrogramViewer,
         WaveformViewer,
       } from '@sonogram/core';
@@ -233,6 +243,7 @@
       const form = document.getElementById('url-form');
       const input = form.querySelector('input[name="url"]');
       const gainSelect = document.getElementById('gain-select');
+      const followSelect = document.getElementById('follow-select');
       const colorSelect = document.getElementById('color-select');
       const audio = document.querySelector('audio');
       const waveCanvas = document.querySelector('.wave-canvas');
@@ -243,9 +254,10 @@
 
       let specViewer = null;
       let waveViewer = null;
-      let isSyncing = false;
+      let linkedCoordinator = null;
 
       async function load(url) {
+        linkedCoordinator?.unlink();
         specViewer?.destroy();
         waveViewer?.destroy();
         waveStatusEl.textContent = 'Loading audio...';
@@ -281,27 +293,17 @@
             colorMap: colorSelect.value,
           });
 
-          // 4. Attach synchronized viewport events
-          specViewer.on('viewportchange', (event) => {
-            if (isSyncing) return;
-            isSyncing = true;
-            waveViewer.updateViewport({
-              startTime: event.viewport.startTime,
-              endTime: event.viewport.endTime,
-            });
-            vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
-            isSyncing = false;
+          // 4. Link viewports using single source of truth controller
+          linkedCoordinator = linkViewports([specViewer, waveViewer], {
+            audio,
+            totalDuration: source.duration,
+            startTime: initialStartTime,
+            endTime: initialEndTime,
+            followPlayback: followSelect.value,
           });
 
-          waveViewer.on('viewportchange', (event) => {
-            if (isSyncing) return;
-            isSyncing = true;
-            specViewer.updateViewport({
-              startTime: event.viewport.startTime,
-              endTime: event.viewport.endTime,
-            });
+          linkedCoordinator.controller.on('change', (event) => {
             vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
-            isSyncing = false;
           });
 
           // 5. Attach canvas navigation to spectrogram
@@ -331,6 +333,11 @@
       gainSelect.addEventListener('change', () => {
         if (!waveViewer) return;
         waveViewer.updateConfig({ amplitudeScale: parseFloat(gainSelect.value) });
+      });
+
+      followSelect.addEventListener('change', () => {
+        if (!linkedCoordinator) return;
+        linkedCoordinator.controller.setFollowPlayback(followSelect.value);
       });
 
       colorSelect.addEventListener('change', () => {

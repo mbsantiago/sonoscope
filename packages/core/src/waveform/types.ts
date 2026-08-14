@@ -97,6 +97,9 @@ export interface IWaveformViewer {
     maxDurationSeconds: number;
   };
   zoomTime(factor: number, centerTime?: number): void;
+  bindViewport?(controller: {
+    bind: (viewer: unknown) => () => void;
+  }): () => void;
 
   // Configuration & Source
   getConfig(): ResolvedWaveformConfig;
