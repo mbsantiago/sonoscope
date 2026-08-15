@@ -183,6 +183,28 @@ describe("createAudioSourceFromUrl", () => {
     expect(streaming).toHaveBeenCalledTimes(1);
   });
 
+  it("uses DecodedAudioSource when preferDecoded is requested", async () => {
+    const mp3Bytes = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
+    const decoded = vi
+      .spyOn(DecodedAudioSource, "fromUrl")
+      .mockResolvedValue(
+        new DecodedAudioSource(makeBuffer(), "decoded-mp3-explicit"),
+      );
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: streamFrom(mp3Bytes),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    }) as typeof fetch;
+
+    const source = await createAudioSourceFromUrl("song.mp3", {
+      preferDecoded: true,
+    });
+
+    expect(source.id).toBe("decoded-mp3-explicit");
+    expect(decoded).toHaveBeenCalledWith("song.mp3", { preferDecoded: true });
+  });
+
   it("falls back to DecodedAudioSource when MP3 streaming fails", async () => {
     const mp3Bytes = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
     vi.spyOn(StreamingMp3Source, "isSupported").mockResolvedValue(true);

@@ -46,7 +46,8 @@ self.onmessage = async (event) => {
 
     const times = new Float32Array(frameCount);
     for (let i = 0; i < frameCount; i++) {
-      times[i] = timeStart + (i * stft.hopSize) / sampleRate;
+      times[i] =
+        timeStart + (i * stft.hopSize + stft.windowSize / 2) / sampleRate;
     }
     const frequencies = new Float32Array(binCount);
     for (let i = 0; i < binCount; i++) {

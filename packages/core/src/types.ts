@@ -133,6 +133,9 @@ export type SonoscopeOptions = {
   maxDuration?: number | undefined;
   followPlayback?: FollowPlaybackMode | undefined;
   smoothAnchor?: number | undefined;
+  preferStreaming?: boolean | undefined;
+  preferDecoded?: boolean | undefined;
+  sampleRate?: number | undefined;
 };
 
 export type SonoscopeEvents = {

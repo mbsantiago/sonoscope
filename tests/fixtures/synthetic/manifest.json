@@ -1,0 +1,18 @@
+{
+  "sampleRate": 16000,
+  "duration": 1.0,
+  "signals": {
+    "sine": {
+      "wavFile": "sine.wav",
+      "referenceFile": "sine_reference.json"
+    },
+    "chirp": {
+      "wavFile": "chirp.wav",
+      "referenceFile": "chirp_reference.json"
+    },
+    "impulse": {
+      "wavFile": "impulse.wav",
+      "referenceFile": "impulse_reference.json"
+    }
+  }
+}

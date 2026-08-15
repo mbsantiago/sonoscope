@@ -149,13 +149,34 @@ export function findNextMp3Frame(
   bytes: Uint8Array,
   startOffset = 0,
 ): { offset: number; header: Mp3FrameHeader } | null {
-  const id3 = parseId3Header(bytes.subarray(startOffset));
-  let offset = startOffset + (id3 ? id3.id3Size : 0);
+  let offset = startOffset;
+  if (startOffset === 0) {
+    const id3 = parseId3Header(bytes);
+    if (id3) {
+      offset = id3.id3Size;
+    }
+  }
 
   while (offset + 4 <= bytes.length) {
-    if (bytes[offset] === 0xff) {
+    if (bytes[offset] === 0xff && (bytes[offset + 1]! & 0xe0) === 0xe0) {
       const header = parseMp3FrameHeader(bytes, offset);
       if (header) {
+        // If there's enough data to check the NEXT frame, verify it matches to avoid false syncs in audio payload
+        const nextFrameOffset = offset + header.frameLength;
+        if (nextFrameOffset + 4 <= bytes.length) {
+          const nextHeader = parseMp3FrameHeader(bytes, nextFrameOffset);
+          if (
+            nextHeader &&
+            nextHeader.sampleRate === header.sampleRate &&
+            nextHeader.version === header.version &&
+            nextHeader.layer === header.layer
+          ) {
+            return { offset, header };
+          }
+          // If next frame header didn't match, this was likely a false sync in the bitstream
+          offset++;
+          continue;
+        }
         return { offset, header };
       }
     }

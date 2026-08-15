@@ -99,7 +99,19 @@ export class Sonoscope implements ISonoscope {
     url: string,
     options?: Omit<SonoscopeOptions, "source">,
   ): Promise<Sonoscope> {
-    const source = await createAudioSourceFromUrl(url);
+    const sourceOptions =
+      options?.preferStreaming !== undefined ||
+      options?.preferDecoded !== undefined ||
+      options?.sampleRate !== undefined
+        ? {
+            preferStreaming: options.preferStreaming,
+            preferDecoded: options.preferDecoded,
+            sampleRate: options.sampleRate,
+          }
+        : undefined;
+    const source = sourceOptions
+      ? await createAudioSourceFromUrl(url, sourceOptions)
+      : await createAudioSourceFromUrl(url);
     if (options?.audio && !options.audio.src) {
       options.audio.src = url;
     }
@@ -114,7 +126,19 @@ export class Sonoscope implements ISonoscope {
     if (!url) {
       throw new Error("Audio element has no src or currentSrc");
     }
-    const source = await createAudioSourceFromUrl(url);
+    const sourceOptions =
+      options?.preferStreaming !== undefined ||
+      options?.preferDecoded !== undefined ||
+      options?.sampleRate !== undefined
+        ? {
+            preferStreaming: options.preferStreaming,
+            preferDecoded: options.preferDecoded,
+            sampleRate: options.sampleRate,
+          }
+        : undefined;
+    const source = sourceOptions
+      ? await createAudioSourceFromUrl(url, sourceOptions)
+      : await createAudioSourceFromUrl(url);
     return new Sonoscope({ ...options, source, audio });
   }
 
@@ -231,16 +255,20 @@ export class Sonoscope implements ISonoscope {
     audio.addEventListener("seeked", onTimeUpdate);
     audio.addEventListener("seeking", onTimeUpdate);
     audio.addEventListener("play", onPlay);
+    audio.addEventListener("playing", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onPause);
+    audio.addEventListener("waiting", onPause);
 
     this.audioCleanup.push(() => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("seeked", onTimeUpdate);
       audio.removeEventListener("seeking", onTimeUpdate);
       audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("playing", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onPause);
+      audio.removeEventListener("waiting", onPause);
     });
 
     this.events.emit("audiochange", { audio });

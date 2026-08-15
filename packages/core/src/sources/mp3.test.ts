@@ -181,4 +181,49 @@ describe("mp3 parsing", () => {
     expect(info.sampleRate).toBe(44100);
     expect(info.duration).toBeCloseTo(8.0, 1);
   });
+
+  it("rejects false sync patterns in audio payload via consecutive frame validation", () => {
+    const frame1 = createMPEG1Frame(128, 44100);
+    const frame2 = createMPEG1Frame(128, 44100);
+
+    // Embed a false sync header (0xFF 0xFB 0x90 0x00) inside the payload of frame 1 at offset 50
+    frame1[50] = 0xff;
+    frame1[51] = 0xfb;
+    frame1[52] = 0x90;
+    frame1[53] = 0x00;
+
+    const stream = new Uint8Array(frame1.length + frame2.length);
+    stream.set(frame1, 0);
+    stream.set(frame2, frame1.length);
+
+    // First frame starts at offset 0
+    const first = findNextMp3Frame(stream, 0);
+    expect(first?.offset).toBe(0);
+
+    // Searching from after the first frame should find frame2 at frame1.length, skipping the false sync at offset 50
+    const second = findNextMp3Frame(stream, 1);
+    expect(second?.offset).toBe(frame1.length);
+  });
+
+  it("ignores 'ID3' sequence embedded inside compressed bitstream without skipping data", () => {
+    const frame1 = createMPEG1Frame(128, 44100);
+    const frame2 = createMPEG1Frame(128, 44100);
+
+    // Embed 'I', 'D', '3' inside frame1 payload
+    frame1[100] = 0x49;
+    frame1[101] = 0x44;
+    frame1[102] = 0x33;
+    frame1[103] = 0x03;
+    frame1[104] = 0x00;
+    frame1[105] = 0x00;
+    frame1[106] = 0x00;
+    frame1[107] = 0x01; // Fake large size
+
+    const stream = new Uint8Array(frame1.length + frame2.length);
+    stream.set(frame1, 0);
+    stream.set(frame2, frame1.length);
+
+    const second = findNextMp3Frame(stream, 1);
+    expect(second?.offset).toBe(frame1.length);
+  });
 });

@@ -1,6 +1,6 @@
 import type { AudioSource } from "../types";
 import { FetchByteSource, readPrefix } from "./byte-source";
-import { isMp3Bytes } from "./mp3";
+import { isMp3Bytes, parseMp3Info } from "./mp3";
 import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
 import { isWavBytes } from "./wav";
@@ -23,7 +23,11 @@ export class DecodedAudioSource implements AudioSource {
     url: string,
     options?:
       | AudioContextLike
-      | { audioContext?: AudioContextLike; sampleRate?: number },
+      | {
+          audioContext?: AudioContextLike | undefined;
+          sampleRate?: number | undefined;
+        }
+      | undefined,
   ): Promise<DecodedAudioSource> {
     const response = await fetch(url);
     if (!response.ok)
@@ -52,12 +56,41 @@ export class DecodedAudioSource implements AudioSource {
   }
 }
 
+/**
+ * Creates an AudioSource from an audio URL.
+ *
+ * Defaults to streaming sources (`StreamingWavSource`, `StreamingMp3Source`) for instant first-tile rendering.
+ * Falls back to `DecodedAudioSource` (native `AudioContext.decodeAudioData`) if streaming is unavailable
+ * or when `preferDecoded: true` / `preferStreaming: false` is specified.
+ *
+ * @note **MP3 Caution:** Long MP3 files (e.g. >30 minutes) may exhibit slight playhead/spectrogram timing
+ * drift during streaming playback due to MP3 bit-reservoir and browser WebCodecs demuxing limitations.
+ * For sample-exact playhead alignment across multi-hour audio, uncompressed WAV or `preferDecoded: true` is recommended.
+ */
 export async function createAudioSourceFromUrl(
   url: string,
   options?:
     | AudioContextLike
-    | { audioContext?: AudioContextLike; sampleRate?: number },
+    | {
+        audioContext?: AudioContextLike | undefined;
+        sampleRate?: number | undefined;
+        preferStreaming?: boolean | undefined;
+        preferDecoded?: boolean | undefined;
+      }
+    | undefined,
 ): Promise<AudioSource> {
+  const isDecodedPreferred =
+    Boolean(options && "preferDecoded" in options && options.preferDecoded) ||
+    Boolean(
+      options &&
+        "preferStreaming" in options &&
+        options.preferStreaming === false,
+    );
+
+  if (isDecodedPreferred) {
+    return DecodedAudioSource.fromUrl(url, options);
+  }
+
   const byteSource = FetchByteSource.fromUrl(url);
   const prefix = await readPrefix(byteSource, 64);
 
@@ -69,12 +102,15 @@ export async function createAudioSourceFromUrl(
     }
   }
 
-  if (isMp3Bytes(prefix) && (await StreamingMp3Source.isSupported())) {
-    try {
-      return await StreamingMp3Source.fromByteSource(byteSource, { id: url });
-    } catch {
-      return DecodedAudioSource.fromUrl(url, options);
+  if (isMp3Bytes(prefix)) {
+    if (await StreamingMp3Source.isSupported()) {
+      try {
+        return await StreamingMp3Source.fromByteSource(byteSource, { id: url });
+      } catch {
+        return DecodedAudioSource.fromUrl(url, options);
+      }
     }
+    return DecodedAudioSource.fromUrl(url, options);
   }
 
   return DecodedAudioSource.fromUrl(url, options);
@@ -106,16 +142,36 @@ function resolveAudioContext(
   data: ArrayBuffer,
   options?:
     | AudioContextLike
-    | { audioContext?: AudioContextLike; sampleRate?: number },
+    | {
+        audioContext?: AudioContextLike | undefined;
+        sampleRate?: number | undefined;
+      }
+    | undefined,
 ): AudioContextLike {
   if (isAudioContext(options)) return options;
   if (options && "audioContext" in options && options.audioContext)
     return options.audioContext;
   const sampleRate =
     options && "sampleRate" in options
-      ? (options.sampleRate ?? readWavSampleRate(data))
-      : readWavSampleRate(data);
+      ? (options.sampleRate ?? readSampleRateFromBuffer(data))
+      : readSampleRateFromBuffer(data);
   return getSharedDecodeContext(sampleRate);
+}
+
+function readSampleRateFromBuffer(data: ArrayBuffer): number | undefined {
+  return readWavSampleRate(data) ?? readMp3SampleRate(data);
+}
+
+function readMp3SampleRate(data: ArrayBuffer): number | undefined {
+  try {
+    const bytes = new Uint8Array(data);
+    const frame = isMp3Bytes(bytes);
+    if (!frame) return undefined;
+    const info = parseMp3Info(bytes);
+    return info.sampleRate;
+  } catch {
+    return undefined;
+  }
 }
 
 function isAudioContext(value: unknown): value is AudioContextLike {

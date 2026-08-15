@@ -196,10 +196,22 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     valueScale: Required<ValueScaleConfig>,
     colors: Rgba[],
   ): void {
+    if (tile.frameCount === 0 || tile.binCount === 0) return;
+    const hopDuration =
+      tile.times.length > 1
+        ? (tile.times[tile.times.length - 1]! - tile.times[0]!) /
+          Math.max(1, tile.frameCount - 1)
+        : tile.sampleRate > 0
+          ? (tile.timeEnd - tile.timeStart) / tile.frameCount
+          : 0;
+    const tileStartTime =
+      tile.times.length > 0 ? tile.times[0]! : tile.timeStart;
+    const tileEndTime = tileStartTime + tile.frameCount * hopDuration;
+
     const startX = Math.max(
       0,
       Math.floor(
-        ((tile.timeStart - viewport.startTime) /
+        ((tileStartTime - viewport.startTime) /
           (viewport.endTime - viewport.startTime)) *
           width,
       ),
@@ -207,7 +219,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     const endX = Math.min(
       width,
       Math.ceil(
-        ((tile.timeEnd - viewport.startTime) /
+        ((tileEndTime - viewport.startTime) /
           (viewport.endTime - viewport.startTime)) *
           width,
       ),
@@ -228,9 +240,18 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
       const time =
         viewport.startTime +
         (x / width) * (viewport.endTime - viewport.startTime);
-      if (time < tile.timeStart || time > tile.timeEnd || tile.frameCount === 0)
-        continue;
-      const timePosition = locateSamplePosition(tile.times, time);
+      if (time < tileStartTime || time > tileEndTime) continue;
+      const framePosition = Math.max(
+        0,
+        Math.min(
+          tile.frameCount - 1,
+          (time - tileStartTime) / Math.max(0.000001, hopDuration),
+        ),
+      );
+      const low = Math.floor(framePosition);
+      const high = Math.min(tile.frameCount - 1, Math.ceil(framePosition));
+      const fraction = framePosition - low;
+      const timePosition = { low, high, fraction };
 
       for (let y = 0; y < height; y++) {
         const normalized = normalizeValue(

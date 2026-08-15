@@ -26,6 +26,7 @@ export default defineConfig({
         performance: resolve(import.meta.dirname, "performance.html"),
         query: resolve(import.meta.dirname, "query.html"),
         react: resolve(import.meta.dirname, "react.html"),
+        reactMinimal: resolve(import.meta.dirname, "react-minimal.html"),
         renderers: resolve(import.meta.dirname, "renderers.html"),
         shaders: resolve(import.meta.dirname, "shaders.html"),
         sources: resolve(import.meta.dirname, "sources.html"),

@@ -52,15 +52,16 @@ float sampleSpectrogram(vec2 screenCoord) {
   float maxScale = hzToScale(u_viewport.w, u_frequencyScale);
   float frequency = scaleToHz(mix(maxScale, minScale, canvasY), u_frequencyScale);
 
+  float hopDuration = (u_tileTimeRange.y - u_tileTimeRange.x) / max(1.0, u_tileSize.x);
   float framePosition = clamp(
-    (time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x) * max(1.0, u_tileSize.x - 1.0),
+    (time - u_tileTimeRange.x) / max(0.000001, hopDuration),
     0.0,
     max(0.0, u_tileSize.x - 1.0)
   );
   float binPosition = clamp(
     (frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x) * max(1.0, u_tileSize.y - 1.0),
     0.0,
-    max(0.0, u_tileSize.y - 1.0)
+    max(0.0, u_tileSize.x - 1.0)
   );
 
   int frame0 = int(floor(framePosition));

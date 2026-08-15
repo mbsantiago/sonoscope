@@ -118,6 +118,21 @@ npm run dev:example
 npm test
 npm run test:browser
 
+# Regenerate SciPy baseline reference fixtures (requires uv)
+npm run fixtures:generate
+
 # Build all packages
 npm run build
 ```
+
+---
+
+## Mathematical Verification & SciPy Parity
+
+Sonoscope's STFT engines (Pure TypeScript, Rust/WASM, Main Thread, and Worker pools) are strictly validated for mathematical parity against **SciPy's [`scipy.signal.ShortTimeFFT`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.ShortTimeFFT.spectrogram.html)**.
+
+Synthetic audio fixtures (440 Hz Sine, Logarithmic Chirp, and Discrete Impulses) and ground-truth matrices are generated with `uv run scripts/generate_baseline_spectrograms.py` and tested across multiple windowing configurations for:
+- Time grid alignment ($\Delta < 10^{-5}\text{ s}$)
+- Frequency bin centers ($\Delta < 10^{-4}\text{ Hz}$)
+- Magnitude & Power values ($\Delta < 10^{-4}$)
+- Decibel values ($\Delta < 0.1\text{ dB}$ for bins $>-100\text{ dB}$)

@@ -77,7 +77,8 @@ void main() {
     outColor = texture(u_colormap, vec2(0.0, 0.5));
     return;
   }
-  float framePosition = clamp((time - u_tileTimeRange.x) / max(0.000001, u_tileTimeRange.y - u_tileTimeRange.x) * max(1.0, u_tileSize.x - 1.0), 0.0, max(0.0, u_tileSize.x - 1.0));
+  float hopDuration = (u_tileTimeRange.y - u_tileTimeRange.x) / max(1.0, u_tileSize.x);
+  float framePosition = clamp((time - u_tileTimeRange.x) / max(0.000001, hopDuration), 0.0, max(0.0, u_tileSize.x - 1.0));
   float binPosition = clamp((frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x) * max(1.0, u_tileSize.y - 1.0), 0.0, max(0.0, u_tileSize.y - 1.0));
   int frame0 = int(floor(framePosition));
   int frame1 = int(ceil(framePosition));
@@ -230,7 +231,17 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
     this.shader.uniform1i("u_tile", 0);
-    this.shader.uniform2f("u_tileTimeRange", tile.timeStart, tile.timeEnd);
+    const hopDuration =
+      tile.times.length > 1
+        ? (tile.times[tile.times.length - 1]! - tile.times[0]!) /
+          Math.max(1, tile.frameCount - 1)
+        : tile.sampleRate > 0
+          ? (tile.timeEnd - tile.timeStart) / tile.frameCount
+          : 0;
+    const tileStartTime =
+      tile.times.length > 0 ? tile.times[0]! : tile.timeStart;
+    const tileEndTime = tileStartTime + tile.frameCount * hopDuration;
+    this.shader.uniform2f("u_tileTimeRange", tileStartTime, tileEndTime);
     const range = tileFrequencyRange(tile);
     this.shader.uniform2f("u_tileFrequencyRange", range.min, range.max);
     this.shader.uniform2f("u_tileSize", entry.width, entry.height);

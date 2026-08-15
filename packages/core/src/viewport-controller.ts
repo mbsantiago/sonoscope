@@ -268,13 +268,17 @@ export class ViewportController implements IViewportController {
     const onSeek = () => this.checkPlaybackFollow(audio.currentTime);
 
     audio.addEventListener("play", onPlay);
+    audio.addEventListener("playing", onPlay);
     audio.addEventListener("pause", onPause);
+    audio.addEventListener("seeking", onSeek);
     audio.addEventListener("seeked", onSeek);
     audio.addEventListener("timeupdate", onSeek);
 
     this.audioCleanup.push(() => {
       audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("playing", onPlay);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("seeking", onSeek);
       audio.removeEventListener("seeked", onSeek);
       audio.removeEventListener("timeupdate", onSeek);
     });

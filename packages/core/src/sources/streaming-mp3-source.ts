@@ -4,7 +4,12 @@ import {
   concatChunks,
   isSeekableByteSource,
 } from "./byte-source";
-import { findNextMp3Frame, type Mp3Info, parseMp3Info } from "./mp3";
+import {
+  findNextMp3Frame,
+  type Mp3Info,
+  parseMp3FrameHeader,
+  parseMp3Info,
+} from "./mp3";
 import {
   createWebCodecsMp3Decoder,
   isWebCodecsMp3Supported,
@@ -267,15 +272,20 @@ export class StreamingMp3Source implements AudioSource {
     let cursor = 0;
 
     while (cursor < buffer.length) {
-      const next = findNextMp3Frame(buffer, cursor);
-      if (!next) {
-        // No frame found in remainder, keep up to last 4 bytes for next chunk
-        this.pendingBytes = buffer.slice(Math.max(0, buffer.length - 4));
-        return;
+      let frameOffset = cursor;
+      let header = parseMp3FrameHeader(buffer, cursor);
+      if (!header || header.sampleRate !== this.sampleRate) {
+        const next = findNextMp3Frame(buffer, cursor);
+        if (!next) {
+          // No frame found in remainder, keep up to last 4 bytes for next chunk
+          this.pendingBytes = buffer.slice(Math.max(0, buffer.length - 4));
+          return;
+        }
+        frameOffset = next.offset;
+        header = next.header;
       }
 
-      const frameOffset = next.offset;
-      const frameLength = next.header.frameLength;
+      const frameLength = header.frameLength;
 
       if (frameOffset + frameLength > buffer.length) {
         // Incomplete frame, wait for more data

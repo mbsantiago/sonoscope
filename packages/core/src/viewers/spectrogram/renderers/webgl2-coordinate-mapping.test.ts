@@ -291,4 +291,56 @@ describe("webgl2 coordinate mapping", () => {
     expect(top.bin).toBe(7);
     expect(bottom.bin).toBe(0);
   });
+
+  it("calculates exact linear frame index from hop duration", () => {
+    // 4 frames spanning [0, 4] -> hopDuration = 1.0
+    expect(
+      timeToFrame({
+        time: 0.0,
+        tileStartTime: 0,
+        tileEndTime: 4,
+        frameCount: 4,
+      }),
+    ).toBe(0);
+    expect(
+      timeToFrame({
+        time: 0.99,
+        tileStartTime: 0,
+        tileEndTime: 4,
+        frameCount: 4,
+      }),
+    ).toBe(0);
+    expect(
+      timeToFrame({
+        time: 1.0,
+        tileStartTime: 0,
+        tileEndTime: 4,
+        frameCount: 4,
+      }),
+    ).toBe(1);
+    expect(
+      timeToFrame({
+        time: 3.5,
+        tileStartTime: 0,
+        tileEndTime: 4,
+        frameCount: 4,
+      }),
+    ).toBe(3);
+    expect(
+      timeToFrame({
+        time: 4.0,
+        tileStartTime: 0,
+        tileEndTime: 4,
+        frameCount: 4,
+      }),
+    ).toBe(3); // Clamped to frameCount - 1
+    expect(
+      timeToFrame({
+        time: 0,
+        tileStartTime: 0,
+        tileEndTime: 4,
+        frameCount: 0,
+      }),
+    ).toBe(0);
+  });
 });

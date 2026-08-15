@@ -734,10 +734,18 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       viewport: this.getViewport(),
       playheadTime: this.scope.getCurrentTime(),
     });
-    if (!rendered) {
-      this.requestRender();
-    }
     return Boolean(rendered);
+  }
+
+  private get framesPerTile(): number {
+    const sampleRate = this.scope.source.sampleRate || 44100;
+    const hopSize = this.config.hopSize || 512;
+    const nominalDuration = this.effectiveTileDuration;
+    const nominalFrames = Math.max(
+      1,
+      Math.round((nominalDuration * sampleRate) / hopSize),
+    );
+    return Math.min(4096, nominalFrames);
   }
 
   private visibleTileRanges(): Array<{
@@ -755,21 +763,57 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     startTime: number,
     endTime: number,
   ): Array<{ channel: number; timeStart: number; timeEnd: number }> {
+    const source = this.scope.source;
+    const sampleRate = source.sampleRate;
+    const hopSize = this.config.hopSize;
+    const windowSize = this.config.windowSize;
+    const totalSamples = Math.floor(source.duration * sampleRate);
+    if (totalSamples <= 0) return [];
+    const totalFrames = Math.max(
+      1,
+      Math.floor((totalSamples - windowSize) / hopSize) + 1,
+    );
+
+    const framesPerTile = this.framesPerTile;
+    const channel = this.config.channel;
+
+    const startFrame = Math.max(
+      0,
+      Math.floor((startTime * sampleRate) / hopSize),
+    );
+    const endFrame = Math.min(
+      totalFrames,
+      Math.max(startFrame + 1, Math.ceil((endTime * sampleRate) / hopSize)),
+    );
+
+    const firstTileIndex = Math.floor(startFrame / framesPerTile);
+    const lastTileIndex = Math.floor(Math.max(0, endFrame - 1) / framesPerTile);
+
     const ranges: Array<{
       channel: number;
       timeStart: number;
       timeEnd: number;
     }> = [];
-    const tileDuration = this.effectiveTileDuration;
-    const firstStart = Math.floor(startTime / tileDuration) * tileDuration;
-    const channel = this.config.channel;
-    for (let start = firstStart; start < endTime; start += tileDuration) {
+
+    for (let tileIdx = firstTileIndex; tileIdx <= lastTileIndex; tileIdx++) {
+      const globalFrameStart = tileIdx * framesPerTile;
+      const frameCount = Math.min(
+        framesPerTile,
+        totalFrames - globalFrameStart,
+      );
+      if (frameCount <= 0) continue;
+
+      const sampleStart = globalFrameStart * hopSize;
+      const sampleEnd =
+        (globalFrameStart + frameCount - 1) * hopSize + windowSize;
+
       ranges.push({
         channel,
-        timeStart: Math.max(0, start),
-        timeEnd: Math.min(this.scope.source.duration, start + tileDuration),
+        timeStart: sampleStart / sampleRate,
+        timeEnd: sampleEnd / sampleRate,
       });
     }
+
     return ranges;
   }
 
@@ -777,11 +821,35 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     timeStart: number;
     timeEnd: number;
   } {
-    const tileDuration = this.effectiveTileDuration;
-    const start = Math.floor(time / tileDuration) * tileDuration;
+    const source = this.scope.source;
+    const sampleRate = source.sampleRate || 44100;
+    const hopSize = this.config.hopSize || 512;
+    const windowSize = this.config.windowSize || 2048;
+    const totalSamples = Math.floor(source.duration * sampleRate);
+    if (totalSamples <= 0) {
+      return {
+        timeStart: 0,
+        timeEnd: 0,
+      };
+    }
+    const totalFrames = Math.max(
+      1,
+      Math.floor((totalSamples - windowSize) / hopSize) + 1,
+    );
+    const framesPerTile = this.framesPerTile;
+    const targetFrame = Math.max(
+      0,
+      Math.min(totalFrames - 1, Math.floor((time * sampleRate) / hopSize)),
+    );
+    const tileIdx = Math.floor(targetFrame / framesPerTile);
+    const globalFrameStart = tileIdx * framesPerTile;
+    const frameCount = Math.min(framesPerTile, totalFrames - globalFrameStart);
+    const sampleStart = globalFrameStart * hopSize;
+    const sampleEnd =
+      (globalFrameStart + frameCount - 1) * hopSize + windowSize;
     return {
-      timeStart: Math.max(0, start),
-      timeEnd: Math.min(this.scope.source.duration, start + tileDuration),
+      timeStart: sampleStart / sampleRate,
+      timeEnd: sampleEnd / sampleRate,
     };
   }
 

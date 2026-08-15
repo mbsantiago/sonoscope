@@ -68,7 +68,8 @@ class DefaultWasmStftEngine implements WasmStftEngine {
 
     const times = Float32Array.from(
       { length: frameCount },
-      (_, i) => timeStart + (i * stft.hopSize) / sampleRate,
+      (_, i) =>
+        timeStart + (i * stft.hopSize + stft.windowSize / 2) / sampleRate,
     );
     const frequencies = Float32Array.from(
       { length: binCount },

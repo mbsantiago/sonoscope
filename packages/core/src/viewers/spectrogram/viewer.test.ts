@@ -829,17 +829,17 @@ describe("SpectrogramViewer", () => {
     await viewer.render();
     await Promise.resolve();
 
-    expect(requested).toContainEqual([3, 4]);
-    expect(requested).toContainEqual([4, 5]);
-    expect(requested).toContainEqual([5, 6]);
-    expect(requested).toContainEqual([6, 7]);
-    expect(requested).toContainEqual([2, 3]);
-    expect(requested).toContainEqual([1, 2]);
+    expect(requested).toContainEqual([3, 4.75]);
+    expect(requested).toContainEqual([4, 5.75]);
+    expect(requested).toContainEqual([5, 6.75]);
+    expect(requested).toContainEqual([6, 7.75]);
+    expect(requested).toContainEqual([2, 3.75]);
+    expect(requested).toContainEqual([1, 2.75]);
     expect(requested.slice(2, 6)).toEqual([
-      [5, 6],
-      [6, 7],
-      [2, 3],
-      [1, 2],
+      [5, 6.75],
+      [6, 7.75],
+      [2, 3.75],
+      [1, 2.75],
     ]);
   });
 
@@ -874,23 +874,23 @@ describe("SpectrogramViewer", () => {
     const render = viewer.render();
     await Promise.resolve();
 
-    expect(requested).toContainEqual([3, 4]);
-    expect(requested).toContainEqual([4, 5]);
-    expect(requested).not.toContainEqual([2, 3]);
-    expect(requested).not.toContainEqual([5, 6]);
+    expect(requested).toContainEqual([3, 4.75]);
+    expect(requested).toContainEqual([4, 5.75]);
+    expect(requested).not.toContainEqual([2, 3.75]);
+    expect(requested).not.toContainEqual([5, 6.75]);
 
     release?.();
     await render;
 
-    expect(requested).toContainEqual([5, 6]);
-    expect(requested).toContainEqual([6, 7]);
-    expect(requested).toContainEqual([2, 3]);
-    expect(requested).toContainEqual([1, 2]);
+    expect(requested).toContainEqual([5, 6.75]);
+    expect(requested).toContainEqual([6, 7.75]);
+    expect(requested).toContainEqual([2, 3.75]);
+    expect(requested).toContainEqual([1, 2.75]);
     expect(requested.slice(2, 6)).toEqual([
-      [5, 6],
-      [6, 7],
-      [2, 3],
-      [1, 2],
+      [5, 6.75],
+      [6, 7.75],
+      [2, 3.75],
+      [1, 2.75],
     ]);
   });
 
@@ -924,12 +924,12 @@ describe("SpectrogramViewer", () => {
     await Promise.resolve();
 
     expect(requested.slice(0, 2)).toEqual([
-      [0, 1],
-      [1, 2],
+      [0, 1.75],
+      [1, 2.75],
     ]);
     expect(viewer.getConfig().maxCachedTiles).toBeGreaterThan(2);
-    expect(requested).toContainEqual([2, 3]);
-    expect(requested).toContainEqual([3, 4]);
+    expect(requested).toContainEqual([2, 3.75]);
+    expect(requested).toContainEqual([3, 4.75]);
     release?.();
   });
 

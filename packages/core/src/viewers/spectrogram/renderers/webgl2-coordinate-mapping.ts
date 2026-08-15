@@ -51,6 +51,7 @@ export function timeToTextureU(input: {
   time: number;
   tileStartTime: number;
   tileEndTime: number;
+  frameCount?: number;
 }): number {
   const span = input.tileEndTime - input.tileStartTime || 1;
   return Math.max(0, Math.min(1, (input.time - input.tileStartTime) / span));
@@ -74,11 +75,16 @@ export function timeToFrame(input: {
   tileEndTime: number;
   frameCount: number;
 }): number {
+  if (input.frameCount <= 0) return 0;
+  const hopDuration =
+    (input.tileEndTime - input.tileStartTime) / Math.max(1, input.frameCount);
   return Math.max(
     0,
     Math.min(
       input.frameCount - 1,
-      Math.floor(timeToTextureU(input) * input.frameCount),
+      Math.floor(
+        (input.time - input.tileStartTime) / Math.max(0.000001, hopDuration),
+      ),
     ),
   );
 }
@@ -124,6 +130,7 @@ export function viewportPixelToTileSample(input: {
     time,
     tileStartTime: input.tileStartTime,
     tileEndTime: input.tileEndTime,
+    frameCount: input.frameCount,
   });
   const textureV = frequencyToWebGLTextureV({
     frequency,

@@ -91,7 +91,8 @@ export function computeStftMatrix(
 
   const times = Float32Array.from(
     { length: frameCount },
-    (_, i) => options.timeStart + (i * stft.hopSize) / sampleRate,
+    (_, i) =>
+      options.timeStart + (i * stft.hopSize + stft.windowSize / 2) / sampleRate,
   );
   const frequencies = Float32Array.from(
     { length: binCount },

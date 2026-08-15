@@ -3,9 +3,11 @@
   "files": {
     "includes": [
       "packages/*/src/**",
+      "packages/anywidget/js/**",
       "scripts/**",
       "examples/**",
       "!packages/core/src/viewers/spectrogram/backends/wasm-stft-binary.ts",
+      "!packages/anywidget/src/sonogram/static",
       "!**/dist"
     ]
   },
@@ -14,6 +16,7 @@
   },
   "linter": {
     "includes": [
+      "packages/anywidget/js/*.ts",
       "./packages/*/src/**/*.js",
       "./packages/*/src/**/*.ts",
       "./packages/*/src/**/*.tsx",
