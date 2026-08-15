@@ -56,8 +56,8 @@
     <script type="module">
       import {
         MainThreadComputeBackend,
-        PerformanceProfiler,
         Sonoscope,
+        SpectrogramProfiler,
         SpectrogramViewer,
         WasmComputeBackend,
         WasmWorkerComputeBackend,
@@ -125,7 +125,6 @@
         canvas = resetCanvas(canvas);
         profile.textContent = `Initializing ${name} for ${iterations} iterations...\n`;
 
-        const measuresMap = new Map();
         const totalDurations = [];
 
         try {
@@ -151,10 +150,7 @@
             window: 'hann',
           });
 
-          let latestMeasures = [];
-          viewer.on('renderprofile', (event) => {
-            latestMeasures = event.measures;
-          });
+          const profiler = new SpectrogramProfiler(viewer);
 
           for (let iter = 1; iter <= iterations; iter++) {
             profile.textContent = `[${iter}/${iterations}] Running compute & draw on ${name}...`;
@@ -162,23 +158,13 @@
             // Clear cache & invalidate renderer to force clean compute + draw every iteration
             viewer.setConfig({ startTime: (viewportStart + (iter * 0.1) % 10), endTime: (viewportStart + (iter * 0.1) % 10) + 8 });
 
-            const iterProfiler = new PerformanceProfiler();
             const start = performance.now();
-            await viewer.render({ profile: iterProfiler });
+            await viewer.render();
             const elapsed = performance.now() - start;
             totalDurations.push(elapsed);
-
-            // Group profiler measures
-            const iterTotals = new Map();
-            for (const measure of latestMeasures) {
-              iterTotals.set(measure.name, (iterTotals.get(measure.name) ?? 0) + measure.duration);
-            }
-            for (const [measureName, duration] of iterTotals.entries()) {
-              if (!measuresMap.has(measureName)) measuresMap.set(measureName, []);
-              measuresMap.get(measureName).push(duration);
-            }
           }
 
+          const stats = profiler.getStats();
           const totalStats = computeStats(totalDurations);
           const header = `========================================================================================================\n` +
             ` PERFORMANCE PROFILE: ${name} (${iterations} iterations)\n` +
@@ -189,10 +175,7 @@
 
           let body = formatStatsRow('TOTAL (Compute+Draw)', totalStats) + '\n';
           body += `-------------------------+------------+------------+------------+------------+----------\n`;
-
-          for (const [measureName, values] of measuresMap.entries()) {
-            body += formatStatsRow(measureName, computeStats(values)) + '\n';
-          }
+          body += `Tiles Loaded: ${stats.totalTilesLoaded} | Cache Hits: ${stats.cacheHits} | Cache Misses: ${stats.cacheMisses} | Hit Ratio: ${(stats.cacheHitRatio * 100).toFixed(1)}%\n`;
 
           const fps = (1000 / totalStats.mean).toFixed(1);
           const summary = `--------------------------------------------------------------------------------------------------------\n` +
@@ -202,12 +185,11 @@
           profile.textContent = resultText;
 
           running = false;
+          profiler.destroy();
           return {
             name,
             totalStats,
-            stftStats: computeStats(measuresMap.get('tile.stft.compute') || []),
-            sourceStats: computeStats(measuresMap.get('tile.source.read') || []),
-            paintStats: computeStats(measuresMap.get('renderer.paint') || []),
+            stats,
           };
         } catch (error) {
           running = false;

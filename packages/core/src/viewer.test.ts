@@ -3,7 +3,6 @@ import type {
   ComputeTileRequest,
   SpectrogramComputeBackend,
 } from "./backends/backend";
-import { PerformanceProfiler } from "./performance";
 import { Sonoscope } from "./sonoscope";
 import * as sourceModule from "./sources/source";
 import type {
@@ -648,7 +647,7 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getTileStates().map((tile) => tile.channel)).toEqual([1, 1]);
   });
 
-  it("emits renderstart and rendercomplete with durationMs without internal profiler allocations", async () => {
+  it("emits renderstart, tileload, and rendercomplete with durationMs", async () => {
     const viewer = createViewer({
       canvas: canvas(),
       source,
@@ -659,55 +658,31 @@ describe("SpectrogramViewer", () => {
     });
     const completeEvents: Array<{
       requestId: string;
-      durationMs?: number;
+      durationMs: number;
       renderedTiles: number;
     }> = [];
-    const profiles: Array<{
-      requestId: string;
-      generation: number;
-      measures: unknown[];
+    const tileEvents: Array<{
+      tileId: string;
+      cacheHit: boolean;
+      durationMs?: number;
     }> = [];
+
     viewer.on("rendercomplete", (event) => completeEvents.push(event));
-    viewer.on("renderprofile", (event) => profiles.push(event));
+    viewer.on("tileload", (event) => tileEvents.push(event));
 
     await viewer.render();
 
     expect(completeEvents).toHaveLength(1);
     expect(typeof completeEvents[0]?.durationMs).toBe("number");
     expect(completeEvents[0]?.durationMs).toBeGreaterThanOrEqual(0);
-    expect(profiles).toHaveLength(0);
-  });
+    expect(tileEvents.length).toBeGreaterThan(0);
+    expect(tileEvents[0]?.cacheHit).toBe(false);
 
-  it("emits renderprofile measures when a profiler is explicitly passed", async () => {
-    const viewer = createViewer({
-      canvas: canvas(),
-      source,
-      startTime: 0,
-      endTime: 1,
-      minFrequency: 0,
-      maxFrequency: 512,
-    });
-    const profiles: Array<{
-      requestId: string;
-      generation: number;
-      names: string[];
-    }> = [];
-    viewer.on("renderprofile", (event) =>
-      profiles.push({
-        requestId: event.requestId,
-        generation: event.generation,
-        names: event.measures.map((measure) => measure.name),
-      }),
-    );
-
-    const profile = new PerformanceProfiler();
-    await viewer.render({ profile });
-
-    expect(profiles).toHaveLength(1);
-    expect(profiles[0]?.generation).toBeGreaterThan(0);
-    expect(profiles[0]?.names).toContain("render.visibleTiles");
-    expect(profiles[0]?.names).toContain("renderer.paint");
-    expect(profiles[0]?.names).toContain("render.paint.count");
+    // Second render should be cache hits
+    tileEvents.length = 0;
+    await viewer.render();
+    expect(tileEvents.length).toBeGreaterThan(0);
+    expect(tileEvents.every((t) => t.cacheHit)).toBe(true);
   });
 
   it("does not let an older render complete after a newer viewport render", async () => {

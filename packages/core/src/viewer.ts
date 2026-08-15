@@ -11,7 +11,6 @@ import {
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
 import { zoomViewportFrequency, zoomViewportTime } from "./navigation";
-import type { PerformanceProfiler } from "./performance";
 import {
   CanvasSpectrogramRenderer,
   type RenderInput,
@@ -353,7 +352,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
   }
 
-  async render(options?: { profile?: PerformanceProfiler }): Promise<void> {
+  async render(): Promise<void> {
     if (this.isDestroyed()) return;
     this.renderAgain = false;
     const wasRunning = this.renderRunning;
@@ -361,19 +360,14 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     try {
       const requestId = `render-${++this.requestCounter}`;
       const generation = ++this.renderGeneration;
-      const profile = options?.profile;
       const startTime = performance.now();
       const tiles = this.visibleTileRanges();
       const matrices = new Map<string, SpectrogramMatrix>();
       let completed = 0;
       let partialPaintQueued = false;
-      let paintCount = 0;
 
       this.status = { state: "rendering" };
       this.events.emit("renderstart", { requestId, total: tiles.length });
-      profile?.record("render.visibleTiles", performance.now(), 0, {
-        total: tiles.length,
-      });
       this.renderer.renderLoading({ canvas: this.config.canvas });
 
       const jobs = tiles.map(async (tile) => {
@@ -381,7 +375,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
           tile.channel,
           tile.timeStart,
           tile.timeEnd,
-          profile,
         );
         if (this.isDestroyed() || generation !== this.renderGeneration) return;
         completed += 1;
@@ -405,15 +398,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
             generation === this.renderGeneration &&
             matrices.size < tiles.length
           ) {
-            profile?.record("render.paint.partial", performance.now(), 0, {
-              tiles: matrices.size,
-              total: tiles.length,
-            });
-            paintCount += 1;
             this.paintPartial(
               Array.from(matrices.values()),
               this.missingPlaceholders(tiles, matrices),
-              profile,
             );
           }
         }
@@ -422,24 +409,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       if (this.isDestroyed() || generation !== this.renderGeneration) return;
       this.prefetchAroundViewport();
 
-      profile?.record("render.paint.final", performance.now(), 0, {
-        tiles: matrices.size,
-        total: tiles.length,
-      });
-      paintCount += 1;
-      this.paintPartial(Array.from(matrices.values()), [], profile);
+      this.paintPartial(Array.from(matrices.values()), []);
       void this.renderPlaybackPlayhead();
-      profile?.record("render.paint.count", performance.now(), 0, {
-        count: paintCount,
-      });
-      if (profile) {
-        profile.record(
-          "cache.memory",
-          performance.now(),
-          0,
-          this.cache.stats(),
-        );
-      }
       this.events.emit("renderprogress", {
         requestId,
         completed: tiles.length,
@@ -455,18 +426,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         renderedTiles: matrices.size,
         missingTiles: tiles.length - matrices.size,
       });
-
-      if (
-        profile &&
-        generation === this.renderGeneration &&
-        !this.isDestroyed()
-      ) {
-        this.events.emit("renderprofile", {
-          requestId,
-          generation,
-          measures: profile.measures(),
-        });
-      }
     } finally {
       if (!wasRunning) {
         this.renderRunning = false;
@@ -485,7 +444,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private paintPartial(
     matrices: SpectrogramMatrix[],
     placeholders: Array<{ timeStart: number; timeEnd: number }>,
-    profile?: PerformanceProfiler,
   ): void {
     if (this.isDestroyed()) return;
     this.renderer.render({
@@ -501,7 +459,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       colorMap: this.config.colorMap,
       tiles: matrices,
       placeholders,
-      ...(profile ? { profile } : {}),
       ...(this.config.showPlayhead
         ? { playheadTime: this.scope.getCurrentTime() }
         : {}),
@@ -841,7 +798,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     channel: number,
     timeStart: number,
     timeEnd: number,
-    profile?: PerformanceProfiler,
   ): Promise<SpectrogramMatrix> {
     const source = this.config.source;
     const stft: StftConfig = {
@@ -852,18 +808,22 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     };
     const transforms = this.config.transforms;
     const key = this.tileKey(channel, timeStart, timeEnd);
-    const cached = profile
-      ? profile.measure(
-          "tile.cache.lookup",
-          { channel, timeStart, timeEnd },
-          () => this.cache.get(key),
-        )
-      : this.cache.get(key);
-    if (cached) return cached;
+    const cached = this.cache.get(key);
+    if (cached) {
+      this.events.emit("tileload", {
+        tileId: key,
+        timeStart,
+        timeEnd,
+        channel,
+        cacheHit: true,
+      });
+      return cached;
+    }
     const pending = this.pendingTiles.get(key);
     if (pending) return pending;
 
     const promise = (async () => {
+      const tileStartTime = performance.now();
       try {
         const raw = await this.backend.computeTile({
           source,
@@ -871,29 +831,23 @@ export class SpectrogramViewer implements ISpectrogramViewer {
           timeStart,
           timeEnd,
           stft,
-          ...(profile ? { profile } : {}),
         });
-        const transform = async () =>
-          applyTransforms(raw, transforms, {
-            requestedTimeStart: timeStart,
-            requestedTimeEnd: timeEnd,
-            sampleRate: source.sampleRate,
-            stft,
-          });
-        const transformed = profile
-          ? await profile.measureAsync(
-              "tile.transforms.apply",
-              { channel, timeStart, timeEnd },
-              transform,
-            )
-          : await transform();
+        const transformed = await applyTransforms(raw, transforms, {
+          requestedTimeStart: timeStart,
+          requestedTimeEnd: timeEnd,
+          sampleRate: source.sampleRate,
+          stft,
+        });
         if (this.isDestroyed()) return transformed;
         this.cache.set(key, transformed);
+        const durationMs = performance.now() - tileStartTime;
         this.events.emit("tileload", {
           tileId: key,
           timeStart,
           timeEnd,
           channel,
+          cacheHit: false,
+          durationMs,
         });
         return transformed;
       } catch (error) {

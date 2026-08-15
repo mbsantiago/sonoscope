@@ -1,10 +1,6 @@
 import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { SpectrogramWorkerLike } from "./backends/worker-backend";
-import type {
-  FrameStats,
-  PerformanceMeasure,
-  PerformanceProfiler,
-} from "./performance";
+import type { FrameStats } from "./performance";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 export type FrequencyScale = "linear" | "log" | "mel";
 export type ValueMode = "magnitude" | "power" | "db";
@@ -241,14 +237,9 @@ export type SpectrogramEvents = {
   };
   rendercomplete: {
     requestId: string;
-    durationMs?: number;
+    durationMs: number;
     renderedTiles: number;
     missingTiles: number;
-  };
-  renderprofile: {
-    requestId: string;
-    generation: number;
-    measures: PerformanceMeasure[];
   };
   playbackprofile: FrameStats;
   tileload: {
@@ -256,6 +247,11 @@ export type SpectrogramEvents = {
     timeStart: number;
     timeEnd: number;
     channel: number;
+    cacheHit: boolean;
+    durationMs?: number;
+  };
+  cacheclear: {
+    clearedTiles: number;
   };
   error: {
     error: Error;
@@ -276,8 +272,13 @@ export interface SpectrogramProfileStats {
   minDurationMs: number;
   maxDurationMs: number;
   avgDurationMs: number;
+  totalTilesLoaded: number;
+  cacheHits: number;
+  cacheMisses: number;
+  cacheHitRatio: number;
   fps?: number;
   cache?: CacheStats;
+  playback?: FrameStats;
 }
 
 export interface SpectrogramProfileEvent {
@@ -286,6 +287,9 @@ export interface SpectrogramProfileEvent {
   renderedTiles: number;
   missingTiles: number;
   timestamp: number;
+  cacheHits?: number;
+  cacheMisses?: number;
+  cacheHitRatio?: number;
   cache?: CacheStats;
 }
 
@@ -480,7 +484,7 @@ export type SpectrumPoint = {
 
 export interface ISpectrogramViewer {
   // Rendering & Lifecycle
-  render(options?: { profile?: PerformanceProfiler }): Promise<void>;
+  render(): Promise<void>;
   requestRender(): void;
   destroy(): void;
   getStatus(): SpectrogramStatus;

@@ -180,6 +180,7 @@ describe("SpectrogramProfiler", () => {
     clock += 15;
     viewer.emit("rendercomplete", {
       requestId: "r2",
+      durationMs: 15,
       renderedTiles: 2,
       missingTiles: 0,
     });
@@ -188,6 +189,75 @@ describe("SpectrogramProfiler", () => {
     expect(stats.renderCount).toBe(1);
     expect(stats.lastDurationMs).toBe(15);
     expect(stats.avgDurationMs).toBe(15);
+  });
+
+  it("tracks tileload cache hits, misses, and hit ratio", () => {
+    const viewer = createMockViewer();
+    const profiler = new SpectrogramProfiler(
+      viewer as unknown as ISpectrogramViewer,
+    );
+
+    viewer.emit("tileload", {
+      tileId: "t1",
+      channel: 0,
+      timeStart: 0,
+      timeEnd: 1,
+      cacheHit: false,
+    });
+    viewer.emit("tileload", {
+      tileId: "t2",
+      channel: 0,
+      timeStart: 1,
+      timeEnd: 2,
+      cacheHit: true,
+    });
+    viewer.emit("tileload", {
+      tileId: "t1",
+      channel: 0,
+      timeStart: 0,
+      timeEnd: 1,
+      cacheHit: true,
+    });
+
+    viewer.emit("rendercomplete", {
+      requestId: "r-tiles",
+      durationMs: 20,
+      renderedTiles: 2,
+      missingTiles: 0,
+    });
+
+    const stats = profiler.getStats();
+    expect(stats.totalTilesLoaded).toBe(3);
+    expect(stats.cacheHits).toBe(2);
+    expect(stats.cacheMisses).toBe(1);
+    expect(stats.cacheHitRatio).toBeCloseTo(2 / 3);
+  });
+
+  it("tracks playbackprofile frames and integrates with stats", () => {
+    const viewer = createMockViewer();
+    const profiler = new SpectrogramProfiler(
+      viewer as unknown as ISpectrogramViewer,
+    );
+
+    viewer.emit("playbackprofile", {
+      frames: 60,
+      elapsedMs: 1000,
+      fps: 60,
+      minFrameMs: 15,
+      maxFrameMs: 18,
+      averageFrameMs: 16.6,
+    });
+
+    viewer.emit("rendercomplete", {
+      requestId: "r-pb",
+      durationMs: 10,
+      renderedTiles: 1,
+      missingTiles: 0,
+    });
+
+    const stats = profiler.getStats();
+    expect(stats.playback?.fps).toBe(60);
+    expect(stats.playback?.averageFrameMs).toBe(16.6);
   });
 
   it("unbinds listeners cleanly on destroy()", () => {
