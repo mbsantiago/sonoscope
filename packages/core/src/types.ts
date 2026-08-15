@@ -551,5 +551,6 @@ export interface ISpectrogramViewer {
     mode?: ValueMode;
   }): Promise<SpectrumPoint>;
   getCacheStats(): CacheStats;
+  clearCache(): void;
   getTileStates(): TileStateInfo[];
 }

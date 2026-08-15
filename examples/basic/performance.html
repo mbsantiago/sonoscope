@@ -25,7 +25,8 @@
       <p class="note">Run repeated compute and draw cycles (e.g. 20 iterations) to measure statistical distribution across backends.</p>
       
       <div class="controls">
-        <button id="benchmark-all" class="primary">⚡ Benchmark all backends</button>
+        <button id="benchmark-all" class="primary">⚡ Benchmark compute backends</button>
+        <button id="benchmark-renderers">🎨 Benchmark renderers</button>
         <button id="auto">Auto (WASM worker)</button>
         <button id="wasm-worker">WASM worker</button>
         <button id="wasm-main">WASM main-thread</button>
@@ -35,6 +36,13 @@
 
       <div class="controls">
         <label>
+          Mode:
+          <select id="cache-mode">
+            <option value="cold" selected>Cold Cache (Compute + Draw new frames)</option>
+            <option value="warm">Warm Cache (Cached replay / Draw only)</option>
+          </select>
+        </label>
+        <label>
           Iterations:
           <input type="number" id="iterations" value="20" min="1" max="100" style="width: 60px;" />
         </label>
@@ -43,7 +51,10 @@
           <select id="renderer">
             <option value="auto">auto</option>
             <option value="canvas2d">canvas2d</option>
-            <option value="webgl">webgl</option>
+            <option value="webgl">webgl (normal)</option>
+            <option value="dither">webgl (dither)</option>
+            <option value="sobel">webgl (sobel)</option>
+            <option value="terrain">webgl (terrain)</option>
           </select>
         </label>
         <button id="pan">Pan viewport</button>
@@ -84,12 +95,21 @@
       let canvas = document.querySelector('#spectrogram');
       const profile = document.querySelector('#profile');
       const rendererMode = document.querySelector('#renderer');
+      const cacheModeSelect = document.querySelector('#cache-mode');
       const iterationsInput = document.querySelector('#iterations');
       const source = new SyntheticSource();
       let scope;
       let viewer;
       let viewportStart = 0;
       let running = false;
+
+      function resolveRendererConfig(val) {
+        if (typeof val !== 'string') return val;
+        if (val === 'auto' || val === 'canvas2d') return val;
+        if (val === 'webgl') return { type: 'webgl', program: 'normal' };
+        if (['dither', 'sobel', 'terrain'].includes(val)) return { type: 'webgl', program: val };
+        return val;
+      }
 
       function computeStats(values) {
         if (!values || values.length === 0) return { min: 0, max: 0, mean: 0, median: 0, std: 0, count: 0 };
@@ -117,13 +137,15 @@
         return `${name.padEnd(24)} | ${stats.mean.toFixed(2).padStart(8)} ms | ${stats.median.toFixed(2).padStart(8)} ms | ${stats.min.toFixed(2).padStart(8)} ms | ${stats.max.toFixed(2).padStart(8)} ms | ±${stats.std.toFixed(2).padStart(6)} ms`;
       }
 
-      async function profileBackend(name, backendFactory, iterations = 20) {
+      async function profileBackend(name, backendFactory, iterations = 20, overrideRenderer = null) {
         if (running) return null;
         running = true;
         viewer?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
-        profile.textContent = `Initializing ${name} for ${iterations} iterations...\n`;
+        const cacheMode = cacheModeSelect.value;
+        const rendererConfig = resolveRendererConfig(overrideRenderer ?? rendererMode.value);
+        profile.textContent = `Initializing ${name} (${cacheMode.toUpperCase()} CACHE, ${iterations} iterations)...\n`;
 
         const totalDurations = [];
 
@@ -135,10 +157,10 @@
           });
 
           viewer = new SpectrogramViewer(scope, canvas, {
-            renderer: rendererMode.value,
+            renderer: rendererConfig,
             backend,
             tileDuration: 2,
-            maxCachedTiles: 32,
+            maxCachedTiles: cacheMode === 'cold' ? 0 : 64,
             minFrequency: 0,
             maxFrequency: 12_000,
             valueMode: 'db',
@@ -153,10 +175,17 @@
           const profiler = new SpectrogramProfiler(viewer);
 
           for (let iter = 1; iter <= iterations; iter++) {
-            profile.textContent = `[${iter}/${iterations}] Running compute & draw on ${name}...`;
+            profile.textContent = `[${iter}/${iterations}] Running ${cacheMode} compute & draw on ${name}...`;
 
-            // Clear cache & invalidate renderer to force clean compute + draw every iteration
-            viewer.setConfig({ startTime: (viewportStart + (iter * 0.1) % 10), endTime: (viewportStart + (iter * 0.1) % 10) + 8 });
+            if (cacheMode === 'cold') {
+              viewer.clearCache();
+              // Pan through different audio positions to simulate viewing new frames
+              const panTime = (viewportStart + (iter * 2)) % (source.duration - 8);
+              viewer.updateViewport({ startTime: panTime, endTime: panTime + 8 });
+            } else {
+              // In warm mode, ensure cache is populated
+              if (iter === 1) await viewer.render();
+            }
 
             const start = performance.now();
             await viewer.render();
@@ -166,19 +195,21 @@
 
           const stats = profiler.getStats();
           const totalStats = computeStats(totalDurations);
-          const header = `========================================================================================================\n` +
-            ` PERFORMANCE PROFILE: ${name} (${iterations} iterations)\n` +
-            ` Renderer: ${viewer.getConfig().renderer} | Viewport: 8.0s (4 tiles) | STFT: 2048 FFT / 512 hop\n` +
-            `========================================================================================================\n` +
+          const header = `===================================================================================================================\n` +
+            ` PERFORMANCE PROFILE: ${name}\n` +
+            ` Mode: ${cacheMode.toUpperCase()} CACHE | Iterations: ${iterations} | Viewport: 8.0s (4 tiles) | STFT: 2048 FFT / 512 hop\n` +
+            ` Actual Renderer: ${viewer.getRendererKind()} | Config: ${JSON.stringify(viewer.getConfig().renderer)}\n` +
+            `===================================================================================================================\n` +
             `Metric                   |     Mean   |   Median   |      Min   |      Max   |   StdDev\n` +
             `-------------------------+------------+------------+------------+------------+----------\n`;
 
-          let body = formatStatsRow('TOTAL (Compute+Draw)', totalStats) + '\n';
+          const rowLabel = 'TOTAL (' + (cacheMode === 'cold' ? 'Compute + Draw' : 'Draw Only') + ')';
+          let body = formatStatsRow(rowLabel, totalStats) + '\n';
           body += `-------------------------+------------+------------+------------+------------+----------\n`;
           body += `Tiles Loaded: ${stats.totalTilesLoaded} | Cache Hits: ${stats.cacheHits} | Cache Misses: ${stats.cacheMisses} | Hit Ratio: ${(stats.cacheHitRatio * 100).toFixed(1)}%\n`;
 
           const fps = (1000 / totalStats.mean).toFixed(1);
-          const summary = `--------------------------------------------------------------------------------------------------------\n` +
+          const summary = `-------------------------------------------------------------------------------------------------------------------\n` +
             `Throughput: ~${fps} frames/sec (avg ${totalStats.mean.toFixed(2)} ms per full frame render)`;
 
           const resultText = header + body + summary;
@@ -200,7 +231,8 @@
 
       async function runAllBenchmarks() {
         if (running) return;
-        const iterations = Math.max(1, parseInt(iterationsInput.value, 10) || 20);
+        const iterations = getIters();
+        const cacheMode = cacheModeSelect.value;
         const suite = [
           { name: 'Auto (WASM Worker)', factory: () => 'auto' },
           { name: 'WASM Worker Pool', factory: () => new WasmWorkerComputeBackend() },
@@ -221,7 +253,7 @@
           const baseMean = baseline.totalStats.mean;
 
           let comparison = `===================================================================================================================\n` +
-            ` BENCHMARK COMPARISON SUMMARY (${iterations} iterations each)\n` +
+            ` COMPUTE BACKENDS BENCHMARK (${iterations} iterations, ${cacheMode.toUpperCase()} CACHE)\n` +
             ` Renderer: ${rendererMode.value} | Viewport: 8.0s (4 tiles) | STFT: 2048 FFT / 512 hop\n` +
             `===================================================================================================================\n` +
             `Backend                  |   Total Mean   |   Total Med.   |   Min Render   |   Max Render   | Cache Hit |   Speedup\n` +
@@ -240,9 +272,53 @@
         }
       }
 
+      async function runRendererBenchmarks() {
+        if (running) return;
+        const iterations = getIters();
+        const cacheMode = cacheModeSelect.value;
+        const renderers = [
+          { name: 'Canvas 2D', renderer: 'canvas2d' },
+          { name: 'WebGL2 (Normal)', renderer: { type: 'webgl', program: 'normal' } },
+          { name: 'WebGL2 (Dither)', renderer: { type: 'webgl', program: 'dither' } },
+          { name: 'WebGL2 (Sobel)', renderer: { type: 'webgl', program: 'sobel' } },
+          { name: 'WebGL2 (Terrain 3D)', renderer: { type: 'webgl', program: 'terrain' } },
+        ];
+
+        const results = [];
+        for (const item of renderers) {
+          profile.textContent = `Benchmarking Renderer: ${item.name} (${renderers.indexOf(item) + 1}/${renderers.length})...\n`;
+          const res = await profileBackend(item.name, 'auto', iterations, item.renderer);
+          if (res) results.push(res);
+        }
+
+        if (results.length > 0) {
+          const baseline = results[0]; // Canvas 2D
+          const baseMean = baseline.totalStats.mean;
+
+          let comparison = `===================================================================================================================\n` +
+            ` RENDERERS BENCHMARK (${iterations} iterations, ${cacheMode.toUpperCase()} CACHE)\n` +
+            ` Backend: Auto (WASM Worker) | Viewport: 8.0s (4 tiles)\n` +
+            `===================================================================================================================\n` +
+            `Renderer                 |   Total Mean   |   Total Med.   |   Min Render   |   Max Render   | Cache Hit |   Speedup\n` +
+            `-------------------------+----------------+----------------+----------------+----------------+-----------+-----------\n`;
+
+          for (const res of results) {
+            const speedup = (baseMean / res.totalStats.mean).toFixed(2);
+            const hitPct = `${(res.stats.cacheHitRatio * 100).toFixed(0)}%`;
+            comparison += `${res.name.padEnd(24)} | ${res.totalStats.mean.toFixed(2).padStart(11)} ms | ${res.totalStats.median.toFixed(2).padStart(11)} ms | ${res.totalStats.min.toFixed(2).padStart(11)} ms | ${res.totalStats.max.toFixed(2).padStart(11)} ms | ${hitPct.padStart(9)} |   ${speedup.padStart(6)}x\n`;
+          }
+
+          comparison += `===================================================================================================================\n` +
+            `* Speedup is calculated relative to ${baseline.name} baseline (${baseMean.toFixed(2)} ms mean total render).`;
+
+          profile.textContent = comparison;
+        }
+      }
+
       const getIters = () => Math.max(1, parseInt(iterationsInput.value, 10) || 20);
 
       document.querySelector('#benchmark-all').addEventListener('click', () => void runAllBenchmarks());
+      document.querySelector('#benchmark-renderers').addEventListener('click', () => void runRendererBenchmarks());
       document.querySelector('#auto').addEventListener('click', () => void profileBackend('Auto (WASM Worker)', () => 'auto', getIters()));
       document.querySelector('#wasm-worker').addEventListener('click', () => void profileBackend('WasmWorkerComputeBackend', () => new WasmWorkerComputeBackend(), getIters()));
       document.querySelector('#wasm-main').addEventListener('click', () => void profileBackend('WasmComputeBackend', () => new WasmComputeBackend(), getIters()));

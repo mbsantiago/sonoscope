@@ -324,6 +324,13 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     return this.cache.stats();
   }
 
+  clearCache(): void {
+    const cleared = this.cache.stats().tiles;
+    this.cache.clear();
+    this.pendingTiles.clear();
+    this.events.emit("cacheclear", { clearedTiles: cleared });
+  }
+
   canvasToTimeFrequency(
     x: number,
     y: number,
