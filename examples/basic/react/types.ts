@@ -3,7 +3,7 @@ import type {
   FrequencyScale,
   ValueMode,
   WindowName,
-} from "@sonogram/core";
+} from "@sonoscope/core";
 
 export type ShaderProgram = "auto" | "normal" | "dither" | "sobel" | "terrain";
 

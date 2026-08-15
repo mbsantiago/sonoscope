@@ -1,13 +1,14 @@
 {
-  "name": "@sonogram/react",
+  "name": "@sonoscope/react",
   "version": "0.1.0",
-  "description": "React hooks and components for Sonogram spectrogram visualization.",
+  "description": "React hooks and components for Sonoscope spectrogram visualization.",
   "type": "module",
   "license": "MIT",
   "author": "Santiago",
   "keywords": [
     "audio",
     "spectrogram",
+    "sonoscope",
     "sonogram",
     "react",
     "hooks",
@@ -31,7 +32,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sonogram/core": "^0.1.0"
+    "@sonoscope/core": "^0.1.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

@@ -62,19 +62,21 @@
     <script type="module">
       import {
         attachCanvasNavigation,
+        Sonoscope,
         SpectrogramViewer,
-      } from "@sonogram/core";
+      } from "@sonoscope/core";
 
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector("audio");
       const canvas = document.querySelector("canvas");
 
-      const spectrogram = await SpectrogramViewer.fromUrl({
+      let scope = await Sonoscope.fromUrl(audio.src, {
         audio,
-        canvas,
-        url: audio.src,
+        followPlayback: "page",
       });
+
+      let spectrogram = new SpectrogramViewer(scope, canvas);
 
       spectrogram.requestRender();
 
@@ -85,8 +87,14 @@
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!input.value.trim()) return;
-        await spectrogram.updateSourceUrl(input.value.trim());
+        const url = input.value.trim();
+        if (!url) return;
+        audio.src = url;
+        const nextScope = await Sonoscope.fromUrl(url, { audio, followPlayback: "page" });
+        scope.destroy();
+        scope = nextScope;
+        spectrogram = new SpectrogramViewer(scope, canvas);
+        await spectrogram.render();
       });
     </script>
   </body>

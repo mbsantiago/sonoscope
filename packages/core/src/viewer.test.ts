@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SpectrogramComputeBackend } from "./backends/backend";
+import { Sonoscope } from "./sonoscope";
 import * as sourceModule from "./sources/source";
 import type { AudioSource, SpectrogramMatrix } from "./types";
 import { SpectrogramViewer } from "./viewer";
@@ -1303,5 +1304,160 @@ describe("SpectrogramViewer", () => {
     // 5s of 500kHz at hop 128 is ~19531 frames; with max 2048 frames/tile, it should be divided into ~10 tiles
     const stats = viewer.getCacheStats();
     expect(stats.tiles).toBeGreaterThanOrEqual(9);
+  });
+
+  describe("Sonoscope integration", () => {
+    it("creates viewer with new SpectrogramViewer(scope, canvas)", () => {
+      const scope = new Sonoscope({ source, startTime: 0.1, endTime: 0.8 });
+      const target = canvas();
+      const viewer = new SpectrogramViewer(scope, target);
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(source);
+      expect(viewer.getViewport()).toMatchObject({
+        startTime: 0.1,
+        endTime: 0.8,
+        minFrequency: 0,
+        maxFrequency: 512,
+      });
+      expect(viewer.getConfig().canvas).toBe(target);
+    });
+
+    it("creates viewer with new SpectrogramViewer(scope, canvas, options)", () => {
+      const scope = new Sonoscope({ source, startTime: 0.2, endTime: 0.7 });
+      const target = canvas();
+      const viewer = new SpectrogramViewer(scope, target, {
+        colorMap: "viridis",
+        minFrequency: 50,
+        maxFrequency: 400,
+      });
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getConfig().colorMap).toBe("viridis");
+      expect(viewer.getViewport()).toMatchObject({
+        startTime: 0.2,
+        endTime: 0.7,
+        minFrequency: 50,
+        maxFrequency: 400,
+      });
+    });
+
+    it("creates viewer with new SpectrogramViewer(scope, optionsWithCanvas)", () => {
+      const scope = new Sonoscope({ source });
+      const target = canvas();
+      const viewer = new SpectrogramViewer(scope, {
+        canvas: target,
+        colorMap: "magma",
+      });
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getConfig().colorMap).toBe("magma");
+      expect(viewer.getConfig().canvas).toBe(target);
+    });
+
+    it("creates viewer with new SpectrogramViewer({ scope, canvas })", () => {
+      const scope = new Sonoscope({ source });
+      const target = canvas();
+      const viewer = new SpectrogramViewer({
+        scope,
+        canvas: target,
+      });
+
+      expect(viewer.getScope()).toBe(scope);
+    });
+
+    it("creates viewer via scope.createSpectrogram(canvas, options)", () => {
+      const scope = new Sonoscope({ source, startTime: 0.2, endTime: 0.9 });
+      const target = canvas();
+      const viewer = scope.createSpectrogram(target, { colorMap: "inferno" });
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getConfig().colorMap).toBe("inferno");
+      expect(viewer.getViewport().startTime).toBeCloseTo(0.2);
+      expect(viewer.getViewport().endTime).toBeCloseTo(0.9);
+    });
+
+    it("updates SpectrogramViewer when scope.pan() is called", () => {
+      const scope = new Sonoscope({ source, startTime: 0.1, endTime: 0.5 });
+      const viewer = new SpectrogramViewer(scope, canvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      scope.pan(0.2);
+
+      expect(viewer.getViewport().startTime).toBeCloseTo(0.3);
+      expect(viewer.getViewport().endTime).toBeCloseTo(0.7);
+      expect(requestRender).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates SpectrogramViewer when scope.zoom() is called", () => {
+      const scope = new Sonoscope({ source, startTime: 0.2, endTime: 0.8 });
+      const viewer = new SpectrogramViewer(scope, canvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      scope.zoom(0.5, 0.5);
+
+      expect(viewer.getViewport().startTime).toBeCloseTo(0.35);
+      expect(viewer.getViewport().endTime).toBeCloseTo(0.65);
+      expect(requestRender).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates SpectrogramViewer when scope.setViewport() is called", () => {
+      const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
+      const viewer = new SpectrogramViewer(scope, canvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      scope.setViewport({ startTime: 0.3, endTime: 0.9 });
+
+      expect(viewer.getViewport().startTime).toBeCloseTo(0.3);
+      expect(viewer.getViewport().endTime).toBeCloseTo(0.9);
+      expect(requestRender).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates scope when viewer.updateViewport() modifies time bounds", () => {
+      const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
+      const viewer = new SpectrogramViewer(scope, canvas());
+
+      viewer.updateViewport({
+        startTime: 0.2,
+        endTime: 0.7,
+        minFrequency: 100,
+      });
+
+      expect(scope.getViewport().startTime).toBeCloseTo(0.2);
+      expect(scope.getViewport().endTime).toBeCloseTo(0.7);
+      expect(viewer.getViewport()).toMatchObject({
+        startTime: 0.2,
+        endTime: 0.7,
+        minFrequency: 100,
+      });
+    });
+
+    it("unbinds from scope on destroy() without destroying externally owned scope", () => {
+      const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
+      const scopeDestroySpy = vi.spyOn(scope, "destroy");
+      const viewer = new SpectrogramViewer(scope, canvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      viewer.destroy();
+
+      expect(scopeDestroySpy).not.toHaveBeenCalled();
+
+      // Viewport changes on scope should no longer trigger render on destroyed viewer
+      scope.pan(0.1);
+      expect(requestRender).not.toHaveBeenCalled();
+    });
+
+    it("destroys internally created scope when viewer owns the scope", async () => {
+      const viewer = await SpectrogramViewer.create({
+        canvas: canvas(),
+        source,
+      });
+      const scope = viewer.getScope();
+      const scopeDestroySpy = vi.spyOn(scope, "destroy");
+
+      viewer.destroy();
+
+      expect(scopeDestroySpy).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -1,5 +1,31 @@
 import type { ViewportConfig } from "./types";
 import type { SpectrogramViewer } from "./viewer";
+import type { WaveformViewer } from "./waveform/viewer";
+
+export interface NavigableViewer {
+  setViewport(viewport: Partial<ViewportConfig>): void;
+  requestRender(): void;
+  getViewport(): {
+    startTime: number;
+    endTime: number;
+    minFrequency?: number;
+    maxFrequency?: number;
+    frequencyScale?: string;
+  };
+  getConfig(): {
+    canvas: HTMLCanvasElement;
+    source?: { duration?: number; [key: string]: unknown };
+    minViewportDuration?: number;
+    maxViewportDuration?: number;
+    [key: string]: unknown;
+  };
+  getTimeBounds?: () => TimeBounds;
+  canvasToTimeFrequency?: (
+    x: number,
+    y: number,
+  ) => { time: number; frequency: number };
+  canvasToTime?: (x: number) => number;
+}
 
 export type TimeBounds = {
   startTime: number;
@@ -38,12 +64,12 @@ export type FrequencyBounds = {
 };
 
 export function setViewerViewport(
-  viewer: SpectrogramViewer,
+  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
   viewport: Partial<ViewportConfig>,
 ): ViewportConfig {
   viewer.setViewport(viewport);
   viewer.requestRender();
-  return viewer.getViewport();
+  return viewer.getViewport() as ViewportConfig;
 }
 
 export function panViewportTime(
@@ -124,7 +150,7 @@ export function zoomViewportFrequency(
 }
 
 export function attachCanvasWheelNavigation(
-  viewer: SpectrogramViewer,
+  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
   canvas = viewer.getConfig().canvas,
   options: CanvasWheelNavigationOptions = {},
 ): () => void {
@@ -166,7 +192,7 @@ export function attachCanvasWheelNavigation(
       if (!pendingWheel) return;
       const wheel = pendingWheel;
       pendingWheel = undefined;
-      const viewport = viewer.getViewport();
+      const viewport = viewer.getViewport() as ViewportConfig;
       const config = viewer.getConfig();
       const bounds =
         typeof viewer.getTimeBounds === "function"
@@ -179,10 +205,24 @@ export function attachCanvasWheelNavigation(
             };
       if (modifierPressed(wheel, zoomModifier)) {
         const rect = canvas.getBoundingClientRect();
-        const { time } = viewer.canvasToTimeFrequency(
-          wheel.clientX - rect.left,
-          wheel.clientY - rect.top,
-        );
+        const time =
+          "canvasToTimeFrequency" in viewer &&
+          typeof viewer.canvasToTimeFrequency === "function"
+            ? viewer.canvasToTimeFrequency(
+                wheel.clientX - rect.left,
+                wheel.clientY - rect.top,
+              ).time
+            : "canvasToTime" in viewer &&
+                typeof viewer.canvasToTime === "function"
+              ? viewer.canvasToTime(wheel.clientX - rect.left)
+              : (() => {
+                  const width = rect.width || canvas.clientWidth || 1;
+                  const ratio = (wheel.clientX - rect.left) / width;
+                  return (
+                    viewport.startTime +
+                    ratio * (viewport.endTime - viewport.startTime)
+                  );
+                })();
         apply(
           zoomViewportTime(
             viewport,
@@ -212,7 +252,7 @@ export function attachCanvasWheelNavigation(
 }
 
 export function attachCanvasDragNavigation(
-  viewer: SpectrogramViewer,
+  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
   canvas = viewer.getConfig().canvas,
   options: CanvasDragNavigationOptions = {},
 ): () => void {
@@ -245,7 +285,7 @@ export function attachCanvasDragNavigation(
     isDragging = false;
     startX = event.clientX;
     startY = event.clientY;
-    startViewport = viewer.getViewport();
+    startViewport = viewer.getViewport() as ViewportConfig;
 
     if ("pointerId" in event) {
       activePointerId = event.pointerId;
@@ -342,7 +382,7 @@ export function attachCanvasDragNavigation(
 }
 
 export function attachCanvasNavigation(
-  viewer: SpectrogramViewer,
+  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
   canvas = viewer.getConfig().canvas,
   options: CanvasNavigationOptions = {},
 ): () => void {

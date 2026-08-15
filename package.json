@@ -1,5 +1,5 @@
 {
-  "name": "sonogram-monorepo",
+  "name": "sonoscope-monorepo",
   "version": "0.1.0",
   "description": "High-performance WebGL2 and WASM-accelerated audio spectrogram visualization ecosystem.",
   "private": true,
@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
-    "build": "npm run build:wasm && npm run --workspace=@sonogram/core build && npm run --workspace=@sonogram/react build",
+    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/react build",
     "bench": "vitest bench",
     "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",

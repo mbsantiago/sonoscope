@@ -1,21 +1,56 @@
-# @sonogram/react
+# @sonoscope/react
 
-React hooks and declarative components for [Sonogram](https://github.com/mbsantiago/spectrogram-js) spectrogram visualization.
+React hooks and declarative components for [Sonoscope](https://github.com/mbsantiago/spectrogram-js) audio visualization.
 
 ## Installation
 
 ```bash
-npm install @sonogram/react @sonogram/core
+npm install @sonoscope/react @sonoscope/core
 ```
 
 ## Quick Start
 
-### Declarative Component
+### Synchronized Multi-Viewer (`<Waveform />` + `<Spectrogram />`)
 
 ```tsx
-import { Spectrogram } from "@sonogram/react";
+import {
+  SonoscopeProvider,
+  Spectrogram,
+  Waveform,
+  useSonoscope,
+} from "@sonoscope/react";
 
-export function AudioViewer() {
+export function AudioViewer({ url }: { url: string }) {
+  const { scope, loading, error } = useSonoscope({
+    url,
+    followPlayback: "page",
+  });
+
+  if (loading) return <div>Loading audio...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <SonoscopeProvider value={scope}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <Waveform style={{ height: "80px" }} amplitudeScale={1.2} />
+        <Spectrogram
+          style={{ height: "300px" }}
+          colorMap="magma"
+          frequencyScale="mel"
+          valueMode="db"
+        />
+      </div>
+    </SonoscopeProvider>
+  );
+}
+```
+
+### Standalone Declarative Component
+
+```tsx
+import { Spectrogram } from "@sonoscope/react";
+
+export function SingleSpectrogram() {
   return (
     <Spectrogram
       url="https://example.com/audio.wav"
@@ -29,10 +64,10 @@ export function AudioViewer() {
 }
 ```
 
-### Custom Hook
+### Custom Hooks
 
 ```tsx
-import { useSpectrogram } from "@sonogram/react";
+import { useSonoscope, useSpectrogram } from "@sonoscope/react";
 
 export function CustomViewer() {
   const { canvasRef, audioRef, status, duration } = useSpectrogram({

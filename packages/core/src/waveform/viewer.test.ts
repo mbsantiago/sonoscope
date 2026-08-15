@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Sonoscope } from "../sonoscope";
 import type { AudioSource } from "../types";
 import { WaveformViewer } from "./viewer";
 
@@ -174,5 +175,176 @@ describe("WaveformViewer", () => {
 
     viewer.updateConfig({ renderer: "canvas2d" });
     expect(viewer.getConfig().renderer).toBe("canvas2d");
+  });
+
+  describe("Sonoscope Integration", () => {
+    it("creates viewer with new WaveformViewer(scope, canvas)", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 1,
+        endTime: 6,
+      });
+      const target = createMockCanvas();
+      const viewer = new WaveformViewer(scope, target);
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(dummySource);
+      expect(viewer.getViewport()).toMatchObject({ startTime: 1, endTime: 6 });
+      expect(viewer.getConfig().canvas).toBe(target);
+    });
+
+    it("creates viewer with new WaveformViewer(scope, canvas, options)", () => {
+      const scope = new Sonoscope({ source: dummySource });
+      const target = createMockCanvas();
+      const viewer = new WaveformViewer(scope, target, {
+        color: "#ff0000",
+        amplitudeScale: 2.0,
+      });
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getConfig().color).toBe("#ff0000");
+      expect(viewer.getConfig().amplitudeScale).toBe(2.0);
+      expect(viewer.getConfig().canvas).toBe(target);
+    });
+
+    it("creates viewer with new WaveformViewer(scope, { canvas, ...options })", () => {
+      const scope = new Sonoscope({ source: dummySource });
+      const target = createMockCanvas();
+      const viewer = new WaveformViewer(scope, {
+        canvas: target,
+        colorMap: "magma",
+      });
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getConfig().colorMap).toBe("magma");
+      expect(viewer.getConfig().canvas).toBe(target);
+    });
+
+    it("creates viewer with new WaveformViewer({ scope, canvas })", () => {
+      const scope = new Sonoscope({ source: dummySource });
+      const target = createMockCanvas();
+      const viewer = new WaveformViewer({
+        scope,
+        canvas: target,
+      });
+
+      expect(viewer.getScope()).toBe(scope);
+    });
+
+    it("creates viewer via scope.createWaveform(canvas, options)", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 2,
+        endTime: 8,
+      });
+      const target = createMockCanvas();
+      const viewer = scope.createWaveform(target, { colorMap: "inferno" });
+
+      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getConfig().colorMap).toBe("inferno");
+      expect(viewer.getViewport().startTime).toBeCloseTo(2);
+      expect(viewer.getViewport().endTime).toBeCloseTo(8);
+    });
+
+    it("updates WaveformViewer when scope.pan() is called", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 1,
+        endTime: 5,
+      });
+      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      scope.pan(2);
+
+      expect(viewer.getViewport().startTime).toBeCloseTo(3);
+      expect(viewer.getViewport().endTime).toBeCloseTo(7);
+      expect(requestRender).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates WaveformViewer when scope.zoom() is called", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 2,
+        endTime: 8,
+      });
+      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      scope.zoom(0.5, 5);
+
+      expect(viewer.getViewport().startTime).toBeCloseTo(3.5);
+      expect(viewer.getViewport().endTime).toBeCloseTo(6.5);
+      expect(requestRender).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates WaveformViewer when scope.setViewport() is called", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 0,
+        endTime: 10,
+      });
+      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      scope.setViewport({ startTime: 3, endTime: 9 });
+
+      expect(viewer.getViewport().startTime).toBeCloseTo(3);
+      expect(viewer.getViewport().endTime).toBeCloseTo(9);
+      expect(requestRender).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates scope when viewer.updateViewport() modifies time bounds", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 0,
+        endTime: 10,
+      });
+      const viewer = new WaveformViewer(scope, createMockCanvas());
+
+      viewer.updateViewport({
+        startTime: 2,
+        endTime: 7,
+      });
+
+      expect(scope.getViewport().startTime).toBeCloseTo(2);
+      expect(scope.getViewport().endTime).toBeCloseTo(7);
+      expect(viewer.getViewport()).toMatchObject({
+        startTime: 2,
+        endTime: 7,
+      });
+    });
+
+    it("unbinds from scope on destroy() without destroying externally owned scope", () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 0,
+        endTime: 10,
+      });
+      const scopeDestroySpy = vi.spyOn(scope, "destroy");
+      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const requestRender = vi.spyOn(viewer, "requestRender");
+
+      viewer.destroy();
+
+      expect(scopeDestroySpy).not.toHaveBeenCalled();
+
+      // Viewport changes on scope should no longer trigger render on destroyed viewer
+      scope.pan(1);
+      expect(requestRender).not.toHaveBeenCalled();
+    });
+
+    it("destroys internally created scope when viewer owns the scope", async () => {
+      const viewer = await WaveformViewer.create({
+        canvas: createMockCanvas(),
+        source: dummySource,
+      });
+      const scope = viewer.getScope();
+      const scopeDestroySpy = vi.spyOn(scope, "destroy");
+
+      viewer.destroy();
+
+      expect(scopeDestroySpy).toHaveBeenCalledTimes(1);
+    });
   });
 });

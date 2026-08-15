@@ -34,7 +34,7 @@
     <div class="stage"><canvas></canvas><div class="selection"></div></div>
 
     <script type="module">
-      import { attachCanvasNavigation, SpectrogramViewer } from '@sonogram/core';
+      import { attachCanvasNavigation, Sonoscope, SpectrogramViewer } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
@@ -44,12 +44,14 @@
       let canvas = document.querySelector('canvas');
       const selection = document.querySelector('.selection');
       const status = document.querySelector('[data-status]');
+      let scope;
       let viewer;
       let resetViewport;
       let dragStart;
       let cleanupNavigation;
 
       function statusText() {
+        if (!viewer) return '';
         const viewport = viewer.getViewport();
         return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz`;
       }
@@ -57,16 +59,17 @@
       async function load(url) {
         cleanupNavigation?.();
         viewer?.destroy();
+        scope?.destroy();
         canvas = resetCanvas(canvas);
         attachCanvasInteractions(canvas);
         audio.src = url;
         status.textContent = 'Loading and rendering...';
         try {
-          viewer = await SpectrogramViewer.fromUrl({
+          scope = await Sonoscope.fromUrl(url, {
             audio,
-            canvas,
-            url,
-            followPlayback: follow.checked,
+            followPlayback: follow.checked ? "page" : "off",
+          });
+          viewer = new SpectrogramViewer(scope, canvas, {
             renderOnSeek: true,
           });
           resetViewport = viewer.getViewport();
@@ -74,6 +77,9 @@
             onNavigate: () => {
               status.textContent = statusText();
             },
+          });
+          scope.on('viewportchange', () => {
+            status.textContent = statusText();
           });
           await viewer.render();
           status.textContent = statusText();
@@ -104,15 +110,19 @@
         event.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
       });
-      follow.addEventListener('change', () => viewer?.updateConfig({ playback: { follow: follow.checked } }));
+      follow.addEventListener('change', () => scope?.setFollowPlayback(follow.checked ? 'page' : 'off'));
       document.querySelector('[data-action="reset"]').addEventListener('click', () => resetViewport && setViewport(resetViewport));
       document.querySelector('[data-action="zoom-in"]').addEventListener('click', () => {
-        viewer?.zoomTime(0.5);
-        if (viewer) status.textContent = statusText();
+        if (scope) {
+          scope.zoom(0.5);
+          status.textContent = statusText();
+        }
       });
       document.querySelector('[data-action="zoom-out"]').addEventListener('click', () => {
-        viewer?.zoomTime(2);
-        if (viewer) status.textContent = statusText();
+        if (scope) {
+          scope.zoom(2);
+          status.textContent = statusText();
+        }
       });
 
       function attachCanvasInteractions(target) {

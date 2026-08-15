@@ -12,8 +12,8 @@
     "exactOptionalPropertyTypes": true,
     "jsx": "react-jsx",
     "paths": {
-      "@sonogram/core": ["./packages/core/src/index.ts"],
-      "@sonogram/react": ["./packages/react/src/index.ts"]
+      "@sonoscope/core": ["./packages/core/src/index.ts"],
+      "@sonoscope/react": ["./packages/react/src/index.ts"]
     }
   },
   "include": [

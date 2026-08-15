@@ -1,3 +1,4 @@
+import type { Sonoscope } from "../sonoscope";
 import type { AudioSource, ColorMapConfig } from "../types";
 
 export type PeakBlock = {
@@ -48,6 +49,13 @@ export type WaveformConfig = {
   renderer?: "canvas2d" | "webgl2" | WaveformRenderer | undefined;
 };
 
+export interface WaveformViewerOptions
+  extends Omit<WaveformConfig, "source" | "audio"> {
+  scope?: Sonoscope | undefined;
+  source?: AudioSource | undefined;
+  audio?: HTMLAudioElement | undefined;
+}
+
 export type ResolvedWaveformConfig = {
   canvas: HTMLCanvasElement;
   source: AudioSource;
@@ -87,6 +95,7 @@ export interface IWaveformViewer {
   getStatus(): WaveformStatus;
 
   // Viewport & Navigation
+  getScope(): Sonoscope;
   getViewport(): WaveformViewport;
   updateViewport(viewport: Partial<WaveformViewport>): void;
   setViewport(viewport: Partial<WaveformViewport>): void;

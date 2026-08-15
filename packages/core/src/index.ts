@@ -53,6 +53,7 @@ export type {
   CanvasNavigationOptions,
   CanvasWheelNavigationOptions,
   FrequencyBounds,
+  NavigableViewer,
   TimeBounds,
 } from "./navigation";
 export {
@@ -93,6 +94,8 @@ export type {
 export { WebGL2ShaderProgram } from "./renderers/webgl2-program";
 export { SobelSpectrogramProgram } from "./renderers/webgl2-sobel-program";
 export { TerrainSpectrogramProgram } from "./renderers/webgl2-terrain-program";
+export type { SonoscopeEvents, SonoscopeOptions } from "./sonoscope";
+export { Sonoscope } from "./sonoscope";
 export type {
   ByteStreamSource,
   SeekableByteSource,
@@ -167,6 +170,7 @@ export type {
   WaveformRenderer,
   WaveformRenderInput,
   WaveformStatus,
+  WaveformViewerOptions,
   WaveformViewport,
 } from "./waveform/types";
 export { WaveformViewer } from "./waveform/viewer";

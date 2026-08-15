@@ -1,11 +1,12 @@
 import {
   attachCanvasNavigation,
   type CanvasNavigationOptions,
+  type Sonoscope,
   type SpectrogramConfig,
   type SpectrogramStatus,
   SpectrogramViewer,
   type ViewportConfig,
-} from "@sonogram/core";
+} from "@sonoscope/core";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 
 export type SpectrogramReadyInfo = {
@@ -20,7 +21,9 @@ export type UseSpectrogramOptions = Omit<
   SpectrogramConfig,
   "canvas" | "audio"
 > & {
+  scope?: Sonoscope | null | undefined;
   url?: string | undefined;
+  audio?: HTMLAudioElement | undefined;
   navigation?: boolean | CanvasNavigationOptions | undefined;
   onViewportChange?: ((viewport: ViewportConfig) => void) | undefined;
   onReady?: ((info: SpectrogramReadyInfo) => void) | undefined;
@@ -41,8 +44,10 @@ export function useSpectrogram(
   options: UseSpectrogramOptions = {},
 ): UseSpectrogramResult {
   const {
+    scope,
     url,
     source,
+    audio,
     navigation,
     onViewportChange,
     onReady,
@@ -77,10 +82,10 @@ export function useSpectrogram(
     [navigation],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses source identity; in-place option updates are handled reactively below
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses scope/source identity; in-place option updates are handled reactively below
   useEffect(() => {
     const canvas = canvasRef.current;
-    const audio = audioRef.current;
+    const resolvedAudio = audio ?? audioRef.current ?? undefined;
     if (!canvas) return;
 
     let isCancelled = false;
@@ -92,9 +97,14 @@ export function useSpectrogram(
     const initViewer = async () => {
       try {
         let viewer: SpectrogramViewer;
-        const audioProp = audio ? { audio } : {};
+        const audioProp = resolvedAudio ? { audio: resolvedAudio } : {};
 
-        if (url) {
+        if (scope) {
+          viewer = new SpectrogramViewer(scope, canvas, {
+            ...memoizedConfig,
+            ...audioProp,
+          });
+        } else if (url) {
           viewer = await SpectrogramViewer.fromUrl({
             ...memoizedConfig,
             ...audioProp,
@@ -109,6 +119,7 @@ export function useSpectrogram(
             source,
           });
         } else {
+          setStatus({ state: "idle" });
           return;
         }
 
@@ -148,6 +159,9 @@ export function useSpectrogram(
           viewer.on("rendercomplete", () => {
             setStatus({ state: "ready" });
           }),
+          viewer.on("error", (event) => {
+            setStatus({ state: "error", error: event.error });
+          }),
         );
 
         if (navigation !== false) {
@@ -175,7 +189,7 @@ export function useSpectrogram(
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [url, source, navSerialized]);
+  }, [scope, url, source, audio, navSerialized]);
 
   // Handle in-place reactive config updates on existing viewer
   useEffect(() => {

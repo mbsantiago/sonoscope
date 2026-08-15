@@ -69,7 +69,7 @@
     <p data-status></p>
 
     <script type="module">
-      import { attachCanvasNavigation, SpectrogramViewer } from "@sonogram/core";
+      import { attachCanvasNavigation, Sonoscope, SpectrogramViewer } from "@sonoscope/core";
 
       let canvas = document.querySelector("canvas");
       const form = document.querySelector("form");
@@ -77,25 +77,28 @@
       const audio = document.querySelector("audio");
       const shader = document.querySelector("#shader");
 
+      let scope;
       let spectrogram;
       let cleanupNavigation;
 
       async function main(shader) {
         spectrogram?.destroy();
+        scope?.destroy();
         cleanupNavigation?.();
         canvas = resetCanvas(canvas);
 
-        spectrogram = await SpectrogramViewer.fromUrl({
+        scope = await Sonoscope.fromUrl(audio.src, {
           audio,
-          canvas,
-          url: audio.src,
+          followPlayback: "page",
+        });
+
+        spectrogram = new SpectrogramViewer(scope, canvas, {
           renderer: { type: "webgl", program: shader },
           frequencyScale: "mel",
           valueMode: "db",
           minValue: -65,
           maxValue: -10,
           colorMap: { base: "gray" },
-          followPlayback: true,
           renderOnSeek: true,
         });
 
@@ -106,8 +109,10 @@
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!input.value.trim()) return;
-        await spectrogram.updateSourceUrl(input.value.trim());
+        const url = input.value.trim();
+        if (!url) return;
+        audio.src = url;
+        await main(shader.value);
       });
 
       shader.addEventListener("change", () => void main(shader.value));

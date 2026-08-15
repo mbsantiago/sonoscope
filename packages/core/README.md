@@ -1,24 +1,54 @@
-# @sonogram/core
+# @sonoscope/core
 
-High-performance WebGL2 and WASM-accelerated audio spectrogram engine for the web.
+High-performance WebGL2 and WASM-accelerated audio visualization engine for the web.
 
 ## Installation
 
 ```bash
-npm install @sonogram/core
+npm install @sonoscope/core
 ```
 
 ## Quick Start
 
-```typescript
-import { SpectrogramViewer } from "@sonogram/core";
+### Unified Coordinator Pattern (Recommended)
 
-const canvas = document.querySelector("canvas")!;
+```typescript
+import { Sonoscope, SpectrogramViewer, WaveformViewer } from "@sonoscope/core";
+
 const audio = document.querySelector("audio")!;
+const waveCanvas = document.querySelector("#wave-canvas")!;
+const specCanvas = document.querySelector("#spec-canvas")!;
+
+// 1. Initialize coordinator
+const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
+  audio,
+  followPlayback: "page",
+});
+
+// 2. Attach viewers bound to the same scope
+const waveform = new WaveformViewer(scope, waveCanvas, {
+  colorMap: "magma",
+  amplitudeScale: 1.0,
+});
+
+const spectrogram = new SpectrogramViewer(scope, specCanvas, {
+  colorMap: "magma",
+  frequencyScale: "mel",
+  valueMode: "db",
+});
+
+// 3. Render both viewers in lock-step
+await Promise.all([waveform.render(), spectrogram.render()]);
+```
+
+### Standalone Single Viewer
+
+```typescript
+import { SpectrogramViewer } from "@sonoscope/core";
 
 const viewer = await SpectrogramViewer.fromUrl({
-  canvas,
-  audio,
+  canvas: document.querySelector("canvas")!,
+  audio: document.querySelector("audio")!,
   url: "https://example.com/audio.wav",
   colorMap: "magma",
   frequencyScale: "mel",
@@ -28,7 +58,9 @@ const viewer = await SpectrogramViewer.fromUrl({
 
 ## Features
 
-- ⚡ **WASM FFT Acceleration**: Inlined Rust WASM STFT engine with fallback to pure JavaScript FFT.
-- 🎨 **WebGL2 Custom Shaders & 35+ Colormaps**: Hardware-accelerated tile rasterization (normal, dither, sobel, 3D terrain) + Matplotlib colormaps (Viridis, Magma, Cividis, Turbo, Tab20, etc.).
-- 🌊 **Adaptive Streaming Decoders**: On-demand range requests for WAV and WebCodecs-based streaming MP3 decoding with backpressure.
-- 🖱️ **Canvas Navigation**: Built-in wheel zoom and click-and-drag viewport panning utilities.
+- 🎯 **Unified Viewport Coordinator (`Sonoscope`)**: Central coordinator for time bounds, playback clock, follow modes (`page`, `smooth`, `off`), and multi-canvas synchronization.
+- ⚡ **WASM STFT Acceleration**: Rust WebAssembly STFT compute backend with multi-worker pool and pure JavaScript FFT fallback.
+- 🎨 **WebGL2 Custom Shaders & 35+ Colormaps**: Hardware-accelerated tile rasterization (normal, dither, sobel, 3D terrain) and 35+ Matplotlib colormaps (Viridis, Magma, Inferno, Turbo, Cividis, etc.).
+- 📊 **Multi-Scale Waveform Peak Decimation**: Multi-resolution pyramid peak decimation for instant waveform envelope rendering.
+- 🌊 **Adaptive Streaming Decoders**: On-demand HTTP range-request WAV decoders and WebCodecs `AudioDecoder` streaming MP3 pipelines.
+- 🖱️ **Canvas Navigation**: Built-in wheel zoom (cursor-centered) and pointer drag panning utilities.

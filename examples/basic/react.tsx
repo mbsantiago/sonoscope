@@ -1,4 +1,5 @@
-import type { SpectrogramHandle, SpectrogramReadyInfo } from "@sonogram/react";
+import type { SpectrogramHandle, SpectrogramReadyInfo } from "@sonoscope/react";
+import { SonoscopeProvider, useSonoscope } from "@sonoscope/react";
 import type React from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -27,6 +28,7 @@ const initialSettings: SpectrogramSettings = {
 
 export function ReactSpectrogramDemo(): React.ReactElement {
   const spectrogramRef = useRef<SpectrogramHandle | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [settings, setSettings] =
     useState<SpectrogramSettings>(initialSettings);
   const [duration, setDuration] = useState(30);
@@ -43,6 +45,13 @@ export function ReactSpectrogramDemo(): React.ReactElement {
 
   const currentRecording =
     RECORDINGS[settings.recordingIndex] ?? RECORDINGS[0]!;
+
+  const { scope, loading, error } = useSonoscope({
+    url: currentRecording.url,
+    startTime: 0,
+    endTime: 12,
+    followPlayback: "page",
+  });
 
   function handleSpectrogramReady(info: SpectrogramReadyInfo) {
     const { duration: dur, nyquist: nq, viewer } = info;
@@ -62,9 +71,37 @@ export function ReactSpectrogramDemo(): React.ReactElement {
   }
 
   useEffect(() => {
+    if (!scope) return;
+    const audio = audioRef.current;
+    if (audio) {
+      scope.attachAudio(audio);
+    }
+  }, [scope]);
+
+  useEffect(() => {
+    if (!scope) return;
+
+    const unsubVp = scope.on("viewportchange", (event) => {
+      setViewport((prev) => ({
+        ...prev,
+        startTime: event.viewport.startTime,
+        endTime: event.viewport.endTime,
+      }));
+    });
+
+    const unsubTime = scope.on("timeupdate", (event) => {
+      setPlayheadTime(event.currentTime);
+    });
+
+    return () => {
+      unsubVp();
+      unsubTime();
+    };
+  }, [scope]);
+
+  useEffect(() => {
     const handle = spectrogramRef.current;
     if (!handle) return;
-    const audio = handle.getAudio();
     const viewer = handle.getViewer();
     if (!viewer) return;
 
@@ -84,43 +121,12 @@ export function ReactSpectrogramDemo(): React.ReactElement {
       setStatus(`Error: ${event.error.message}`);
     });
 
-    let frame: number | undefined;
-    const updateTime = () => setPlayheadTime(audio?.currentTime || 0);
-    const tick = () => {
-      updateTime();
-      frame = requestAnimationFrame(tick);
-    };
-    const start = () => {
-      if (frame === undefined) frame = requestAnimationFrame(tick);
-    };
-    const stop = () => {
-      if (frame !== undefined) cancelAnimationFrame(frame);
-      frame = undefined;
-      updateTime();
-    };
-
-    if (audio) {
-      audio.addEventListener("play", start);
-      audio.addEventListener("pause", stop);
-      audio.addEventListener("seeked", updateTime);
-      audio.addEventListener("timeupdate", updateTime);
-      updateTime();
-      if (!audio.paused) start();
-    }
-
     return () => {
       unsubProfile();
       unsubComp();
       unsubError();
-      stop();
-      if (audio) {
-        audio.removeEventListener("play", start);
-        audio.removeEventListener("pause", stop);
-        audio.removeEventListener("seeked", updateTime);
-        audio.removeEventListener("timeupdate", updateTime);
-      }
     };
-  }, [settings.recordingIndex, settings.shaderProgram]);
+  }, [settings.recordingIndex, settings.shaderProgram, scope]);
 
   function handleUpdateSettings(update: Partial<SpectrogramSettings>) {
     startTransition(() => {
@@ -144,6 +150,12 @@ export function ReactSpectrogramDemo(): React.ReactElement {
   function handleUserNavigate(next: ViewportState) {
     startTransition(() => {
       setViewport(next);
+      if (scope) {
+        scope.setViewport({
+          startTime: next.startTime,
+          endTime: next.endTime,
+        });
+      }
       spectrogramRef.current?.getViewer()?.updateViewport(next);
     });
   }
@@ -157,6 +169,12 @@ export function ReactSpectrogramDemo(): React.ReactElement {
         maxFrequency: nyquist,
       };
       setViewport(next);
+      if (scope) {
+        scope.setViewport({
+          startTime: next.startTime,
+          endTime: next.endTime,
+        });
+      }
       spectrogramRef.current?.getViewer()?.updateViewport(next);
     });
   }
@@ -166,19 +184,28 @@ export function ReactSpectrogramDemo(): React.ReactElement {
       <style>{demoStyles}</style>
       <Header />
       <section className="workbench">
-        <SpectrogramPanel
-          spectrogramRef={spectrogramRef}
-          recording={currentRecording}
-          settings={settings}
-          status={status}
-          duration={duration}
-          playheadTime={playheadTime}
-          viewport={viewport}
-          cacheSummary={cacheSummary}
-          onReady={handleSpectrogramReady}
-          onViewportChange={handlePassiveViewportChange}
-          onUserNavigate={handleUserNavigate}
-        />
+        <SonoscopeProvider value={scope}>
+          <SpectrogramPanel
+            spectrogramRef={spectrogramRef}
+            audioRef={audioRef}
+            recording={currentRecording}
+            settings={settings}
+            status={
+              error
+                ? `Error: ${error.message}`
+                : loading
+                  ? "Loading audio..."
+                  : status
+            }
+            duration={duration}
+            playheadTime={playheadTime}
+            viewport={viewport}
+            cacheSummary={cacheSummary}
+            onReady={handleSpectrogramReady}
+            onViewportChange={handlePassiveViewportChange}
+            onUserNavigate={handleUserNavigate}
+          />
+        </SonoscopeProvider>
         <ControlPanel
           settings={settings}
           minFrequency={viewport.minFrequency}

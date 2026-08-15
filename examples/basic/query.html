@@ -260,7 +260,7 @@
     </div>
 
     <script type="module">
-      import { hzToScale, SpectrogramViewer, scaleToHz } from '@sonogram/core';
+      import { hzToScale, Sonoscope, SpectrogramViewer, scaleToHz } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       
@@ -284,6 +284,7 @@
       const valModeEl = document.getElementById('val-mode');
       const rawOutputEl = document.getElementById('raw-output');
 
+      let scope = null;
       let viewer = null;
       let lastPoint = null;
       let lastSpectrum = null;
@@ -478,20 +479,19 @@
 
       async function load(url) {
         viewer?.destroy();
+        scope?.destroy();
         statusEl.textContent = 'Loading audio...';
         audio.src = url;
         try {
           resizeCanvas(sliceCanvas);
-          viewer = await SpectrogramViewer.fromUrl({
-            audio,
-            canvas: specCanvas,
-            url,
+          scope = await Sonoscope.fromUrl(url, { audio });
+          viewer = new SpectrogramViewer(scope, specCanvas, {
             colorMap: 'magma',
             frequencyScale: scaleSelect.value,
             valueMode: modeSelect.value,
           });
           await viewer.render();
-          statusEl.textContent = `Ready (${viewer.getSampleRate().toLocaleString()} Hz)`;
+          statusEl.textContent = `Ready (${scope.getSampleRate().toLocaleString()} Hz)`;
           
           // Initial slice at t = 0
           const initialSpectrum = await viewer.querySpectrum({ time: 0, mode: modeSelect.value });

@@ -148,7 +148,7 @@
     <div class="grid" id="grid"></div>
 
     <script type="module">
-      import { SpectrogramViewer } from "@sonogram/core";
+      import { Sonoscope, SpectrogramViewer } from "@sonoscope/core";
 
       const ITEMS = [
         {
@@ -309,16 +309,16 @@
             rateEl.textContent = "Loading...";
 
             try {
-              const viewer = await SpectrogramViewer.fromUrl({
+              const scope = await Sonoscope.fromUrl(item.url, {
                 audio,
-                canvas,
-                url: item.url,
+                followPlayback: "page",
+              });
+              const viewer = new SpectrogramViewer(scope, canvas, {
                 renderer,
                 windowSize: 1024,
                 fftSize: 1024,
                 hopSize: 256,
                 window: "hann",
-                followPlayback: true,
                 renderOnSeek: true,
                 frequencyScale: "mel",
                 valueMode: "db",
@@ -328,7 +328,7 @@
               });
 
               viewers[i] = viewer;
-              const source = viewer.getSource();
+              const source = scope.source;
               rateEl.textContent = `${(source.sampleRate / 1000).toFixed(1)} kHz · ${source.duration.toFixed(1)}s`;
             } catch (err) {
               rateEl.textContent = "Failed";

@@ -53,7 +53,12 @@
     <div class="stage"><canvas></canvas></div>
 
     <script type="module">
-      import { attachCanvasNavigation, SpectrogramViewer } from "@sonogram/core";
+      import {
+        attachCanvasNavigation,
+        createAudioSourceFromUrl,
+        Sonoscope,
+        SpectrogramViewer,
+      } from "@sonoscope/core";
 
       const recordings = [
         [
@@ -99,15 +104,18 @@
       const title = document.querySelector("[data-title]");
       let index = 0;
 
-      const spectrogram = await SpectrogramViewer.fromUrl({
+      // 1. Initialize Sonoscope coordinator from URL
+      const scope = await Sonoscope.fromUrl(recordings[index][0], {
         audio,
-        canvas,
-        url: recordings[index][0],
+        followPlayback: "page",
+      });
+
+      // 2. Initialize SpectrogramViewer bound to scope
+      const spectrogram = new SpectrogramViewer(scope, canvas, {
         windowSize: 1024,
         fftSize: 1024,
         hopSize: 128,
         window: "hann",
-        followPlayback: true,
         renderOnSeek: true,
         frequencyScale: "mel",
         valueMode: "db",
@@ -123,7 +131,10 @@
         title.textContent = `Loading ${label}...`;
         spectrogram.renderLoading(`Loading ${label}...`);
         try {
-          await spectrogram.updateSourceUrl(url);
+          // Decode source and update on Sonoscope directly
+          const nextSource = await createAudioSourceFromUrl(url);
+          audio.src = url;
+          scope.setSource(nextSource);
           title.textContent = label;
         } catch (error) {
           index = previousIndex;

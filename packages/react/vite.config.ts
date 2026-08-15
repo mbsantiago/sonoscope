@@ -9,12 +9,12 @@ export default defineConfig({
       fileName: "index",
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime", "@sonogram/core"],
+      external: ["react", "react-dom", "react/jsx-runtime", "@sonoscope/core"],
       output: {
         globals: {
           react: "React",
           "react-dom": "ReactDOM",
-          "@sonogram/core": "SonogramCore",
+          "@sonoscope/core": "SonoscopeCore",
         },
       },
     },
@@ -33,7 +33,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@sonogram/core": resolve(import.meta.dirname, "../core/src/index.ts"),
+      "@sonoscope/core": resolve(import.meta.dirname, "../core/src/index.ts"),
     },
   },
 });

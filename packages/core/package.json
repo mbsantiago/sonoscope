@@ -1,5 +1,5 @@
 {
-  "name": "@sonogram/core",
+  "name": "@sonoscope/core",
   "version": "0.1.0",
   "description": "High-performance WebGL2 and WASM-accelerated audio spectrogram engine for the web.",
   "type": "module",

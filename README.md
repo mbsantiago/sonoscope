@@ -1,11 +1,11 @@
-# Sonogram 🎵
+# Sonoscope 🎵
 
-High-performance WebGL2 and WASM-accelerated audio spectrogram ecosystem for the web.
+High-performance WebGL2 and WASM-accelerated audio visualization ecosystem for the web.
 
-Sonogram is structured as a modern monorepo featuring core engine packages and framework bindings:
+Sonoscope is structured as a modern monorepo featuring a unified audio & viewport coordinator, high-performance rendering engines, and declarative React bindings:
 
-- **[`@sonogram/core`](file:///home/santiago/Tmp/spectrogram-js/packages/core)**: Framework-agnostic TypeScript spectrogram engine with WASM STFT, WebGL2 shaders, adaptive streaming decoders, and canvas navigation.
-- **[`@sonogram/react`](file:///home/santiago/Tmp/spectrogram-js/packages/react)**: Declarative React component (`<Spectrogram />`) and custom hook (`useSpectrogram`).
+- **[`@sonoscope/core`](file:///home/santiago/Tmp/spectrogram-js/packages/core)**: Unified audio & viewport coordinator (`Sonoscope`), hardware-accelerated `SpectrogramViewer` (WebGL2 / WASM STFT) and `WaveformViewer` (Peak Decimation / GPU envelopes), streaming decoders, and canvas navigation.
+- **[`@sonoscope/react`](file:///home/santiago/Tmp/spectrogram-js/packages/react)**: Declarative React components (`<Waveform />`, `<Spectrogram />`, `<SonoscopeProvider />`) and custom hooks (`useSonoscope`, `useSpectrogram`).
 
 ---
 
@@ -13,56 +13,85 @@ Sonogram is structured as a modern monorepo featuring core engine packages and f
 
 | Package | Version | Description |
 | :--- | :--- | :--- |
-| [`@sonogram/core`](file:///home/santiago/Tmp/spectrogram-js/packages/core) | `0.1.0` | Core spectrogram engine (WASM STFT, WebGL2, Canvas 2D fallback, 35+ colormaps, streaming decoders) |
-| [`@sonogram/react`](file:///home/santiago/Tmp/spectrogram-js/packages/react) | `0.1.0` | React hooks & declarative components |
+| [`@sonoscope/core`](file:///home/santiago/Tmp/spectrogram-js/packages/core) | `0.1.0` | Core audio & viewport coordinator, Spectrogram & Waveform viewers, WASM STFT, WebGL2 shaders, 35+ colormaps, streaming decoders |
+| [`@sonoscope/react`](file:///home/santiago/Tmp/spectrogram-js/packages/react) | `0.1.0` | React hooks & declarative components (`useSonoscope`, `<SonoscopeProvider />`, `<Waveform />`, `<Spectrogram />`) |
 
 ---
 
 ## Quick Start
 
-### Core (`@sonogram/core`)
+### Core (`@sonoscope/core`)
 
 ```bash
-npm install @sonogram/core
+npm install @sonoscope/core
 ```
 
+#### Synchronized Multi-Viewer (Waveform + Spectrogram)
+
 ```typescript
-import { SpectrogramViewer } from "@sonogram/core";
+import { Sonoscope, SpectrogramViewer, WaveformViewer } from "@sonoscope/core";
 
 const audio = document.querySelector("audio")!;
-const canvas = document.querySelector("canvas")!;
+const waveCanvas = document.querySelector("#wave-canvas")!;
+const specCanvas = document.querySelector("#spec-canvas")!;
 
-const viewer = await SpectrogramViewer.fromUrl({
+// 1. Create unified coordinator for audio & time viewport
+const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
   audio,
-  canvas,
-  url: "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav",
+  followPlayback: "page",
+});
+
+// 2. Attach viewers in lock-step synchronization
+const waveform = new WaveformViewer(scope, waveCanvas, {
+  colorMap: "magma",
+  amplitudeScale: 1.2,
+});
+
+const spectrogram = new SpectrogramViewer(scope, specCanvas, {
   colorMap: "magma",
   frequencyScale: "mel",
   valueMode: "db",
 });
 
-await viewer.render();
+// 3. Render both
+await Promise.all([waveform.render(), spectrogram.render()]);
 ```
 
-### React (`@sonogram/react`)
+### React (`@sonoscope/react`)
 
 ```bash
-npm install @sonogram/react @sonogram/core
+npm install @sonoscope/react @sonoscope/core
 ```
 
 ```tsx
-import { Spectrogram } from "@sonogram/react";
+import {
+  SonoscopeProvider,
+  Spectrogram,
+  Waveform,
+  useSonoscope,
+} from "@sonoscope/react";
 
-export function AudioViewer() {
+export function AudioExplorer({ url }: { url: string }) {
+  const { scope, loading, error } = useSonoscope({
+    url,
+    followPlayback: "page",
+  });
+
+  if (loading) return <div>Loading audio stream...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
   return (
-    <Spectrogram
-      url="https://example.com/audio.wav"
-      colorMap="magma"
-      frequencyScale="mel"
-      valueMode="db"
-      showAudioControls
-      style={{ height: "320px" }}
-    />
+    <SonoscopeProvider value={scope}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <Waveform style={{ height: "80px" }} amplitudeScale={1.2} />
+        <Spectrogram
+          style={{ height: "320px" }}
+          colorMap="magma"
+          frequencyScale="mel"
+          valueMode="db"
+        />
+      </div>
+    </SonoscopeProvider>
   );
 }
 ```
@@ -71,8 +100,10 @@ export function AudioViewer() {
 
 ## Key Capabilities
 
-- ⚡ **Rust + WASM Accelerated STFT**: Embedded SIMD-ready Rust STFT with pure TypeScript fallback.
+- 🎯 **Unified Viewport & Clock Coordinator (`Sonoscope`)**: Single source of truth for audio sources, time bounds, playback synchronization, seeking, and multi-viewer synchronization.
+- ⚡ **Rust + WASM Accelerated STFT**: Embedded SIMD-ready Rust STFT with parallel worker pools and pure TypeScript fallback.
 - 🎨 **WebGL2 Custom Shaders & 35+ Matplotlib Colormaps**: Hardware-accelerated tile rasterization with support for normal, dither, sobel, and 3D terrain shaders.
+- 📊 **Multi-Scale Waveform Peak Decimation**: Multi-resolution min/max pyramid decimation for sub-millisecond envelope drawing across hours of audio.
 - 🌊 **Adaptive Demand-Driven Streaming Decoders**: On-demand byte-range WAV slicing and WebCodecs MP3 stream decoding with backpressure.
 - 🖱️ **Canvas Navigation**: Built-in wheel zoom (cursor-centered) and drag panning utilities with pointer capture.
 
@@ -84,7 +115,7 @@ export function AudioViewer() {
 # Install dependencies
 npm install
 
-# Run local Vite demo suite (includes 4x4 Grid, Controls, Minimap, Shaders, React, etc.)
+# Run local Vite demo suite (includes Waveform, 4x4 Grid, Controls, Minimap, Shaders, React, etc.)
 npm run dev:example
 
 # Run tests

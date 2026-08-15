@@ -2,6 +2,7 @@ import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { SpectrogramWorkerLike } from "./backends/worker-backend";
 import type { FrameStats, PerformanceMeasure } from "./performance";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
+import type { Sonoscope } from "./sonoscope";
 
 export type FrequencyScale = "linear" | "log" | "mel";
 export type ValueMode = "magnitude" | "power" | "db";
@@ -371,6 +372,15 @@ export type FromSourceOptions = Omit<SpectrogramConfig, "audio"> & {
   audio?: HTMLAudioElement;
 };
 
+export type SpectrogramViewerOptions = Omit<
+  SpectrogramConfig,
+  "source" | "audio"
+> & {
+  scope?: Sonoscope;
+  source?: AudioSource;
+  audio?: HTMLAudioElement;
+};
+
 export type AudioRange = { startTime: number; endTime: number };
 
 export interface AudioSource {
@@ -413,6 +423,7 @@ export interface ISpectrogramViewer {
   getStatus(): SpectrogramStatus;
 
   // Viewport & Navigation
+  getScope(): Sonoscope;
   getViewport(): ViewportConfig;
   updateViewport(viewport: Partial<ViewportConfig>): void;
   setViewport(viewport: Partial<ViewportConfig>): void;
@@ -440,6 +451,7 @@ export interface ISpectrogramViewer {
   getConfig(): ResolvedSpectrogramConfig;
   updateConfig(input: Partial<SpectrogramConfig>): void;
   setConfig(input: Partial<SpectrogramConfig>): void;
+  getSource(): AudioSource;
   updateSource(source: AudioSource, options?: Partial<ViewportConfig>): void;
   setSource(source: AudioSource, options?: Partial<ViewportConfig>): void;
   updateSourceUrl(
@@ -499,3 +511,5 @@ export interface ISpectrogramViewer {
   getCacheStats(): CacheStats;
   getTileStates(): TileStateInfo[];
 }
+
+export type { Sonoscope, SonoscopeEvents, SonoscopeOptions } from "./sonoscope";

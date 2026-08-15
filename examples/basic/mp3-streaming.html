@@ -326,7 +326,7 @@
     </div>
 
     <script type="module">
-      import { SpectrogramViewer, StreamingMp3Source } from "@sonogram/core";
+      import { Sonoscope, SpectrogramViewer, StreamingMp3Source } from "@sonoscope/core";
 
       const canvas = document.getElementById("spectrogram-canvas");
       const audio = document.getElementById("audio-element");
@@ -346,6 +346,7 @@
       const corsNotice = document.getElementById("cors-notice");
       const corsUrl = document.getElementById("cors-url");
 
+      let scope = null;
       let viewer = null;
       let maxDecodedTime = 0;
 
@@ -366,30 +367,30 @@
         if (corsNotice) corsNotice.style.display = "none";
 
         try {
-          if (!viewer) {
-            viewer = await SpectrogramViewer.fromUrl({
-              audio,
-              canvas,
-              url,
-              windowSize: 1024,
-              fftSize: 1024,
-              hopSize: 128,
-              window: "hann",
-              frequencyScale: "mel",
-              minViewportDuration: 2,
-              maxViewportDuration: 10,
-              valueMode: "db",
-              minValue: -80,
-              maxValue: 0,
-              colorMap: { base: "magma", gamma: 1.5 },
-              followPlayback: true,
-              renderOnSeek: true,
-            });
-          } else {
-            await viewer.updateSourceUrl(url);
-          }
+          viewer?.destroy();
+          scope?.destroy();
 
-          const source = viewer.getSource();
+          scope = await Sonoscope.fromUrl(url, {
+            audio,
+            minDuration: 2,
+            maxDuration: 10,
+            followPlayback: "page",
+          });
+
+          viewer = new SpectrogramViewer(scope, canvas, {
+            windowSize: 1024,
+            fftSize: 1024,
+            hopSize: 128,
+            window: "hann",
+            frequencyScale: "mel",
+            valueMode: "db",
+            minValue: -80,
+            maxValue: 0,
+            colorMap: { base: "magma", gamma: 1.5 },
+            renderOnSeek: true,
+          });
+
+          const source = scope.source;
           statFormat.textContent = `${source.sampleRate.toLocaleString()} Hz · ${source.channelCount === 1 ? "Mono" : "Stereo"}`;
           statDuration.textContent = `${source.duration.toFixed(2)}s`;
           statSource.textContent = source.id.startsWith("streaming-mp3")

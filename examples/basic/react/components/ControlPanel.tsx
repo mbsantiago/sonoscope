@@ -3,7 +3,7 @@ import type {
   FrequencyScale,
   ValueMode,
   WindowName,
-} from "@sonogram/core";
+} from "@sonoscope/core";
 import type React from "react";
 import { RECORDINGS } from "../recordings";
 import type { ShaderProgram, SpectrogramSettings } from "../types";

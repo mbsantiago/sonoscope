@@ -56,11 +56,12 @@
     <script type="module">
       import {
         MainThreadComputeBackend,
+        Sonoscope,
         SpectrogramViewer,
         WasmComputeBackend,
         WasmWorkerComputeBackend,
         WorkerComputeBackend,
-      } from '@sonogram/core';
+      } from '@sonoscope/core';
 
       class SyntheticSource {
         id = 'synthetic-performance';
@@ -84,6 +85,7 @@
       const rendererMode = document.querySelector('#renderer');
       const iterationsInput = document.querySelector('#iterations');
       const source = new SyntheticSource();
+      let scope;
       let viewer;
       let viewportStart = 0;
       let running = false;
@@ -118,6 +120,7 @@
         if (running) return null;
         running = true;
         viewer?.destroy();
+        scope?.destroy();
         canvas = resetCanvas(canvas);
         profile.textContent = `Initializing ${name} for ${iterations} iterations...\n`;
 
@@ -126,15 +129,16 @@
 
         try {
           const backend = typeof backendFactory === 'function' ? backendFactory() : backendFactory;
-          viewer = await SpectrogramViewer.fromSource({
-            canvas,
-            source,
+          scope = Sonoscope.fromSource(source, {
+            startTime: viewportStart,
+            endTime: viewportStart + 8,
+          });
+
+          viewer = new SpectrogramViewer(scope, canvas, {
             renderer: rendererMode.value,
             backend,
             tileDuration: 2,
             maxCachedTiles: 32,
-            startTime: viewportStart,
-            endTime: viewportStart + 8,
             minFrequency: 0,
             maxFrequency: 12_000,
             valueMode: 'db',

@@ -40,7 +40,7 @@
     </main>
 
     <script type="module">
-      import { SpectrogramViewer } from '@sonogram/core';
+      import { Sonoscope, SpectrogramViewer } from '@sonoscope/core';
 
       class SyntheticSource {
         id = 'synthetic-renderers';
@@ -95,21 +95,24 @@
           };
         },
       };
+      let scope;
       let viewer;
 
       async function renderSelected() {
         viewer?.destroy();
+        scope?.destroy();
         canvas = resetCanvas(canvas);
         status.textContent = `Creating viewer with renderer: ${rendererMode.value}, frequency scale: ${frequencyScale.value}${summon.checked ? ', invoking forbidden geometry' : ''}...`;
         try {
-          viewer = await SpectrogramViewer.fromSource({
-            canvas,
-            source,
+          scope = Sonoscope.fromSource(source, {
+            startTime: 0,
+            endTime: 8,
+          });
+
+          viewer = new SpectrogramViewer(scope, canvas, {
             renderer: summon.checked ? { type: 'webgl', program: 'terrain' } : rendererMode.value,
             backend,
             tileDuration: 8,
-            startTime: 0,
-            endTime: 8,
             minFrequency: frequencyScale.value === 'log' ? 20 : 0,
             maxFrequency: 8_000,
             frequencyScale: frequencyScale.value,

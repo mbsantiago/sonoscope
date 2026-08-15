@@ -240,11 +240,10 @@
     <script type="module">
       import {
         attachCanvasNavigation,
-        createAudioSourceFromUrl,
-        linkViewports,
+        Sonoscope,
         SpectrogramViewer,
         WaveformViewer,
-      } from '@sonogram/core';
+      } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       
@@ -261,63 +260,51 @@
       const specStatusEl = document.getElementById('spec-status');
       const vpDisplayEl = document.getElementById('vp-display');
 
+      let scope = null;
       let specViewer = null;
       let waveViewer = null;
-      let linkedCoordinator = null;
+      let cleanupSpecNav = null;
+      let cleanupWaveNav = null;
 
       async function load(url) {
-        linkedCoordinator?.unlink();
+        cleanupSpecNav?.();
+        cleanupWaveNav?.();
         specViewer?.destroy();
         waveViewer?.destroy();
+        scope?.destroy();
+
         waveStatusEl.textContent = 'Loading audio...';
         specStatusEl.textContent = 'Loading audio...';
         audio.src = url;
 
         try {
-          // 1. Create single decoded AudioSource shared by both viewers
-          const source = await createAudioSourceFromUrl(url);
-
-          const initialStartTime = 0;
-          const initialEndTime = Math.min(10, source.duration);
-
-          // 2. Initialize WaveformViewer
-          waveViewer = await WaveformViewer.create({
-            canvas: waveCanvas,
-            source,
+          // 1. Initialize single unified Sonoscope coordinator
+          scope = await Sonoscope.fromUrl(url, {
             audio,
-            startTime: initialStartTime,
-            endTime: initialEndTime,
+            startTime: 0,
+            endTime: 10,
+            followPlayback: followSelect.value,
+          });
+
+          // 2. Initialize WaveformViewer bound to Sonoscope
+          waveViewer = new WaveformViewer(scope, waveCanvas, {
             colorMap: colorSelect.value,
             cursorColor: '#ffffff',
             amplitudeScale: parseFloat(gainSelect.value),
             renderer: rendererSelect.value,
           });
 
-          // 3. Initialize SpectrogramViewer
-          specViewer = await SpectrogramViewer.create({
-            canvas: specCanvas,
-            source,
-            audio,
-            startTime: initialStartTime,
-            endTime: initialEndTime,
+          // 3. Initialize SpectrogramViewer bound to same Sonoscope
+          specViewer = new SpectrogramViewer(scope, specCanvas, {
             colorMap: colorSelect.value,
             renderer: rendererSelect.value,
           });
 
-          // 4. Link viewports using single source of truth controller
-          linkedCoordinator = linkViewports([specViewer, waveViewer], {
-            audio,
-            totalDuration: source.duration,
-            startTime: initialStartTime,
-            endTime: initialEndTime,
-            followPlayback: followSelect.value,
-          });
-
-          linkedCoordinator.controller.on('change', (event) => {
+          // 4. Listen to coordinator viewport updates
+          scope.on('viewportchange', (event) => {
             vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
           });
 
-          // 5. Attach canvas navigation to spectrogram
           waveViewer.on('error', (event) => {
             waveStatusEl.textContent = `Error: ${event.error.message}`;
           });
@@ -325,12 +312,18 @@
             specStatusEl.textContent = `Error: ${event.error.message}`;
           });
 
-          // Render both
+          // 5. Attach canvas navigation to viewers (delegates time pan/zoom to scope)
+          cleanupSpecNav = attachCanvasNavigation(specViewer, specCanvas);
+          cleanupWaveNav = attachCanvasNavigation(waveViewer, waveCanvas);
+
+          // Render both viewers in sync
           await Promise.all([specViewer.render(), waveViewer.render()]);
 
+          const source = scope.source;
           waveStatusEl.textContent = 'Ready';
           specStatusEl.textContent = `Ready (${source.sampleRate.toLocaleString()} Hz)`;
-          vpDisplayEl.textContent = `${initialStartTime.toFixed(2)}s - ${initialEndTime.toFixed(2)}s`;
+          const vp = scope.getViewport();
+          vpDisplayEl.textContent = `${vp.startTime.toFixed(2)}s - ${vp.endTime.toFixed(2)}s`;
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
           waveStatusEl.textContent = `Error: ${msg}`;
@@ -338,78 +331,14 @@
         }
       }
 
-      // Waveform interactive Drag-to-Pan, Wheel-to-Zoom, and Click-to-Seek
-      let isWaveDragging = false;
-      let waveDragStartX = 0;
-      let waveStartVp = null;
-      let waveTotalDragDist = 0;
-
-      waveCanvas.addEventListener('pointerdown', (e) => {
-        if (!waveViewer) return;
-        isWaveDragging = true;
-        waveDragStartX = e.clientX;
-        waveStartVp = waveViewer.getViewport();
-        waveTotalDragDist = 0;
-        waveCanvas.style.cursor = 'grabbing';
-        try {
-          waveCanvas.setPointerCapture(e.pointerId);
-        } catch {
-          // ignore pointer capture error
-        }
-      });
-
-      waveCanvas.addEventListener('pointermove', (e) => {
-        if (!isWaveDragging || !waveStartVp || !waveViewer) return;
+      // Waveform click-to-seek
+      waveCanvas.addEventListener('click', (e) => {
+        if (!waveViewer || !scope) return;
         const rect = waveCanvas.getBoundingClientRect();
-        const deltaX = e.clientX - waveDragStartX;
-        waveTotalDragDist += Math.abs(deltaX);
-
-        const duration = waveStartVp.endTime - waveStartVp.startTime;
-        const deltaTime = -(deltaX / (rect.width || 1)) * duration;
-        const targetStart = waveStartVp.startTime + deltaTime;
-
-        if (linkedCoordinator) {
-          linkedCoordinator.controller.panTo(targetStart);
-        } else {
-          waveViewer.updateViewport({ startTime: targetStart, endTime: targetStart + duration });
-        }
+        const clickX = e.clientX - rect.left;
+        const targetTime = waveViewer.canvasToTime(clickX);
+        scope.seek(targetTime);
       });
-
-      const endWaveDrag = (e) => {
-        if (!isWaveDragging) return;
-        isWaveDragging = false;
-        waveCanvas.style.cursor = 'grab';
-        try {
-          waveCanvas.releasePointerCapture(e.pointerId);
-        } catch {
-          // ignore
-        }
-
-        // If moved less than 4px, treat as a click to seek
-        if (waveTotalDragDist < 4 && waveViewer) {
-          const rect = waveCanvas.getBoundingClientRect();
-          const clickX = e.clientX - rect.left;
-          const targetTime = waveViewer.canvasToTime(clickX);
-          audio.currentTime = targetTime;
-        }
-      };
-
-      waveCanvas.addEventListener('pointerup', endWaveDrag);
-      waveCanvas.addEventListener('pointercancel', endWaveDrag);
-
-      waveCanvas.addEventListener('wheel', (e) => {
-        if (!waveViewer) return;
-        e.preventDefault();
-        const rect = waveCanvas.getBoundingClientRect();
-        const cursorTime = waveViewer.canvasToTime(e.clientX - rect.left);
-        const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
-
-        if (linkedCoordinator) {
-          linkedCoordinator.controller.zoom(factor, cursorTime);
-        } else {
-          waveViewer.zoomTime(factor, cursorTime);
-        }
-      }, { passive: false });
 
       gainSelect.addEventListener('change', () => {
         if (!waveViewer) return;
@@ -417,24 +346,20 @@
       });
 
       followSelect.addEventListener('change', () => {
-        if (!linkedCoordinator) return;
-        linkedCoordinator.controller.setFollowPlayback(followSelect.value);
+        if (!scope) return;
+        scope.setFollowPlayback(followSelect.value);
       });
 
       rendererSelect.addEventListener('change', () => {
-        if (!waveViewer) return;
         const newRenderer = rendererSelect.value;
-        waveViewer.updateConfig({ renderer: newRenderer });
-        if (specViewer) {
-          specViewer.updateConfig({ renderer: newRenderer });
-        }
+        waveViewer?.updateConfig({ renderer: newRenderer });
+        specViewer?.updateConfig({ renderer: newRenderer });
       });
 
       colorSelect.addEventListener('change', () => {
-        if (!specViewer || !waveViewer) return;
         const newColorMap = colorSelect.value;
-        specViewer.updateConfig({ colorMap: newColorMap });
-        waveViewer.updateConfig({ colorMap: newColorMap });
+        specViewer?.updateConfig({ colorMap: newColorMap });
+        waveViewer?.updateConfig({ colorMap: newColorMap });
       });
 
       form.addEventListener('submit', (e) => {

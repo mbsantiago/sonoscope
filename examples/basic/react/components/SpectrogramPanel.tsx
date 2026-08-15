@@ -1,9 +1,10 @@
-import type { ViewportConfig } from "@sonogram/core";
+import type { ViewportConfig } from "@sonoscope/core";
 import {
   Spectrogram,
   type SpectrogramHandle,
   type SpectrogramReadyInfo,
-} from "@sonogram/react";
+  Waveform,
+} from "@sonoscope/react";
 import type React from "react";
 import { type RefObject, useMemo } from "react";
 import type { RecordingItem } from "../recordings";
@@ -12,6 +13,7 @@ import { Minimap } from "./Minimap";
 
 export type SpectrogramPanelProps = {
   spectrogramRef: RefObject<SpectrogramHandle | null>;
+  audioRef: RefObject<HTMLAudioElement | null>;
   recording: RecordingItem;
   settings: SpectrogramSettings;
   status: string;
@@ -29,6 +31,7 @@ export function SpectrogramPanel(
 ): React.ReactElement {
   const {
     spectrogramRef,
+    audioRef,
     recording,
     settings,
     status,
@@ -57,50 +60,102 @@ export function SpectrogramPanel(
         <span className="status">{status}</span>
       </div>
 
-      <Spectrogram
-        ref={spectrogramRef}
-        url={recording.url}
-        showAudioControls={true}
-        colorMap={settings.colorMap}
-        valueMode={settings.valueMode}
-        minValue={settings.minDb}
-        maxValue={settings.maxDb}
-        valueGamma={1}
-        clampValues={true}
-        windowSize={settings.windowSize}
-        fftSize={settings.windowSize}
-        hopSize={settings.hopSize}
-        window={settings.window}
-        frequencyScale={settings.frequencyScale}
-        renderer={rendererConfig}
-        minViewportDuration={0.08}
-        maxViewportDuration={20}
-        followPlayback={true}
-        renderOnSeek={true}
-        navigation={true}
-        onReady={onReady}
-        onViewportChange={(vp: ViewportConfig) => {
-          onViewportChange({
-            startTime: vp.startTime,
-            endTime: vp.endTime,
-            minFrequency: vp.minFrequency,
-            maxFrequency: vp.maxFrequency,
-          });
-        }}
-        canvasProps={{
-          style: {
-            width: "100%",
-            height: "min(52vh, 520px)",
-            minHeight: "330px",
-            display: "block",
-            borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,.12)",
-            background: "#050505",
-            cursor: "grab",
-            touchAction: "none",
-          },
-        }}
+      <audio
+        ref={audioRef}
+        src={recording.url}
+        controls
+        crossOrigin="anonymous"
+        style={{ width: "100%", marginBottom: "12px" }}
       />
+
+      <div style={{ marginBottom: "10px" }}>
+        <div
+          style={{
+            fontSize: "11px",
+            color: "#89919f",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            marginBottom: "4px",
+            fontFamily: "ui-monospace, monospace",
+          }}
+        >
+          Waveform Envelope (Peak Decimation)
+        </div>
+        <Waveform
+          colorMap={settings.colorMap}
+          amplitudeScale={1.2}
+          navigation={true}
+          style={{ width: "100%", height: "90px" }}
+          canvasProps={{
+            style: {
+              width: "100%",
+              height: "100%",
+              display: "block",
+              borderRadius: "6px",
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "#080c14",
+              cursor: "grab",
+            },
+          }}
+        />
+      </div>
+
+      <div>
+        <div
+          style={{
+            fontSize: "11px",
+            color: "#89919f",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            marginBottom: "4px",
+            fontFamily: "ui-monospace, monospace",
+          }}
+        >
+          Spectrogram Viewport (STFT)
+        </div>
+        <Spectrogram
+          ref={spectrogramRef}
+          colorMap={settings.colorMap}
+          valueMode={settings.valueMode}
+          minValue={settings.minDb}
+          maxValue={settings.maxDb}
+          valueGamma={1}
+          clampValues={true}
+          windowSize={settings.windowSize}
+          fftSize={settings.windowSize}
+          hopSize={settings.hopSize}
+          window={settings.window}
+          frequencyScale={settings.frequencyScale}
+          renderer={rendererConfig}
+          minViewportDuration={0.08}
+          maxViewportDuration={20}
+          followPlayback={true}
+          renderOnSeek={true}
+          navigation={true}
+          onReady={onReady}
+          onViewportChange={(vp: ViewportConfig) => {
+            onViewportChange({
+              startTime: vp.startTime,
+              endTime: vp.endTime,
+              minFrequency: vp.minFrequency,
+              maxFrequency: vp.maxFrequency,
+            });
+          }}
+          canvasProps={{
+            style: {
+              width: "100%",
+              height: "min(42vh, 400px)",
+              minHeight: "260px",
+              display: "block",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "#050505",
+              cursor: "grab",
+              touchAction: "none",
+            },
+          }}
+        />
+      </div>
 
       <Minimap
         duration={duration}

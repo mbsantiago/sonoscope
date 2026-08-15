@@ -1,10 +1,11 @@
-import type { SpectrogramViewer } from "@sonogram/core";
+import type { SpectrogramViewer } from "@sonoscope/core";
 import {
   type CSSProperties,
   forwardRef,
   type HTMLAttributes,
   useImperativeHandle,
 } from "react";
+import { useSonoscopeContext } from "./SonoscopeContext";
 import { type UseSpectrogramOptions, useSpectrogram } from "./useSpectrogram";
 
 export type SpectrogramHandle = {
@@ -14,15 +15,21 @@ export type SpectrogramHandle = {
 };
 
 export type SpectrogramProps = UseSpectrogramOptions & {
-  className?: string;
-  style?: CSSProperties;
-  canvasProps?: HTMLAttributes<HTMLCanvasElement>;
-  showAudioControls?: boolean;
+  width?: number | string | undefined;
+  height?: number | string | undefined;
+  className?: string | undefined;
+  style?: CSSProperties | undefined;
+  canvasProps?: HTMLAttributes<HTMLCanvasElement> | undefined;
+  showAudioControls?: boolean | undefined;
 };
 
 export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
   (props, ref) => {
+    const contextScope = useSonoscopeContext();
     const {
+      scope = contextScope,
+      width,
+      height,
       className,
       style,
       canvasProps,
@@ -30,7 +37,10 @@ export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
       ...options
     } = props;
 
-    const { canvasRef, audioRef, viewerRef } = useSpectrogram(options);
+    const { canvasRef, audioRef, viewerRef } = useSpectrogram({
+      ...options,
+      scope,
+    });
 
     useImperativeHandle(ref, () => ({
       getViewer: () => viewerRef.current,
@@ -39,7 +49,15 @@ export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
     }));
 
     return (
-      <div className={className} style={{ position: "relative", ...style }}>
+      <div
+        className={className}
+        style={{
+          position: "relative",
+          width,
+          height,
+          ...style,
+        }}
+      >
         <canvas
           ref={canvasRef}
           style={{ width: "100%", height: "100%", display: "block" }}
