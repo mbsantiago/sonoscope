@@ -150,4 +150,33 @@ describe("resolveConfig", () => {
     expect(config.minViewportDuration).toBe(1);
     expect(config.maxViewportDuration).toBe(3);
   });
+
+  it("safely handles short duration audio sources shorter than default minViewportDuration", () => {
+    const shortSource: AudioSource = {
+      id: "short-source",
+      sampleRate: 44100,
+      duration: 0.02,
+      channelCount: 1,
+      read: () => new Float32Array(0),
+    };
+
+    const config = resolveConfig({ canvas, source: shortSource });
+    expect(config.minViewportDuration).toBe(0.02);
+    expect(config.maxViewportDuration).toBe(0.02);
+    expect(config.startTime).toBe(0);
+    expect(config.endTime).toBe(0.02);
+  });
+
+  it("throws when maxViewportDuration is explicitly smaller than minViewportDuration", () => {
+    expect(() =>
+      resolveConfig({
+        canvas,
+        source,
+        minViewportDuration: 5,
+        maxViewportDuration: 2,
+      }),
+    ).toThrow(
+      /maxViewportDuration must be greater than or equal to minViewportDuration/,
+    );
+  });
 });

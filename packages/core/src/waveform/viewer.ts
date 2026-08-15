@@ -24,10 +24,35 @@ function resolveWaveformConfig(
   if (!input.canvas) throw new Error("WaveformViewer requires a canvas");
   if (!input.source) throw new Error("WaveformViewer requires a source");
 
-  const duration = input.source.duration;
-  const minViewportDuration = input.minViewportDuration ?? 0.05;
-  const maxViewportDuration =
-    input.maxViewportDuration ?? Math.min(30, duration);
+  const duration = Math.max(0.001, input.source.duration);
+
+  if (
+    input.minViewportDuration !== undefined &&
+    input.minViewportDuration <= 0
+  ) {
+    throw new Error("minViewportDuration must be greater than zero");
+  }
+
+  if (
+    input.maxViewportDuration !== undefined &&
+    input.minViewportDuration !== undefined &&
+    input.maxViewportDuration < input.minViewportDuration
+  ) {
+    throw new Error(
+      "maxViewportDuration must be greater than or equal to minViewportDuration",
+    );
+  }
+
+  const minViewportDuration = Math.min(
+    input.minViewportDuration ?? 0.05,
+    duration,
+  );
+  const maxViewportDuration = Math.max(
+    minViewportDuration,
+    input.maxViewportDuration !== undefined
+      ? input.maxViewportDuration
+      : Math.min(30, duration),
+  );
 
   const initialStart = input.startTime ?? 0;
   const initialEnd = input.endTime ?? duration;

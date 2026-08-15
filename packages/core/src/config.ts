@@ -32,18 +32,35 @@ export function resolveConfig(
   if (windowSize <= 0) throw new Error("windowSize must be greater than zero");
   if (hopSize <= 0) throw new Error("hopSize must be greater than zero");
 
-  const sourceDuration = input.source.duration;
+  const sourceDuration = Math.max(0.001, input.source.duration);
 
-  const minViewportDuration = input.minViewportDuration ?? 0.05;
-  const maxViewportDuration =
-    input.maxViewportDuration ?? Math.min(30, sourceDuration);
-
-  if (minViewportDuration <= 0)
+  if (
+    input.minViewportDuration !== undefined &&
+    input.minViewportDuration <= 0
+  ) {
     throw new Error("minViewportDuration must be greater than zero");
-  if (maxViewportDuration < minViewportDuration)
+  }
+
+  if (
+    input.maxViewportDuration !== undefined &&
+    input.minViewportDuration !== undefined &&
+    input.maxViewportDuration < input.minViewportDuration
+  ) {
     throw new Error(
       "maxViewportDuration must be greater than or equal to minViewportDuration",
     );
+  }
+
+  const minViewportDuration = Math.min(
+    input.minViewportDuration ?? 0.05,
+    sourceDuration,
+  );
+  const maxViewportDuration = Math.max(
+    minViewportDuration,
+    input.maxViewportDuration !== undefined
+      ? input.maxViewportDuration
+      : Math.min(30, sourceDuration),
+  );
 
   const initialStartTime = input.startTime ?? 0;
   const initialEndTime = input.endTime ?? sourceDuration;

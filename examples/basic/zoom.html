@@ -45,35 +45,33 @@
       const selection = document.querySelector('.selection');
       const status = document.querySelector('[data-status]');
       let scope;
-      let viewer;
+      let spectrogram;
       let resetViewport;
       let dragStart;
       let cleanupNavigation;
 
       function statusText() {
-        if (!viewer) return '';
-        const viewport = viewer.getViewport();
+        if (!spectrogram) return '';
+        const viewport = spectrogram.getViewport();
         return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz`;
       }
 
       async function load(url) {
         cleanupNavigation?.();
-        viewer?.destroy();
+        spectrogram?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
         attachCanvasInteractions(canvas);
         audio.src = url;
         status.textContent = 'Loading and rendering...';
         try {
-          scope = await Sonoscope.fromUrl(url, {
-            audio,
+          scope = await Sonoscope.fromAudio(audio, {
             followPlayback: follow.checked ? "page" : "off",
           });
-          viewer = new SpectrogramViewer(scope, canvas, {
-            renderOnSeek: true,
-          });
-          resetViewport = viewer.getViewport();
-          cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
+          spectrogram = new SpectrogramViewer(scope, canvas);
+          resetViewport = spectrogram.getViewport();
+          cleanupNavigation = attachCanvasNavigation(spectrogram, canvas, {
+            enableDrag: false,
             onNavigate: () => {
               status.textContent = statusText();
             },
@@ -81,7 +79,7 @@
           scope.on('viewportchange', () => {
             status.textContent = statusText();
           });
-          await viewer.render();
+          await spectrogram.render();
           status.textContent = statusText();
         } catch (error) {
           status.textContent = error instanceof Error ? error.message : String(error);
@@ -89,13 +87,14 @@
       }
 
       function setViewport(viewport) {
-        viewer.updateViewport(viewport);
+        spectrogram.updateViewport(viewport);
         status.textContent = statusText();
       }
 
       function fullBounds() {
-        const source = viewer.getSource();
-        return { startTime: 0, endTime: source.duration, minFrequency: 0, maxFrequency: source.sampleRate / 2 };
+        const duration = scope.getDuration();
+        const samplerate = scope.getSampleRate();
+        return { startTime: 0, endTime: duration, minFrequency: 0, maxFrequency: samplerate / 2 };
       }
 
       function showSelection(start, end) {
@@ -137,14 +136,14 @@
           showSelection(dragStart, { x: event.clientX - rect.left, y: event.clientY - rect.top });
         });
         target.addEventListener('pointerup', (event) => {
-          if (!viewer || !dragStart) return;
+          if (!spectrogram || !dragStart) return;
           const rect = target.getBoundingClientRect();
           const end = { x: event.clientX - rect.left, y: event.clientY - rect.top };
           selection.style.display = 'none';
           if (Math.abs(end.x - dragStart.x) > 8 || Math.abs(end.y - dragStart.y) > 8) {
             const bounds = fullBounds();
-            const a = viewer.canvasToTimeFrequency(dragStart.x, dragStart.y);
-            const b = viewer.canvasToTimeFrequency(end.x, end.y);
+            const a = spectrogram.canvasToTimeFrequency(dragStart.x, dragStart.y);
+            const b = spectrogram.canvasToTimeFrequency(end.x, end.y);
             setViewport({
               startTime: Math.max(bounds.startTime, Math.min(a.time, b.time)),
               endTime: Math.min(bounds.endTime, Math.max(a.time, b.time)),
