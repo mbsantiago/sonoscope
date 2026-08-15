@@ -13,7 +13,7 @@ npm install @sonoscope/core
 ### Unified Coordinator Pattern (Recommended)
 
 ```typescript
-import { Sonoscope, SpectrogramViewer, WaveformViewer } from "@sonoscope/core";
+import { Sonoscope } from "@sonoscope/core";
 
 const audio = document.querySelector("audio")!;
 const waveCanvas = document.querySelector("#wave-canvas")!;
@@ -25,38 +25,33 @@ const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
   followPlayback: "page",
 });
 
-// 2. Attach viewers bound to the same scope
-const waveform = new WaveformViewer(scope, waveCanvas, {
+// 2. Attach viewers (automatically render on creation)
+const waveform = scope.createWaveform(waveCanvas, {
   colorMap: "magma",
   amplitudeScale: 1.0,
 });
 
-const spectrogram = new SpectrogramViewer(scope, specCanvas, {
+const spectrogram = scope.createSpectrogram(specCanvas, {
   colorMap: "magma",
   frequencyScale: "mel",
   valueMode: "db",
 });
-
-// 3. Render both viewers in lock-step
-await Promise.all([waveform.render(), spectrogram.render()]);
 ```
 
 ### Standalone Single Viewer
 
 ```typescript
-import { Sonoscope, SpectrogramViewer } from "@sonoscope/core";
+import { Sonoscope } from "@sonoscope/core";
 
 const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
   audio: document.querySelector("audio")!,
 });
 
-const viewer = new SpectrogramViewer(scope, document.querySelector("canvas")!, {
+const viewer = scope.createSpectrogram(document.querySelector("canvas")!, {
   colorMap: "magma",
   frequencyScale: "mel",
   valueMode: "db",
 });
-
-await viewer.render();
 ```
 
 ## Features

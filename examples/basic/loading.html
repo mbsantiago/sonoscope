@@ -63,7 +63,6 @@
       import {
         attachCanvasNavigation,
         Sonoscope,
-        SpectrogramViewer,
       } from "@sonoscope/core";
 
       const form = document.querySelector("form");
@@ -76,9 +75,7 @@
         followPlayback: "page",
       });
 
-      let spectrogram = new SpectrogramViewer(scope, canvas);
-
-      spectrogram.requestRender();
+      let spectrogram = scope.createSpectrogram(canvas);
 
       attachCanvasNavigation(spectrogram, canvas, {
         enableWheel: true,
@@ -93,8 +90,7 @@
         const nextScope = await Sonoscope.fromUrl(url, { audio, followPlayback: "page" });
         scope.destroy();
         scope = nextScope;
-        spectrogram = new SpectrogramViewer(scope, canvas);
-        await spectrogram.render();
+        spectrogram = scope.createSpectrogram(canvas);
       });
     </script>
   </body>

@@ -148,7 +148,7 @@
     <div class="grid" id="grid"></div>
 
     <script type="module">
-      import { Sonoscope, SpectrogramViewer } from "@sonoscope/core";
+      import { Sonoscope } from "@sonoscope/core";
 
       const ITEMS = [
         {
@@ -313,7 +313,7 @@
                 audio,
                 followPlayback: "page",
               });
-              const viewer = new SpectrogramViewer(scope, canvas, {
+              const viewer = scope.createSpectrogram(canvas, {
                 renderer,
                 windowSize: 1024,
                 fftSize: 1024,

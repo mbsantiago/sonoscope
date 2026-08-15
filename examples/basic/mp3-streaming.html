@@ -326,7 +326,7 @@
     </div>
 
     <script type="module">
-      import { Sonoscope, SpectrogramViewer, StreamingMp3Source } from "@sonoscope/core";
+      import { Sonoscope, StreamingMp3Source } from "@sonoscope/core";
 
       const canvas = document.getElementById("spectrogram-canvas");
       const audio = document.getElementById("audio-element");
@@ -377,7 +377,7 @@
             followPlayback: "page",
           });
 
-          viewer = new SpectrogramViewer(scope, canvas, {
+          viewer = scope.createSpectrogram(canvas, {
             windowSize: 1024,
             fftSize: 1024,
             hopSize: 128,
@@ -406,8 +406,6 @@
               updateProgress(maxDecodedTime, duration);
             });
           }
-
-          viewer.requestRender();
         } catch (err) {
           console.error("Failed to load MP3:", err);
           statRange.textContent = `Error: ${err.message}`;

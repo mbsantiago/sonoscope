@@ -69,7 +69,6 @@
         MainThreadComputeBackend,
         Sonoscope,
         SpectrogramProfiler,
-        SpectrogramViewer,
         WasmComputeBackend,
         WasmWorkerComputeBackend,
         WorkerComputeBackend,
@@ -156,7 +155,8 @@
             endTime: viewportStart + 8,
           });
 
-          viewer = new SpectrogramViewer(scope, canvas, {
+          viewer = scope.createSpectrogram(canvas, {
+            autoRender: false,
             renderer: rendererConfig,
             backend,
             tileDuration: 2,

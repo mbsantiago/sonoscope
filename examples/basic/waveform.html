@@ -241,8 +241,6 @@
       import {
         attachCanvasNavigation,
         Sonoscope,
-        SpectrogramViewer,
-        WaveformViewer,
       } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
@@ -287,7 +285,7 @@
           });
 
           // 2. Initialize WaveformViewer bound to Sonoscope
-          waveViewer = new WaveformViewer(scope, waveCanvas, {
+          waveViewer = scope.createWaveform(waveCanvas, {
             colorMap: colorSelect.value,
             cursorColor: '#ffffff',
             amplitudeScale: parseFloat(gainSelect.value),
@@ -295,7 +293,7 @@
           });
 
           // 3. Initialize SpectrogramViewer bound to same Sonoscope
-          specViewer = new SpectrogramViewer(scope, specCanvas, {
+          specViewer = scope.createSpectrogram(specCanvas, {
             colorMap: colorSelect.value,
             renderer: rendererSelect.value,
           });
@@ -315,9 +313,6 @@
           // 5. Attach canvas navigation to viewers (delegates time pan/zoom to scope)
           cleanupSpecNav = attachCanvasNavigation(specViewer, specCanvas);
           cleanupWaveNav = attachCanvasNavigation(waveViewer, waveCanvas);
-
-          // Render both viewers in sync
-          await Promise.all([specViewer.render(), waveViewer.render()]);
 
           const source = scope.source;
           waveStatusEl.textContent = 'Ready';

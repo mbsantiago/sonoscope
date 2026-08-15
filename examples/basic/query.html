@@ -490,7 +490,6 @@
             frequencyScale: scaleSelect.value,
             valueMode: modeSelect.value,
           });
-          await viewer.render();
           statusEl.textContent = `Ready (${scope.getSampleRate().toLocaleString()} Hz)`;
           
           // Initial slice at t = 0

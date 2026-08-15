@@ -29,7 +29,7 @@ npm install @sonoscope/core
 #### Synchronized Multi-Viewer (Waveform + Spectrogram)
 
 ```typescript
-import { Sonoscope, SpectrogramViewer, WaveformViewer } from "@sonoscope/core";
+import { Sonoscope } from "@sonoscope/core";
 
 const audio = document.querySelector("audio")!;
 const waveCanvas = document.querySelector("#wave-canvas")!;
@@ -41,20 +41,17 @@ const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
   followPlayback: "page",
 });
 
-// 2. Attach viewers in lock-step synchronization
-const waveform = new WaveformViewer(scope, waveCanvas, {
+// 2. Attach viewers (automatically render on creation)
+const waveform = scope.createWaveform(waveCanvas, {
   colorMap: "magma",
   amplitudeScale: 1.2,
 });
 
-const spectrogram = new SpectrogramViewer(scope, specCanvas, {
+const spectrogram = scope.createSpectrogram(specCanvas, {
   colorMap: "magma",
   frequencyScale: "mel",
   valueMode: "db",
 });
-
-// 3. Render both
-await Promise.all([waveform.render(), spectrogram.render()]);
 ```
 
 ### React (`@sonoscope/react`)

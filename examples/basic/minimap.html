@@ -142,7 +142,7 @@
     </main>
 
     <script type="module">
-      import { attachCanvasNavigation, Sonoscope, SpectrogramViewer } from "@sonoscope/core";
+      import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
 
       const DEFAULT_AUDIO_URL = "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
       const form = document.querySelector("form");
@@ -267,7 +267,7 @@
             maxDuration: 30,
             followPlayback: "page",
           });
-          spectrogram = new SpectrogramViewer(scope, canvas, {
+          spectrogram = scope.createSpectrogram(canvas, {
             tileDuration: 1,
             maxCachedTiles: 96,
             prefetchTiles: 8,
@@ -296,8 +296,6 @@
         cleanupNavigation = attachCanvasNavigation(spectrogram, canvas, {
           onNavigate: scheduleMinimapUpdate,
         });
-        updateMinimap();
-        await spectrogram.render();
         updateMinimap();
       }
 

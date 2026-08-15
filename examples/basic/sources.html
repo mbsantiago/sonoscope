@@ -57,7 +57,6 @@
         attachCanvasNavigation,
         createAudioSourceFromUrl,
         Sonoscope,
-        SpectrogramViewer,
       } from "@sonoscope/core";
 
       const recordings = [
@@ -111,7 +110,7 @@
       });
 
       // 2. Initialize SpectrogramViewer bound to scope
-      const spectrogram = new SpectrogramViewer(scope, canvas, {
+      const spectrogram = scope.createSpectrogram(canvas, {
         windowSize: 1024,
         fftSize: 1024,
         hopSize: 128,

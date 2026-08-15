@@ -69,7 +69,7 @@
     <p data-status></p>
 
     <script type="module">
-      import { attachCanvasNavigation, Sonoscope, SpectrogramViewer } from "@sonoscope/core";
+      import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
 
       let canvas = document.querySelector("canvas");
       const form = document.querySelector("form");
@@ -92,7 +92,7 @@
           followPlayback: "page",
         });
 
-        spectrogram = new SpectrogramViewer(scope, canvas, {
+        spectrogram = scope.createSpectrogram(canvas, {
           renderer: { type: "webgl", program: shader },
           frequencyScale: "mel",
           valueMode: "db",
@@ -103,8 +103,6 @@
         });
 
         cleanupNavigation = attachCanvasNavigation(spectrogram, canvas);
-
-        spectrogram.requestRender();
       }
 
       form.addEventListener("submit", async (event) => {

@@ -34,7 +34,7 @@
     <div class="stage"><canvas></canvas><div class="selection"></div></div>
 
     <script type="module">
-      import { attachCanvasNavigation, Sonoscope, SpectrogramViewer } from '@sonoscope/core';
+      import { attachCanvasNavigation, Sonoscope } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
@@ -68,7 +68,7 @@
           scope = await Sonoscope.fromAudio(audio, {
             followPlayback: follow.checked ? "page" : "off",
           });
-          spectrogram = new SpectrogramViewer(scope, canvas);
+          spectrogram = scope.createSpectrogram(canvas);
           resetViewport = spectrogram.getViewport();
           cleanupNavigation = attachCanvasNavigation(spectrogram, canvas, {
             enableDrag: false,
@@ -79,7 +79,6 @@
           scope.on('viewportchange', () => {
             status.textContent = statusText();
           });
-          await spectrogram.render();
           status.textContent = statusText();
         } catch (error) {
           status.textContent = error instanceof Error ? error.message : String(error);
