@@ -310,5 +310,35 @@ describe("WaveformViewer", () => {
       scope.pan(1);
       expect(requestRender).not.toHaveBeenCalled();
     });
+
+    it("automatically requests render on construction by default (autoRender: true)", async () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 0,
+        endTime: 10,
+      });
+      const viewer = new WaveformViewer(scope, createMockCanvas());
+      expect(viewer.getConfig().autoRender).toBe(true);
+
+      // Wait for microtask
+      await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
+      expect(viewer.getStatus().state).not.toBe("idle");
+    });
+
+    it("does not automatically render when autoRender is false", async () => {
+      const scope = new Sonoscope({
+        source: dummySource,
+        startTime: 0,
+        endTime: 10,
+      });
+      const viewer = new WaveformViewer(scope, createMockCanvas(), {
+        autoRender: false,
+      });
+      expect(viewer.getConfig().autoRender).toBe(false);
+
+      // Wait for microtask
+      await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
+      expect(viewer.getStatus().state).toBe("idle");
+    });
   });
 });

@@ -87,6 +87,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
     this.bindScope();
     this.attachSourceRangeSync();
+    if (this.config.autoRender) {
+      this.requestRender();
+    }
   }
 
   on<Name extends keyof SpectrogramEvents>(

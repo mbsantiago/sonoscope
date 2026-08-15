@@ -114,6 +114,7 @@ export function resolveConfig(
   );
 
   return {
+    autoRender: input.autoRender ?? true,
     renderer: input.renderer ?? "auto",
     backend: input.backend ?? "auto",
     channel,

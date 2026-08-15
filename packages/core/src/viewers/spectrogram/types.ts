@@ -207,6 +207,7 @@ export interface SpectrogramProfilerOptions {
 }
 
 export type SpectrogramConfig = {
+  autoRender?: boolean;
   renderer?: RendererMode;
   backend?: BackendMode;
   channel?: number;
@@ -247,6 +248,7 @@ export type SpectrogramConfig = {
 };
 
 export type ResolvedSpectrogramConfig = {
+  autoRender: boolean;
   renderer: RendererMode;
   backend: BackendMode;
   channel: number;

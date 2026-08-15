@@ -70,6 +70,7 @@ function resolveWaveformConfig(
     : "#0284c7";
 
   return {
+    autoRender: input.autoRender ?? true,
     channel: input.channel ?? 0,
     startTime: clamped.startTime,
     endTime: clamped.endTime,
@@ -137,6 +138,9 @@ export class WaveformViewer implements IWaveformViewer {
       resolvedConfig.channel,
     );
     this.bindScope();
+    if (this.config.autoRender) {
+      this.requestRender();
+    }
   }
 
   getScope(): ISonoscope {

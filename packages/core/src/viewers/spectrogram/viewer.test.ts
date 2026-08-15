@@ -1055,6 +1055,7 @@ describe("SpectrogramViewer", () => {
       endTime: 1,
       minFrequency: 0,
       maxFrequency: 512,
+      autoRender: false,
     });
     const render = vi.spyOn(viewer, "render").mockResolvedValue(undefined);
 
@@ -1444,6 +1445,29 @@ describe("SpectrogramViewer", () => {
       // Viewport changes on scope should no longer trigger render on destroyed viewer
       scope.pan(0.1);
       expect(requestRender).not.toHaveBeenCalled();
+    });
+
+    it("automatically requests render on construction by default (autoRender: true)", async () => {
+      const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
+      const viewer = new SpectrogramViewer(scope, canvas());
+      expect(viewer.getConfig().autoRender).toBe(true);
+
+      // Wait for microtask
+      await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
+      // Viewer transitioned from idle to rendering/ready
+      expect(viewer.getStatus().state).not.toBe("idle");
+    });
+
+    it("does not automatically render when autoRender is false", async () => {
+      const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
+      const viewer = new SpectrogramViewer(scope, canvas(), {
+        autoRender: false,
+      });
+      expect(viewer.getConfig().autoRender).toBe(false);
+
+      // Wait for microtask
+      await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
+      expect(viewer.getStatus().state).toBe("idle");
     });
   });
 });

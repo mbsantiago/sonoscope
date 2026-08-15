@@ -31,6 +31,7 @@ export interface WaveformRenderer {
 }
 
 export type WaveformConfig = {
+  autoRender?: boolean | undefined;
   channel?: number | undefined;
   startTime?: number | undefined;
   endTime?: number | undefined;
@@ -48,6 +49,7 @@ export type WaveformConfig = {
 export type WaveformOptions = WaveformConfig;
 
 export type ResolvedWaveformConfig = {
+  autoRender: boolean;
   channel: number;
   startTime: number;
   endTime: number;
