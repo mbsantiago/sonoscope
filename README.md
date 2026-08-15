@@ -35,9 +35,8 @@ const audio = document.querySelector("audio")!;
 const waveCanvas = document.querySelector("#wave-canvas")!;
 const specCanvas = document.querySelector("#spec-canvas")!;
 
-// 1. Create unified coordinator for audio & time viewport
-const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
-  audio,
+// 1. Create unified coordinator bound to audio element
+const scope = await Sonoscope.fromAudio(audio, {
   followPlayback: "page",
 });
 

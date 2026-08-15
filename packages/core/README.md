@@ -19,9 +19,8 @@ const audio = document.querySelector("audio")!;
 const waveCanvas = document.querySelector("#wave-canvas")!;
 const specCanvas = document.querySelector("#spec-canvas")!;
 
-// 1. Initialize coordinator
-const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
-  audio,
+// 1. Initialize coordinator from audio element
+const scope = await Sonoscope.fromAudio(audio, {
   followPlayback: "page",
 });
 
@@ -38,14 +37,13 @@ const spectrogram = scope.createSpectrogram(specCanvas, {
 });
 ```
 
-### Standalone Single Viewer
+### Standalone Visualizer (from URL)
 
 ```typescript
 import { Sonoscope } from "@sonoscope/core";
 
-const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
-  audio: document.querySelector("audio")!,
-});
+// Initialize purely from URL without an <audio> element
+const scope = await Sonoscope.fromUrl("https://example.com/audio.wav");
 
 const viewer = scope.createSpectrogram(document.querySelector("canvas")!, {
   colorMap: "magma",

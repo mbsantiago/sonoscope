@@ -87,8 +87,7 @@
         cleanupNavigation?.();
         canvas = resetCanvas(canvas);
 
-        scope = await Sonoscope.fromUrl(audio.src, {
-          audio,
+        scope = await Sonoscope.fromAudio(audio, {
           followPlayback: "page",
         });
 

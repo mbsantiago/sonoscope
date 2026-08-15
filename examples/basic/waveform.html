@@ -277,8 +277,7 @@
 
         try {
           // 1. Initialize single unified Sonoscope coordinator
-          scope = await Sonoscope.fromUrl(url, {
-            audio,
+          scope = await Sonoscope.fromAudio(audio, {
             startTime: 0,
             endTime: 10,
             followPlayback: followSelect.value,

@@ -370,8 +370,8 @@
           viewer?.destroy();
           scope?.destroy();
 
-          scope = await Sonoscope.fromUrl(url, {
-            audio,
+          audio.src = url;
+          scope = await Sonoscope.fromAudio(audio, {
             minDuration: 2,
             maxDuration: 10,
             followPlayback: "page",

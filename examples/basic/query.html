@@ -484,7 +484,7 @@
         audio.src = url;
         try {
           resizeCanvas(sliceCanvas);
-          scope = await Sonoscope.fromUrl(url, { audio });
+          scope = await Sonoscope.fromAudio(audio);
           viewer = scope.createSpectrogram(specCanvas, {
             colorMap: 'magma',
             frequencyScale: scaleSelect.value,

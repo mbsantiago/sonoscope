@@ -341,8 +341,7 @@
         audio.src = url;
         status.textContent = "Loading and rendering...";
         try {
-          scope = await Sonoscope.fromUrl(url, {
-            audio,
+          scope = await Sonoscope.fromAudio(audio, {
             followPlayback: "page",
           });
           viewer = scope.createSpectrogram(canvas, {

@@ -309,8 +309,8 @@
             rateEl.textContent = "Loading...";
 
             try {
-              const scope = await Sonoscope.fromUrl(item.url, {
-                audio,
+              audio.src = item.url;
+              const scope = await Sonoscope.fromAudio(audio, {
                 followPlayback: "page",
               });
               const viewer = scope.createSpectrogram(canvas, {

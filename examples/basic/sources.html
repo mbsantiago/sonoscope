@@ -103,9 +103,9 @@
       const title = document.querySelector("[data-title]");
       let index = 0;
 
-      // 1. Initialize Sonoscope coordinator from URL
-      const scope = await Sonoscope.fromUrl(recordings[index][0], {
-        audio,
+      // 1. Initialize Sonoscope coordinator from Audio Element
+      audio.src = recordings[index][0];
+      const scope = await Sonoscope.fromAudio(audio, {
         followPlayback: "page",
       });
 

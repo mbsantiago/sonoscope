@@ -70,8 +70,7 @@
       const audio = document.querySelector("audio");
       const canvas = document.querySelector("canvas");
 
-      let scope = await Sonoscope.fromUrl(audio.src, {
-        audio,
+      let scope = await Sonoscope.fromAudio(audio, {
         followPlayback: "page",
       });
 
@@ -87,7 +86,7 @@
         const url = input.value.trim();
         if (!url) return;
         audio.src = url;
-        const nextScope = await Sonoscope.fromUrl(url, { audio, followPlayback: "page" });
+        const nextScope = await Sonoscope.fromAudio(audio, { followPlayback: "page" });
         scope.destroy();
         scope = nextScope;
         spectrogram = scope.createSpectrogram(canvas);
