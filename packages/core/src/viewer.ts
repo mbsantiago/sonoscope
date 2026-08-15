@@ -11,11 +11,7 @@ import {
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
 import { zoomViewportFrequency, zoomViewportTime } from "./navigation";
-import {
-  CanvasSpectrogramRenderer,
-  type RenderInput,
-  type SpectrogramRenderer,
-} from "./renderers/canvas";
+import type { RenderInput, SpectrogramRenderer } from "./renderers/canvas";
 import { createSpectrogramRenderer } from "./renderers/renderer-factory";
 import { applyTransforms } from "./transforms";
 import type {
@@ -92,20 +88,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
     this.bindScope();
     this.attachSourceRangeSync();
-  }
-
-  static renderLoading(canvas: HTMLCanvasElement, text?: string): void {
-    new CanvasSpectrogramRenderer().renderLoading({
-      canvas,
-      ...(text === undefined ? {} : { text }),
-    });
-  }
-
-  renderLoading(text?: string): void {
-    this.renderer.renderLoading({
-      canvas: this.config.canvas,
-      ...(text === undefined ? {} : { text }),
-    });
   }
 
   on<Name extends keyof SpectrogramEvents>(
@@ -375,7 +357,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
       this.status = { state: "rendering" };
       this.events.emit("renderstart", { requestId, total: tiles.length });
-      this.renderer.renderLoading({ canvas: this.config.canvas });
 
       const jobs = tiles.map(async (tile) => {
         const matrix = await this.getTile(

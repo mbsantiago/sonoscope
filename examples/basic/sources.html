@@ -129,7 +129,6 @@
         index = (nextIndex + recordings.length) % recordings.length;
         const [url, label] = recordings[index];
         title.textContent = `Loading ${label}...`;
-        spectrogram.renderLoading(`Loading ${label}...`);
         try {
           // Decode source and update on Sonoscope directly
           const nextSource = await createAudioSourceFromUrl(url);

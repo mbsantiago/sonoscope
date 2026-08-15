@@ -9,7 +9,6 @@ import type {
 import { valueScaleBounds } from "../value-scale";
 import {
   CanvasSpectrogramRenderer,
-  type LoadingRenderInput,
   type PlayheadRenderInput,
   type RenderInput,
   type SpectrogramRenderer,
@@ -182,21 +181,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       this.programFor(frame.input),
     );
     return true;
-  }
-
-  renderLoading(input: LoadingRenderInput): void {
-    if (this.gl.isContextLost()) {
-      this.fallback.renderLoading(input);
-      return;
-    }
-    this.frameState = undefined;
-    const gl = this.gl;
-    const { deviceWidth, deviceHeight } = canvasSize(input.canvas);
-    input.canvas.width = deviceWidth;
-    input.canvas.height = deviceHeight;
-    gl.viewport(0, 0, deviceWidth, deviceHeight);
-    gl.clearColor(0.06, 0.09, 0.16, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   destroy(): void {

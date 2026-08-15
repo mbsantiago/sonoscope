@@ -177,7 +177,6 @@ describe("SpectrogramViewer", () => {
           release = () => resolve(highRateSource);
         }),
       );
-    const renderLoading = vi.spyOn(SpectrogramViewer, "renderLoading");
     const audio = {
       src: "test.wav",
       currentSrc: "",
@@ -189,17 +188,14 @@ describe("SpectrogramViewer", () => {
     const scopePromise = Sonoscope.fromAudio(audio);
     await Promise.resolve();
 
-    expect(renderLoading).not.toHaveBeenCalled();
     release?.();
     const scope = await scopePromise;
     const viewer = new SpectrogramViewer(scope, canvas());
     expect(viewer.getScope()).toBe(scope);
     fromUrl.mockRestore();
-    renderLoading.mockRestore();
   });
 
   it("creates a worker-backed viewer from a URL with decoded viewport defaults", async () => {
-    const renderLoading = vi.spyOn(SpectrogramViewer, "renderLoading");
     const audio = {
       src: "",
       currentSrc: "",
@@ -238,7 +234,6 @@ describe("SpectrogramViewer", () => {
     });
 
     expect(audio.src).toBe("test.wav");
-    expect(renderLoading).not.toHaveBeenCalled();
     expect(viewer.getRendererKind()).toBe("canvas2d");
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0,
@@ -246,7 +241,6 @@ describe("SpectrogramViewer", () => {
       minFrequency: 0,
       maxFrequency: 96_000,
     });
-    renderLoading.mockRestore();
   });
 
   it("creates viewer from a URL without an audio element", async () => {
@@ -517,7 +511,6 @@ describe("SpectrogramViewer", () => {
     } as unknown as HTMLAudioElement;
     const scope = new Sonoscope({ audio, source });
     const viewer = new SpectrogramViewer(scope, canvas());
-    const renderLoading = vi.spyOn(SpectrogramViewer, "renderLoading");
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce({
@@ -542,9 +535,7 @@ describe("SpectrogramViewer", () => {
     const nextSource = await sourceModule.createAudioSourceFromUrl("next.wav");
     scope.setSource(nextSource);
 
-    expect(renderLoading).not.toHaveBeenCalled();
     expect(viewer.getConfig().source?.sampleRate).toBe(192_000);
-    renderLoading.mockRestore();
   });
 
   it("allows audio-only min frequency above fallback Nyquist when decoded source supports it", async () => {
@@ -790,7 +781,7 @@ describe("SpectrogramViewer", () => {
     expect(render.mock.calls[1]?.[0]).toMatchObject({ placeholders: [] });
   });
 
-  it("shows a loading overlay while visible tiles are computing", async () => {
+  it("sets rendering state and emits renderstart when starting a render", async () => {
     const backend: SpectrogramComputeBackend = {
       computeTile: () => new Promise(() => undefined),
     };
@@ -805,17 +796,14 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 512,
       backend,
     });
-    const renderer = (
-      viewer as unknown as {
-        renderer: { renderLoading: (input: unknown) => void };
-      }
-    ).renderer;
-    const renderLoading = vi.spyOn(renderer, "renderLoading");
+    const starts: string[] = [];
+    viewer.on("renderstart", (e) => starts.push(e.requestId));
 
     void viewer.render();
     await Promise.resolve();
 
-    expect(renderLoading).toHaveBeenCalledTimes(1);
+    expect(starts).toHaveLength(1);
+    expect(viewer.getStatus().state).toBe("rendering");
   });
 
   it("prefetches bounded tiles around the viewport after rendering visible tiles", async () => {

@@ -259,30 +259,6 @@ describe("renderer helpers", () => {
     expect(renderData([dark, bright])).toEqual(renderData([bright, dark]));
   });
 
-  it("draws a loading overlay", () => {
-    const context = {
-      setTransform: vi.fn(),
-      clearRect: vi.fn(),
-      fillRect: vi.fn(),
-      fillText: vi.fn(),
-      save: vi.fn(),
-      restore: vi.fn(),
-    };
-
-    new CanvasSpectrogramRenderer().renderLoading({
-      canvas: canvas(150, 80, context),
-      text: "Loading spectrogram...",
-    });
-
-    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 150, 80);
-    expect(context.fillRect).toHaveBeenCalled();
-    expect(context.fillText).toHaveBeenCalledWith(
-      "Loading spectrogram...",
-      75,
-      40,
-    );
-  });
-
   it("draws placeholders for missing tile ranges", () => {
     let data: Uint8ClampedArray | undefined;
     const context = {
