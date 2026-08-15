@@ -26,5 +26,21 @@
       },
       "a11y": "info"
     }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              {
+                "type": true
+              }
+            ]
+          }
+        }
+      }
+    }
   }
 }

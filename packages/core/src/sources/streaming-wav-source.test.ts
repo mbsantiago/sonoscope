@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { ByteStreamSource, SeekableByteSource } from "./byte-source";
+import { describe, expect, it, vi } from "vitest";
 import { StreamingWavSource } from "./streaming-wav-source";
 
 function wavBytes(samples: number[], sampleRate = 4): Uint8Array {

@@ -1,6 +1,6 @@
 import type React from "react";
-import { useRef } from "react";
 import type { ViewportState } from "../types";
+import { useRef } from "react";
 
 function pseudoLevel(index: number): number {
   return Math.abs(Math.sin(index * 0.41) * Math.cos(index * 0.17));

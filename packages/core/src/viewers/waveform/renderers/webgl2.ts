@@ -1,5 +1,5 @@
-import { parseColor } from "../../../colormap";
 import type { WaveformRenderer, WaveformRenderInput } from "../types";
+import { parseColor } from "../../../colormap";
 import { CanvasWaveformRenderer } from "./canvas";
 import {
   createWaveformProgram,

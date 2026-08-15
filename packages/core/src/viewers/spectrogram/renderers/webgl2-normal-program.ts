@@ -1,10 +1,7 @@
-import type {
-  SpectrogramMatrix,
-  ValueScaleConfig,
-  ViewportConfig,
-} from "../types";
-import { valueScaleBounds } from "../value-scale";
+import type { ViewportConfig } from "../../../types";
+import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput } from "./canvas";
+import { valueScaleBounds } from "../value-scale";
 import { tileFrequencyRange } from "./webgl2-geometry";
 import {
   frequencyScaleCode,

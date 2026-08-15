@@ -1,14 +1,14 @@
+import type {
+  ISpectrogramViewer,
+  SpectrogramEvents,
+  SpectrogramProfileEvent,
+} from "./viewers/spectrogram/types";
 import { describe, expect, it } from "vitest";
 import {
   FrameMeter,
   PerformanceProfiler,
   SpectrogramProfiler,
 } from "./performance";
-import type {
-  ISpectrogramViewer,
-  SpectrogramEvents,
-  SpectrogramProfileEvent,
-} from "./viewers/spectrogram/types";
 
 describe("PerformanceProfiler", () => {
   it("records measured synchronous work", () => {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { AudioSource } from "../../types";
+import { describe, expect, it } from "vitest";
 import { computePeaks, WaveformPeakPyramid } from "./peaks";
 
 describe("computePeaks", () => {

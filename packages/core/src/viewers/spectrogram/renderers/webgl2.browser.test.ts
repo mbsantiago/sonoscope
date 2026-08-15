@@ -1,18 +1,20 @@
-import { describe, expect, it } from "vitest";
-import { Sonoscope } from "../../../sonoscope";
 import type { ComputeTileRequest } from "../backends/backend";
 import type { SpectrogramMatrix } from "../types";
+import { describe, expect, it } from "vitest";
+import { Sonoscope } from "../../../sonoscope";
 import { SpectrogramViewer } from "../viewer";
 import { CanvasSpectrogramRenderer, type RenderInput } from "./canvas";
+import { WebGL2SpectrogramRenderer } from "./webgl2";
+import { WEBGL2_DITHER_FRAGMENT_SHADER } from "./webgl2-dither-program";
 import {
-  WEBGL2_DITHER_FRAGMENT_SHADER,
   WEBGL2_FRAGMENT_SHADER,
-  WEBGL2_SOBEL_FRAGMENT_SHADER,
+  WEBGL2_VERTEX_SHADER,
+} from "./webgl2-normal-program";
+import { WEBGL2_SOBEL_FRAGMENT_SHADER } from "./webgl2-sobel-program";
+import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
-  WEBGL2_VERTEX_SHADER,
-  WebGL2SpectrogramRenderer,
-} from "./webgl2";
+} from "./webgl2-terrain-program";
 
 function compileShader(
   gl: WebGL2RenderingContext,

@@ -1,3 +1,4 @@
+import type { SpectrogramMatrix } from "./types";
 import { describe, expect, it } from "vitest";
 import {
   locateSamplePosition,
@@ -7,7 +8,6 @@ import {
   sampleValueDataPosition,
   valueDataForMode,
 } from "./spectrogram-sampling";
-import type { SpectrogramMatrix } from "./types";
 
 const matrix: SpectrogramMatrix = {
   channel: 0,

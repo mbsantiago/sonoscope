@@ -1,6 +1,6 @@
+import type { SpectrogramMatrix, SpectrogramTransform } from "./types";
 import { describe, expect, it } from "vitest";
 import { applyTransforms, getTransformPadding } from "./transforms";
-import type { SpectrogramMatrix, SpectrogramTransform } from "./types";
 
 function matrix(): SpectrogramMatrix {
   return {

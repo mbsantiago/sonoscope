@@ -1,6 +1,6 @@
+import type { SpectrogramMatrix } from "./types";
 import { describe, expect, it } from "vitest";
 import { createTileKey, SpectrogramCache } from "./cache";
-import type { SpectrogramMatrix } from "./types";
 
 function matrix(id: number): SpectrogramMatrix {
   return {

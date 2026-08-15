@@ -1,10 +1,10 @@
-import { TypedEventEmitter } from "./events";
 import type {
   ISpectrogramViewer,
   SpectrogramProfileEvent,
   SpectrogramProfilerOptions,
   SpectrogramProfileStats,
 } from "./viewers/spectrogram/types";
+import { TypedEventEmitter } from "./events";
 
 export type PerformanceDetail = Record<string, string | number | boolean>;
 

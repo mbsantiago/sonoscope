@@ -1,11 +1,7 @@
+import type { ColorMapConfig, ViewportConfig } from "../../../types";
+import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import { buildColorMap } from "../../../colormap";
-import type { ColorMapConfig } from "../../../types";
 import { valueDataForMode } from "../spectrogram-sampling";
-import type {
-  SpectrogramMatrix,
-  ValueScaleConfig,
-  ViewportConfig,
-} from "../types";
 import { valueScaleBounds } from "../value-scale";
 import {
   CanvasSpectrogramRenderer,
@@ -35,18 +31,6 @@ import {
 } from "./webgl2-sobel-program";
 import {
   TerrainSpectrogramProgram,
-  WEBGL2_TERRAIN_FRAGMENT_SHADER,
-  WEBGL2_TERRAIN_VERTEX_SHADER,
-} from "./webgl2-terrain-program";
-
-export { WEBGL2_DITHER_FRAGMENT_SHADER } from "./webgl2-dither-program";
-export { terrainVerticesForTile, tileFrequencyRange } from "./webgl2-geometry";
-export {
-  WEBGL2_FRAGMENT_SHADER,
-  WEBGL2_VERTEX_SHADER,
-} from "./webgl2-normal-program";
-export { WEBGL2_SOBEL_FRAGMENT_SHADER } from "./webgl2-sobel-program";
-export {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
 } from "./webgl2-terrain-program";

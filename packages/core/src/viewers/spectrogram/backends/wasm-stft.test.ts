@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { StftConfig } from "../types";
+import { describe, expect, it } from "vitest";
 import { computeStftMatrix } from "./stft";
 import { computeWasmStftMatrix, getWasmStftEngine } from "./wasm-stft";
 

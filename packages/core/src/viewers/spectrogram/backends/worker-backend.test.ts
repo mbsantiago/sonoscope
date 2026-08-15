@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { PerformanceProfiler } from "../../../performance";
 import type { AudioSource } from "../../../types";
 import type { SpectrogramMatrix } from "../types";
+import { describe, expect, it } from "vitest";
+import { PerformanceProfiler } from "../../../performance";
 import {
   type SpectrogramWorkerLike,
   WorkerComputeBackend,

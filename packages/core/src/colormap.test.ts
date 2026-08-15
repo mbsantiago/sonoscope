@@ -1,6 +1,6 @@
+import type { BuiltInColorMap } from "./types";
 import { describe, expect, it } from "vitest";
 import { buildColorMap, parseColor } from "./colormap";
-import type { BuiltInColorMap } from "./types";
 
 describe("colormap", () => {
   it("parses hex, rgb, rgba, and transparent colors to rgba bytes", () => {

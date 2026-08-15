@@ -1,6 +1,7 @@
+import type { SpectrogramMatrix } from "../types";
+import type { SpectrogramWorkerLike } from "./worker-backend";
 import { describe, expect, it } from "vitest";
 import { Sonoscope } from "../../../sonoscope";
-import type { SpectrogramMatrix } from "../types";
 import { SpectrogramViewer } from "../viewer";
 import {
   MainThreadComputeBackend,
@@ -11,7 +12,6 @@ import {
   isSpectrogramComputeBackend,
 } from "./backend-factory";
 import { WasmComputeBackend, WasmWorkerComputeBackend } from "./wasm-backend";
-import type { SpectrogramWorkerLike } from "./worker-backend";
 import { WorkerComputeBackend } from "./worker-backend";
 
 const fakeWorker = (): SpectrogramWorkerLike => ({

@@ -1,6 +1,4 @@
-import type { AudioSource, ColorMapConfig, ISonoscope } from "../../types";
-
-export type { AudioSource, ColorMapConfig, ISonoscope };
+import type { ColorMapConfig, ISonoscope } from "../../types";
 
 export type PeakBlock = {
   min: Float32Array;

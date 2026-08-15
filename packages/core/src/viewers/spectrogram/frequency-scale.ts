@@ -1,4 +1,4 @@
-import type { FrequencyScale, ViewportConfig } from "./types";
+import type { FrequencyScale, ViewportConfig } from "../../types";
 
 export function hzToMel(hz: number): number {
   return 2595 * Math.log10(1 + hz / 700);

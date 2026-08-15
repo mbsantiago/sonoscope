@@ -1,10 +1,4 @@
-import { colorMapToRgb } from "../../colormap";
-import { TypedEventEmitter } from "../../events";
 import type { AudioSource, ISonoscope } from "../../types";
-import { clampViewportTimes } from "../spectrogram/config";
-import { WaveformPeakPyramid } from "./peaks";
-import { CanvasWaveformRenderer } from "./renderers/canvas";
-import { WebGL2WaveformRenderer } from "./renderers/webgl2";
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
@@ -14,6 +8,12 @@ import type {
   WaveformStatus,
   WaveformViewport,
 } from "./types";
+import { colorMapToRgb } from "../../colormap";
+import { TypedEventEmitter } from "../../events";
+import { clampViewportTimes } from "../../viewport-controller";
+import { WaveformPeakPyramid } from "./peaks";
+import { CanvasWaveformRenderer } from "./renderers/canvas";
+import { WebGL2WaveformRenderer } from "./renderers/webgl2";
 
 function resolveWaveformConfig(
   source: AudioSource,

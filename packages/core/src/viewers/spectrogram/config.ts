@@ -1,11 +1,11 @@
-import type { AudioSource } from "../../types";
+import type { AudioSource, FrequencyScale } from "../../types";
 import type {
-  FrequencyScale,
   ResolvedSpectrogramConfig,
   SpectrogramOptions,
   ValueMode,
   WindowName,
 } from "./types";
+import { clampViewportTimes } from "../../viewport-controller";
 
 function isPowerOfTwo(value: number): boolean {
   return (
@@ -152,25 +152,6 @@ export function resolveConfig(
     colorMap: input.colorMap ?? "viridis",
     transforms: input.transforms ?? [],
   };
-}
-
-export function clampViewportTimes(
-  startTime: number,
-  endTime: number,
-  sourceDuration: number,
-  minDuration: number,
-  maxDuration: number,
-): { startTime: number; endTime: number } {
-  const duration = Math.min(
-    Math.max(endTime - startTime, minDuration),
-    maxDuration,
-    sourceDuration,
-  );
-  const clampedStart = Math.min(
-    Math.max(0, startTime),
-    Math.max(0, sourceDuration - duration),
-  );
-  return { startTime: clampedStart, endTime: clampedStart + duration };
 }
 
 export function stableHash(value: unknown): string {

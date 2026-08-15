@@ -1,8 +1,8 @@
+import type { AudioSource } from "./types";
 import { describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "./sonoscope";
 import * as sourceModule from "./sources/source";
 import { DecodedAudioSource } from "./sources/source";
-import type { AudioSource } from "./types";
 
 type AudioFixture = HTMLAudioElement & {
   paused: boolean;

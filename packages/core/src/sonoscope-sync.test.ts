@@ -1,7 +1,7 @@
+import type { AudioSource } from "./types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attachCanvasNavigation } from "./navigation";
 import { Sonoscope } from "./sonoscope";
-import type { AudioSource } from "./types";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 

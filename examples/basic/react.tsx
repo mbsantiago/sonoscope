@@ -1,6 +1,7 @@
 import type { SpectrogramHandle, SpectrogramReadyInfo } from "@sonoscope/react";
-import { SonoscopeProvider, useSonoscope } from "@sonoscope/react";
 import type React from "react";
+import type { SpectrogramSettings, ViewportState } from "./react/types";
+import { SonoscopeProvider, useSonoscope } from "@sonoscope/react";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ControlPanel } from "./react/components/ControlPanel";
@@ -8,7 +9,6 @@ import { Header } from "./react/components/Header";
 import { SpectrogramPanel } from "./react/components/SpectrogramPanel";
 import { RECORDINGS } from "./react/recordings";
 import { demoStyles } from "./react/styles";
-import type { SpectrogramSettings, ViewportState } from "./react/types";
 
 const initialSettings: SpectrogramSettings = {
   recordingIndex: 0,

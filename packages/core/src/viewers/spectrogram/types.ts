@@ -1,20 +1,10 @@
+import type { FrameStats } from "../../performance";
 import type {
-  AudioSource,
   ColorMapConfig,
   FrequencyScale,
   ISonoscope,
   ViewportConfig,
 } from "../../types";
-
-export type {
-  AudioSource,
-  ColorMapConfig,
-  FrequencyScale,
-  ISonoscope,
-  ViewportConfig,
-};
-
-import type { FrameStats } from "../../performance";
 import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { SpectrogramWorkerLike } from "./backends/worker-backend";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";

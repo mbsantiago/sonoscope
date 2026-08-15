@@ -1,25 +1,18 @@
+import type { PerformanceProfiler } from "../../../performance";
+import type { ColorMapConfig, Rgba, ViewportConfig } from "../../../types";
+import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
+import type { WebGL2RenderProgram } from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
 import {
   canvasToTimeFrequency,
   timeFrequencyToCanvas,
 } from "../frequency-scale";
-import { normalizeValue } from "../value-scale";
-
-export { pickNearestBin, pickNearestFrame } from "../spectrogram-sampling";
-
-import type { PerformanceProfiler } from "../../../performance";
-import type { ColorMapConfig, Rgba } from "../../../types";
 import {
   locateSamplePosition,
   sampleValueDataPosition,
   valueDataForMode,
 } from "../spectrogram-sampling";
-import type {
-  SpectrogramMatrix,
-  ValueScaleConfig,
-  ViewportConfig,
-} from "../types";
-import type { WebGL2RenderProgram } from "./webgl2-program";
+import { normalizeValue } from "../value-scale";
 
 export type RenderInput = {
   canvas: HTMLCanvasElement;

@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
 import type { ByteStreamSource } from "./byte-source";
-import { StreamingMp3Source } from "./streaming-mp3-source";
 import type { Mp3Decoder } from "./webcodecs-mp3-decoder";
+import { describe, expect, it, vi } from "vitest";
+import { StreamingMp3Source } from "./streaming-mp3-source";
 
 // Helper to create an MP3 frame: MPEG1, L3, 128kbps, 44100Hz, Stereo
 function createMp3Frame(

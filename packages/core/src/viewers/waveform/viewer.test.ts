@@ -1,6 +1,6 @@
+import type { AudioSource } from "../../types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "../../sonoscope";
-import type { AudioSource } from "../../types";
 import { WaveformViewer } from "./viewer";
 
 function createMockCanvas(): HTMLCanvasElement {

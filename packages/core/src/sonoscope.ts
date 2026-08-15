@@ -1,5 +1,3 @@
-import { TypedEventEmitter } from "./events";
-import { createAudioSourceFromUrl, DecodedAudioSource } from "./sources/source";
 import type {
   AudioSource,
   FollowPlaybackMode,
@@ -9,17 +7,10 @@ import type {
   ViewportState,
 } from "./types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
-
-export type {
-  FollowPlaybackMode,
-  ISonoscope,
-  SonoscopeEvents,
-  SonoscopeOptions,
-  ViewportState,
-} from "./types";
-
-import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import type { WaveformOptions } from "./viewers/waveform/types";
+import { TypedEventEmitter } from "./events";
+import { createAudioSourceFromUrl, DecodedAudioSource } from "./sources/source";
+import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 import { ViewportController } from "./viewport-controller";
 

@@ -1,14 +1,14 @@
 import type { ViewportConfig } from "@sonoscope/core";
+import type React from "react";
+import type { RecordingItem } from "../recordings";
+import type { SpectrogramSettings, ViewportState } from "../types";
 import {
   Spectrogram,
   type SpectrogramHandle,
   type SpectrogramReadyInfo,
   Waveform,
 } from "@sonoscope/react";
-import type React from "react";
 import { type RefObject, useMemo } from "react";
-import type { RecordingItem } from "../recordings";
-import type { SpectrogramSettings, ViewportState } from "../types";
 import { Minimap } from "./Minimap";
 
 export type SpectrogramPanelProps = {

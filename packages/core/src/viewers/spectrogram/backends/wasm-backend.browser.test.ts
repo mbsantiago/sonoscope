@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { AudioSource } from "../../../types";
+import { describe, expect, it } from "vitest";
 import { WasmWorkerComputeBackend } from "./wasm-backend";
 import { computeWasmStftMatrix, createWasmStftEngine } from "./wasm-stft";
 

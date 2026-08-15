@@ -1,3 +1,5 @@
+import type { ViewportConfig } from "./types";
+import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   attachCanvasDragNavigation,
@@ -8,8 +10,6 @@ import {
   zoomViewportFrequency,
   zoomViewportTime,
 } from "./navigation";
-import type { ViewportConfig } from "./types";
-import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 
 const viewport: ViewportConfig = {
   startTime: 4,

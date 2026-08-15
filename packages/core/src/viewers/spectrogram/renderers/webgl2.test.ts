@@ -1,10 +1,7 @@
-import { describe, expect, it } from "vitest";
 import type { SpectrogramMatrix } from "../types";
-import {
-  terrainVerticesForTile,
-  textureValuesForTile,
-  tileFrequencyRange,
-} from "./webgl2";
+import { describe, expect, it } from "vitest";
+import { textureValuesForTile } from "./webgl2";
+import { terrainVerticesForTile, tileFrequencyRange } from "./webgl2-geometry";
 
 describe("textureValuesForTile", () => {
   it("packs normalized values into rgba texture rows", () => {

@@ -5,8 +5,8 @@ import type {
   WindowName,
 } from "@sonoscope/core";
 import type React from "react";
-import { RECORDINGS } from "../recordings";
 import type { ShaderProgram, SpectrogramSettings } from "../types";
+import { RECORDINGS } from "../recordings";
 import { ControlField, DualRangeSlider, SliderControl } from "./ControlField";
 
 export type ControlPanelProps = {

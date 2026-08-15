@@ -1,6 +1,6 @@
+import type { AudioSource } from "./types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "./sonoscope";
-import type { AudioSource } from "./types";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 

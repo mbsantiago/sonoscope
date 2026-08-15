@@ -1,20 +1,6 @@
-import { TypedEventEmitter } from "../../events";
-import { zoomViewportFrequency, zoomViewportTime } from "../../navigation";
-import type { ISonoscope } from "../../types";
+import type { ISonoscope, ViewportConfig } from "../../types";
 import type { SpectrogramComputeBackend } from "./backends/backend";
-import {
-  createSpectrogramBackend,
-  isSpectrogramComputeBackend,
-} from "./backends/backend-factory";
-import { createTileKey, SpectrogramCache } from "./cache";
-import { resolveConfig, stableHash } from "./config";
-import {
-  canvasToTimeFrequency as mapCanvasToTimeFrequency,
-  timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
-} from "./frequency-scale";
 import type { RenderInput, SpectrogramRenderer } from "./renderers/canvas";
-import { createSpectrogramRenderer } from "./renderers/renderer-factory";
-import { applyTransforms } from "./transforms";
 import type {
   CacheStats,
   ISpectrogramViewer,
@@ -29,8 +15,21 @@ import type {
   StftConfig,
   TileStateInfo,
   ValueMode,
-  ViewportConfig,
 } from "./types";
+import { TypedEventEmitter } from "../../events";
+import { zoomViewportFrequency, zoomViewportTime } from "../../navigation";
+import {
+  createSpectrogramBackend,
+  isSpectrogramComputeBackend,
+} from "./backends/backend-factory";
+import { createTileKey, SpectrogramCache } from "./cache";
+import { resolveConfig, stableHash } from "./config";
+import {
+  canvasToTimeFrequency as mapCanvasToTimeFrequency,
+  timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
+} from "./frequency-scale";
+import { createSpectrogramRenderer } from "./renderers/renderer-factory";
+import { applyTransforms } from "./transforms";
 import { deriveDb, derivePower } from "./value-scale";
 
 export class SpectrogramViewer implements ISpectrogramViewer {

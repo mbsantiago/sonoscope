@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { Sonoscope } from "../../sonoscope";
-import * as sourceModule from "../../sources/source";
 import type { AudioSource } from "../../types";
 import type {
   ComputeTileRequest,
   SpectrogramComputeBackend,
 } from "./backends/backend";
 import type { SpectrogramMatrix, SpectrogramOptions } from "./types";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Sonoscope } from "../../sonoscope";
+import * as sourceModule from "../../sources/source";
 import { SpectrogramViewer } from "./viewer";
 
 afterEach(() => {
