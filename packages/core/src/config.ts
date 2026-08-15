@@ -2,7 +2,7 @@ import type {
   AudioSource,
   FrequencyScale,
   ResolvedSpectrogramConfig,
-  SpectrogramConfig,
+  SpectrogramOptions,
   ValueMode,
   WindowName,
 } from "./types";
@@ -16,10 +16,10 @@ function isPowerOfTwo(value: number): boolean {
 }
 
 export function resolveConfig(
-  input: SpectrogramConfig & { source: AudioSource },
+  source: AudioSource,
+  input: SpectrogramOptions = {},
 ): ResolvedSpectrogramConfig {
-  if (!input.canvas) throw new Error("SpectrogramViewer requires a canvas");
-  if (!input.source) throw new Error("SpectrogramViewer requires a source");
+  if (!source) throw new Error("SpectrogramViewer requires a source");
 
   const windowSize = input.windowSize ?? 1024;
   const fftSize = input.fftSize ?? 1024;
@@ -32,7 +32,7 @@ export function resolveConfig(
   if (windowSize <= 0) throw new Error("windowSize must be greater than zero");
   if (hopSize <= 0) throw new Error("hopSize must be greater than zero");
 
-  const sourceDuration = Math.max(0.001, input.source.duration);
+  const sourceDuration = Math.max(0.001, source.duration);
 
   if (
     input.minViewportDuration !== undefined &&
@@ -65,7 +65,7 @@ export function resolveConfig(
   const initialStartTime = input.startTime ?? 0;
   const initialEndTime = input.endTime ?? sourceDuration;
   const minFrequency = input.minFrequency ?? 0;
-  const maxFrequency = input.maxFrequency ?? input.source.sampleRate / 2;
+  const maxFrequency = input.maxFrequency ?? source.sampleRate / 2;
   const frequencyScale: FrequencyScale = input.frequencyScale ?? "linear";
 
   const clampedTimes = clampViewportTimes(
@@ -84,9 +84,9 @@ export function resolveConfig(
   const channel = input.channel ?? 0;
   if (!Number.isInteger(channel) || channel < 0)
     throw new Error("channel must be a non-negative integer");
-  if (channel >= input.source.channelCount)
+  if (channel >= source.channelCount)
     throw new Error(
-      `channel ${channel} is outside source channel count ${input.source.channelCount}`,
+      `channel ${channel} is outside source channel count ${source.channelCount}`,
     );
 
   const valueMode: ValueMode = input.valueMode ?? "db";
@@ -114,8 +114,6 @@ export function resolveConfig(
   );
 
   return {
-    canvas: input.canvas,
-    source: input.source,
     renderer: input.renderer ?? "auto",
     backend: input.backend ?? "auto",
     channel,

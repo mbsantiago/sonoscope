@@ -299,8 +299,6 @@ export interface SpectrogramProfilerOptions {
 }
 
 export type SpectrogramConfig = {
-  canvas: HTMLCanvasElement;
-  source?: AudioSource;
   renderer?: RendererMode;
   backend?: BackendMode;
   channel?: number;
@@ -341,8 +339,6 @@ export type SpectrogramConfig = {
 };
 
 export type ResolvedSpectrogramConfig = {
-  canvas: HTMLCanvasElement;
-  source: AudioSource;
   renderer: RendererMode;
   backend: BackendMode;
   channel: number;
@@ -460,7 +456,7 @@ export interface ISonoscope {
   destroy(): void;
 }
 
-export type SpectrogramOptions = Omit<SpectrogramConfig, "source" | "canvas">;
+export type SpectrogramOptions = SpectrogramConfig;
 
 export type SpectrumSlice = {
   time: number;
@@ -488,6 +484,7 @@ export interface ISpectrogramViewer {
   requestRender(): void;
   destroy(): void;
   getStatus(): SpectrogramStatus;
+  getCanvas(): HTMLCanvasElement;
 
   // Viewport & Navigation
   getScope(): ISonoscope;

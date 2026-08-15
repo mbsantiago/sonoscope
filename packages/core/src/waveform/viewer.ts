@@ -16,15 +16,12 @@ import type {
 } from "./types";
 
 function resolveWaveformConfig(
-  input: Partial<WaveformOptions> & {
-    canvas: HTMLCanvasElement;
-    source: AudioSource;
-  },
+  source: AudioSource,
+  input: Partial<WaveformOptions> = {},
 ): ResolvedWaveformConfig {
-  if (!input.canvas) throw new Error("WaveformViewer requires a canvas");
-  if (!input.source) throw new Error("WaveformViewer requires a source");
+  if (!source) throw new Error("WaveformViewer requires a source");
 
-  const duration = Math.max(0.001, input.source.duration);
+  const duration = Math.max(0.001, source.duration);
 
   if (
     input.minViewportDuration !== undefined &&
@@ -73,8 +70,6 @@ function resolveWaveformConfig(
     : "#0284c7";
 
   return {
-    canvas: input.canvas,
-    source: input.source,
     channel: input.channel ?? 0,
     startTime: clamped.startTime,
     endTime: clamped.endTime,
@@ -102,6 +97,7 @@ export class WaveformViewer implements IWaveformViewer {
   private status: WaveformStatus = { state: "idle" };
   private isSelfUpdating = false;
   private scope: ISonoscope;
+  private readonly canvas: HTMLCanvasElement;
   private config: ResolvedWaveformConfig;
 
   constructor(
@@ -117,10 +113,8 @@ export class WaveformViewer implements IWaveformViewer {
     }
 
     const scopeVp = scope.getViewport();
-    const resolvedConfig = resolveWaveformConfig({
+    const resolvedConfig = resolveWaveformConfig(scope.source, {
       ...options,
-      canvas,
-      source: scope.source,
       startTime: scopeVp.startTime,
       endTime: scopeVp.endTime,
     });
@@ -135,10 +129,11 @@ export class WaveformViewer implements IWaveformViewer {
     }
 
     this.scope = scope;
+    this.canvas = canvas;
     this.config = resolvedConfig;
     this.renderer = renderer;
     this.pyramid = new WaveformPeakPyramid(
-      resolvedConfig.source,
+      this.scope.source,
       resolvedConfig.channel,
     );
     this.bindScope();
@@ -146,6 +141,10 @@ export class WaveformViewer implements IWaveformViewer {
 
   getScope(): ISonoscope {
     return this.scope;
+  }
+
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
   }
 
   getViewport(): WaveformViewport {
@@ -206,17 +205,15 @@ export class WaveformViewer implements IWaveformViewer {
 
     const previousChannel = this.config.channel;
 
-    this.config = resolveWaveformConfig({
+    this.config = resolveWaveformConfig(this.scope.source, {
       ...baseConfig,
       ...cleanInput,
-      canvas: this.config.canvas,
-      source: this.scope.source,
     });
 
     if (this.config.channel !== previousChannel) {
       this.pyramid.clear();
       this.pyramid = new WaveformPeakPyramid(
-        this.config.source,
+        this.scope.source,
         this.config.channel,
       );
     }
@@ -245,16 +242,16 @@ export class WaveformViewer implements IWaveformViewer {
   }
 
   canvasToTime(x: number): number {
-    const rect = this.config.canvas.getBoundingClientRect();
-    const width = rect.width || this.config.canvas.width;
+    const rect = this.canvas.getBoundingClientRect();
+    const width = rect.width || this.canvas.width;
     const ratio = Math.max(0, Math.min(1, x / (width || 1)));
     const vp = this.getViewport();
     return vp.startTime + ratio * (vp.endTime - vp.startTime);
   }
 
   timeToCanvas(time: number): number {
-    const rect = this.config.canvas.getBoundingClientRect();
-    const width = rect.width || this.config.canvas.width;
+    const rect = this.canvas.getBoundingClientRect();
+    const width = rect.width || this.canvas.width;
     const vp = this.getViewport();
     const span = vp.endTime - vp.startTime;
     return ((time - vp.startTime) / (span || 1)) * width;
@@ -302,12 +299,12 @@ export class WaveformViewer implements IWaveformViewer {
     this.status = { state: "rendering" };
     this.events.emit("renderstart", { requestId });
 
-    const rect = this.config.canvas.getBoundingClientRect();
+    const rect = this.canvas.getBoundingClientRect();
     const dpr =
       typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
     const targetWidth = Math.max(
       1,
-      Math.floor((rect.width || this.config.canvas.width) * dpr),
+      Math.floor((rect.width || this.canvas.width) * dpr),
     );
 
     const vp = this.getViewport();
@@ -320,7 +317,7 @@ export class WaveformViewer implements IWaveformViewer {
     if (this.status.state === "destroyed") return;
 
     this.renderer.render({
-      canvas: this.config.canvas,
+      canvas: this.canvas,
       peaks,
       color: this.config.color,
       progressColor: this.config.progressColor,
@@ -367,17 +364,14 @@ export class WaveformViewer implements IWaveformViewer {
       }
     });
 
-    const unlistenSource = this.scope.on("sourcechange", (e) => {
-      if (this.config.source !== e.source) {
-        this.config.source = e.source;
-        this.pyramid.clear();
-        this.pyramid = new WaveformPeakPyramid(
-          this.config.source,
-          this.config.channel,
-        );
-        this.events.emit("configchange", { config: this.config });
-        this.requestRender();
-      }
+    const unlistenSource = this.scope.on("sourcechange", () => {
+      this.pyramid.clear();
+      this.pyramid = new WaveformPeakPyramid(
+        this.scope.source,
+        this.config.channel,
+      );
+      this.events.emit("configchange", { config: this.config });
+      this.requestRender();
     });
 
     const unlistenTime = this.scope.on("timeupdate", () => {

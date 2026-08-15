@@ -1,4 +1,4 @@
-import type { AudioSource, ColorMapConfig, ISonoscope } from "../types";
+import type { ColorMapConfig, ISonoscope } from "../types";
 
 export type PeakBlock = {
   min: Float32Array;
@@ -31,8 +31,6 @@ export interface WaveformRenderer {
 }
 
 export type WaveformConfig = {
-  canvas: HTMLCanvasElement;
-  source?: AudioSource | undefined;
   channel?: number | undefined;
   startTime?: number | undefined;
   endTime?: number | undefined;
@@ -47,11 +45,9 @@ export type WaveformConfig = {
   renderer?: "canvas2d" | "webgl2" | WaveformRenderer | undefined;
 };
 
-export type WaveformOptions = Omit<WaveformConfig, "source" | "canvas">;
+export type WaveformOptions = WaveformConfig;
 
 export type ResolvedWaveformConfig = {
-  canvas: HTMLCanvasElement;
-  source: AudioSource;
   channel: number;
   startTime: number;
   endTime: number;
@@ -87,6 +83,7 @@ export interface IWaveformViewer {
   requestRender(): void;
   destroy(): void;
   getStatus(): WaveformStatus;
+  getCanvas(): HTMLCanvasElement;
 
   // Viewport & Navigation
   getScope(): ISonoscope;

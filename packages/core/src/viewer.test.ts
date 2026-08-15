@@ -270,7 +270,9 @@ describe("SpectrogramViewer", () => {
 
     expect(scope.source).toBeDefined();
     expect(scope.getAudio()).toBeUndefined();
-    expect(viewer.getConfig().source).toBeDefined();
+    expect(viewer.getCanvas()).toBeDefined();
+    expect("source" in viewer.getConfig()).toBe(false);
+    expect("canvas" in viewer.getConfig()).toBe(false);
     expect("audio" in viewer.getConfig()).toBe(false);
   });
 
@@ -362,7 +364,7 @@ describe("SpectrogramViewer", () => {
 
     scope.setSource(nextSource);
 
-    expect(viewer.getConfig().source).toBe(nextSource);
+    expect(viewer.getScope().source).toBe(nextSource);
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.2,
       endTime: 0.5,
@@ -535,7 +537,7 @@ describe("SpectrogramViewer", () => {
     const nextSource = await sourceModule.createAudioSourceFromUrl("next.wav");
     scope.setSource(nextSource);
 
-    expect(viewer.getConfig().source?.sampleRate).toBe(192_000);
+    expect(viewer.getScope().source.sampleRate).toBe(192_000);
   });
 
   it("allows audio-only min frequency above fallback Nyquist when decoded source supports it", async () => {
@@ -1344,7 +1346,7 @@ describe("SpectrogramViewer", () => {
         minFrequency: 0,
         maxFrequency: 512,
       });
-      expect(viewer.getConfig().canvas).toBe(target);
+      expect(viewer.getCanvas()).toBe(target);
     });
 
     it("creates viewer with new SpectrogramViewer(scope, canvas, options)", () => {

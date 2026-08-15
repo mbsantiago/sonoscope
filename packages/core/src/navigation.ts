@@ -12,9 +12,9 @@ export interface NavigableViewer {
     maxFrequency?: number;
     frequencyScale?: string;
   };
+  getCanvas?(): HTMLCanvasElement;
+  getScope?(): { getDuration(): number; [key: string]: unknown };
   getConfig(): {
-    canvas: HTMLCanvasElement;
-    source?: { duration?: number; [key: string]: unknown };
     minViewportDuration?: number;
     maxViewportDuration?: number;
     [key: string]: unknown;
@@ -149,11 +149,44 @@ export function zoomViewportFrequency(
   return { ...viewport, minFrequency, maxFrequency: minFrequency + span };
 }
 
+function resolveViewerCanvas(
+  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
+  canvas?: HTMLCanvasElement,
+): HTMLCanvasElement {
+  if (canvas) return canvas;
+  if ("getCanvas" in viewer && typeof viewer.getCanvas === "function") {
+    return viewer.getCanvas();
+  }
+  const config = viewer.getConfig() as { canvas?: HTMLCanvasElement };
+  if (config.canvas) return config.canvas;
+  throw new Error("Canvas is required for navigation attachment");
+}
+
+function resolveViewerTimeBounds(
+  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
+): TimeBounds {
+  if ("getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function") {
+    return viewer.getTimeBounds();
+  }
+  const config = viewer.getConfig();
+  const duration =
+    "getScope" in viewer && typeof viewer.getScope === "function"
+      ? viewer.getScope().getDuration()
+      : 0;
+  return {
+    startTime: 0,
+    endTime: duration,
+    minDurationSeconds: config.minViewportDuration ?? 0.05,
+    maxDurationSeconds: config.maxViewportDuration ?? 30,
+  };
+}
+
 export function attachCanvasWheelNavigation(
   viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
-  canvas = viewer.getConfig().canvas,
+  canvas?: HTMLCanvasElement,
   options: CanvasWheelNavigationOptions = {},
 ): () => void {
+  const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const panSensitivity = options.panSensitivity ?? 260;
   const zoomSensitivity = options.zoomSensitivity ?? 0.055;
   const zoomModifier = options.zoomModifier ?? "ctrl";
@@ -193,21 +226,13 @@ export function attachCanvasWheelNavigation(
       const wheel = pendingWheel;
       pendingWheel = undefined;
       const viewport = viewer.getViewport() as ViewportConfig;
-      const config = viewer.getConfig();
-      const bounds: TimeBounds =
-        "getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function"
-          ? viewer.getTimeBounds()
-          : {
-              startTime: 0,
-              endTime:
-                ("getScope" in viewer && typeof viewer.getScope === "function"
-                  ? viewer.getScope().getDuration()
-                  : config.source?.duration) ?? 0,
-              minDurationSeconds: config.minViewportDuration ?? 0.05,
-              maxDurationSeconds: config.maxViewportDuration ?? 30,
-            };
+      const bounds = resolveViewerTimeBounds(viewer);
       if (modifierPressed(wheel, zoomModifier)) {
-        const rect = canvas.getBoundingClientRect();
+        const rect = targetCanvas.getBoundingClientRect?.() ?? {
+          left: 0,
+          top: 0,
+          width: 0,
+        };
         const time =
           "canvasToTimeFrequency" in viewer &&
           typeof viewer.canvasToTimeFrequency === "function"
@@ -219,7 +244,7 @@ export function attachCanvasWheelNavigation(
                 typeof viewer.canvasToTime === "function"
               ? viewer.canvasToTime(wheel.clientX - rect.left)
               : (() => {
-                  const width = rect.width || canvas.clientWidth || 1;
+                  const width = rect.width || targetCanvas.clientWidth || 1;
                   const ratio = (wheel.clientX - rect.left) / width;
                   return (
                     viewport.startTime +
@@ -247,18 +272,19 @@ export function attachCanvasWheelNavigation(
     });
   };
 
-  canvas.addEventListener("wheel", onWheel, { passive: false });
+  targetCanvas.addEventListener("wheel", onWheel, { passive: false });
   return () => {
-    canvas.removeEventListener("wheel", onWheel);
+    targetCanvas.removeEventListener("wheel", onWheel);
     if (wheelFrame !== undefined) cancelAnimationFrame(wheelFrame);
   };
 }
 
 export function attachCanvasDragNavigation(
   viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
-  canvas = viewer.getConfig().canvas,
+  canvas?: HTMLCanvasElement,
   options: CanvasDragNavigationOptions = {},
 ): () => void {
+  const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const targetButton = options.button ?? 0;
   const dragThreshold = options.dragThreshold ?? 3;
   const manageCursor = options.cursor ?? true;
@@ -269,10 +295,10 @@ export function attachCanvasDragNavigation(
   let startY = 0;
   let startViewport: ViewportConfig | undefined;
   let activePointerId: number | undefined;
-  const originalCursor = canvas.style?.cursor ?? "";
+  const originalCursor = targetCanvas.style?.cursor ?? "";
 
-  if (manageCursor && canvas.style) {
-    canvas.style.cursor = "grab";
+  if (manageCursor && targetCanvas.style) {
+    targetCanvas.style.cursor = "grab";
   }
 
   const apply = (viewport: ViewportConfig) => {
@@ -283,17 +309,15 @@ export function attachCanvasDragNavigation(
   const onPointerDown = (event: PointerEvent | MouseEvent) => {
     if (event.button !== targetButton) return;
     if (options.modifier && !modifierPressed(event, options.modifier)) return;
-
     isPointerDown = true;
     isDragging = false;
     startX = event.clientX;
     startY = event.clientY;
     startViewport = viewer.getViewport() as ViewportConfig;
-
     if ("pointerId" in event) {
       activePointerId = event.pointerId;
       try {
-        canvas.setPointerCapture?.(event.pointerId);
+        targetCanvas.setPointerCapture?.(event.pointerId);
       } catch {
         // pointer capture may not be supported in some environments
       }
@@ -302,62 +326,44 @@ export function attachCanvasDragNavigation(
 
   const onPointerMove = (event: PointerEvent | MouseEvent) => {
     if (!isPointerDown || !startViewport) return;
-
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
-
     if (!isDragging) {
       if (Math.hypot(dx, dy) < dragThreshold) return;
       isDragging = true;
-      if (manageCursor && canvas.style) {
-        canvas.style.cursor = "grabbing";
+      if (manageCursor && targetCanvas.style) {
+        targetCanvas.style.cursor = "grabbing";
       }
       options.onDragStart?.(event);
     }
 
-    const rect = canvas.getBoundingClientRect?.() ?? { width: 0 };
-    const canvasWidth = rect.width || canvas.clientWidth || 1;
+    const rect = targetCanvas.getBoundingClientRect?.() ?? { width: 0 };
+    const canvasWidth = rect.width || targetCanvas.clientWidth || 1;
     const duration = startViewport.endTime - startViewport.startTime;
     const deltaSeconds = -(dx / canvasWidth) * duration;
-
-    const config = viewer.getConfig();
-    const bounds: TimeBounds =
-      "getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function"
-        ? viewer.getTimeBounds()
-        : {
-            startTime: 0,
-            endTime:
-              ("getScope" in viewer && typeof viewer.getScope === "function"
-                ? viewer.getScope().getDuration()
-                : config.source?.duration) ?? 0,
-            minDurationSeconds: config.minViewportDuration ?? 0.05,
-            maxDurationSeconds: config.maxViewportDuration ?? 30,
-          };
-
+    const bounds = resolveViewerTimeBounds(viewer);
     apply(panViewportTime(startViewport, bounds, deltaSeconds));
   };
 
   const onPointerUp = (event: PointerEvent | MouseEvent) => {
     if (!isPointerDown) return;
     isPointerDown = false;
-
     if (
       activePointerId !== undefined &&
-      "releasePointerCapture" in canvas &&
-      typeof canvas.releasePointerCapture === "function"
+      "releasePointerCapture" in targetCanvas &&
+      typeof targetCanvas.releasePointerCapture === "function"
     ) {
       try {
-        canvas.releasePointerCapture(activePointerId);
+        targetCanvas.releasePointerCapture(activePointerId);
       } catch {
         // ignore release capture error
       }
       activePointerId = undefined;
     }
-
     if (isDragging) {
       isDragging = false;
-      if (manageCursor && canvas.style) {
-        canvas.style.cursor = "grab";
+      if (manageCursor && targetCanvas.style) {
+        targetCanvas.style.cursor = "grab";
       }
       options.onDragEnd?.(event);
     }
@@ -371,35 +377,36 @@ export function attachCanvasDragNavigation(
   const upEvent = hasPointerEvents ? "pointerup" : "mouseup";
   const cancelEvent = hasPointerEvents ? "pointercancel" : "mouseleave";
 
-  canvas.addEventListener(downEvent, onPointerDown as EventListener);
-  canvas.addEventListener(moveEvent, onPointerMove as EventListener);
-  canvas.addEventListener(upEvent, onPointerUp as EventListener);
-  canvas.addEventListener(cancelEvent, onPointerUp as EventListener);
+  targetCanvas.addEventListener(downEvent, onPointerDown as EventListener);
+  targetCanvas.addEventListener(moveEvent, onPointerMove as EventListener);
+  targetCanvas.addEventListener(upEvent, onPointerUp as EventListener);
+  targetCanvas.addEventListener(cancelEvent, onPointerUp as EventListener);
 
   return () => {
-    canvas.removeEventListener(downEvent, onPointerDown as EventListener);
-    canvas.removeEventListener(moveEvent, onPointerMove as EventListener);
-    canvas.removeEventListener(upEvent, onPointerUp as EventListener);
-    canvas.removeEventListener(cancelEvent, onPointerUp as EventListener);
-    if (manageCursor && canvas.style) {
-      canvas.style.cursor = originalCursor;
+    targetCanvas.removeEventListener(downEvent, onPointerDown as EventListener);
+    targetCanvas.removeEventListener(moveEvent, onPointerMove as EventListener);
+    targetCanvas.removeEventListener(upEvent, onPointerUp as EventListener);
+    targetCanvas.removeEventListener(cancelEvent, onPointerUp as EventListener);
+    if (manageCursor && targetCanvas.style) {
+      targetCanvas.style.cursor = originalCursor;
     }
   };
 }
 
 export function attachCanvasNavigation(
   viewer: NavigableViewer | SpectrogramViewer | WaveformViewer,
-  canvas = viewer.getConfig().canvas,
+  canvas?: HTMLCanvasElement,
   options: CanvasNavigationOptions = {},
 ): () => void {
+  const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const cleanups: Array<() => void> = [];
 
   if (options.enableWheel !== false) {
-    cleanups.push(attachCanvasWheelNavigation(viewer, canvas, options));
+    cleanups.push(attachCanvasWheelNavigation(viewer, targetCanvas, options));
   }
 
   if (options.enableDrag !== false) {
-    cleanups.push(attachCanvasDragNavigation(viewer, canvas, options));
+    cleanups.push(attachCanvasDragNavigation(viewer, targetCanvas, options));
   }
 
   return () => {

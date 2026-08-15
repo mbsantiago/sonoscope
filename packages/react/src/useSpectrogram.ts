@@ -1,4 +1,5 @@
 import {
+  type AudioSource,
   attachCanvasNavigation,
   type CanvasNavigationOptions,
   Sonoscope,
@@ -17,11 +18,9 @@ export type SpectrogramReadyInfo = {
   viewport: ViewportConfig;
 };
 
-export type UseSpectrogramOptions = Omit<
-  SpectrogramConfig,
-  "canvas" | "audio"
-> & {
+export type UseSpectrogramOptions = SpectrogramConfig & {
   scope?: Sonoscope | null | undefined;
+  source?: AudioSource | undefined;
   url?: string | undefined;
   audio?: HTMLAudioElement | undefined;
   navigation?: boolean | CanvasNavigationOptions | undefined;

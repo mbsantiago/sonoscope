@@ -10,12 +10,9 @@ const source: AudioSource = {
   read: () => new Float32Array(0),
 };
 
-const canvas = { getContext: () => null } as unknown as HTMLCanvasElement;
-
 describe("resolveConfig", () => {
   it("fills defaults and preserves provided source with flat properties", () => {
-    const config = resolveConfig({ canvas, source });
-    expect(config.source).toBe(source);
+    const config = resolveConfig(source);
     expect(config.renderer).toBe("auto");
     expect(config.channel).toBe(0);
 
@@ -55,9 +52,7 @@ describe("resolveConfig", () => {
   });
 
   it("supports flat user inputs", () => {
-    const config = resolveConfig({
-      canvas,
-      source,
+    const config = resolveConfig(source, {
       windowSize: 512,
       fftSize: 512,
       hopSize: 128,
@@ -87,19 +82,15 @@ describe("resolveConfig", () => {
   });
 
   it("preserves explicit renderer modes", () => {
-    expect(
-      resolveConfig({ canvas, source, renderer: "canvas2d" }).renderer,
-    ).toBe("canvas2d");
-    expect(resolveConfig({ canvas, source, renderer: "webgl" }).renderer).toBe(
-      "webgl",
+    expect(resolveConfig(source, { renderer: "canvas2d" }).renderer).toBe(
+      "canvas2d",
     );
-    expect(resolveConfig({ canvas, source, renderer: "webgl2" }).renderer).toBe(
+    expect(resolveConfig(source, { renderer: "webgl" }).renderer).toBe("webgl");
+    expect(resolveConfig(source, { renderer: "webgl2" }).renderer).toBe(
       "webgl2",
     );
     expect(
-      resolveConfig({
-        canvas,
-        source,
+      resolveConfig(source, {
         renderer: { type: "webgl", program: "dither" },
       }).renderer,
     ).toEqual({ type: "webgl", program: "dither" });
@@ -107,38 +98,32 @@ describe("resolveConfig", () => {
 
   it("validates selected channel against the source", () => {
     expect(
-      resolveConfig({
-        canvas,
-        source: { ...source, channelCount: 2 },
-        channel: 1,
-      }).channel,
+      resolveConfig({ ...source, channelCount: 2 }, { channel: 1 }).channel,
     ).toBe(1);
-    expect(() => resolveConfig({ canvas, source, channel: 1 })).toThrow(
+    expect(() => resolveConfig(source, { channel: 1 })).toThrow(
       /outside source channel count/,
     );
-    expect(() => resolveConfig({ canvas, source, channel: -1 })).toThrow(
+    expect(() => resolveConfig(source, { channel: -1 })).toThrow(
       /non-negative integer/,
     );
   });
 
   it("throws when fftSize is not a power of two", () => {
-    expect(() => resolveConfig({ canvas, source, fftSize: 1000 })).toThrow(
+    expect(() => resolveConfig(source, { fftSize: 1000 })).toThrow(
       /power of two/,
     );
   });
 
   it("throws when source is not provided", () => {
     expect(() =>
-      resolveConfig({ canvas } as unknown as Parameters<
-        typeof resolveConfig
-      >[0]),
+      resolveConfig(
+        undefined as unknown as Parameters<typeof resolveConfig>[0],
+      ),
     ).toThrow(/requires a source/);
   });
 
   it("clamps viewport duration to configured bounds", () => {
-    const config = resolveConfig({
-      canvas,
-      source,
+    const config = resolveConfig(source, {
       startTime: 1,
       endTime: 9,
       minViewportDuration: 1,
@@ -160,7 +145,7 @@ describe("resolveConfig", () => {
       read: () => new Float32Array(0),
     };
 
-    const config = resolveConfig({ canvas, source: shortSource });
+    const config = resolveConfig(shortSource);
     expect(config.minViewportDuration).toBe(0.02);
     expect(config.maxViewportDuration).toBe(0.02);
     expect(config.startTime).toBe(0);
@@ -169,9 +154,7 @@ describe("resolveConfig", () => {
 
   it("throws when maxViewportDuration is explicitly smaller than minViewportDuration", () => {
     expect(() =>
-      resolveConfig({
-        canvas,
-        source,
+      resolveConfig(source, {
         minViewportDuration: 5,
         maxViewportDuration: 2,
       }),

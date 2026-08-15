@@ -24,8 +24,7 @@ export type WaveformHandle = {
   getCanvas: () => HTMLCanvasElement | null;
 };
 
-export interface WaveformProps
-  extends Omit<WaveformConfig, "source" | "canvas" | "audio"> {
+export interface WaveformProps extends WaveformConfig {
   scope?: Sonoscope | null | undefined;
   source?: AudioSource | undefined;
   url?: string | undefined;

@@ -187,7 +187,9 @@ describe("WaveformViewer", () => {
 
       expect(viewer.getScope()).toBe(scope);
       expect(viewer.getViewport()).toMatchObject({ startTime: 1, endTime: 6 });
-      expect(viewer.getConfig().canvas).toBe(target);
+      expect(viewer.getCanvas()).toBe(target);
+      expect("canvas" in viewer.getConfig()).toBe(false);
+      expect("source" in viewer.getConfig()).toBe(false);
     });
 
     it("creates viewer with new WaveformViewer(scope, canvas, options)", () => {
@@ -201,7 +203,9 @@ describe("WaveformViewer", () => {
       expect(viewer.getScope()).toBe(scope);
       expect(viewer.getConfig().color).toBe("#ff0000");
       expect(viewer.getConfig().amplitudeScale).toBe(2.0);
-      expect(viewer.getConfig().canvas).toBe(target);
+      expect(viewer.getCanvas()).toBe(target);
+      expect("canvas" in viewer.getConfig()).toBe(false);
+      expect("source" in viewer.getConfig()).toBe(false);
     });
 
     it("creates viewer via scope.createWaveform(canvas, options)", () => {

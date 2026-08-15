@@ -48,6 +48,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private status: SpectrogramStatus = { state: "idle" };
   private isSelfUpdating = false;
   private scope: ISonoscope;
+  private readonly canvas: HTMLCanvasElement;
   private config: ResolvedSpectrogramConfig;
   private readonly backend: SpectrogramComputeBackend;
 
@@ -64,10 +65,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     }
 
     const scopeVp = scope.getViewport();
-    const resolvedConfig = resolveConfig({
+    const resolvedConfig = resolveConfig(scope.source, {
       ...options,
-      canvas,
-      source: scope.source,
       startTime: scopeVp.startTime,
       endTime: scopeVp.endTime,
     });
@@ -77,13 +76,14 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       : createSpectrogramBackend(resolvedConfig.backend);
 
     this.scope = scope;
+    this.canvas = canvas;
     this.config = resolvedConfig;
     this.backend = backend;
     this.cache = new SpectrogramCache({
       maxCachedTiles: resolvedConfig.maxCachedTiles,
     });
     this.renderer = createSpectrogramRenderer(
-      resolvedConfig.canvas,
+      this.canvas,
       resolvedConfig.renderer,
     );
     this.bindScope();
@@ -99,6 +99,10 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
   getScope(): ISonoscope {
     return this.scope;
+  }
+
+  getCanvas(): HTMLCanvasElement {
+    return this.canvas;
   }
 
   getConfig(): ResolvedSpectrogramConfig {
@@ -119,11 +123,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     const cleanInput = Object.fromEntries(
       Object.entries(input).filter(([_, v]) => v !== undefined),
     );
-    this.config = resolveConfig({
+    this.config = resolveConfig(this.scope.source, {
       ...this.config,
       ...cleanInput,
-      canvas: this.config.canvas,
-      source: this.scope.source,
     });
     this.renderGeneration += 1;
     if (this.tileConfigHash() !== previousTileConfigHash) {
@@ -136,7 +138,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     ) {
       this.renderer.destroy?.();
       this.renderer = createSpectrogramRenderer(
-        this.config.canvas,
+        this.canvas,
         this.config.renderer,
       );
     } else {
@@ -287,7 +289,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   }
 
   getTileStates(): TileStateInfo[] {
-    return this.tileRangesForTimeRange(0, this.config.source.duration).map(
+    return this.tileRangesForTimeRange(0, this.scope.source.duration).map(
       (tile) => {
         const key = this.tileKey(tile.channel, tile.timeStart, tile.timeEnd);
         return {
@@ -317,12 +319,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     x: number,
     y: number,
   ): { time: number; frequency: number } {
-    const rect = this.config.canvas.getBoundingClientRect();
+    const rect = this.canvas.getBoundingClientRect();
     return mapCanvasToTimeFrequency(
       x,
       y,
-      rect.width || this.config.canvas.width,
-      rect.height || this.config.canvas.height,
+      rect.width || this.canvas.width,
+      rect.height || this.canvas.height,
       this.getViewport(),
     );
   }
@@ -331,12 +333,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     time: number,
     frequency: number,
   ): { x: number; y: number } {
-    const rect = this.config.canvas.getBoundingClientRect();
+    const rect = this.canvas.getBoundingClientRect();
     return mapTimeFrequencyToCanvas(
       time,
       frequency,
-      rect.width || this.config.canvas.width,
-      rect.height || this.config.canvas.height,
+      rect.width || this.canvas.width,
+      rect.height || this.canvas.height,
       this.getViewport(),
     );
   }
@@ -435,7 +437,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   ): void {
     if (this.isDestroyed()) return;
     this.renderer.render({
-      canvas: this.config.canvas,
+      canvas: this.canvas,
       viewport: this.getViewport(),
       valueScale: {
         mode: this.config.valueMode,
@@ -565,7 +567,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     mode?: ValueMode;
   }): Promise<SpectrumSlice> {
     const time =
-      (input.frameIndex * this.config.hopSize) / this.config.source.sampleRate;
+      (input.frameIndex * this.config.hopSize) / this.scope.source.sampleRate;
     return this.querySpectrum({
       time,
       ...(input.channel === undefined ? {} : { channel: input.channel }),
@@ -608,8 +610,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       }
     });
 
-    const unlistenSource = this.scope.on("sourcechange", (event) => {
-      this.config.source = event.source;
+    const unlistenSource = this.scope.on("sourcechange", () => {
       this.renderGeneration += 1;
       this.updateViewport({
         minFrequency: this.config.minFrequency,
@@ -633,7 +634,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private attachSourceRangeSync(): void {
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
-    const source = this.config.source;
+    const source = this.scope.source;
     if (!source.onRangeAvailable) return;
     this.sourceRangeCleanup = source.onRangeAvailable((range) => {
       if (!this.rangeIntersectsViewport(range.startTime, range.endTime)) return;
@@ -672,7 +673,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     const maxFrames = 2048;
     const maxDurationForSampleRate =
       (maxFrames * this.config.hopSize) /
-      Math.max(1, this.config.source.sampleRate);
+      Math.max(1, this.scope.source.sampleRate);
     return Math.min(this.config.tileDuration, maxDurationForSampleRate);
   }
 
@@ -690,7 +691,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
           ).reverse();
     const after = this.tileRangesForTimeRange(
       this.config.endTime,
-      Math.min(this.config.source.duration, this.config.endTime + seconds),
+      Math.min(this.scope.source.duration, this.config.endTime + seconds),
     );
     const candidates =
       direction === "forward"
@@ -727,7 +728,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private renderPlaybackPlayhead(): boolean {
     if (this.isDestroyed() || !this.config.showPlayhead) return true;
     const rendered = this.renderer.renderPlayhead?.({
-      canvas: this.config.canvas,
+      canvas: this.canvas,
       viewport: this.getViewport(),
       playheadTime: this.scope.getCurrentTime(),
     });
@@ -764,7 +765,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       ranges.push({
         channel,
         timeStart: Math.max(0, start),
-        timeEnd: Math.min(this.config.source.duration, start + tileDuration),
+        timeEnd: Math.min(this.scope.source.duration, start + tileDuration),
       });
     }
     return ranges;
@@ -778,7 +779,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     const start = Math.floor(time / tileDuration) * tileDuration;
     return {
       timeStart: Math.max(0, start),
-      timeEnd: Math.min(this.config.source.duration, start + tileDuration),
+      timeEnd: Math.min(this.scope.source.duration, start + tileDuration),
     };
   }
 
@@ -787,7 +788,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     timeStart: number,
     timeEnd: number,
   ): Promise<SpectrogramMatrix> {
-    const source = this.config.source;
+    const source = this.scope.source;
     const stft: StftConfig = {
       windowSize: this.config.windowSize,
       fftSize: this.config.fftSize,
@@ -863,7 +864,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
   private tileKey(channel: number, timeStart: number, timeEnd: number): string {
     return createTileKey({
-      sourceId: this.config.source.id,
+      sourceId: this.scope.source.id,
       channel,
       timeStart,
       timeEnd,
