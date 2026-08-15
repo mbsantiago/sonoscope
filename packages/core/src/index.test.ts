@@ -7,6 +7,7 @@ import {
   parseMp3FrameHeader,
   parseMp3Info,
   Sonoscope,
+  SpectrogramProfiler,
   SpectrogramViewer,
   StreamingMp3Source,
   version,
@@ -34,6 +35,7 @@ describe("public entrypoint", () => {
     expect(typeof Sonoscope.fromSource).toBe("function");
     expect(typeof isSonoscope).toBe("function");
     expect(typeof SpectrogramViewer).toBe("function");
+    expect(typeof SpectrogramProfiler).toBe("function");
     expect(typeof WaveformViewer).toBe("function");
   });
 });

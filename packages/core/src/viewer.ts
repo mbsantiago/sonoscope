@@ -11,7 +11,7 @@ import {
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
 import { zoomViewportFrequency, zoomViewportTime } from "./navigation";
-import { PerformanceProfiler } from "./performance";
+import type { PerformanceProfiler } from "./performance";
 import {
   CanvasSpectrogramRenderer,
   type RenderInput,
@@ -353,114 +353,124 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
   }
 
-  async render(): Promise<void> {
+  async render(options?: { profile?: PerformanceProfiler }): Promise<void> {
     if (this.isDestroyed()) return;
-    const requestId = `render-${++this.requestCounter}`;
-    const generation = ++this.renderGeneration;
-    const profile = new PerformanceProfiler();
-    const tiles = this.visibleTileRanges();
-    const matrices = new Map<string, SpectrogramMatrix>();
-    let completed = 0;
-    let partialPaintQueued = false;
-    let paintCount = 0;
+    this.renderAgain = false;
+    const wasRunning = this.renderRunning;
+    this.renderRunning = true;
+    try {
+      const requestId = `render-${++this.requestCounter}`;
+      const generation = ++this.renderGeneration;
+      const profile = options?.profile;
+      const startTime = performance.now();
+      const tiles = this.visibleTileRanges();
+      const matrices = new Map<string, SpectrogramMatrix>();
+      let completed = 0;
+      let partialPaintQueued = false;
+      let paintCount = 0;
 
-    await profile.measureAsync(
-      "render.total",
-      { tiles: tiles.length },
-      async () => {
-        if (this.isDestroyed()) return;
-        this.status = { state: "rendering" };
-        this.events.emit("renderstart", { requestId, total: tiles.length });
-        profile.record("render.visibleTiles", performance.now(), 0, {
-          total: tiles.length,
-        });
-        this.renderer.renderLoading({ canvas: this.config.canvas });
+      this.status = { state: "rendering" };
+      this.events.emit("renderstart", { requestId, total: tiles.length });
+      profile?.record("render.visibleTiles", performance.now(), 0, {
+        total: tiles.length,
+      });
+      this.renderer.renderLoading({ canvas: this.config.canvas });
 
-        const jobs = tiles.map(async (tile) => {
-          const matrix = await this.getTile(
-            tile.channel,
-            tile.timeStart,
-            tile.timeEnd,
-            profile,
-          );
-          if (this.isDestroyed() || generation !== this.renderGeneration)
-            return;
-          completed += 1;
-          matrices.set(
-            `${tile.channel}:${tile.timeStart}:${tile.timeEnd}`,
-            matrix,
-          );
-          this.events.emit("renderprogress", {
-            requestId,
-            completed,
-            total: tiles.length,
-            progress: tiles.length === 0 ? 1 : completed / tiles.length,
-            phase: "computing",
-          });
-          if (!partialPaintQueued) {
-            partialPaintQueued = true;
-            await Promise.resolve();
-            partialPaintQueued = false;
-            if (
-              !this.isDestroyed() &&
-              generation === this.renderGeneration &&
-              matrices.size < tiles.length
-            ) {
-              profile.record("render.paint.partial", performance.now(), 0, {
-                tiles: matrices.size,
-                total: tiles.length,
-              });
-              paintCount += 1;
-              this.paintPartial(
-                Array.from(matrices.values()),
-                this.missingPlaceholders(tiles, matrices),
-                profile,
-              );
-            }
-          }
-        });
-        await Promise.all(jobs);
+      const jobs = tiles.map(async (tile) => {
+        const matrix = await this.getTile(
+          tile.channel,
+          tile.timeStart,
+          tile.timeEnd,
+          profile,
+        );
         if (this.isDestroyed() || generation !== this.renderGeneration) return;
-        this.prefetchAroundViewport();
-
-        profile.record("render.paint.final", performance.now(), 0, {
-          tiles: matrices.size,
+        completed += 1;
+        matrices.set(
+          `${tile.channel}:${tile.timeStart}:${tile.timeEnd}`,
+          matrix,
+        );
+        this.events.emit("renderprogress", {
+          requestId,
+          completed,
           total: tiles.length,
+          progress: tiles.length === 0 ? 1 : completed / tiles.length,
+          phase: "computing",
         });
-        paintCount += 1;
-        this.paintPartial(Array.from(matrices.values()), [], profile);
-        void this.renderPlaybackPlayhead();
-        profile.record("render.paint.count", performance.now(), 0, {
-          count: paintCount,
-        });
+        if (!partialPaintQueued) {
+          partialPaintQueued = true;
+          await Promise.resolve();
+          partialPaintQueued = false;
+          if (
+            !this.isDestroyed() &&
+            generation === this.renderGeneration &&
+            matrices.size < tiles.length
+          ) {
+            profile?.record("render.paint.partial", performance.now(), 0, {
+              tiles: matrices.size,
+              total: tiles.length,
+            });
+            paintCount += 1;
+            this.paintPartial(
+              Array.from(matrices.values()),
+              this.missingPlaceholders(tiles, matrices),
+              profile,
+            );
+          }
+        }
+      });
+      await Promise.all(jobs);
+      if (this.isDestroyed() || generation !== this.renderGeneration) return;
+      this.prefetchAroundViewport();
+
+      profile?.record("render.paint.final", performance.now(), 0, {
+        tiles: matrices.size,
+        total: tiles.length,
+      });
+      paintCount += 1;
+      this.paintPartial(Array.from(matrices.values()), [], profile);
+      void this.renderPlaybackPlayhead();
+      profile?.record("render.paint.count", performance.now(), 0, {
+        count: paintCount,
+      });
+      if (profile) {
         profile.record(
           "cache.memory",
           performance.now(),
           0,
           this.cache.stats(),
         );
-        this.events.emit("renderprogress", {
-          requestId,
-          completed: tiles.length,
-          total: tiles.length,
-          progress: 1,
-          phase: "rendering",
-        });
-        this.status = { state: "ready" };
-        this.events.emit("rendercomplete", {
-          requestId,
-          renderedTiles: matrices.size,
-          missingTiles: tiles.length - matrices.size,
-        });
-      },
-    );
-
-    if (generation === this.renderGeneration && !this.isDestroyed()) {
-      this.events.emit("renderprofile", {
+      }
+      this.events.emit("renderprogress", {
         requestId,
-        generation,
-        measures: profile.measures(),
+        completed: tiles.length,
+        total: tiles.length,
+        progress: 1,
+        phase: "rendering",
       });
+      this.status = { state: "ready" };
+      const durationMs = performance.now() - startTime;
+      this.events.emit("rendercomplete", {
+        requestId,
+        durationMs,
+        renderedTiles: matrices.size,
+        missingTiles: tiles.length - matrices.size,
+      });
+
+      if (
+        profile &&
+        generation === this.renderGeneration &&
+        !this.isDestroyed()
+      ) {
+        this.events.emit("renderprofile", {
+          requestId,
+          generation,
+          measures: profile.measures(),
+        });
+      }
+    } finally {
+      if (!wasRunning) {
+        this.renderRunning = false;
+      }
     }
   }
 
@@ -475,7 +485,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private paintPartial(
     matrices: SpectrogramMatrix[],
     placeholders: Array<{ timeStart: number; timeEnd: number }>,
-    profile: PerformanceProfiler,
+    profile?: PerformanceProfiler,
   ): void {
     if (this.isDestroyed()) return;
     this.renderer.render({
@@ -491,7 +501,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       colorMap: this.config.colorMap,
       tiles: matrices,
       placeholders,
-      profile,
+      ...(profile ? { profile } : {}),
       ...(this.config.showPlayhead
         ? { playheadTime: this.scope.getCurrentTime() }
         : {}),

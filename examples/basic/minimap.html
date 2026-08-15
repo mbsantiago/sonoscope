@@ -155,7 +155,7 @@
       const tilesElement = document.querySelector(".minimap-tiles");
       const viewportElement = document.querySelector(".minimap-viewport");
       let scope;
-      let viewer;
+      let spectrogram;
       let minimapFrame;
       let tilesDirty = true;
       let lastTileSummary = "tiles: none yet";
@@ -179,23 +179,23 @@
       }
 
       function updateMinimap() {
-        if (!viewer) return;
-        const source = viewer.getSource();
-        const viewport = viewer.getViewport();
+        if (!spectrogram) return;
+        const viewport = spectrogram.getViewport();
+        const duration = scope.getDuration();
         if (tilesDirty) {
-          const tiles = assignTileLanes(viewer.getTileStates());
+          const tiles = assignTileLanes(spectrogram.getTileStates());
           minimap.style.height = `${Math.max(2, tiles.laneCount * 0.85)}rem`;
           tilesElement.replaceChildren(
             ...tiles.items.map((tile) =>
-              tileSegment(tile, source.duration, tiles.laneCount),
+              tileSegment(tile, duration, tiles.laneCount),
             ),
           );
           lastTileSummary = summarizeStates();
           tilesDirty = false;
         }
-        viewportElement.style.left = `${(viewport.startTime / source.duration) * 100}%`;
-        viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / source.duration) * 100}%`;
-        status.textContent = `renderer: ${viewer.getRendererKind()}\nmountains: ${summon.checked ? "summoned" : "sleeping"}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
+        viewportElement.style.left = `${(viewport.startTime / duration) * 100}%`;
+        viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / duration) * 100}%`;
+        status.textContent = `renderer: ${spectrogram.getRendererKind()}\nmountains: ${summon.checked ? "summoned" : "sleeping"}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
       }
 
       function assignTileLanes(tiles) {
@@ -231,7 +231,7 @@
 
       function summarizeStates() {
         const counts = { computed: 0, computing: 0, uncomputed: 0 };
-        for (const tile of viewer.getTileStates()) counts[tile.state] += 1;
+        for (const tile of spectrogram.getTileStates()) counts[tile.state] += 1;
         return `tiles: ${counts.computed} computed, ${counts.computing} computing, ${counts.uncomputed} uncomputed`;
       }
 
@@ -255,7 +255,7 @@
       async function load(url) {
         cleanupNavigation?.();
         cleanupAudioPause?.();
-        viewer?.destroy();
+        spectrogram?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
         audio.src = url;
@@ -267,7 +267,7 @@
             maxDuration: 30,
             followPlayback: "page",
           });
-          viewer = new SpectrogramViewer(scope, canvas, {
+          spectrogram = new SpectrogramViewer(scope, canvas, {
             tileDuration: 1,
             maxCachedTiles: 96,
             prefetchTiles: 8,
@@ -278,27 +278,26 @@
           status.textContent = error instanceof Error ? error.message : String(error);
           return;
         }
-        viewer.on("tileload", () => {
+        spectrogram.on("tileload", () => {
           scheduleTileMapUpdate();
         });
-        viewer.on("renderprogress", scheduleMinimapUpdate);
+        spectrogram.on("renderprogress", scheduleMinimapUpdate);
         audio.addEventListener("pause", scheduleMinimapUpdate);
         cleanupAudioPause = () => audio.removeEventListener("pause", scheduleMinimapUpdate);
-        viewer.on("rendercomplete", scheduleMinimapUpdate);
-        viewer.on("viewportchange", scheduleMinimapUpdate);
-        viewer.on("renderprofile", (event) => {
-          lastPaintSummary = summarizePaints(event.measures);
+        spectrogram.on("rendercomplete", (event) => {
+          lastPaintSummary = `render: ${(event.durationMs ?? 0).toFixed(1)}ms (${event.renderedTiles} tiles)`;
           scheduleMinimapUpdate();
         });
-        viewer.on("playbackprofile", (stats) => {
+        spectrogram.on("viewportchange", scheduleMinimapUpdate);
+        spectrogram.on("playbackprofile", (stats) => {
           lastPlaybackSummary = `playback fps: ${stats.fps.toFixed(1)} avg frame ${stats.averageFrameMs.toFixed(1)}ms max ${stats.maxFrameMs.toFixed(1)}ms avg work ${(stats.averageWorkMs ?? 0).toFixed(1)}ms max work ${(stats.maxWorkMs ?? 0).toFixed(1)}ms`;
           if (audio.paused) scheduleMinimapUpdate();
         });
-        cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
+        cleanupNavigation = attachCanvasNavigation(spectrogram, canvas, {
           onNavigate: scheduleMinimapUpdate,
         });
         updateMinimap();
-        await viewer.render();
+        await spectrogram.render();
         updateMinimap();
       }
 

@@ -1,6 +1,10 @@
 import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { SpectrogramWorkerLike } from "./backends/worker-backend";
-import type { FrameStats, PerformanceMeasure } from "./performance";
+import type {
+  FrameStats,
+  PerformanceMeasure,
+  PerformanceProfiler,
+} from "./performance";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 export type FrequencyScale = "linear" | "log" | "mel";
 export type ValueMode = "magnitude" | "power" | "db";
@@ -237,6 +241,7 @@ export type SpectrogramEvents = {
   };
   rendercomplete: {
     requestId: string;
+    durationMs?: number;
     renderedTiles: number;
     missingTiles: number;
   };
@@ -264,6 +269,30 @@ export type SpectrogramEvents = {
       | "playback";
   };
 };
+
+export interface SpectrogramProfileStats {
+  renderCount: number;
+  lastDurationMs: number;
+  minDurationMs: number;
+  maxDurationMs: number;
+  avgDurationMs: number;
+  fps?: number;
+  cache?: CacheStats;
+}
+
+export interface SpectrogramProfileEvent {
+  requestId: string;
+  durationMs: number;
+  renderedTiles: number;
+  missingTiles: number;
+  timestamp: number;
+  cache?: CacheStats;
+}
+
+export interface SpectrogramProfilerOptions {
+  sampleSize?: number;
+  clock?: () => number;
+}
 
 export type SpectrogramConfig = {
   canvas: HTMLCanvasElement;
@@ -451,7 +480,7 @@ export type SpectrumPoint = {
 
 export interface ISpectrogramViewer {
   // Rendering & Lifecycle
-  render(): Promise<void>;
+  render(options?: { profile?: PerformanceProfiler }): Promise<void>;
   requestRender(): void;
   destroy(): void;
   getStatus(): SpectrogramStatus;

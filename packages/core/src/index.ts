@@ -71,7 +71,11 @@ export type {
   PerformanceDetail,
   PerformanceMeasure,
 } from "./performance";
-export { FrameMeter } from "./performance";
+export {
+  FrameMeter,
+  PerformanceProfiler,
+  SpectrogramProfiler,
+} from "./performance";
 export type {
   RendererKind,
   RenderInput,

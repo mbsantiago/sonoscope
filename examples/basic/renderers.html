@@ -123,9 +123,8 @@
             fftSize: 2048,
             hopSize: 512,
           });
-          viewer.on('renderprofile', (event) => {
-            const rendererPaint = event.measures.find((measure) => measure.name === 'renderer.paint');
-            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nmountains: ${summon.checked ? 'summoned' : 'sleeping'}\nrequest: ${event.requestId}\nrenderer paint: ${(rendererPaint?.duration ?? 0).toFixed(1)} ms`;
+          viewer.on('rendercomplete', (event) => {
+            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nmountains: ${summon.checked ? 'summoned' : 'sleeping'}\nrequest: ${event.requestId}\nrender duration: ${(event.durationMs ?? 0).toFixed(1)} ms\ntiles rendered: ${event.renderedTiles}`;
           });
           await viewer.render();
         } catch (error) {

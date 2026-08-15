@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ComputeTileRequest } from "../backends/backend";
 import { Sonoscope } from "../sonoscope";
 import type { SpectrogramMatrix } from "../types";
 import { SpectrogramViewer } from "../viewer";
@@ -522,7 +523,7 @@ describe("WebGL2 shaders", () => {
       const scope = await Sonoscope.fromUrl("/test.wav", { audio });
       const viewer = new SpectrogramViewer(scope, canvas, {
         backend: {
-          computeTile: async (request) =>
+          computeTile: async (request: ComputeTileRequest) =>
             brightBandTile(request.timeStart, request.timeEnd),
         },
       });

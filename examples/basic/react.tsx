@@ -105,10 +105,8 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     const viewer = handle.getViewer();
     if (!viewer) return;
 
-    const unsubProfile = viewer.on("renderprofile", () => {
-      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
-    });
     const unsubComp = viewer.on("rendercomplete", () => {
+      setCacheSummary(formatCacheStats(viewer.getCacheStats()));
       const liveNyquist = viewer.getNyquist();
       if (liveNyquist > 0) {
         setNyquist(liveNyquist);
@@ -122,7 +120,6 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     });
 
     return () => {
-      unsubProfile();
       unsubComp();
       unsubError();
     };

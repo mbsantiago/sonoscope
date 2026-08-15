@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SpectrogramComputeBackend } from "./backends/backend";
+import type {
+  ComputeTileRequest,
+  SpectrogramComputeBackend,
+} from "./backends/backend";
+import { PerformanceProfiler } from "./performance";
 import { Sonoscope } from "./sonoscope";
 import * as sourceModule from "./sources/source";
 import type {
@@ -644,7 +648,37 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getTileStates().map((tile) => tile.channel)).toEqual([1, 1]);
   });
 
-  it("emits renderprofile measures for a render request", async () => {
+  it("emits renderstart and rendercomplete with durationMs without internal profiler allocations", async () => {
+    const viewer = createViewer({
+      canvas: canvas(),
+      source,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
+    });
+    const completeEvents: Array<{
+      requestId: string;
+      durationMs?: number;
+      renderedTiles: number;
+    }> = [];
+    const profiles: Array<{
+      requestId: string;
+      generation: number;
+      measures: unknown[];
+    }> = [];
+    viewer.on("rendercomplete", (event) => completeEvents.push(event));
+    viewer.on("renderprofile", (event) => profiles.push(event));
+
+    await viewer.render();
+
+    expect(completeEvents).toHaveLength(1);
+    expect(typeof completeEvents[0]?.durationMs).toBe("number");
+    expect(completeEvents[0]?.durationMs).toBeGreaterThanOrEqual(0);
+    expect(profiles).toHaveLength(0);
+  });
+
+  it("emits renderprofile measures when a profiler is explicitly passed", async () => {
     const viewer = createViewer({
       canvas: canvas(),
       source,
@@ -666,11 +700,12 @@ describe("SpectrogramViewer", () => {
       }),
     );
 
-    await viewer.render();
+    const profile = new PerformanceProfiler();
+    await viewer.render({ profile });
 
     expect(profiles).toHaveLength(1);
     expect(profiles[0]?.generation).toBeGreaterThan(0);
-    expect(profiles[0]?.names).toContain("render.total");
+    expect(profiles[0]?.names).toContain("render.visibleTiles");
     expect(profiles[0]?.names).toContain("renderer.paint");
     expect(profiles[0]?.names).toContain("render.paint.count");
   });
@@ -993,7 +1028,7 @@ describe("SpectrogramViewer", () => {
       minFrequency: 0,
       maxFrequency: 512,
       backend: {
-        computeTile: (request) =>
+        computeTile: (request: ComputeTileRequest) =>
           Promise.resolve(matrix(request.timeStart, request.timeEnd)),
       },
     });

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { FrameMeter, PerformanceProfiler } from "./performance";
+import {
+  FrameMeter,
+  PerformanceProfiler,
+  SpectrogramProfiler,
+} from "./performance";
+import type {
+  ISpectrogramViewer,
+  SpectrogramEvents,
+  SpectrogramProfileEvent,
+} from "./types";
 
 describe("PerformanceProfiler", () => {
   it("records measured synchronous work", () => {
@@ -74,5 +83,129 @@ describe("FrameMeter", () => {
       averageFrameMs: 16,
     });
     expect(stats?.fps).toBeCloseTo(62.5);
+  });
+});
+
+describe("SpectrogramProfiler", () => {
+  function createMockViewer() {
+    const listeners = new Map<
+      string,
+      Array<(event: SpectrogramEvents[keyof SpectrogramEvents]) => void>
+    >();
+    return {
+      on: <Name extends keyof SpectrogramEvents>(
+        event: Name,
+        handler: (e: SpectrogramEvents[Name]) => void,
+      ) => {
+        const list = listeners.get(event) ?? [];
+        list.push(
+          handler as (
+            event: SpectrogramEvents[keyof SpectrogramEvents],
+          ) => void,
+        );
+        listeners.set(event, list);
+        return () => {
+          const arr = listeners.get(event) ?? [];
+          listeners.set(
+            event,
+            arr.filter((h) => h !== handler),
+          );
+        };
+      },
+      emit<Name extends keyof SpectrogramEvents>(
+        event: Name,
+        payload: SpectrogramEvents[Name],
+      ) {
+        for (const handler of listeners.get(event) ?? []) {
+          handler(payload);
+        }
+      },
+      getCacheStats: () => ({
+        tiles: 4,
+        maxTiles: 32,
+        bytes: 1024 * 1024,
+        peakBytes: 2 * 1024 * 1024,
+        peakTiles: 4,
+      }),
+    };
+  }
+
+  it("attaches to viewer and computes render statistics", () => {
+    let clock = 1000;
+    const viewer = createMockViewer();
+    const profiler = new SpectrogramProfiler(
+      viewer as unknown as ISpectrogramViewer,
+      {
+        clock: () => clock,
+      },
+    );
+
+    const profiles: SpectrogramProfileEvent[] = [];
+    profiler.on("profile", (event) => profiles.push(event));
+
+    // Simulate render start
+    viewer.emit("renderstart", { requestId: "r1", total: 4 });
+    clock += 25; // 25ms render
+    viewer.emit("rendercomplete", {
+      requestId: "r1",
+      durationMs: 25,
+      renderedTiles: 4,
+      missingTiles: 0,
+    });
+
+    expect(profiles.length).toBe(1);
+    expect(profiles[0]?.durationMs).toBe(25);
+    expect(profiles[0]?.renderedTiles).toBe(4);
+
+    const stats = profiler.getStats();
+    expect(stats.renderCount).toBe(1);
+    expect(stats.lastDurationMs).toBe(25);
+    expect(stats.avgDurationMs).toBe(25);
+    expect(stats.minDurationMs).toBe(25);
+    expect(stats.maxDurationMs).toBe(25);
+    expect(stats.cache?.tiles).toBe(4);
+  });
+
+  it("computes duration when durationMs is not provided in rendercomplete", () => {
+    let clock = 2000;
+    const viewer = createMockViewer();
+    const profiler = new SpectrogramProfiler(
+      viewer as unknown as ISpectrogramViewer,
+      {
+        clock: () => clock,
+      },
+    );
+
+    viewer.emit("renderstart", { requestId: "r2", total: 2 });
+    clock += 15;
+    viewer.emit("rendercomplete", {
+      requestId: "r2",
+      renderedTiles: 2,
+      missingTiles: 0,
+    });
+
+    const stats = profiler.getStats();
+    expect(stats.renderCount).toBe(1);
+    expect(stats.lastDurationMs).toBe(15);
+    expect(stats.avgDurationMs).toBe(15);
+  });
+
+  it("unbinds listeners cleanly on destroy()", () => {
+    const viewer = createMockViewer();
+    const profiler = new SpectrogramProfiler(
+      viewer as unknown as ISpectrogramViewer,
+    );
+
+    profiler.destroy();
+    expect(profiler.isDestroyed()).toBe(true);
+
+    viewer.emit("renderstart", { requestId: "r3", total: 2 });
+    viewer.emit("rendercomplete", {
+      requestId: "r3",
+      durationMs: 10,
+      renderedTiles: 2,
+      missingTiles: 0,
+    });
+    expect(profiler.getStats().renderCount).toBe(0);
   });
 });
