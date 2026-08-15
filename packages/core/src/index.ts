@@ -1,53 +1,6 @@
 export const version = "0.0.0";
-export type {
-  ComputeTileRequest,
-  SpectrogramComputeBackend,
-} from "./backends/backend";
-export { MainThreadComputeBackend } from "./backends/backend";
-export type { BackendFactoryOptions } from "./backends/backend-factory";
-export {
-  createSpectrogramBackend,
-  isSpectrogramComputeBackend,
-  isWasmSupported,
-  isWorkerSupported,
-} from "./backends/backend-factory";
-export { computeStftMatrix, createWindow } from "./backends/stft";
-export {
-  createDefaultWasmWorker,
-  WasmComputeBackend,
-  WasmWorkerComputeBackend,
-} from "./backends/wasm-backend";
-export type { WasmStftEngine, WasmStftExports } from "./backends/wasm-stft";
-export {
-  computeWasmStftMatrix,
-  createWasmStftEngine,
-  getWasmStftEngine,
-} from "./backends/wasm-stft";
-export {
-  getWasmStftBinary,
-  WASM_STFT_BASE64,
-} from "./backends/wasm-stft-binary";
-export type {
-  SpectrogramWorkerLike,
-  WorkerComputeBackendOptions,
-} from "./backends/worker-backend";
-export {
-  createDefaultWorker,
-  WorkerComputeBackend,
-} from "./backends/worker-backend";
-export type { TileKeyParts } from "./cache";
-export { createTileKey, SpectrogramCache } from "./cache";
 export { buildColorMap, colorMapToRgb, parseColor } from "./colormap";
-export { resolveConfig, stableHash } from "./config";
 export { TypedEventEmitter } from "./events";
-export {
-  canvasToTimeFrequency,
-  hzToMel,
-  hzToScale,
-  melToHz,
-  scaleToHz,
-  timeFrequencyToCanvas,
-} from "./frequency-scale";
 export type {
   CanvasDragNavigationOptions,
   CanvasNavigationOptions,
@@ -76,28 +29,6 @@ export {
   PerformanceProfiler,
   SpectrogramProfiler,
 } from "./performance";
-export type {
-  RendererKind,
-  RenderInput,
-  SpectrogramRenderer,
-} from "./renderers/canvas";
-export {
-  CanvasSpectrogramRenderer,
-  pickNearestBin,
-  pickNearestFrame,
-} from "./renderers/canvas";
-export { createSpectrogramRenderer } from "./renderers/renderer-factory";
-export { WebGL2SpectrogramRenderer } from "./renderers/webgl2";
-export { DitherSpectrogramProgram } from "./renderers/webgl2-dither-program";
-export { NormalSpectrogramProgram } from "./renderers/webgl2-normal-program";
-export type {
-  WebGL2Frame,
-  WebGL2RenderProgram,
-  WebGL2RenderResources,
-} from "./renderers/webgl2-program";
-export { WebGL2ShaderProgram } from "./renderers/webgl2-program";
-export { SobelSpectrogramProgram } from "./renderers/webgl2-sobel-program";
-export { TerrainSpectrogramProgram } from "./renderers/webgl2-terrain-program";
 export { isSonoscope, Sonoscope } from "./sonoscope";
 export type {
   ByteStreamSource,
@@ -137,16 +68,150 @@ export {
   createWebCodecsMp3Decoder,
   isWebCodecsMp3Supported,
 } from "./sources/webcodecs-mp3-decoder";
-export { applyTransforms, getTransformPadding } from "./transforms";
 export type * from "./types";
+export type {
+  ComputeTileRequest,
+  SpectrogramComputeBackend,
+} from "./viewers/spectrogram/backends/backend";
+export { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
+export type { BackendFactoryOptions } from "./viewers/spectrogram/backends/backend-factory";
+export {
+  createSpectrogramBackend,
+  isSpectrogramComputeBackend,
+  isWasmSupported,
+  isWorkerSupported,
+} from "./viewers/spectrogram/backends/backend-factory";
+export {
+  computeStftMatrix,
+  createWindow,
+} from "./viewers/spectrogram/backends/stft";
+export {
+  createDefaultWasmWorker,
+  WasmComputeBackend,
+  WasmWorkerComputeBackend,
+} from "./viewers/spectrogram/backends/wasm-backend";
+export type {
+  WasmStftEngine,
+  WasmStftExports,
+} from "./viewers/spectrogram/backends/wasm-stft";
+export {
+  computeWasmStftMatrix,
+  createWasmStftEngine,
+  getWasmStftEngine,
+} from "./viewers/spectrogram/backends/wasm-stft";
+export {
+  getWasmStftBinary,
+  WASM_STFT_BASE64,
+} from "./viewers/spectrogram/backends/wasm-stft-binary";
+export type {
+  SpectrogramWorkerLike,
+  WorkerComputeBackendOptions,
+} from "./viewers/spectrogram/backends/worker-backend";
+export {
+  createDefaultWorker,
+  WorkerComputeBackend,
+} from "./viewers/spectrogram/backends/worker-backend";
+export type { TileKeyParts } from "./viewers/spectrogram/cache";
+export {
+  createTileKey,
+  SpectrogramCache,
+} from "./viewers/spectrogram/cache";
+export {
+  clampViewportTimes,
+  resolveConfig,
+  stableHash,
+} from "./viewers/spectrogram/config";
+export {
+  canvasToTimeFrequency,
+  hzToMel,
+  hzToScale,
+  melToHz,
+  scaleToHz,
+  timeFrequencyToCanvas,
+} from "./viewers/spectrogram/frequency-scale";
+export type {
+  RendererKind,
+  RenderInput,
+  SpectrogramRenderer,
+} from "./viewers/spectrogram/renderers/canvas";
+export {
+  CanvasSpectrogramRenderer,
+  pickNearestBin,
+  pickNearestFrame,
+} from "./viewers/spectrogram/renderers/canvas";
+export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
+export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";
+export { DitherSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-dither-program";
+export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
+export type {
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "./viewers/spectrogram/renderers/webgl2-program";
+export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
+export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-sobel-program";
+export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
+export {
+  applyTransforms,
+  getTransformPadding,
+} from "./viewers/spectrogram/transforms";
+export type {
+  BackendMode,
+  CacheStats,
+  ISpectrogramViewer,
+  MainThreadBackendConfig,
+  RendererMode,
+  ResolvedSpectrogramConfig,
+  SpectrogramConfig,
+  SpectrogramEvents,
+  SpectrogramMatrix,
+  SpectrogramOptions,
+  SpectrogramProfileEvent,
+  SpectrogramProfilerOptions,
+  SpectrogramProfileStats,
+  SpectrogramStatus,
+  SpectrogramTransform,
+  SpectrumPoint,
+  SpectrumSlice,
+  StftConfig,
+  TileState,
+  TileStateInfo,
+  TransformContext,
+  ValueMode,
+  ValueScaleConfig,
+  WasmBackendConfig,
+  WebGLRendererConfig,
+  WebGLRendererProgram,
+  WindowName,
+  WorkerBackendConfig,
+} from "./viewers/spectrogram/types";
 export {
   dbFromMagnitude,
   deriveDb,
   derivePower,
   deriveValueArrays,
   normalizeValue,
-} from "./value-scale";
-export { SpectrogramViewer } from "./viewer";
+} from "./viewers/spectrogram/value-scale";
+export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+export {
+  computePeaks,
+  WaveformPeakPyramid,
+} from "./viewers/waveform/peaks";
+export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
+export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
+export type {
+  IWaveformViewer,
+  PeakBlock,
+  ResolvedWaveformConfig,
+  WaveformConfig,
+  WaveformEvents,
+  WaveformOptions,
+  WaveformRenderer,
+  WaveformRenderInput,
+  WaveformStatus,
+  WaveformViewport,
+} from "./viewers/waveform/types";
+export { WaveformViewer } from "./viewers/waveform/viewer";
 export type {
   CustomViewportStore,
   FollowPlaybackMode,
@@ -161,19 +226,3 @@ export {
   linkViewports,
   ViewportController,
 } from "./viewport-controller";
-export { computePeaks, WaveformPeakPyramid } from "./waveform/peaks";
-export { CanvasWaveformRenderer } from "./waveform/renderers/canvas";
-export { WebGL2WaveformRenderer } from "./waveform/renderers/webgl2";
-export type {
-  IWaveformViewer,
-  PeakBlock,
-  ResolvedWaveformConfig,
-  WaveformConfig,
-  WaveformEvents,
-  WaveformOptions,
-  WaveformRenderer,
-  WaveformRenderInput,
-  WaveformStatus,
-  WaveformViewport,
-} from "./waveform/types";
-export { WaveformViewer } from "./waveform/viewer";

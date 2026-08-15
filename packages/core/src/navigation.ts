@@ -1,6 +1,6 @@
 import type { ViewportConfig } from "./types";
-import type { SpectrogramViewer } from "./viewer";
-import type { WaveformViewer } from "./waveform/viewer";
+import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+import type { WaveformViewer } from "./viewers/waveform/viewer";
 
 export interface NavigableViewer {
   setViewport(viewport: Partial<ViewportConfig>): void;

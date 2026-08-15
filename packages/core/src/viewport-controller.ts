@@ -1,5 +1,5 @@
-import { clampViewportTimes } from "./config";
 import { TypedEventEmitter } from "./events";
+import { clampViewportTimes } from "./viewers/spectrogram/config";
 
 export type FollowPlaybackMode = "page" | "smooth" | "off";
 

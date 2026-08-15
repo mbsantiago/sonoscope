@@ -12,7 +12,7 @@ const wasmOut = resolve(
 );
 const targetTs = resolve(
   rootDir,
-  "packages/core/src/backends/wasm-stft-binary.ts",
+  "packages/core/src/viewers/spectrogram/backends/wasm-stft-binary.ts",
 );
 
 console.log("[build-wasm] Building Rust crate to wasm32-unknown-unknown...");

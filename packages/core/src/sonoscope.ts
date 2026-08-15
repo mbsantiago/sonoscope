@@ -6,9 +6,9 @@ import type {
   ISonoscope,
   SonoscopeEvents,
   SonoscopeOptions,
-  SpectrogramOptions,
   ViewportState,
 } from "./types";
+import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 
 export type {
   FollowPlaybackMode,
@@ -18,10 +18,10 @@ export type {
   ViewportState,
 } from "./types";
 
-import { SpectrogramViewer } from "./viewer";
+import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+import type { WaveformOptions } from "./viewers/waveform/types";
+import { WaveformViewer } from "./viewers/waveform/viewer";
 import { ViewportController } from "./viewport-controller";
-import type { WaveformOptions } from "./waveform/types";
-import { WaveformViewer } from "./waveform/viewer";
 
 export function isSonoscope(value: unknown): value is ISonoscope {
   return (

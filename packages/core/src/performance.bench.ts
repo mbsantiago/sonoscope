@@ -1,11 +1,15 @@
 import { bench, describe } from "vitest";
-import { MainThreadComputeBackend } from "./backends/backend";
-import { computeStftMatrix } from "./backends/stft";
-import { WasmComputeBackend } from "./backends/wasm-backend";
-import { computeWasmStftMatrix } from "./backends/wasm-stft";
-import { CanvasSpectrogramRenderer } from "./renderers/canvas";
 import { decodeWavPcm, type WavInfo } from "./sources/wav";
-import type { AudioSource, SpectrogramMatrix, StftConfig } from "./types";
+import type { AudioSource } from "./types";
+import { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
+import { computeStftMatrix } from "./viewers/spectrogram/backends/stft";
+import { WasmComputeBackend } from "./viewers/spectrogram/backends/wasm-backend";
+import { computeWasmStftMatrix } from "./viewers/spectrogram/backends/wasm-stft";
+import { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
+import type {
+  SpectrogramMatrix,
+  StftConfig,
+} from "./viewers/spectrogram/types";
 
 const sampleRate = 48_000;
 const durationSeconds = 2;

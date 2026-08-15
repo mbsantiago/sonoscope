@@ -5,7 +5,7 @@
       "packages/*/src/**",
       "scripts/**",
       "examples/**",
-      "!packages/core/src/backends/wasm-stft-binary.ts",
+      "!packages/core/src/viewers/spectrogram/backends/wasm-stft-binary.ts",
       "!**/dist"
     ]
   },

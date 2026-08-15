@@ -4,7 +4,7 @@ import type {
   SpectrogramProfileEvent,
   SpectrogramProfilerOptions,
   SpectrogramProfileStats,
-} from "./types";
+} from "./viewers/spectrogram/types";
 
 export type PerformanceDetail = Record<string, string | number | boolean>;
 

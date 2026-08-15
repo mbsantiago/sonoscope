@@ -9,7 +9,7 @@ import {
   zoomViewportTime,
 } from "./navigation";
 import type { ViewportConfig } from "./types";
-import type { SpectrogramViewer } from "./viewer";
+import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 
 const viewport: ViewportConfig = {
   startTime: 4,

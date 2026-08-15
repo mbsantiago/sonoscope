@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attachCanvasNavigation } from "./navigation";
 import { Sonoscope } from "./sonoscope";
 import type { AudioSource } from "./types";
-import { SpectrogramViewer } from "./viewer";
-import { WaveformViewer } from "./waveform/viewer";
+import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+import { WaveformViewer } from "./viewers/waveform/viewer";
 
 type MockAudio = HTMLAudioElement & {
   paused: boolean;

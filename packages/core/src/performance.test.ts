@@ -8,7 +8,7 @@ import type {
   ISpectrogramViewer,
   SpectrogramEvents,
   SpectrogramProfileEvent,
-} from "./types";
+} from "./viewers/spectrogram/types";
 
 describe("PerformanceProfiler", () => {
   it("records measured synchronous work", () => {

@@ -485,7 +485,7 @@
         try {
           resizeCanvas(sliceCanvas);
           scope = await Sonoscope.fromUrl(url, { audio });
-          viewer = new SpectrogramViewer(scope, specCanvas, {
+          viewer = scope.createSpectrogram(specCanvas, {
             colorMap: 'magma',
             frequencyScale: scaleSelect.value,
             valueMode: modeSelect.value,
