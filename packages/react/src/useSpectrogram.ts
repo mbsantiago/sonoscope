@@ -1,7 +1,7 @@
 import {
   attachCanvasNavigation,
   type CanvasNavigationOptions,
-  type Sonoscope,
+  Sonoscope,
   type SpectrogramConfig,
   type SpectrogramStatus,
   SpectrogramViewer,
@@ -90,47 +90,54 @@ export function useSpectrogram(
 
     let isCancelled = false;
     let cleanupNav: (() => void) | undefined;
+    let ownedScope: Sonoscope | undefined;
     const unsubs: Array<() => void> = [];
 
     setStatus({ state: "loading" });
 
     const initViewer = async () => {
       try {
-        let viewer: SpectrogramViewer;
-        const audioProp = resolvedAudio ? { audio: resolvedAudio } : {};
+        let effectiveScope: Sonoscope | null = scope ?? null;
 
-        if (scope) {
-          viewer = new SpectrogramViewer(scope, canvas, {
-            ...memoizedConfig,
-            ...audioProp,
-          });
-        } else if (url) {
-          viewer = await SpectrogramViewer.fromUrl({
-            ...memoizedConfig,
-            ...audioProp,
-            canvas,
-            url,
-          });
-        } else if (source) {
-          viewer = await SpectrogramViewer.fromSource({
-            ...memoizedConfig,
-            ...audioProp,
-            canvas,
-            source,
-          });
-        } else {
+        if (!effectiveScope) {
+          if (url) {
+            effectiveScope = await Sonoscope.fromUrl(url, {
+              audio: resolvedAudio,
+            });
+            ownedScope = effectiveScope;
+          } else if (source) {
+            effectiveScope = Sonoscope.fromSource(source, {
+              audio: resolvedAudio,
+            });
+            ownedScope = effectiveScope;
+          }
+        }
+
+        if (!effectiveScope) {
           setStatus({ state: "idle" });
           return;
         }
 
         if (isCancelled) {
+          ownedScope?.destroy();
+          return;
+        }
+
+        const viewer = new SpectrogramViewer(
+          effectiveScope,
+          canvas,
+          memoizedConfig,
+        );
+
+        if (isCancelled) {
           viewer.destroy();
+          ownedScope?.destroy();
           return;
         }
 
         viewerRef.current = viewer;
-        const dur = viewer.getDuration();
-        const sr = viewer.getSampleRate();
+        const dur = effectiveScope.getDuration();
+        const sr = effectiveScope.getSampleRate();
         const nq = viewer.getNyquist();
         const vp = viewer.getViewport();
 
@@ -188,6 +195,7 @@ export function useSpectrogram(
       for (const unsub of unsubs) unsub();
       viewerRef.current?.destroy();
       viewerRef.current = null;
+      ownedScope?.destroy();
     };
   }, [scope, url, source, audio, navSerialized]);
 

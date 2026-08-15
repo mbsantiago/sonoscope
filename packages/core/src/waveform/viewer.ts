@@ -1,8 +1,6 @@
 import { colorMapToRgb } from "../colormap";
 import { clampViewportTimes } from "../config";
 import { TypedEventEmitter } from "../events";
-import { isSonoscope, Sonoscope } from "../sonoscope";
-import { createAudioSourceFromUrl } from "../sources/source";
 import type { AudioSource, ISonoscope } from "../types";
 import { WaveformPeakPyramid } from "./peaks";
 import { CanvasWaveformRenderer } from "./renderers/canvas";
@@ -10,16 +8,18 @@ import { WebGL2WaveformRenderer } from "./renderers/webgl2";
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
-  WaveformConfig,
   WaveformEvents,
+  WaveformOptions,
   WaveformRenderer,
   WaveformStatus,
-  WaveformViewerOptions,
   WaveformViewport,
 } from "./types";
 
 function resolveWaveformConfig(
-  input: WaveformConfig & { source: AudioSource },
+  input: Partial<WaveformOptions> & {
+    canvas: HTMLCanvasElement;
+    source: AudioSource;
+  },
 ): ResolvedWaveformConfig {
   if (!input.canvas) throw new Error("WaveformViewer requires a canvas");
   if (!input.source) throw new Error("WaveformViewer requires a source");
@@ -77,109 +77,23 @@ export class WaveformViewer implements IWaveformViewer {
   private status: WaveformStatus = { state: "idle" };
   private isSelfUpdating = false;
   private scope: ISonoscope;
-  private ownsScope = false;
   private config: ResolvedWaveformConfig;
-  private readonly sourceMap = new Map<string, AudioSource>();
 
   constructor(
     scope: ISonoscope,
     canvas: HTMLCanvasElement,
-    options?: Omit<WaveformConfig, "source" | "canvas">,
-  );
-  constructor(
-    scope: ISonoscope,
-    options: Omit<WaveformConfig, "source"> & {
-      canvas: HTMLCanvasElement;
-    },
-  );
-  constructor(options: WaveformViewerOptions);
-  constructor(config: ResolvedWaveformConfig, renderer?: WaveformRenderer);
-  constructor(
-    arg0: ISonoscope | WaveformViewerOptions | ResolvedWaveformConfig,
-    arg1?:
-      | HTMLCanvasElement
-      | (Omit<WaveformConfig, "source"> & {
-          canvas: HTMLCanvasElement;
-        })
-      | WaveformRenderer,
-    arg2?: Omit<WaveformConfig, "source" | "canvas"> | HTMLAudioElement,
+    options?: Partial<WaveformOptions>,
   ) {
-    let scope: ISonoscope;
-    let ownsScope = false;
-    let canvas: HTMLCanvasElement;
-    let userOptions: Partial<WaveformConfig> = {};
-    let customRenderer: WaveformRenderer | undefined;
-
-    if (isSonoscope(arg0)) {
-      scope = arg0;
-      ownsScope = false;
-      if (isCanvasElement(arg1)) {
-        canvas = arg1;
-        userOptions = (arg2 as Partial<WaveformConfig>) ?? {};
-      } else if (
-        typeof arg1 === "object" &&
-        arg1 !== null &&
-        "canvas" in arg1
-      ) {
-        const opts = arg1 as Omit<WaveformConfig, "source"> & {
-          canvas: HTMLCanvasElement;
-        };
-        canvas = opts.canvas;
-        userOptions = opts;
-      } else {
-        throw new Error("WaveformViewer requires a canvas");
-      }
-    } else if (typeof arg0 === "object" && arg0 !== null) {
-      if (isWaveformRenderer(arg1)) {
-        customRenderer = arg1;
-      }
-
-      const optionsWithScope = arg0 as WaveformConfig & {
-        scope?: ISonoscope;
-        audio?: HTMLAudioElement;
-      };
-      if (optionsWithScope.scope && isSonoscope(optionsWithScope.scope)) {
-        scope = optionsWithScope.scope;
-        ownsScope = false;
-        canvas = optionsWithScope.canvas;
-        userOptions = optionsWithScope;
-      } else {
-        if (!optionsWithScope.source) {
-          throw new Error("WaveformViewer requires a source or scope");
-        }
-        ownsScope = true;
-        scope = new Sonoscope({
-          source: optionsWithScope.source,
-          audio: optionsWithScope.audio,
-          startTime: optionsWithScope.startTime,
-          endTime: optionsWithScope.endTime,
-          minDuration: optionsWithScope.minViewportDuration,
-          maxDuration: optionsWithScope.maxViewportDuration,
-        });
-        canvas = optionsWithScope.canvas;
-        userOptions = optionsWithScope;
-      }
-    } else {
-      throw new Error("Invalid arguments to WaveformViewer constructor");
+    if (!scope) {
+      throw new Error("WaveformViewer requires an ISonoscope instance");
     }
-
-    if (
-      userOptions.startTime !== undefined ||
-      userOptions.endTime !== undefined
-    ) {
-      scope.setViewport({
-        ...(userOptions.startTime !== undefined
-          ? { startTime: userOptions.startTime }
-          : {}),
-        ...(userOptions.endTime !== undefined
-          ? { endTime: userOptions.endTime }
-          : {}),
-      });
+    if (!canvas) {
+      throw new Error("WaveformViewer requires a canvas");
     }
 
     const scopeVp = scope.getViewport();
     const resolvedConfig = resolveWaveformConfig({
-      ...userOptions,
+      ...options,
       canvas,
       source: scope.source,
       startTime: scopeVp.startTime,
@@ -187,9 +101,7 @@ export class WaveformViewer implements IWaveformViewer {
     });
 
     let renderer: WaveformRenderer;
-    if (customRenderer) {
-      renderer = customRenderer;
-    } else if (typeof resolvedConfig.renderer === "object") {
+    if (typeof resolvedConfig.renderer === "object") {
       renderer = resolvedConfig.renderer;
     } else if (resolvedConfig.renderer === "webgl2") {
       renderer = new WebGL2WaveformRenderer();
@@ -198,7 +110,6 @@ export class WaveformViewer implements IWaveformViewer {
     }
 
     this.scope = scope;
-    this.ownsScope = ownsScope;
     this.config = resolvedConfig;
     this.renderer = renderer;
     this.pyramid = new WaveformPeakPyramid(
@@ -206,75 +117,6 @@ export class WaveformViewer implements IWaveformViewer {
       resolvedConfig.channel,
     );
     this.bindScope();
-  }
-
-  static async create(input: WaveformViewerOptions): Promise<WaveformViewer> {
-    if (input.scope) {
-      return new WaveformViewer(input.scope, input.canvas, input);
-    }
-    let source = input.source;
-    if (!source && input.audio) {
-      const url = input.audio.currentSrc || input.audio.src;
-      if (!url) {
-        throw new Error(
-          "WaveformViewer requires audio.currentSrc or audio.src when source is omitted",
-        );
-      }
-      source = await createAudioSourceFromUrl(url);
-    }
-    if (!source) {
-      throw new Error("WaveformViewer requires a source");
-    }
-    return new WaveformViewer({
-      ...input,
-      source,
-    });
-  }
-
-  static async fromUrl(
-    input: Omit<WaveformConfig, "source"> & {
-      url: string;
-      audio?: HTMLAudioElement;
-    },
-  ): Promise<WaveformViewer> {
-    if (input.audio) input.audio.src = input.url;
-    const source = await createAudioSourceFromUrl(input.url);
-    const viewer = await WaveformViewer.create({
-      startTime: 0,
-      endTime: Math.min(10, source.duration),
-      ...input,
-      source,
-    });
-    viewer.sourceMap.set(input.url, source);
-    return viewer;
-  }
-
-  static async fromAudio(
-    input: Omit<WaveformConfig, "source"> & { audio: HTMLAudioElement },
-  ): Promise<WaveformViewer> {
-    const url = input.audio.currentSrc || input.audio.src;
-    if (!url) {
-      throw new Error(
-        "WaveformViewer.fromAudio requires audio.currentSrc or audio.src to be set",
-      );
-    }
-    const source = await createAudioSourceFromUrl(url);
-    return WaveformViewer.create({
-      startTime: 0,
-      endTime: Math.min(10, source.duration),
-      ...input,
-      source,
-    });
-  }
-
-  static async fromSource(
-    input: Omit<WaveformConfig, "audio"> & { source: AudioSource },
-  ): Promise<WaveformViewer> {
-    return WaveformViewer.create({
-      startTime: 0,
-      endTime: Math.min(10, input.source.duration),
-      ...input,
-    });
   }
 
   getScope(): ISonoscope {
@@ -318,69 +160,11 @@ export class WaveformViewer implements IWaveformViewer {
     this.requestRender();
   }
 
-  getTimeBounds(): {
-    startTime: number;
-    endTime: number;
-    minDurationSeconds: number;
-    maxDurationSeconds: number;
-  } {
-    return {
-      startTime: 0,
-      endTime: this.getDuration(),
-      minDurationSeconds: this.config.minViewportDuration,
-      maxDurationSeconds: this.config.maxViewportDuration,
-    };
-  }
-
-  zoomTime(
-    factor: number,
-    centerTime = (this.config.startTime + this.config.endTime) / 2,
-  ): void {
-    const currentViewport = this.getViewport();
-    const duration = currentViewport.endTime - currentViewport.startTime;
-    const minDur = this.config.minViewportDuration;
-    const maxDur = Math.min(
-      this.config.maxViewportDuration,
-      this.getDuration(),
-    );
-    const targetDuration = Math.max(
-      minDur,
-      Math.min(maxDur, duration * factor),
-    );
-
-    if (Math.abs(targetDuration - duration) < 1e-9) return;
-
-    const ratio = (centerTime - currentViewport.startTime) / (duration || 1);
-    const startTime = Math.max(
-      0,
-      Math.min(
-        this.getDuration() - targetDuration,
-        centerTime - targetDuration * ratio,
-      ),
-    );
-    const next: WaveformViewport = {
-      startTime,
-      endTime: startTime + targetDuration,
-    };
-
-    this.updateViewport(next);
-  }
-
-  bindViewport(controller: {
-    bind: (viewer: unknown) => () => void;
-  }): () => void {
-    return controller.bind(this);
-  }
-
   getConfig(): ResolvedWaveformConfig {
     return this.config;
   }
 
-  setConfig(input: Partial<WaveformConfig>): void {
-    const source = input.source ?? this.config.source;
-    if (input.source && input.source !== this.scope.source) {
-      this.scope.setSource(input.source);
-    }
+  setConfig(input: Partial<WaveformOptions>): void {
     const cleanInput = Object.fromEntries(
       Object.entries(input).filter(([_, v]) => v !== undefined),
     );
@@ -396,19 +180,15 @@ export class WaveformViewer implements IWaveformViewer {
     }
 
     const previousChannel = this.config.channel;
-    const previousSource = this.config.source;
 
     this.config = resolveWaveformConfig({
       ...baseConfig,
       ...cleanInput,
-      canvas: input.canvas ?? this.config.canvas,
-      source,
+      canvas: this.config.canvas,
+      source: this.scope.source,
     });
 
-    if (
-      this.config.source !== previousSource ||
-      this.config.channel !== previousChannel
-    ) {
+    if (this.config.channel !== previousChannel) {
       this.pyramid.clear();
       this.pyramid = new WaveformPeakPyramid(
         this.config.source,
@@ -430,77 +210,9 @@ export class WaveformViewer implements IWaveformViewer {
     this.events.emit("configchange", { config: this.config });
   }
 
-  updateConfig(input: Partial<WaveformConfig>): void {
+  updateConfig(input: Partial<WaveformOptions>): void {
     this.setConfig(input);
     this.requestRender();
-  }
-
-  setSource(source: AudioSource, options?: Partial<WaveformViewport>): void {
-    const defaultStart = 0;
-    const defaultEnd = Math.min(10, source.duration);
-    const start = options?.startTime ?? defaultStart;
-    const end = options?.endTime ?? defaultEnd;
-    if (this.scope.source !== source) {
-      this.scope.setSource(source);
-    }
-    this.scope.setViewport({ startTime: start, endTime: end }, "viewer");
-    this.setConfig({
-      source,
-      startTime: start,
-      endTime: end,
-      ...options,
-    });
-  }
-
-  updateSource(source: AudioSource, options?: Partial<WaveformViewport>): void {
-    this.setSource(source, options);
-    this.requestRender();
-  }
-
-  async setSourceUrl(
-    url: string,
-    options?: Partial<WaveformViewport>,
-  ): Promise<void> {
-    const audio = this.scope.getAudio?.();
-    if (audio) audio.src = url;
-    let source = this.sourceMap.get(url);
-    if (!source) {
-      source = await createAudioSourceFromUrl(url);
-      this.sourceMap.set(url, source);
-    }
-    this.setSource(source, options);
-  }
-
-  async updateSourceUrl(
-    url: string,
-    options?: Partial<WaveformViewport>,
-  ): Promise<void> {
-    await this.setSourceUrl(url, options);
-    this.requestRender();
-  }
-
-  getDuration(): number {
-    return this.scope.getDuration();
-  }
-
-  getSampleRate(): number {
-    return this.scope.getSampleRate();
-  }
-
-  getSource(): AudioSource {
-    return this.scope.source;
-  }
-
-  getAudio(): HTMLAudioElement | undefined {
-    return this.scope.getAudio?.();
-  }
-
-  attachAudio(audio: HTMLAudioElement): void {
-    this.scope.attachAudio?.(audio);
-  }
-
-  detachAudio(): void {
-    this.scope.detachAudio?.();
   }
 
   getStatus(): WaveformStatus {
@@ -605,11 +317,7 @@ export class WaveformViewer implements IWaveformViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
-    if (this.ownsScope) {
-      this.scope.destroy();
-    }
     this.pyramid.clear();
-    this.sourceMap.clear();
     this.renderer.destroy?.();
   }
 
@@ -636,7 +344,14 @@ export class WaveformViewer implements IWaveformViewer {
 
     const unlistenSource = this.scope.on("sourcechange", (e) => {
       if (this.config.source !== e.source) {
-        this.setSource(e.source);
+        this.config.source = e.source;
+        this.pyramid.clear();
+        this.pyramid = new WaveformPeakPyramid(
+          this.config.source,
+          this.config.channel,
+        );
+        this.events.emit("configchange", { config: this.config });
+        this.requestRender();
       }
     });
 
@@ -646,20 +361,4 @@ export class WaveformViewer implements IWaveformViewer {
 
     this.scopeCleanup.push(unlistenViewport, unlistenSource, unlistenTime);
   }
-}
-
-function isCanvasElement(val: unknown): val is HTMLCanvasElement {
-  return (
-    typeof val === "object" &&
-    val !== null &&
-    ("getContext" in val || ("width" in val && "height" in val))
-  );
-}
-
-function isWaveformRenderer(val: unknown): val is WaveformRenderer {
-  return (
-    typeof val === "object" &&
-    val !== null &&
-    ("kind" in val || typeof (val as WaveformRenderer).render === "function")
-  );
 }

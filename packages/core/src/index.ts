@@ -166,10 +166,10 @@ export type {
   ResolvedWaveformConfig,
   WaveformConfig,
   WaveformEvents,
+  WaveformOptions,
   WaveformRenderer,
   WaveformRenderInput,
   WaveformStatus,
-  WaveformViewerOptions,
   WaveformViewport,
 } from "./waveform/types";
 export { WaveformViewer } from "./waveform/viewer";

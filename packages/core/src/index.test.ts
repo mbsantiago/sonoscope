@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   createWebCodecsMp3Decoder,
   isMp3Bytes,
+  isSonoscope,
   isWebCodecsMp3Supported,
   parseMp3FrameHeader,
   parseMp3Info,
+  Sonoscope,
   SpectrogramViewer,
   StreamingMp3Source,
   version,
+  WaveformViewer,
 } from "./index";
 
 describe("public entrypoint", () => {
@@ -24,10 +27,13 @@ describe("public entrypoint", () => {
     expect(typeof createWebCodecsMp3Decoder).toBe("function");
   });
 
-  it("exports SpectrogramViewer with fromUrl, fromAudio, fromSource, and create", () => {
-    expect(typeof SpectrogramViewer.create).toBe("function");
-    expect(typeof SpectrogramViewer.fromUrl).toBe("function");
-    expect(typeof SpectrogramViewer.fromAudio).toBe("function");
-    expect(typeof SpectrogramViewer.fromSource).toBe("function");
+  it("exports Sonoscope and viewers", () => {
+    expect(typeof Sonoscope).toBe("function");
+    expect(typeof Sonoscope.fromUrl).toBe("function");
+    expect(typeof Sonoscope.fromAudio).toBe("function");
+    expect(typeof Sonoscope.fromSource).toBe("function");
+    expect(typeof isSonoscope).toBe("function");
+    expect(typeof SpectrogramViewer).toBe("function");
+    expect(typeof WaveformViewer).toBe("function");
   });
 });

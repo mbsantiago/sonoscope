@@ -2,7 +2,7 @@ import {
   type AudioSource,
   attachCanvasNavigation,
   type CanvasNavigationOptions,
-  type Sonoscope,
+  Sonoscope,
   type WaveformConfig,
   type WaveformStatus,
   WaveformViewer,
@@ -85,39 +85,42 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
 
       let isCancelled = false;
       let cleanupNav: (() => void) | undefined;
+      let ownedScope: Sonoscope | undefined;
       const unsubs: Array<() => void> = [];
 
       const initViewer = async () => {
         try {
-          let viewer: WaveformViewer;
-          const audioProp = audio ? { audio } : {};
+          let effectiveScope: Sonoscope | null = scope ?? null;
 
-          if (scope) {
-            viewer = new WaveformViewer(scope, canvas, {
-              ...memoizedConfig,
-              ...audioProp,
-            });
-          } else if (url) {
-            viewer = await WaveformViewer.fromUrl({
-              ...memoizedConfig,
-              ...audioProp,
-              canvas,
-              url,
-            });
-          } else if (source) {
-            viewer = await WaveformViewer.fromSource({
-              ...memoizedConfig,
-              ...audioProp,
-              canvas,
-              source,
-            });
-          } else {
+          if (!effectiveScope) {
+            if (url) {
+              effectiveScope = await Sonoscope.fromUrl(url, { audio });
+              ownedScope = effectiveScope;
+            } else if (source) {
+              effectiveScope = Sonoscope.fromSource(source, { audio });
+              ownedScope = effectiveScope;
+            }
+          }
+
+          if (!effectiveScope) {
             setStatus({ state: "idle" });
             return;
           }
 
           if (isCancelled) {
+            ownedScope?.destroy();
+            return;
+          }
+
+          const viewer = new WaveformViewer(
+            effectiveScope,
+            canvas,
+            memoizedConfig,
+          );
+
+          if (isCancelled) {
             viewer.destroy();
+            ownedScope?.destroy();
             return;
           }
 
@@ -162,6 +165,7 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
         for (const unsub of unsubs) unsub();
         viewerRef.current?.destroy();
         viewerRef.current = null;
+        ownedScope?.destroy();
       };
     }, [scope, url, source, audio, navSerialized]);
 

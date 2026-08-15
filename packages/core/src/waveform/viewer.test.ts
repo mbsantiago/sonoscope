@@ -52,16 +52,16 @@ afterEach(() => {
 describe("WaveformViewer", () => {
   it("creates and renders a waveform from AudioSource", async () => {
     const canvas = createMockCanvas();
-    const viewer = await WaveformViewer.create({
-      canvas,
+    const scope = new Sonoscope({
       source: dummySource,
       startTime: 0,
       endTime: 5,
     });
+    const viewer = new WaveformViewer(scope, canvas);
 
     expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 5 });
-    expect(viewer.getDuration()).toBe(10);
-    expect(viewer.getSampleRate()).toBe(1000);
+    expect(scope.getDuration()).toBe(10);
+    expect(scope.getSampleRate()).toBe(1000);
 
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
@@ -69,12 +69,12 @@ describe("WaveformViewer", () => {
 
   it("updates viewport and emits viewportchange events", async () => {
     const canvas = createMockCanvas();
-    const viewer = await WaveformViewer.create({
-      canvas,
+    const scope = new Sonoscope({
       source: dummySource,
       startTime: 0,
       endTime: 5,
     });
+    const viewer = new WaveformViewer(scope, canvas);
 
     const onViewportChange = vi.fn();
     viewer.on("viewportchange", onViewportChange);
@@ -85,16 +85,16 @@ describe("WaveformViewer", () => {
     expect(onViewportChange).toHaveBeenCalledTimes(1);
   });
 
-  it("zooms time around an anchor", async () => {
+  it("zooms time around an anchor via scope", async () => {
     const canvas = createMockCanvas();
-    const viewer = await WaveformViewer.create({
-      canvas,
+    const scope = new Sonoscope({
       source: dummySource,
       startTime: 0,
       endTime: 2,
     });
+    const viewer = new WaveformViewer(scope, canvas);
 
-    viewer.zoomTime(0.5, 1.0);
+    scope.zoom(0.5, 1.0);
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.5,
@@ -104,12 +104,12 @@ describe("WaveformViewer", () => {
 
   it("converts between canvas pixels and timestamps", async () => {
     const canvas = createMockCanvas();
-    const viewer = await WaveformViewer.create({
-      canvas,
+    const scope = new Sonoscope({
       source: dummySource,
       startTime: 2,
       endTime: 6,
     });
+    const viewer = new WaveformViewer(scope, canvas);
 
     expect(viewer.canvasToTime(0)).toBe(2);
     expect(viewer.canvasToTime(200)).toBe(6);
@@ -120,7 +120,7 @@ describe("WaveformViewer", () => {
     expect(viewer.timeToCanvas(4)).toBe(100);
   });
 
-  it("attaches and detaches audio element cleanly", async () => {
+  it("attaches and detaches audio element cleanly on Sonoscope", async () => {
     const canvas = createMockCanvas();
     const audio = {
       currentTime: 1.5,
@@ -129,25 +129,24 @@ describe("WaveformViewer", () => {
       removeEventListener: vi.fn(),
     } as unknown as HTMLAudioElement;
 
-    const viewer = await WaveformViewer.create({
-      canvas,
+    const scope = new Sonoscope({
       source: dummySource,
       audio,
     });
+    const viewer = new WaveformViewer(scope, canvas);
 
-    expect(viewer.getAudio()).toBe(audio);
+    expect(scope.getAudio()).toBe(audio);
     expect(viewer.getConfig().cursorColor).toBe("#ffffff");
 
-    viewer.detachAudio();
-    expect(viewer.getAudio()).toBeUndefined();
+    scope.detachAudio();
+    expect(scope.getAudio()).toBeUndefined();
     expect(audio.removeEventListener).toHaveBeenCalled();
   });
 
   it("derives waveform colors from colorMap", async () => {
     const canvas = createMockCanvas();
-    const viewer = await WaveformViewer.create({
-      canvas,
-      source: dummySource,
+    const scope = new Sonoscope({ source: dummySource });
+    const viewer = new WaveformViewer(scope, canvas, {
       colorMap: "magma",
     });
 
@@ -163,9 +162,8 @@ describe("WaveformViewer", () => {
 
   it("supports webgl2 renderer option and dynamic renderer switching", async () => {
     const canvas = createMockCanvas();
-    const viewer = await WaveformViewer.create({
-      canvas,
-      source: dummySource,
+    const scope = new Sonoscope({ source: dummySource });
+    const viewer = new WaveformViewer(scope, canvas, {
       renderer: "webgl2",
     });
 
@@ -188,7 +186,6 @@ describe("WaveformViewer", () => {
       const viewer = new WaveformViewer(scope, target);
 
       expect(viewer.getScope()).toBe(scope);
-      expect(viewer.getSource()).toBe(dummySource);
       expect(viewer.getViewport()).toMatchObject({ startTime: 1, endTime: 6 });
       expect(viewer.getConfig().canvas).toBe(target);
     });
@@ -205,30 +202,6 @@ describe("WaveformViewer", () => {
       expect(viewer.getConfig().color).toBe("#ff0000");
       expect(viewer.getConfig().amplitudeScale).toBe(2.0);
       expect(viewer.getConfig().canvas).toBe(target);
-    });
-
-    it("creates viewer with new WaveformViewer(scope, { canvas, ...options })", () => {
-      const scope = new Sonoscope({ source: dummySource });
-      const target = createMockCanvas();
-      const viewer = new WaveformViewer(scope, {
-        canvas: target,
-        colorMap: "magma",
-      });
-
-      expect(viewer.getScope()).toBe(scope);
-      expect(viewer.getConfig().colorMap).toBe("magma");
-      expect(viewer.getConfig().canvas).toBe(target);
-    });
-
-    it("creates viewer with new WaveformViewer({ scope, canvas })", () => {
-      const scope = new Sonoscope({ source: dummySource });
-      const target = createMockCanvas();
-      const viewer = new WaveformViewer({
-        scope,
-        canvas: target,
-      });
-
-      expect(viewer.getScope()).toBe(scope);
     });
 
     it("creates viewer via scope.createWaveform(canvas, options)", () => {
@@ -332,19 +305,6 @@ describe("WaveformViewer", () => {
       // Viewport changes on scope should no longer trigger render on destroyed viewer
       scope.pan(1);
       expect(requestRender).not.toHaveBeenCalled();
-    });
-
-    it("destroys internally created scope when viewer owns the scope", async () => {
-      const viewer = await WaveformViewer.create({
-        canvas: createMockCanvas(),
-        source: dummySource,
-      });
-      const scope = viewer.getScope();
-      const scopeDestroySpy = vi.spyOn(scope, "destroy");
-
-      viewer.destroy();
-
-      expect(scopeDestroySpy).toHaveBeenCalledTimes(1);
     });
   });
 });

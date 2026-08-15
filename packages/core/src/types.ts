@@ -427,25 +427,7 @@ export interface ISonoscope {
   destroy(): void;
 }
 
-export type FromUrlOptions = Omit<SpectrogramConfig, "source"> & {
-  url: string;
-  audio?: HTMLAudioElement;
-};
-
-export type FromAudioOptions = Omit<SpectrogramConfig, "source"> & {
-  audio: HTMLAudioElement;
-};
-
-export type FromSourceOptions = SpectrogramConfig & {
-  source: AudioSource;
-  audio?: HTMLAudioElement;
-};
-
-export type SpectrogramViewerOptions = Omit<SpectrogramConfig, "source"> & {
-  scope?: ISonoscope;
-  source?: AudioSource;
-  audio?: HTMLAudioElement;
-};
+export type SpectrogramOptions = Omit<SpectrogramConfig, "source" | "canvas">;
 
 export type SpectrumSlice = {
   time: number;
@@ -479,47 +461,22 @@ export interface ISpectrogramViewer {
   getViewport(): ViewportConfig;
   updateViewport(viewport: Partial<ViewportConfig>): void;
   setViewport(viewport: Partial<ViewportConfig>): void;
-  getTimeBounds(): {
-    startTime: number;
-    endTime: number;
-    minDurationSeconds: number;
-    maxDurationSeconds: number;
-  };
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;
   };
-  zoomTime(factor: number, centerTime?: number): void;
+  getNyquist(): number;
   zoomFreq(factor: number, centerFrequency?: number): void;
   zoomBoth(
     factor: number | { time: number; frequency: number },
     center?: { time?: number; frequency?: number },
   ): void;
-  bindViewport?(controller: {
-    bind: (viewer: unknown) => () => void;
-  }): () => void;
 
-  // Configuration & Source
+  // Configuration
   getConfig(): ResolvedSpectrogramConfig;
-  updateConfig(input: Partial<SpectrogramConfig>): void;
-  setConfig(input: Partial<SpectrogramConfig>): void;
-  getSource(): AudioSource;
-  updateSource(source: AudioSource, options?: Partial<ViewportConfig>): void;
-  setSource(source: AudioSource, options?: Partial<ViewportConfig>): void;
-  updateSourceUrl(
-    url: string,
-    options?: Partial<ViewportConfig>,
-  ): Promise<void>;
-  setSourceUrl(url: string, options?: Partial<ViewportConfig>): Promise<void>;
+  updateConfig(input: Partial<SpectrogramOptions>): void;
+  setConfig(input: Partial<SpectrogramOptions>): void;
   getRendererKind(): "webgl2" | "canvas2d";
-
-  // Audio & Metadata
-  getDuration(): number;
-  getSampleRate(): number;
-  getNyquist(): number;
-  getAudio(): HTMLAudioElement | undefined;
-  attachAudio(audio: HTMLAudioElement): void;
-  detachAudio(): void;
 
   // Coordinates (Annotations & Overlays)
   canvasToTimeFrequency(

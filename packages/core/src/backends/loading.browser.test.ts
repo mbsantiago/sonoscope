@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Sonoscope } from "../sonoscope";
 import { SpectrogramViewer } from "../viewer";
 import { MainThreadComputeBackend } from "./backend";
 import { createSpectrogramBackend } from "./backend-factory";
@@ -27,10 +28,10 @@ describe("loading and profiler backends in browser", () => {
       };
 
       const matrix = await backend.computeTile({
+        source,
         channel: 0,
         timeStart: 0,
         timeEnd: 0.05,
-        source,
         stft: {
           windowSize: 1024,
           fftSize: 1024,
@@ -51,20 +52,24 @@ describe("loading and profiler backends in browser", () => {
     const audio = document.createElement("audio");
     document.body.appendChild(audio);
 
-    const viewer = await SpectrogramViewer.create({
-      canvas,
-      audio,
-      source: {
-        id: "test-source",
-        sampleRate: 44100,
-        duration: 2,
-        channelCount: 1,
-        read: ({ startTime, endTime }) => {
-          const len = Math.round((endTime - startTime) * 44100);
-          return new Float32Array(len).fill(0.1);
-        },
+    const source = {
+      id: "test-source",
+      sampleRate: 44100,
+      duration: 2,
+      channelCount: 1,
+      read: ({
+        startTime,
+        endTime,
+      }: {
+        startTime: number;
+        endTime: number;
+      }) => {
+        const len = Math.round((endTime - startTime) * 44100);
+        return new Float32Array(len).fill(0.1);
       },
-    });
+    };
+    const scope = new Sonoscope({ source, audio });
+    const viewer = new SpectrogramViewer(scope, canvas);
 
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
@@ -83,6 +88,7 @@ describe("loading and profiler backends in browser", () => {
     }
 
     viewer.destroy();
+    scope.destroy();
   });
 
   it("safely handles rapid destruction during in-flight render without unhandled rejections", async () => {
@@ -90,22 +96,28 @@ describe("loading and profiler backends in browser", () => {
     document.body.appendChild(canvas);
 
     for (let i = 0; i < 5; i++) {
-      const viewer = await SpectrogramViewer.create({
-        canvas,
-        source: {
-          id: `rapid-source-${i}`,
-          sampleRate: 44100,
-          duration: 10,
-          channelCount: 1,
-          read: ({ startTime, endTime }) => {
-            const len = Math.round((endTime - startTime) * 44100);
-            return new Float32Array(len).fill(0.05);
-          },
+      const source = {
+        id: `rapid-source-${i}`,
+        sampleRate: 44100,
+        duration: 10,
+        channelCount: 1,
+        read: ({
+          startTime,
+          endTime,
+        }: {
+          startTime: number;
+          endTime: number;
+        }) => {
+          const len = Math.round((endTime - startTime) * 44100);
+          return new Float32Array(len).fill(0.05);
         },
-      });
+      };
+      const scope = Sonoscope.fromSource(source);
+      const viewer = new SpectrogramViewer(scope, canvas);
 
       void viewer.render();
       viewer.destroy();
+      scope.destroy();
     }
   });
 });

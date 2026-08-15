@@ -194,12 +194,15 @@ export function attachCanvasWheelNavigation(
       pendingWheel = undefined;
       const viewport = viewer.getViewport() as ViewportConfig;
       const config = viewer.getConfig();
-      const bounds =
-        typeof viewer.getTimeBounds === "function"
+      const bounds: TimeBounds =
+        "getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function"
           ? viewer.getTimeBounds()
           : {
               startTime: 0,
-              endTime: config.source?.duration ?? 0,
+              endTime:
+                ("getScope" in viewer && typeof viewer.getScope === "function"
+                  ? viewer.getScope().getDuration()
+                  : config.source?.duration) ?? 0,
               minDurationSeconds: config.minViewportDuration ?? 0.05,
               maxDurationSeconds: config.maxViewportDuration ?? 30,
             };
@@ -318,12 +321,15 @@ export function attachCanvasDragNavigation(
     const deltaSeconds = -(dx / canvasWidth) * duration;
 
     const config = viewer.getConfig();
-    const bounds =
-      typeof viewer.getTimeBounds === "function"
+    const bounds: TimeBounds =
+      "getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function"
         ? viewer.getTimeBounds()
         : {
             startTime: 0,
-            endTime: config.source?.duration ?? 0,
+            endTime:
+              ("getScope" in viewer && typeof viewer.getScope === "function"
+                ? viewer.getScope().getDuration()
+                : config.source?.duration) ?? 0,
             minDurationSeconds: config.minViewportDuration ?? 0.05,
             maxDurationSeconds: config.maxViewportDuration ?? 30,
           };

@@ -6,7 +6,7 @@ import type {
   ISonoscope,
   SonoscopeEvents,
   SonoscopeOptions,
-  SpectrogramConfig,
+  SpectrogramOptions,
   ViewportState,
 } from "./types";
 
@@ -20,7 +20,7 @@ export type {
 
 import { SpectrogramViewer } from "./viewer";
 import { ViewportController } from "./viewport-controller";
-import type { WaveformConfig } from "./waveform/types";
+import type { WaveformOptions } from "./waveform/types";
 import { WaveformViewer } from "./waveform/viewer";
 
 export function isSonoscope(value: unknown): value is ISonoscope {
@@ -238,6 +238,7 @@ export class Sonoscope implements ISonoscope {
 
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("seeked", onTimeUpdate);
+    audio.addEventListener("seeking", onTimeUpdate);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onPause);
@@ -245,6 +246,7 @@ export class Sonoscope implements ISonoscope {
     this.audioCleanup.push(() => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("seeked", onTimeUpdate);
+      audio.removeEventListener("seeking", onTimeUpdate);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onPause);
@@ -292,14 +294,14 @@ export class Sonoscope implements ISonoscope {
 
   createSpectrogram(
     canvas: HTMLCanvasElement,
-    options?: Omit<SpectrogramConfig, "source" | "canvas">,
+    options?: Partial<SpectrogramOptions>,
   ): SpectrogramViewer {
     return new SpectrogramViewer(this, canvas, options);
   }
 
   createWaveform(
     canvas: HTMLCanvasElement,
-    options?: Omit<WaveformConfig, "source" | "canvas">,
+    options?: Partial<WaveformOptions>,
   ): WaveformViewer {
     return new WaveformViewer(this, canvas, options);
   }

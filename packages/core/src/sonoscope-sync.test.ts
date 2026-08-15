@@ -180,12 +180,10 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
 
       expect(spectrogram.getScope()).toBe(scope);
       expect(waveform.getScope()).toBe(scope);
-      expect(spectrogram.getSource()).toBe(source);
-      expect(waveform.getSource()).toBe(source);
-      expect(spectrogram.getDuration()).toBe(30);
-      expect(waveform.getDuration()).toBe(30);
-      expect(spectrogram.getSampleRate()).toBe(48000);
-      expect(waveform.getSampleRate()).toBe(48000);
+      expect(scope.source).toBe(source);
+      expect(scope.getDuration()).toBe(30);
+      expect(scope.getSampleRate()).toBe(48000);
+      expect(spectrogram.getNyquist()).toBe(24000);
 
       expect(spectrogram.getViewport()).toMatchObject({
         startTime: 2,
@@ -364,15 +362,15 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       expect(waveRenderSpy).toHaveBeenCalled();
     });
 
-    it("synchronizes time zooms initiated from SpectrogramViewer or WaveformViewer", () => {
+    it("synchronizes time zooms initiated from scope across SpectrogramViewer and WaveformViewer", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 2, endTime: 10 });
 
       const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
       const waveform = new WaveformViewer(scope, createMockCanvas());
 
-      // Zoom time from spectrogram (duration 8 -> 4, center 6)
-      spectrogram.zoomTime(0.5, 6);
+      // Zoom time via scope (duration 8 -> 4, center 6)
+      scope.zoom(0.5, 6);
 
       expect(scope.getViewport().startTime).toBeCloseTo(4);
       expect(scope.getViewport().endTime).toBeCloseTo(8);
@@ -381,8 +379,8 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       expect(waveform.getViewport().startTime).toBeCloseTo(4);
       expect(waveform.getViewport().endTime).toBeCloseTo(8);
 
-      // Zoom time from waveform (duration 4 -> 8, center 6)
-      waveform.zoomTime(2.0, 6);
+      // Zoom time out via scope (duration 4 -> 8, center 6)
+      scope.zoom(2.0, 6);
 
       expect(scope.getViewport().startTime).toBeCloseTo(2);
       expect(scope.getViewport().endTime).toBeCloseTo(10);
@@ -529,8 +527,8 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       scope.attachAudio(audio);
 
       expect(scope.getAudio()).toBe(audio);
-      expect(spectrogram.getAudio()).toBe(audio);
-      expect(waveform.getAudio()).toBe(audio);
+      expect(spectrogram.getScope().getAudio()).toBe(audio);
+      expect(waveform.getScope().getAudio()).toBe(audio);
 
       const specRenderSpy = vi.spyOn(spectrogram, "requestRender");
       const waveRenderSpy = vi.spyOn(waveform, "requestRender");
@@ -589,14 +587,14 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const waveform = new WaveformViewer(scope, createMockCanvas());
 
       expect(scope.getAudio()).toBe(audio);
-      expect(spectrogram.getAudio()).toBe(audio);
-      expect(waveform.getAudio()).toBe(audio);
+      expect(spectrogram.getScope().getAudio()).toBe(audio);
+      expect(waveform.getScope().getAudio()).toBe(audio);
 
       scope.detachAudio();
 
       expect(scope.getAudio()).toBeUndefined();
-      expect(spectrogram.getAudio()).toBeUndefined();
-      expect(waveform.getAudio()).toBeUndefined();
+      expect(spectrogram.getScope().getAudio()).toBeUndefined();
+      expect(waveform.getScope().getAudio()).toBeUndefined();
     });
   });
 

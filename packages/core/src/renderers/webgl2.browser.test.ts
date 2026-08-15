@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Sonoscope } from "../sonoscope";
 import type { SpectrogramMatrix } from "../types";
 import { SpectrogramViewer } from "../viewer";
 import { CanvasSpectrogramRenderer, type RenderInput } from "./canvas";
@@ -518,10 +519,8 @@ describe("WebGL2 shaders", () => {
     } as unknown as typeof AudioContext;
     try {
       const audio = document.createElement("audio");
-      const viewer = await SpectrogramViewer.fromUrl({
-        audio,
-        canvas,
-        url: "/test.wav",
+      const scope = await Sonoscope.fromUrl("/test.wav", { audio });
+      const viewer = new SpectrogramViewer(scope, canvas, {
         backend: {
           computeTile: async (request) =>
             brightBandTile(request.timeStart, request.timeEnd),
@@ -531,6 +530,7 @@ describe("WebGL2 shaders", () => {
       expect(viewer.getConfig().renderer).toBe("auto");
       expect(viewer.getRendererKind()).toBe("webgl2");
       viewer.destroy();
+      scope.destroy();
     } finally {
       globalThis.fetch = previousFetch;
       globalThis.AudioContext = previousAudioContext;

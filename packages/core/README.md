@@ -44,16 +44,19 @@ await Promise.all([waveform.render(), spectrogram.render()]);
 ### Standalone Single Viewer
 
 ```typescript
-import { SpectrogramViewer } from "@sonoscope/core";
+import { Sonoscope, SpectrogramViewer } from "@sonoscope/core";
 
-const viewer = await SpectrogramViewer.fromUrl({
-  canvas: document.querySelector("canvas")!,
+const scope = await Sonoscope.fromUrl("https://example.com/audio.wav", {
   audio: document.querySelector("audio")!,
-  url: "https://example.com/audio.wav",
+});
+
+const viewer = new SpectrogramViewer(scope, document.querySelector("canvas")!, {
   colorMap: "magma",
   frequencyScale: "mel",
   valueMode: "db",
 });
+
+await viewer.render();
 ```
 
 ## Features

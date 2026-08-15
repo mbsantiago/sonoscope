@@ -47,11 +47,7 @@ export type WaveformConfig = {
   renderer?: "canvas2d" | "webgl2" | WaveformRenderer | undefined;
 };
 
-export interface WaveformViewerOptions extends Omit<WaveformConfig, "source"> {
-  scope?: ISonoscope | undefined;
-  source?: AudioSource | undefined;
-  audio?: HTMLAudioElement | undefined;
-}
+export type WaveformOptions = Omit<WaveformConfig, "source" | "canvas">;
 
 export type ResolvedWaveformConfig = {
   canvas: HTMLCanvasElement;
@@ -88,6 +84,7 @@ export type WaveformEvents = {
 export interface IWaveformViewer {
   // Lifecycle & Render
   render(): Promise<void>;
+  requestRender(): void;
   destroy(): void;
   getStatus(): WaveformStatus;
 
@@ -96,36 +93,11 @@ export interface IWaveformViewer {
   getViewport(): WaveformViewport;
   updateViewport(viewport: Partial<WaveformViewport>): void;
   setViewport(viewport: Partial<WaveformViewport>): void;
-  getTimeBounds(): {
-    startTime: number;
-    endTime: number;
-    minDurationSeconds: number;
-    maxDurationSeconds: number;
-  };
-  zoomTime(factor: number, centerTime?: number): void;
-  bindViewport?(controller: {
-    bind: (viewer: unknown) => () => void;
-  }): () => void;
 
-  // Configuration & Source
+  // Configuration
   getConfig(): ResolvedWaveformConfig;
-  updateConfig(input: Partial<WaveformConfig>): void;
-  setConfig(input: Partial<WaveformConfig>): void;
-  updateSource(source: AudioSource, options?: Partial<WaveformViewport>): void;
-  setSource(source: AudioSource, options?: Partial<WaveformViewport>): void;
-  updateSourceUrl(
-    url: string,
-    options?: Partial<WaveformViewport>,
-  ): Promise<void>;
-  setSourceUrl(url: string, options?: Partial<WaveformViewport>): Promise<void>;
-
-  // Metadata & Audio
-  getDuration(): number;
-  getSampleRate(): number;
-  getSource(): AudioSource;
-  getAudio(): HTMLAudioElement | undefined;
-  attachAudio(audio: HTMLAudioElement): void;
-  detachAudio(): void;
+  updateConfig(input: Partial<WaveformOptions>): void;
+  setConfig(input: Partial<WaveformOptions>): void;
 
   // Coordinates
   canvasToTime(x: number): number;

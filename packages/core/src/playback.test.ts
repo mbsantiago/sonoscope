@@ -171,10 +171,8 @@ describe("playback sync", () => {
   });
 
   it("coalesces repeated requested renders on viewer", async () => {
-    const viewer = await SpectrogramViewer.create({
-      canvas: createMockCanvas(),
-      source,
-    });
+    const scope = Sonoscope.fromSource(source);
+    const viewer = new SpectrogramViewer(scope, createMockCanvas());
     const render = vi.spyOn(viewer, "render").mockResolvedValue();
 
     viewer.requestRender();
@@ -193,19 +191,20 @@ describe("playback sync", () => {
     expect(audio.listenerCount()).toBe(0);
   });
 
-  it("detaches audio cleanly from Sonoscope and viewers reflect the detachment", () => {
+  it("detaches audio cleanly from Sonoscope", () => {
     const audio = createMockAudio();
     const scope = new Sonoscope({ source, audio });
     const spec = new SpectrogramViewer(scope, createMockCanvas());
     const wave = new WaveformViewer(scope, createMockCanvas());
 
-    expect(spec.getAudio()).toBe(audio);
-    expect(wave.getAudio()).toBe(audio);
+    expect(scope.getAudio()).toBe(audio);
+    expect(spec.getScope().getAudio()).toBe(audio);
+    expect(wave.getScope().getAudio()).toBe(audio);
 
     scope.detachAudio();
     expect(scope.getAudio()).toBeUndefined();
-    expect(spec.getAudio()).toBeUndefined();
-    expect(wave.getAudio()).toBeUndefined();
+    expect(spec.getScope().getAudio()).toBeUndefined();
+    expect(wave.getScope().getAudio()).toBeUndefined();
     expect(audio.listenerCount()).toBe(0);
   });
 });

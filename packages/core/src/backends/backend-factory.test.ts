@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Sonoscope } from "../sonoscope";
 import type { SpectrogramMatrix } from "../types";
 import { SpectrogramViewer } from "../viewer";
 import {
@@ -196,10 +197,8 @@ describe("backend-factory", () => {
         channelCount: 1,
         read: () => new Float32Array(1000),
       };
-      const viewer = await SpectrogramViewer.create({
-        canvas: canvas(),
-        source,
-      });
+      const scope = Sonoscope.fromSource(source);
+      const viewer = new SpectrogramViewer(scope, canvas());
       expect(viewer.getConfig().backend).toBe("auto");
     });
 
@@ -230,9 +229,8 @@ describe("backend-factory", () => {
         },
       };
 
-      const viewer = await SpectrogramViewer.create({
-        canvas: canvas(),
-        source,
+      const scope = Sonoscope.fromSource(source);
+      const viewer = new SpectrogramViewer(scope, canvas(), {
         backend: customBackend,
       });
 
