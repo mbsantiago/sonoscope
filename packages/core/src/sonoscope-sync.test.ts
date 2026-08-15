@@ -544,8 +544,11 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       audio.currentTime = 8.2;
       audio.emit("timeupdate");
       expect(scope.getCurrentTime()).toBe(8.2);
-      expect(specRenderSpy).toHaveBeenCalled();
       expect(waveRenderSpy).toHaveBeenCalled();
+
+      // Viewport change on scope triggers requestRender on both
+      scope.setViewport({ startTime: 5, endTime: 15 });
+      expect(specRenderSpy).toHaveBeenCalled();
     });
 
     it("pages viewport simultaneously on both viewers when followPlayback is page", () => {

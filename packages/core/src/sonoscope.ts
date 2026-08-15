@@ -1,41 +1,62 @@
 import { TypedEventEmitter } from "./events";
 import { createAudioSourceFromUrl, DecodedAudioSource } from "./sources/source";
-import type { AudioSource, SpectrogramConfig } from "./types";
+import type {
+  AudioSource,
+  FollowPlaybackMode,
+  ISonoscope,
+  SonoscopeEvents,
+  SonoscopeOptions,
+  SpectrogramConfig,
+  ViewportState,
+} from "./types";
+
+export type {
+  FollowPlaybackMode,
+  ISonoscope,
+  SonoscopeEvents,
+  SonoscopeOptions,
+  ViewportState,
+} from "./types";
+
 import { SpectrogramViewer } from "./viewer";
-import {
-  type FollowPlaybackMode,
-  ViewportController,
-  type ViewportState,
-} from "./viewport-controller";
+import { ViewportController } from "./viewport-controller";
 import type { WaveformConfig } from "./waveform/types";
 import { WaveformViewer } from "./waveform/viewer";
 
-export type SonoscopeOptions = {
-  source: AudioSource;
-  audio?: HTMLAudioElement | undefined;
-  startTime?: number | undefined;
-  endTime?: number | undefined;
-  minDuration?: number | undefined;
-  maxDuration?: number | undefined;
-  followPlayback?: FollowPlaybackMode | undefined;
-  smoothAnchor?: number | undefined;
-};
+export function isSonoscope(value: unknown): value is ISonoscope {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "getViewport" in value &&
+    typeof (value as ISonoscope).getViewport === "function" &&
+    "source" in value &&
+    "on" in value &&
+    typeof (value as ISonoscope).on === "function"
+  );
+}
 
-export type SonoscopeEvents = {
-  viewportchange: { viewport: ViewportState; source?: string | undefined };
-  playbackchange: { mode: FollowPlaybackMode };
-  timeupdate: { currentTime: number };
-  sourcechange: { source: AudioSource };
-  audiochange: { audio: HTMLAudioElement | undefined };
-  destroy: undefined;
-};
+function safeRequestAnimationFrame(callback: () => void): number {
+  if (typeof requestAnimationFrame !== "undefined") {
+    return requestAnimationFrame(callback);
+  }
+  return setTimeout(callback, 16) as unknown as number;
+}
 
-export class Sonoscope {
+function safeCancelAnimationFrame(id: number): void {
+  if (typeof cancelAnimationFrame !== "undefined") {
+    cancelAnimationFrame(id);
+  } else {
+    clearTimeout(id);
+  }
+}
+
+export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
   private readonly controllerCleanup: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
+  private animationFrame: number | undefined;
   readonly viewportController: ViewportController;
 
   constructor(options: SonoscopeOptions | AudioSource) {
@@ -171,6 +192,34 @@ export class Sonoscope {
     return this.audioElement;
   }
 
+  isPlaying(): boolean {
+    return Boolean(
+      this.audioElement &&
+        !this.audioElement.paused &&
+        !this.audioElement.ended,
+    );
+  }
+
+  private startPlaybackLoop(): void {
+    if (this.animationFrame !== undefined) return;
+    const tick = () => {
+      if (!this.isPlaying()) {
+        this.stopPlaybackLoop();
+        return;
+      }
+      this.events.emit("timeupdate", { currentTime: this.getCurrentTime() });
+      this.animationFrame = safeRequestAnimationFrame(tick);
+    };
+    this.animationFrame = safeRequestAnimationFrame(tick);
+  }
+
+  private stopPlaybackLoop(): void {
+    if (this.animationFrame !== undefined) {
+      safeCancelAnimationFrame(this.animationFrame);
+      this.animationFrame = undefined;
+    }
+  }
+
   attachAudio(audio: HTMLAudioElement): void {
     this.detachAudio();
     this.audioElement = audio;
@@ -179,20 +228,38 @@ export class Sonoscope {
     const onTimeUpdate = () => {
       this.events.emit("timeupdate", { currentTime: audio.currentTime });
     };
+    const onPlay = () => {
+      this.startPlaybackLoop();
+    };
+    const onPause = () => {
+      this.stopPlaybackLoop();
+      this.events.emit("timeupdate", { currentTime: audio.currentTime });
+    };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("seeked", onTimeUpdate);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onPause);
 
     this.audioCleanup.push(() => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("seeked", onTimeUpdate);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onPause);
     });
 
     this.events.emit("audiochange", { audio });
     this.events.emit("timeupdate", { currentTime: audio.currentTime });
+
+    if (!audio.paused && !audio.ended) {
+      this.startPlaybackLoop();
+    }
   }
 
   detachAudio(): void {
+    this.stopPlaybackLoop();
     for (const cleanup of this.audioCleanup) {
       cleanup();
     }
@@ -225,14 +292,14 @@ export class Sonoscope {
 
   createSpectrogram(
     canvas: HTMLCanvasElement,
-    options?: Omit<SpectrogramConfig, "source" | "canvas" | "audio">,
+    options?: Omit<SpectrogramConfig, "source" | "canvas">,
   ): SpectrogramViewer {
     return new SpectrogramViewer(this, canvas, options);
   }
 
   createWaveform(
     canvas: HTMLCanvasElement,
-    options?: Omit<WaveformConfig, "source" | "canvas" | "audio">,
+    options?: Omit<WaveformConfig, "source" | "canvas">,
   ): WaveformViewer {
     return new WaveformViewer(this, canvas, options);
   }

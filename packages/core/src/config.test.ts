@@ -43,9 +43,6 @@ describe("resolveConfig", () => {
 
     // Flat Playback
     expect(config.showPlayhead).toBe(true);
-    expect(config.followPlayback).toBe(false);
-    expect(config.followMargin).toBe(0.2);
-    expect(config.renderOnSeek).toBe(true);
 
     // Flat Cache
     expect(config.tileDuration).toBe(5);
@@ -71,7 +68,7 @@ describe("resolveConfig", () => {
       valueMode: "magnitude",
       minValue: 0,
       maxValue: 1,
-      followPlayback: true,
+      showPlayhead: false,
       tileDuration: 10,
     });
 
@@ -85,7 +82,7 @@ describe("resolveConfig", () => {
     expect(config.valueMode).toBe("magnitude");
     expect(config.minValue).toBe(0);
     expect(config.maxValue).toBe(1);
-    expect(config.followPlayback).toBe(true);
+    expect(config.showPlayhead).toBe(false);
     expect(config.tileDuration).toBe(10);
   });
 

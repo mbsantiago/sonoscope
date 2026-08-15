@@ -2,8 +2,6 @@ import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { SpectrogramWorkerLike } from "./backends/worker-backend";
 import type { FrameStats, PerformanceMeasure } from "./performance";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
-import type { Sonoscope } from "./sonoscope";
-
 export type FrequencyScale = "linear" | "log" | "mel";
 export type ValueMode = "magnitude" | "power" | "db";
 export type WebGLRendererProgram =
@@ -268,7 +266,6 @@ export type SpectrogramEvents = {
 };
 
 export type SpectrogramConfig = {
-  audio?: HTMLAudioElement;
   canvas: HTMLCanvasElement;
   source?: AudioSource;
   renderer?: RendererMode;
@@ -297,11 +294,8 @@ export type SpectrogramConfig = {
   valueGamma?: number;
   clampValues?: boolean;
 
-  // Playback
+  // Playback Display
   showPlayhead?: boolean;
-  followPlayback?: boolean;
-  followMargin?: number;
-  renderOnSeek?: boolean;
 
   // Cache
   tileDuration?: number;
@@ -342,11 +336,8 @@ export type ResolvedSpectrogramConfig = {
   valueGamma: number;
   clampValues: boolean;
 
-  // Playback
+  // Playback Display
   showPlayhead: boolean;
-  followPlayback: boolean;
-  followMargin: number;
-  renderOnSeek: boolean;
 
   // Cache
   tileDuration: number;
@@ -356,29 +347,6 @@ export type ResolvedSpectrogramConfig = {
   // Modular
   colorMap: ColorMapConfig;
   transforms: SpectrogramTransform[];
-};
-
-export type FromUrlOptions = Omit<SpectrogramConfig, "source"> & {
-  url: string;
-  audio?: HTMLAudioElement;
-};
-
-export type FromAudioOptions = Omit<SpectrogramConfig, "source"> & {
-  audio: HTMLAudioElement;
-};
-
-export type FromSourceOptions = Omit<SpectrogramConfig, "audio"> & {
-  source: AudioSource;
-  audio?: HTMLAudioElement;
-};
-
-export type SpectrogramViewerOptions = Omit<
-  SpectrogramConfig,
-  "source" | "audio"
-> & {
-  scope?: Sonoscope;
-  source?: AudioSource;
-  audio?: HTMLAudioElement;
 };
 
 export type AudioRange = { startTime: number; endTime: number };
@@ -395,6 +363,89 @@ export interface AudioSource {
   }): Float32Array | Promise<Float32Array>;
   onRangeAvailable?(handler: (range: AudioRange) => void): () => void;
 }
+
+export type FollowPlaybackMode = "page" | "smooth" | "off";
+
+export type ViewportState = {
+  startTime: number;
+  endTime: number;
+  duration: number;
+  totalDuration: number;
+};
+
+export type SonoscopeOptions = {
+  source: AudioSource;
+  audio?: HTMLAudioElement | undefined;
+  startTime?: number | undefined;
+  endTime?: number | undefined;
+  minDuration?: number | undefined;
+  maxDuration?: number | undefined;
+  followPlayback?: FollowPlaybackMode | undefined;
+  smoothAnchor?: number | undefined;
+};
+
+export type SonoscopeEvents = {
+  viewportchange: { viewport: ViewportState; source?: string | undefined };
+  playbackchange: { mode: FollowPlaybackMode };
+  timeupdate: { currentTime: number };
+  sourcechange: { source: AudioSource };
+  audiochange: { audio: HTMLAudioElement | undefined };
+  destroy: undefined;
+};
+
+export interface ISonoscope {
+  readonly source: AudioSource;
+  getViewport(): ViewportState;
+  setViewport(
+    vp: Partial<{ startTime: number; endTime: number }>,
+    source?: string,
+  ): void;
+  updateViewport(
+    vp: Partial<{ startTime: number; endTime: number }>,
+    source?: string,
+  ): void;
+  zoom(factor: number, centerTime?: number, source?: string): void;
+  pan(deltaSeconds: number, source?: string): void;
+  panTo(startTime: number, source?: string): void;
+  getDuration(): number;
+  getSampleRate(): number;
+  getFollowPlayback(): FollowPlaybackMode;
+  setFollowPlayback(mode: FollowPlaybackMode): void;
+
+  getCurrentTime(): number;
+  isPlaying(): boolean;
+  seek(time: number): void;
+  getAudio(): HTMLAudioElement | undefined;
+  attachAudio(audio: HTMLAudioElement): void;
+  detachAudio(): void;
+  setSource(source: AudioSource): void;
+
+  on<K extends keyof SonoscopeEvents>(
+    event: K,
+    handler: (e: SonoscopeEvents[K]) => void,
+  ): () => void;
+  destroy(): void;
+}
+
+export type FromUrlOptions = Omit<SpectrogramConfig, "source"> & {
+  url: string;
+  audio?: HTMLAudioElement;
+};
+
+export type FromAudioOptions = Omit<SpectrogramConfig, "source"> & {
+  audio: HTMLAudioElement;
+};
+
+export type FromSourceOptions = SpectrogramConfig & {
+  source: AudioSource;
+  audio?: HTMLAudioElement;
+};
+
+export type SpectrogramViewerOptions = Omit<SpectrogramConfig, "source"> & {
+  scope?: ISonoscope;
+  source?: AudioSource;
+  audio?: HTMLAudioElement;
+};
 
 export type SpectrumSlice = {
   time: number;
@@ -419,11 +470,12 @@ export type SpectrumPoint = {
 export interface ISpectrogramViewer {
   // Rendering & Lifecycle
   render(): Promise<void>;
+  requestRender(): void;
   destroy(): void;
   getStatus(): SpectrogramStatus;
 
   // Viewport & Navigation
-  getScope(): Sonoscope;
+  getScope(): ISonoscope;
   getViewport(): ViewportConfig;
   updateViewport(viewport: Partial<ViewportConfig>): void;
   setViewport(viewport: Partial<ViewportConfig>): void;
@@ -511,5 +563,3 @@ export interface ISpectrogramViewer {
   getCacheStats(): CacheStats;
   getTileStates(): TileStateInfo[];
 }
-
-export type { Sonoscope, SonoscopeEvents, SonoscopeOptions } from "./sonoscope";

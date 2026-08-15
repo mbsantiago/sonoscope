@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SpectrogramComputeBackend } from "./backends/backend";
-import type { AudioSource, SpectrogramMatrix } from "./types";
+import { Sonoscope } from "./sonoscope";
+import type { AudioSource } from "./types";
 import { SpectrogramViewer } from "./viewer";
+import { WaveformViewer } from "./waveform/viewer";
 
 type AudioFixture = HTMLAudioElement & {
   paused: boolean;
@@ -9,22 +10,36 @@ type AudioFixture = HTMLAudioElement & {
   listenerCount(): number;
 };
 
-function audio(): AudioFixture {
-  const listeners = new Map<string, () => void>();
+function createMockAudio(): AudioFixture {
+  const listeners = new Map<string, Array<() => void>>();
   return {
     currentTime: 0,
     duration: 10,
     src: "fixture.wav",
     currentSrc: "fixture.wav",
     paused: true,
-    addEventListener: (name: string, fn: () => void) => listeners.set(name, fn),
-    removeEventListener: (name: string) => listeners.delete(name),
-    emit: (name: string) => listeners.get(name)?.(),
-    listenerCount: () => listeners.size,
+    addEventListener: (name: string, fn: () => void) => {
+      const arr = listeners.get(name) ?? [];
+      arr.push(fn);
+      listeners.set(name, arr);
+    },
+    removeEventListener: (name: string, fn: () => void) => {
+      const arr = listeners.get(name) ?? [];
+      const index = arr.indexOf(fn);
+      if (index >= 0) arr.splice(index, 1);
+    },
+    emit: (name: string) => {
+      for (const fn of listeners.get(name) ?? []) fn();
+    },
+    listenerCount: () => {
+      let count = 0;
+      for (const arr of listeners.values()) count += arr.length;
+      return count;
+    },
   } as unknown as AudioFixture;
 }
 
-function canvas(): HTMLCanvasElement {
+function createMockCanvas(): HTMLCanvasElement {
   return {
     width: 100,
     height: 100,
@@ -58,21 +73,6 @@ const source: AudioSource = {
   read: () => new Float32Array(100),
 };
 
-function matrix(timeStart: number, timeEnd: number): SpectrogramMatrix {
-  return {
-    channel: 0,
-    timeStart,
-    timeEnd,
-    frameStart: 0,
-    frameCount: 1,
-    binCount: 1,
-    sampleRate: 100,
-    times: Float32Array.from([timeStart]),
-    frequencies: Float32Array.from([0]),
-    magnitude: Float32Array.from([1]),
-  };
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
   delete (globalThis as Partial<typeof globalThis>).requestAnimationFrame;
@@ -80,271 +80,132 @@ afterEach(() => {
 });
 
 describe("playback sync", () => {
-  it("updates viewport when follow is enabled and seeked fires", async () => {
-    const element = audio();
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
+  it("Sonoscope updates viewport when follow is enabled and seeked fires", () => {
+    const audio = createMockAudio();
+    const scope = new Sonoscope({
       source,
+      audio,
       startTime: 0,
       endTime: 2,
-      minFrequency: 0,
-      maxFrequency: 50,
-      followPlayback: true,
-      renderOnSeek: false,
+      followPlayback: "page",
     });
-    element.currentTime = 5;
-    element.emit("seeked");
-    expect(viewer.getViewport().startTime).toBeGreaterThan(3);
+
+    audio.currentTime = 5;
+    audio.emit("seeked");
+
+    expect(scope.getViewport().startTime).toBeGreaterThanOrEqual(4);
   });
 
-  it("renders when seeked fires and renderOnSeek is enabled", async () => {
-    const element = audio();
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
+  it("Sonoscope emits timeupdate when seeking on scope", () => {
+    const audio = createMockAudio();
+    const scope = new Sonoscope({
       source,
-      renderOnSeek: true,
+      audio,
+      startTime: 0,
+      endTime: 5,
     });
-    const render = vi.spyOn(viewer, "render").mockResolvedValue();
-    element.emit("seeked");
-    await Promise.resolve();
-    expect(render).toHaveBeenCalledTimes(1);
+
+    const timeUpdates: number[] = [];
+    scope.on("timeupdate", (e) => timeUpdates.push(e.currentTime));
+
+    scope.seek(3.5);
+    expect(audio.currentTime).toBe(3.5);
+    expect(timeUpdates).toContain(3.5);
   });
 
-  it("renders when seeking fires before seeked", async () => {
-    const element = audio();
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source,
-      renderOnSeek: true,
-    });
-    const render = vi.spyOn(viewer, "render").mockResolvedValue();
-
-    element.emit("seeking");
-    await Promise.resolve();
-
-    expect(render).toHaveBeenCalledTimes(1);
-  });
-
-  it("coalesces repeated requested renders", async () => {
-    const viewer = await SpectrogramViewer.create({ canvas: canvas(), source });
-    const render = vi.spyOn(viewer, "render").mockResolvedValue();
-
-    viewer.requestRender();
-    viewer.requestRender();
-    await Promise.resolve();
-
-    expect(render).toHaveBeenCalledTimes(1);
-  });
-
-  it("refreshes the playhead during playback and stops on pause", async () => {
-    const element = audio();
+  it("Sonoscope starts animation frame loop on play and stops on pause", () => {
+    const audio = createMockAudio();
     let frame: FrameRequestCallback | undefined;
-    globalThis.requestAnimationFrame = () => 0;
-    globalThis.cancelAnimationFrame = () => undefined;
-    const request = vi
-      .spyOn(globalThis, "requestAnimationFrame")
-      .mockImplementation((callback) => {
-        frame = callback;
-        return 1;
-      });
-    const cancel = vi
-      .spyOn(globalThis, "cancelAnimationFrame")
-      .mockImplementation(() => undefined);
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source,
-    });
-    await viewer.render();
-    const render = vi.spyOn(viewer, "render").mockResolvedValue();
-
-    element.emit("play");
-    frame?.(0);
-    element.emit("pause");
-
-    expect(request).toHaveBeenCalledTimes(2);
-    expect(render).not.toHaveBeenCalled();
-    expect(cancel).toHaveBeenCalledWith(1);
-  });
-
-  it("emits playback frame cadence profiles", async () => {
-    const element = audio();
-    let frame: FrameRequestCallback | undefined;
-    globalThis.requestAnimationFrame = () => 0;
-    globalThis.cancelAnimationFrame = () => undefined;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(
-      (callback) => {
-        frame = callback;
-        return 1;
-      },
-    );
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source,
-    });
-    await viewer.render();
-    const profiles: number[] = [];
-    viewer.on("playbackprofile", (stats) => profiles.push(stats.fps));
-
-    element.emit("play");
-    for (let index = 0; index <= 30; index++) frame?.(index * 16);
-
-    expect(profiles[0]).toBeCloseTo(62.5);
-  });
-
-  it("rerenders during playback after config changes invalidate the cached frame", async () => {
-    const element = audio();
-    let frame: FrameRequestCallback | undefined;
-    globalThis.requestAnimationFrame = () => 0;
-    globalThis.cancelAnimationFrame = () => undefined;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(
-      (callback) => {
-        frame = callback;
-        return 1;
-      },
-    );
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source,
-    });
-    await viewer.render();
-    viewer.setConfig({ colorMap: "magma" });
-    const render = vi.spyOn(viewer, "render").mockResolvedValue();
-
-    element.emit("play");
-    frame?.(0);
-    await Promise.resolve();
-
-    expect(render).toHaveBeenCalledTimes(1);
-  });
-
-  it("has upcoming follow tiles prefetched before the viewport shifts", async () => {
-    const element = audio();
-    let frame: FrameRequestCallback | undefined;
-    globalThis.requestAnimationFrame = () => 0;
-    globalThis.cancelAnimationFrame = () => undefined;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(
-      (callback) => {
-        frame = callback;
-        return 1;
-      },
-    );
-    const requested: Array<[number, number]> = [];
-    const backend: SpectrogramComputeBackend = {
-      computeTile: (request) => {
-        requested.push([request.timeStart, request.timeEnd]);
-        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
-      },
+    globalThis.requestAnimationFrame = (callback) => {
+      frame = callback;
+      return 1;
     };
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source: { ...source, duration: 10 },
-      tileDuration: 1,
+    globalThis.cancelAnimationFrame = () => undefined;
+    const cancelSpy = vi.spyOn(globalThis, "cancelAnimationFrame");
+
+    const scope = new Sonoscope({ source, audio });
+    const timeUpdates: number[] = [];
+    scope.on("timeupdate", (e) => timeUpdates.push(e.currentTime));
+
+    audio.currentTime = 1.0;
+    audio.paused = false;
+    audio.emit("play");
+
+    frame?.(16);
+    expect(timeUpdates.length).toBeGreaterThan(0);
+
+    audio.paused = true;
+    audio.emit("pause");
+    expect(cancelSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("SpectrogramViewer and WaveformViewer react to Sonoscope timeupdate and viewport changes", async () => {
+    const audio = createMockAudio();
+    const scope = new Sonoscope({
+      source,
+      audio,
       startTime: 0,
       endTime: 2,
-      minFrequency: 0,
-      maxFrequency: 50,
-      followPlayback: true,
-      backend,
+      followPlayback: "page",
     });
-    await viewer.render();
-    expect(requested).toContainEqual([2, 3]);
-    requested.length = 0;
-    element.currentTime = 1.55;
 
-    element.emit("play");
-    frame?.(0);
-    await Promise.resolve();
+    const specCanvas = createMockCanvas();
+    const waveCanvas = createMockCanvas();
 
-    expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 2 });
-    expect(requested).toEqual([]);
+    const spec = new SpectrogramViewer(scope, specCanvas);
+    const wave = new WaveformViewer(scope, waveCanvas);
+
+    const specRenderSpy = vi.spyOn(spec, "requestRender");
+    const waveRenderSpy = vi.spyOn(wave, "requestRender");
+
+    // Audio progress within page triggers timeupdate without shifting viewport
+    audio.currentTime = 0.5;
+    audio.emit("timeupdate");
+    expect(waveRenderSpy).toHaveBeenCalled();
+
+    // Audio progress past viewport shifts page and triggers render on both viewers
+    audio.currentTime = 3.0;
+    audio.emit("timeupdate");
+    expect(scope.getViewport().startTime).toBe(3);
+    expect(specRenderSpy).toHaveBeenCalled();
   });
 
-  it("skips streaming range rerenders during playback when visible tiles are cached", async () => {
-    const element = audio();
-    let rangeHandler:
-      | ((range: { startTime: number; endTime: number }) => void)
-      | undefined;
-    const streamingSource = {
-      ...source,
-      onRangeAvailable: (
-        handler: (range: { startTime: number; endTime: number }) => void,
-      ) => {
-        rangeHandler = handler;
-        return () => undefined;
-      },
-    };
+  it("coalesces repeated requested renders on viewer", async () => {
     const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source: streamingSource,
-      startTime: 0,
-      endTime: 1,
-      minFrequency: 0,
-      maxFrequency: 50,
-    });
-    await viewer.render();
-    const render = vi.spyOn(viewer, "render").mockResolvedValue();
-    element.paused = false;
-
-    rangeHandler?.({ startTime: 0, endTime: 1 });
-    await Promise.resolve();
-
-    expect(render).not.toHaveBeenCalled();
-  });
-
-  it("skips queued cached full renders when playback starts", async () => {
-    const element = audio();
-    let frame: FrameRequestCallback | undefined;
-    globalThis.requestAnimationFrame = () => 0;
-    globalThis.cancelAnimationFrame = () => undefined;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(
-      (callback) => {
-        frame = callback;
-        return 1;
-      },
-    );
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
+      canvas: createMockCanvas(),
       source,
-      startTime: 0,
-      endTime: 1,
-      minFrequency: 0,
-      maxFrequency: 50,
     });
-    await viewer.render();
     const render = vi.spyOn(viewer, "render").mockResolvedValue();
 
     viewer.requestRender();
-    element.paused = false;
-    element.emit("play");
-    frame?.(0);
+    viewer.requestRender();
     await Promise.resolve();
 
-    expect(render).not.toHaveBeenCalled();
+    expect(render).toHaveBeenCalledTimes(1);
   });
 
-  it("removes playback listeners on destroy", async () => {
-    const element = audio();
-    globalThis.cancelAnimationFrame = () => undefined;
-    const cancel = vi
-      .spyOn(globalThis, "cancelAnimationFrame")
-      .mockImplementation(() => undefined);
-    const viewer = await SpectrogramViewer.create({
-      audio: element,
-      canvas: canvas(),
-      source,
-    });
-    expect(element.listenerCount()).toBe(5);
-    viewer.destroy();
-    expect(element.listenerCount()).toBe(0);
-    expect(cancel).not.toHaveBeenCalled();
+  it("removes playback listeners when Sonoscope is destroyed", () => {
+    const audio = createMockAudio();
+    const scope = new Sonoscope({ source, audio });
+
+    expect(audio.listenerCount()).toBeGreaterThan(0);
+    scope.destroy();
+    expect(audio.listenerCount()).toBe(0);
+  });
+
+  it("detaches audio cleanly from Sonoscope and viewers reflect the detachment", () => {
+    const audio = createMockAudio();
+    const scope = new Sonoscope({ source, audio });
+    const spec = new SpectrogramViewer(scope, createMockCanvas());
+    const wave = new WaveformViewer(scope, createMockCanvas());
+
+    expect(spec.getAudio()).toBe(audio);
+    expect(wave.getAudio()).toBe(audio);
+
+    scope.detachAudio();
+    expect(scope.getAudio()).toBeUndefined();
+    expect(spec.getAudio()).toBeUndefined();
+    expect(wave.getAudio()).toBeUndefined();
+    expect(audio.listenerCount()).toBe(0);
   });
 });

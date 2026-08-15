@@ -10,6 +10,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    exclude: ["**/dist/**", "**/*.browser.test.ts"],
+    exclude: ["**/dist/**", "**/node_modules/**", "**/*.browser.test.ts"],
   },
 });

@@ -11,14 +11,14 @@ import {
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
 import { zoomViewportFrequency, zoomViewportTime } from "./navigation";
-import { FrameMeter, PerformanceProfiler } from "./performance";
+import { PerformanceProfiler } from "./performance";
 import {
   CanvasSpectrogramRenderer,
   type RenderInput,
   type SpectrogramRenderer,
 } from "./renderers/canvas";
 import { createSpectrogramRenderer } from "./renderers/renderer-factory";
-import { Sonoscope } from "./sonoscope";
+import { isSonoscope, Sonoscope } from "./sonoscope";
 import { createAudioSourceFromUrl } from "./sources/source";
 import { applyTransforms } from "./transforms";
 import type {
@@ -27,6 +27,7 @@ import type {
   FromAudioOptions,
   FromSourceOptions,
   FromUrlOptions,
+  ISonoscope,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -34,6 +35,7 @@ import type {
   SpectrogramEvents,
   SpectrogramMatrix,
   SpectrogramStatus,
+  SpectrogramViewerOptions,
   SpectrumPoint,
   SpectrumSlice,
   StftConfig,
@@ -47,66 +49,53 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
   private readonly cache: SpectrogramCache;
   private renderer: SpectrogramRenderer;
-  private audioElement: HTMLAudioElement | undefined = undefined;
-  private playbackCleanup: Array<() => void> = [];
   private scopeCleanup: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
-  private animationFrame: number | undefined;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
   private readonly sourceMap = new Map<string, AudioSource>();
   private requestCounter = 0;
   private renderGeneration = 0;
   private status: SpectrogramStatus = { state: "idle" };
-  private readonly playbackFrameMeter = new FrameMeter();
-  private lastPlaybackPrefetchTime = Number.NEGATIVE_INFINITY;
-  private suppressCachedPlaybackRender = false;
   private isSelfUpdating = false;
-  private scope: Sonoscope;
+  private scope: ISonoscope;
   private ownsScope = false;
   private config: ResolvedSpectrogramConfig;
   private readonly backend: SpectrogramComputeBackend;
 
   constructor(
-    scope: Sonoscope,
+    scope: ISonoscope,
     canvas: HTMLCanvasElement,
-    options?: Omit<SpectrogramConfig, "source" | "canvas" | "audio">,
+    options?: Omit<SpectrogramConfig, "source" | "canvas">,
   );
   constructor(
-    scope: Sonoscope,
-    options: Omit<SpectrogramConfig, "source" | "audio"> & {
+    scope: ISonoscope,
+    options: Omit<SpectrogramConfig, "source"> & {
       canvas: HTMLCanvasElement;
     },
   );
-  constructor(options: SpectrogramConfig & { scope?: Sonoscope });
+  constructor(options: SpectrogramViewerOptions);
   constructor(
     config: ResolvedSpectrogramConfig,
     backend?: SpectrogramComputeBackend,
-    audioElement?: HTMLAudioElement,
   );
   constructor(
-    arg0:
-      | Sonoscope
-      | (SpectrogramConfig & { scope?: Sonoscope })
-      | ResolvedSpectrogramConfig,
+    arg0: ISonoscope | SpectrogramViewerOptions | ResolvedSpectrogramConfig,
     arg1?:
       | HTMLCanvasElement
-      | (Omit<SpectrogramConfig, "source" | "audio"> & {
+      | (Omit<SpectrogramConfig, "source"> & {
           canvas: HTMLCanvasElement;
         })
       | SpectrogramComputeBackend,
-    arg2?:
-      | Omit<SpectrogramConfig, "source" | "canvas" | "audio">
-      | HTMLAudioElement,
+    arg2?: Omit<SpectrogramConfig, "source" | "canvas"> | HTMLAudioElement,
   ) {
-    let scope: Sonoscope;
+    let scope: ISonoscope;
     let ownsScope = false;
     let canvas: HTMLCanvasElement;
     let userOptions: Partial<SpectrogramConfig> = {};
     let customBackend: SpectrogramComputeBackend | undefined;
-    let customAudio: HTMLAudioElement | undefined;
 
     if (isSonoscope(arg0)) {
       scope = arg0;
@@ -119,7 +108,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         arg1 !== null &&
         "canvas" in arg1
       ) {
-        const opts = arg1 as Omit<SpectrogramConfig, "source" | "audio"> & {
+        const opts = arg1 as Omit<SpectrogramConfig, "source"> & {
           canvas: HTMLCanvasElement;
         };
         canvas = opts.canvas;
@@ -130,11 +119,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     } else if (typeof arg0 === "object" && arg0 !== null) {
       if (isSpectrogramComputeBackend(arg1)) {
         customBackend = arg1;
-        customAudio = arg2 as HTMLAudioElement | undefined;
       }
 
       const optionsWithScope = arg0 as SpectrogramConfig & {
-        scope?: Sonoscope;
+        scope?: ISonoscope;
+        audio?: HTMLAudioElement;
       };
       if (optionsWithScope.scope && isSonoscope(optionsWithScope.scope)) {
         scope = optionsWithScope.scope;
@@ -148,12 +137,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         ownsScope = true;
         scope = new Sonoscope({
           source: optionsWithScope.source,
-          audio: optionsWithScope.audio ?? customAudio,
+          audio: optionsWithScope.audio,
           startTime: optionsWithScope.startTime,
           endTime: optionsWithScope.endTime,
           minDuration: optionsWithScope.minViewportDuration,
           maxDuration: optionsWithScope.maxViewportDuration,
-          followPlayback: optionsWithScope.followPlayback ? "page" : "off",
         });
         canvas = optionsWithScope.canvas;
         userOptions = optionsWithScope;
@@ -195,7 +183,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.ownsScope = ownsScope;
     this.config = resolvedConfig;
     this.backend = backend;
-    this.audioElement = scope.getAudio() ?? userOptions.audio ?? customAudio;
     this.cache = new SpectrogramCache({
       maxCachedTiles: resolvedConfig.maxCachedTiles,
     });
@@ -204,12 +191,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       resolvedConfig.renderer,
     );
     this.bindScope();
-    this.attachPlaybackSync();
     this.attachSourceRangeSync();
   }
 
   static async create(
-    input: SpectrogramConfig & { scope?: Sonoscope },
+    input: SpectrogramViewerOptions,
   ): Promise<SpectrogramViewer> {
     if (input.scope) {
       return new SpectrogramViewer(input.scope, input.canvas, input);
@@ -300,7 +286,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     return this.events.on(name, handler);
   }
 
-  getScope(): Sonoscope {
+  getScope(): ISonoscope {
     return this.scope;
   }
 
@@ -329,23 +315,15 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   }
 
   getAudio(): HTMLAudioElement | undefined {
-    return this.scope.getAudio() ?? this.audioElement;
+    return this.scope.getAudio?.();
   }
 
   attachAudio(audio: HTMLAudioElement): void {
-    this.audioElement = audio;
-    this.scope.attachAudio(audio);
-    this.attachPlaybackSync();
-    this.requestRender();
+    this.scope.attachAudio?.(audio);
   }
 
   detachAudio(): void {
-    this.stopPlaybackLoop();
-    for (const cleanup of this.playbackCleanup) cleanup();
-    this.playbackCleanup = [];
-    this.audioElement = undefined;
-    this.scope.detachAudio();
-    this.requestRender();
+    this.scope.detachAudio?.();
   }
 
   setConfig(input: Partial<SpectrogramConfig>): void {
@@ -354,13 +332,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     const source = input.source ?? this.config.source;
     if (input.source && input.source !== this.scope.source) {
       this.scope.setSource(input.source);
-    }
-    if (input.audio !== undefined) {
-      if (input.audio) {
-        this.attachAudio(input.audio);
-      } else {
-        this.detachAudio();
-      }
     }
     const cleanInput = Object.fromEntries(
       Object.entries(input).filter(([_, v]) => v !== undefined),
@@ -425,7 +396,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     url: string,
     options?: Partial<ViewportConfig>,
   ): Promise<void> {
-    if (this.audioElement) this.audioElement.src = url;
+    const audio = this.scope.getAudio?.();
+    if (audio) audio.src = url;
     let source = this.sourceMap.get(url);
     if (!source) {
       source = await createAudioSourceFromUrl(url);
@@ -800,8 +772,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       tiles: matrices,
       placeholders,
       profile,
-      ...(this.config.showPlayhead && this.audioElement
-        ? { playheadTime: this.audioElement.currentTime }
+      ...(this.config.showPlayhead
+        ? { playheadTime: this.scope.getCurrentTime() }
         : {}),
       ...webglProgramRenderInput(this.config.renderer),
     });
@@ -934,9 +906,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     if (this.ownsScope) {
       this.scope.destroy();
     }
-    this.stopPlaybackLoop();
-    for (const cleanup of this.playbackCleanup) cleanup();
-    this.playbackCleanup = [];
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
     this.cache.clear();
@@ -974,29 +943,13 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       }
     });
 
-    const unlistenAudio = this.scope.on("audiochange", (e) => {
-      if (e.audio) {
-        this.audioElement = e.audio;
-        this.attachPlaybackSync();
-      } else {
-        this.audioElement = undefined;
-        this.stopPlaybackLoop();
-        for (const cleanup of this.playbackCleanup) cleanup();
-        this.playbackCleanup = [];
-      }
-      this.requestRender();
-    });
-
     const unlistenTime = this.scope.on("timeupdate", () => {
-      this.requestRender();
+      if (this.config.showPlayhead) {
+        this.renderPlaybackPlayhead();
+      }
     });
 
-    this.scopeCleanup.push(
-      unlistenViewport,
-      unlistenSource,
-      unlistenAudio,
-      unlistenTime,
-    );
+    this.scopeCleanup.push(unlistenViewport, unlistenSource, unlistenTime);
   }
 
   private attachSourceRangeSync(): void {
@@ -1006,28 +959,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     if (!source.onRangeAvailable) return;
     this.sourceRangeCleanup = source.onRangeAvailable((range) => {
       if (!this.rangeIntersectsViewport(range.startTime, range.endTime)) return;
-      this.queueSourceRangeRender();
+      this.requestRender();
     });
   }
 
   private rangeIntersectsViewport(startTime: number, endTime: number): boolean {
     return startTime < this.config.endTime && endTime > this.config.startTime;
-  }
-
-  private queueSourceRangeRender(): void {
-    if (
-      this.audioElement &&
-      !this.audioElement.paused &&
-      this.visibleTilesCached()
-    )
-      return;
-    this.requestRender();
-  }
-
-  private visibleTilesCached(): boolean {
-    return this.visibleTileRanges().every((tile) =>
-      this.cache.has(this.tileKey(tile.channel, tile.timeStart, tile.timeEnd)),
-    );
   }
 
   private async renderRequested(): Promise<void> {
@@ -1036,16 +973,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.renderRunning = true;
     while (this.renderAgain && !this.isDestroyed()) {
       this.renderAgain = false;
-      if (
-        this.suppressCachedPlaybackRender &&
-        this.audioElement &&
-        !this.audioElement.paused &&
-        this.visibleTilesCached()
-      ) {
-        this.suppressCachedPlaybackRender = false;
-        continue;
-      }
-      this.suppressCachedPlaybackRender = false;
       try {
         await this.render();
       } catch (error) {
@@ -1063,112 +990,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     return this.status.state === "destroyed";
   }
 
-  private attachPlaybackSync(): void {
-    const audio = this.audioElement;
-    if (!audio) return;
-    for (const cleanup of this.playbackCleanup) cleanup();
-    this.playbackCleanup = [];
-
-    const onSeeked = () => {
-      this.followPlayheadIfNeeded();
-      if (this.config.renderOnSeek) this.requestRender();
-    };
-    const onSeeking = () => {
-      this.followPlayheadIfNeeded();
-      if (this.config.renderOnSeek) this.requestRender();
-    };
-    const onTimeUpdate = () => {
-      this.followPlayheadIfNeeded();
-      if (audio.paused) void this.renderPlaybackPlayhead();
-    };
-    const onPlay = () => this.startPlaybackLoop();
-    const onPause = () => this.stopPlaybackLoop();
-    audio.addEventListener("seeked", onSeeked);
-    audio.addEventListener("seeking", onSeeking);
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    this.playbackCleanup.push(() =>
-      audio.removeEventListener("seeked", onSeeked),
-    );
-    this.playbackCleanup.push(() =>
-      audio.removeEventListener("seeking", onSeeking),
-    );
-    this.playbackCleanup.push(() =>
-      audio.removeEventListener("timeupdate", onTimeUpdate),
-    );
-    this.playbackCleanup.push(() => audio.removeEventListener("play", onPlay));
-    this.playbackCleanup.push(() =>
-      audio.removeEventListener("pause", onPause),
-    );
-  }
-
-  private startPlaybackLoop(): void {
-    this.playbackFrameMeter.reset();
-    this.lastPlaybackPrefetchTime = Number.NEGATIVE_INFINITY;
-    this.suppressCachedPlaybackRender = true;
-    const tick = (time: number) => {
-      const start = performance.now();
-      const viewportChanged = this.followPlayheadIfNeeded();
-      if (viewportChanged || !this.renderPlaybackPlayhead())
-        this.requestRender();
-      this.prefetchPlaybackLookahead(time);
-      const stats = this.playbackFrameMeter.tick(
-        time,
-        performance.now() - start,
-      );
-      if (stats) this.events.emit("playbackprofile", stats);
-      this.animationFrame = requestAnimationFrame(tick);
-    };
-    this.stopPlaybackLoop();
-    this.animationFrame = requestAnimationFrame(tick);
-  }
-
-  private stopPlaybackLoop(): void {
-    if (this.animationFrame !== undefined)
-      cancelAnimationFrame(this.animationFrame);
-    this.animationFrame = undefined;
-  }
-
-  private followPlayheadIfNeeded(): boolean {
-    const audio = this.audioElement;
-    if (!audio || !this.config.followPlayback) return false;
-    const duration = this.config.endTime - this.config.startTime;
-    const margin = duration * this.config.followMargin;
-    if (
-      audio.currentTime < this.config.startTime + margin ||
-      audio.currentTime > this.config.endTime - margin
-    ) {
-      const startTime = Math.max(
-        0,
-        audio.currentTime - duration * this.config.followMargin,
-      );
-      this.setViewport({ startTime, endTime: startTime + duration });
-      return true;
-    }
-    return false;
-  }
-
   private get effectiveTileDuration(): number {
     const maxFrames = 2048;
     const maxDurationForSampleRate =
       (maxFrames * this.config.hopSize) /
       Math.max(1, this.config.source.sampleRate);
     return Math.min(this.config.tileDuration, maxDurationForSampleRate);
-  }
-
-  private prefetchPlaybackLookahead(frameTime: number): void {
-    const audio = this.audioElement;
-    const source = this.config.source;
-    if (!audio || !source || !this.config.followPlayback) return;
-    if (frameTime - this.lastPlaybackPrefetchTime < 250) return;
-    this.lastPlaybackPrefetchTime = frameTime;
-
-    const duration = this.config.endTime - this.config.startTime;
-    const margin = duration * this.config.followMargin;
-    if (audio.currentTime < this.config.endTime - margin * 1.5) return;
-
-    this.prefetchAroundViewport("forward", margin + this.effectiveTileDuration);
   }
 
   private prefetchAroundViewport(
@@ -1220,13 +1047,14 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   }
 
   private renderPlaybackPlayhead(): boolean {
-    const audio = this.audioElement;
-    if (!audio || !this.config.showPlayhead) return true;
-    return this.renderer.renderPlayhead({
-      canvas: this.config.canvas,
-      viewport: this.getViewport(),
-      playheadTime: audio.currentTime,
-    });
+    if (this.isDestroyed() || !this.config.showPlayhead) return true;
+    return (
+      this.renderer.renderPlayhead?.({
+        canvas: this.config.canvas,
+        viewport: this.getViewport(),
+        playheadTime: this.scope.getCurrentTime(),
+      }) ?? false
+    );
   }
 
   private visibleTileRanges(): Array<{
@@ -1405,17 +1233,6 @@ function webglProgramRenderInput(
   )
     return { webglProgram: renderer.program };
   return {};
-}
-
-function isSonoscope(val: unknown): val is Sonoscope {
-  return (
-    val instanceof Sonoscope ||
-    (typeof val === "object" &&
-      val !== null &&
-      "viewportController" in val &&
-      typeof (val as Sonoscope).getViewport === "function" &&
-      "source" in val)
-  );
 }
 
 function isCanvasElement(val: unknown): val is HTMLCanvasElement {

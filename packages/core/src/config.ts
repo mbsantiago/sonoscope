@@ -79,9 +79,6 @@ export function resolveConfig(
   const clampValues = input.clampValues ?? true;
 
   const showPlayhead = input.showPlayhead ?? true;
-  const followPlayback = input.followPlayback ?? false;
-  const followMargin = input.followMargin ?? 0.2;
-  const renderOnSeek = input.renderOnSeek ?? true;
 
   const tileDuration = input.tileDuration ?? 5;
   if (tileDuration <= 0)
@@ -128,11 +125,8 @@ export function resolveConfig(
     valueGamma,
     clampValues,
 
-    // Playback
+    // Playback Display
     showPlayhead,
-    followPlayback,
-    followMargin,
-    renderOnSeek,
 
     // Cache
     tileDuration,

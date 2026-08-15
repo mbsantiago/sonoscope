@@ -129,8 +129,6 @@ export function SpectrogramPanel(
           renderer={rendererConfig}
           minViewportDuration={0.08}
           maxViewportDuration={20}
-          followPlayback={true}
-          renderOnSeek={true}
           navigation={true}
           onReady={onReady}
           onViewportChange={(vp: ViewportConfig) => {

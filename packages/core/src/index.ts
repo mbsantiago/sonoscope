@@ -94,8 +94,7 @@ export type {
 export { WebGL2ShaderProgram } from "./renderers/webgl2-program";
 export { SobelSpectrogramProgram } from "./renderers/webgl2-sobel-program";
 export { TerrainSpectrogramProgram } from "./renderers/webgl2-terrain-program";
-export type { SonoscopeEvents, SonoscopeOptions } from "./sonoscope";
-export { Sonoscope } from "./sonoscope";
+export { isSonoscope, Sonoscope } from "./sonoscope";
 export type {
   ByteStreamSource,
   SeekableByteSource,
