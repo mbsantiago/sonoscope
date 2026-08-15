@@ -220,19 +220,20 @@
           const baseline = results.find(r => r.name.includes('JS Main-Thread')) || results[results.length - 1];
           const baseMean = baseline.totalStats.mean;
 
-          let comparison = `========================================================================================================\n` +
+          let comparison = `===================================================================================================================\n` +
             ` BENCHMARK COMPARISON SUMMARY (${iterations} iterations each)\n` +
             ` Renderer: ${rendererMode.value} | Viewport: 8.0s (4 tiles) | STFT: 2048 FFT / 512 hop\n` +
-            `========================================================================================================\n` +
-            `Backend                  |   Total Mean   |   Total Med.   |    STFT Mean   |   Paint Mean   |    Speedup\n` +
-            `-------------------------+----------------+----------------+----------------+----------------+-----------\n`;
+            `===================================================================================================================\n` +
+            `Backend                  |   Total Mean   |   Total Med.   |   Min Render   |   Max Render   | Cache Hit |   Speedup\n` +
+            `-------------------------+----------------+----------------+----------------+----------------+-----------+-----------\n`;
 
           for (const res of results) {
             const speedup = (baseMean / res.totalStats.mean).toFixed(2);
-            comparison += `${res.name.padEnd(24)} | ${res.totalStats.mean.toFixed(2).padStart(11)} ms | ${res.totalStats.median.toFixed(2).padStart(11)} ms | ${res.stftStats.mean.toFixed(2).padStart(11)} ms | ${res.paintStats.mean.toFixed(2).padStart(11)} ms |   ${speedup.padStart(6)}x\n`;
+            const hitPct = `${(res.stats.cacheHitRatio * 100).toFixed(0)}%`;
+            comparison += `${res.name.padEnd(24)} | ${res.totalStats.mean.toFixed(2).padStart(11)} ms | ${res.totalStats.median.toFixed(2).padStart(11)} ms | ${res.totalStats.min.toFixed(2).padStart(11)} ms | ${res.totalStats.max.toFixed(2).padStart(11)} ms | ${hitPct.padStart(9)} |   ${speedup.padStart(6)}x\n`;
           }
 
-          comparison += `========================================================================================================\n` +
+          comparison += `===================================================================================================================\n` +
             `* Speedup is calculated relative to ${baseline.name} baseline (${baseMean.toFixed(2)} ms mean total render).`;
 
           profile.textContent = comparison;
