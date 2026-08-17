@@ -5,34 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>espectro renderer switching</title>
     <style>
-      body { margin: 2rem; background: #10131a; color: #f8fafc; font-family: system-ui, sans-serif; }
-      canvas, .controls, pre, .note { width: min(100%, 960px); }
-      .controls { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
-      canvas { display: block; height: 320px; border: 1px solid #334155; }
-      pre { box-sizing: border-box; overflow: auto; padding: 1rem; background: #020617; border: 1px solid #334155; }
-      .note { color: #cbd5e1; }
+      body {
+        margin: 2rem;
+        background: #10131a;
+        color: #f8fafc;
+        font-family: system-ui, sans-serif;
+      }
+      canvas,
+      .controls,
+      pre,
+      .note {
+        width: min(100%, 960px);
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      canvas {
+        display: block;
+        height: 320px;
+        border: 1px solid #334155;
+      }
+      pre {
+        box-sizing: border-box;
+        overflow: auto;
+        padding: 1rem;
+        background: #020617;
+        border: 1px solid #334155;
+      }
+      .note {
+        color: #cbd5e1;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>Renderer switching</h1>
-      <p class="note">Switch between Canvas 2D, auto, and experimental WebGL2 rendering for the same synthetic source.</p>
+      <p class="note">
+        Switch between Canvas 2D, auto, and experimental WebGL2 rendering for
+        the same synthetic source.
+      </p>
       <div class="controls">
-        <label>Renderer
+        <label
+          >Renderer
           <select id="renderer">
             <option value="auto">auto</option>
             <option value="canvas2d">canvas2d</option>
             <option value="webgl">webgl</option>
           </select>
         </label>
-        <label>Frequency scale
+        <label
+          >Frequency scale
           <select id="frequency-scale">
             <option value="linear">linear</option>
             <option value="log">log</option>
             <option value="mel">mel</option>
           </select>
         </label>
-        <label title="This is not a serious control."><input id="summon" type="checkbox" /> summon mountains</label>
         <button id="render" type="button">Render</button>
       </div>
       <canvas id="spectrogram"></canvas>
@@ -40,31 +72,39 @@
     </main>
 
     <script type="module">
-      import { Sonoscope } from '@sonoscope/core';
+      import { Sonoscope } from "@sonoscope/core";
 
       class SyntheticSource {
-        id = 'synthetic-renderers';
+        id = "synthetic-renderers";
         sampleRate = 48_000;
         duration = 12;
         channelCount = 1;
-        data = Float32Array.from({ length: this.sampleRate * this.duration }, (_, index) => {
-          const time = index / this.sampleRate;
-          const sweep = 600 + 4_000 * (time / this.duration);
-          return 1.8 * Math.sin(2 * Math.PI * sweep * time) + 1.2 * Math.sin(2 * Math.PI * 1_700 * time);
-        });
+        data = Float32Array.from(
+          { length: this.sampleRate * this.duration },
+          (_, index) => {
+            const time = index / this.sampleRate;
+            const sweep = 600 + 4_000 * (time / this.duration);
+            return (
+              1.8 * Math.sin(2 * Math.PI * sweep * time) +
+              1.2 * Math.sin(2 * Math.PI * 1_700 * time)
+            );
+          },
+        );
 
         read({ startTime, endTime }) {
           const start = Math.max(0, Math.floor(startTime * this.sampleRate));
-          const end = Math.min(this.data.length, Math.ceil(endTime * this.sampleRate));
+          const end = Math.min(
+            this.data.length,
+            Math.ceil(endTime * this.sampleRate),
+          );
           return this.data.slice(start, end);
         }
       }
 
-      let canvas = document.querySelector('#spectrogram');
-      const rendererMode = document.querySelector('#renderer');
-      const frequencyScale = document.querySelector('#frequency-scale');
-      const summon = document.querySelector('#summon');
-      const status = document.querySelector('#status');
+      let canvas = document.querySelector("#spectrogram");
+      const rendererMode = document.querySelector("#renderer");
+      const frequencyScale = document.querySelector("#frequency-scale");
+      const status = document.querySelector("#status");
       const source = new SyntheticSource();
       const backend = {
         async computeTile(request) {
@@ -89,8 +129,17 @@
             frameCount,
             binCount,
             sampleRate: source.sampleRate,
-            times: Float32Array.from({ length: frameCount }, (_, index) => request.timeStart + (index / (frameCount - 1)) * (request.timeEnd - request.timeStart)),
-            frequencies: Float32Array.from({ length: binCount }, (_, index) => (index / (binCount - 1)) * 8_000),
+            times: Float32Array.from(
+              { length: frameCount },
+              (_, index) =>
+                request.timeStart +
+                (index / (frameCount - 1)) *
+                  (request.timeEnd - request.timeStart),
+            ),
+            frequencies: Float32Array.from(
+              { length: binCount },
+              (_, index) => (index / (binCount - 1)) * 8_000,
+            ),
             magnitude,
           };
         },
@@ -102,7 +151,7 @@
         viewer?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
-        status.textContent = `Creating viewer with renderer: ${rendererMode.value}, frequency scale: ${frequencyScale.value}${summon.checked ? ', invoking forbidden geometry' : ''}...`;
+        status.textContent = `Creating viewer with renderer: ${rendererMode.value}, frequency scale: ${frequencyScale.value}...`;
         try {
           scope = Sonoscope.fromSource(source, {
             startTime: 0,
@@ -110,32 +159,33 @@
           });
 
           viewer = scope.createSpectrogram(canvas, {
-            renderer: summon.checked ? { type: 'webgl', program: 'terrain' } : rendererMode.value,
+            renderer: rendererMode.value,
             backend,
             tileDuration: 8,
-            minFrequency: frequencyScale.value === 'log' ? 20 : 0,
+            minFrequency: frequencyScale.value === "log" ? 20 : 0,
             maxFrequency: 8_000,
             frequencyScale: frequencyScale.value,
-            valueMode: 'magnitude',
+            valueMode: "magnitude",
             minValue: 0,
             maxValue: 1,
             windowSize: 2048,
             fftSize: 2048,
             hopSize: 512,
           });
-          viewer.on('rendercomplete', (event) => {
-            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nmountains: ${summon.checked ? 'summoned' : 'sleeping'}\nrequest: ${event.requestId}\nrender duration: ${(event.durationMs ?? 0).toFixed(1)} ms\ntiles rendered: ${event.renderedTiles}`;
+          viewer.on("rendercomplete", (event) => {
+            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nrequest: ${event.requestId}\nrender duration: ${(event.durationMs ?? 0).toFixed(1)} ms\ntiles rendered: ${event.renderedTiles}`;
           });
         } catch (error) {
-          status.textContent = error instanceof Error ? error.message : String(error);
+          status.textContent =
+            error instanceof Error ? error.message : String(error);
         }
       }
 
-      document.querySelector('#render').addEventListener('click', () => void renderSelected());
-      rendererMode.addEventListener('change', () => void renderSelected());
-      frequencyScale.addEventListener('change', () => void renderSelected());
-      summon.addEventListener('change', () => void renderSelected());
-      summon.checked = new URLSearchParams(window.location.search).get('summon') === 'mountains';
+      document
+        .querySelector("#render")
+        .addEventListener("click", () => void renderSelected());
+      rendererMode.addEventListener("change", () => void renderSelected());
+      frequencyScale.addEventListener("change", () => void renderSelected());
       await renderSelected();
 
       function resetCanvas(current) {

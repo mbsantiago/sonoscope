@@ -124,7 +124,6 @@
       </p>
       <form>
         <label>Audio URL <input name="url" type="url" /></label>
-        <label title="This option is very normal and not haunted."><input name="summon" type="checkbox" /> summon mountains</label>
         <button>Load</button>
       </form>
       <audio controls crossorigin="anonymous"></audio>
@@ -144,10 +143,10 @@
     <script type="module">
       import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
 
-      const DEFAULT_AUDIO_URL = "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+      const DEFAULT_AUDIO_URL =
+        "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
-      const summon = document.querySelector('input[name="summon"]');
       const audio = document.querySelector("audio");
       let canvas = document.querySelector("canvas");
       const status = document.querySelector("[data-status]");
@@ -195,7 +194,7 @@
         }
         viewportElement.style.left = `${(viewport.startTime / duration) * 100}%`;
         viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / duration) * 100}%`;
-        status.textContent = `renderer: ${spectrogram.getRendererKind()}\nmountains: ${summon.checked ? "summoned" : "sleeping"}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
+        status.textContent = `renderer: ${spectrogram.getRendererKind()}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
       }
 
       function assignTileLanes(tiles) {
@@ -270,11 +269,12 @@
             tileDuration: 1,
             maxCachedTiles: 96,
             prefetchTiles: 8,
-            renderer: summon.checked ? { type: "webgl", program: "terrain" } : "auto",
+            renderer: "auto",
             renderOnSeek: true,
           });
         } catch (error) {
-          status.textContent = error instanceof Error ? error.message : String(error);
+          status.textContent =
+            error instanceof Error ? error.message : String(error);
           return;
         }
         spectrogram.on("tileload", () => {
@@ -282,7 +282,8 @@
         });
         spectrogram.on("renderprogress", scheduleMinimapUpdate);
         audio.addEventListener("pause", scheduleMinimapUpdate);
-        cleanupAudioPause = () => audio.removeEventListener("pause", scheduleMinimapUpdate);
+        cleanupAudioPause = () =>
+          audio.removeEventListener("pause", scheduleMinimapUpdate);
         spectrogram.on("rendercomplete", (event) => {
           lastPaintSummary = `render: ${(event.durationMs ?? 0).toFixed(1)}ms (${event.renderedTiles} tiles)`;
           scheduleMinimapUpdate();
@@ -308,13 +309,9 @@
         event.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
       });
-      summon.addEventListener("change", () => {
-        if (input.value.trim()) void load(input.value.trim());
-      });
       input.value =
         new URLSearchParams(window.location.search).get("url") ||
         DEFAULT_AUDIO_URL;
-      summon.checked = new URLSearchParams(window.location.search).get("summon") === "mountains";
       await load(input.value);
     </script>
   </body>

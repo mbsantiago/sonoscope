@@ -20,10 +20,7 @@ const initialSettings: SpectrogramSettings = {
   windowSize: 1024,
   hopSize: 128,
   window: "hann",
-  shaderProgram:
-    new URLSearchParams(location.search).get("summon") === "mountains"
-      ? "terrain"
-      : "auto",
+  shaderProgram: "auto",
 };
 
 export function ReactSpectrogramDemo(): React.ReactElement {
