@@ -8,30 +8,46 @@ app = marimo.App(width="medium")
 def _():
     from sonoscope import Sonoscope
     from pathlib import Path
-
-    return (Sonoscope,)
-
-
-@app.cell
-def _():
     import numpy as np
+    import soundfile as sf
 
-    return (np,)
+    return Sonoscope, np, sf
 
 
 @app.cell
 def _(np):
-    sr = 22050
-    y = np.sin(2 * np.pi * 440 * np.linspace(0, 5, sr * 5, endpoint=False))
-    return sr, y
+    def logarithmic_chirp(t, f0, t1, f1, phi0=0):
+        """
+        Generate a logarithmic (geometric/exponential) chirp signal using NumPy.
+    
+        Parameters:
+            t    : Array of time points (seconds)
+            f0   : Start frequency at t=0 (Hz)
+            t1   : Target time (seconds)
+            f1   : Target frequency at t1 (Hz)
+            phi0 : Initial phase in degrees (optional)
+        """
+        beta = np.log(f1 / f0)
+        phase = 2 * np.pi * f0 * t1 * (np.power(f1 / f0, t / t1) - 1) / beta
+        phase_rad = phase + np.deg2rad(phi0)
+        return np.sin(phase_rad)
+
+    # Example usage
+    sample_rate = 44100
+    duration = 5.0
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+
+    # Sweep from 20 Hz to 20,000 Hz over 5 seconds
+    signal = logarithmic_chirp(t, f0=20.0, t1=duration, f1=20000.0)
+    return sample_rate, signal
 
 
 @app.cell
-def _(Sonoscope, sr, y):
+def _(Sonoscope, sample_rate, signal):
     Sonoscope.from_array(
-        audio=y,
-        sample_rate=sr,
-        frequency_scale="linear",
+        audio=signal,
+        sample_rate=sample_rate,
+        frequency_scale="log",
         min_db=-60,
         max_db=0,
     )
@@ -39,8 +55,23 @@ def _(Sonoscope, sr, y):
 
 
 @app.cell
+def _(Sonoscope, sf):
+    audio, sr = sf.read("/home/santiago/Datasets/mexico/audio/57843f7f016e730f14d3f614.WAV")
+
+    Sonoscope.from_array(
+        audio=audio,
+        sample_rate=sr / 15,
+        frequency_scale="mel",
+        window_size=512,
+        hop_size=128,
+        min_db=-80,
+        max_db=-20,
+    )
+    return
+
+
+@app.cell
 def _():
- 
     return
 
 

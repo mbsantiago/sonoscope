@@ -184,11 +184,8 @@ export async function createAudioSourceFromUrl(
   options?: AudioSourceOptions,
 ): Promise<AudioSource> {
   const byteSource = FetchByteSource.fromUrl(url);
-  return createAudioSourceFromByteSource(
-    byteSource,
-    options,
-    url,
-    () => DecodedAudioSource.fromUrl(url, options),
+  return createAudioSourceFromByteSource(byteSource, options, url, () =>
+    DecodedAudioSource.fromUrl(url, options),
   );
 }
 
@@ -204,11 +201,8 @@ export async function createAudioSourceFromBlob(
   id?: string,
 ): Promise<AudioSource> {
   const byteSource = new BlobByteSource(blob);
-  return createAudioSourceFromByteSource(
-    byteSource,
-    options,
-    id,
-    () => DecodedAudioSource.fromBlob(blob, options, id),
+  return createAudioSourceFromByteSource(byteSource, options, id, () =>
+    DecodedAudioSource.fromBlob(blob, options, id),
   );
 }
 
@@ -224,11 +218,8 @@ export async function createAudioSourceFromBuffer(
   id?: string,
 ): Promise<AudioSource> {
   const byteSource = new BufferByteSource(buffer);
-  return createAudioSourceFromByteSource(
-    byteSource,
-    options,
-    id,
-    () => DecodedAudioSource.fromBuffer(buffer, options, id),
+  return createAudioSourceFromByteSource(byteSource, options, id, () =>
+    DecodedAudioSource.fromBuffer(buffer, options, id),
   );
 }
 

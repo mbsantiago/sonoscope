@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "sonoscope"
 version = "0.0.0"
 dependencies = ["anywidget"]
+requires-python = ">=3.12"
 readme = "README.md"
 
 # For projects not using `uv`, you can install these development dependencies with:
@@ -22,6 +23,7 @@ dev = [
     "jupyterlab",
     "marimo>=0.24.0",
     "numpy>=2.5.2",
+    "soundfile>=0.14.0",
 ]
 
 

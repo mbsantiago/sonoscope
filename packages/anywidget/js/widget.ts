@@ -48,21 +48,13 @@ interface WidgetModel {
 function toUint8Array(input: unknown): Uint8Array | null {
   if (!input) return null;
   if (input instanceof Uint8Array) {
-    return new Uint8Array(
-      input.buffer,
-      input.byteOffset,
-      input.byteLength,
-    );
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
   }
   if (input instanceof ArrayBuffer) {
     return new Uint8Array(input);
   }
   if (input instanceof DataView) {
-    return new Uint8Array(
-      input.buffer,
-      input.byteOffset,
-      input.byteLength,
-    );
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
   }
   if (Array.isArray(input)) {
     return new Uint8Array(input);
@@ -105,7 +97,6 @@ function toUint8Array(input: unknown): Uint8Array | null {
   return null;
 }
 
-
 async function render({
   model,
   el,
@@ -140,7 +131,7 @@ async function render({
 
   const root = document.createElement("div");
   root.className = "sonoscope-widget";
-  root.style.width = `${width + freqRulerWidth + 22}px`;
+  root.style.width = `${width + freqRulerWidth + 2}px`;
   root.style.maxWidth = "100%";
   el.appendChild(root);
 
@@ -268,8 +259,8 @@ async function render({
     timeRuler = scope.createTimeRuler(timeRulerCanvas, {
       program: timeRulerProg,
       tickPosition: "top",
-      color: "#cbd5e1",
-      tickColor: "#475569",
+      color: "rgba(128, 128, 128, 0.75)",
+      tickColor: "rgba(128, 128, 128, 0.35)",
     });
     navCleanups.push(attachCanvasNavigation(timeRuler, timeRulerCanvas));
     playheadOverlays.push(attachPlayheadOverlay(timeRulerContainer, scope));
@@ -292,8 +283,8 @@ async function render({
       frequencyScale,
       minFrequency: minFreq,
       maxFrequency: maxFreq,
-      color: "#cbd5e1",
-      tickColor: "#334155",
+      color: "rgba(128, 128, 128, 0.75)",
+      tickColor: "rgba(128, 128, 128, 0.35)",
       tickPosition: "right",
     });
     navCleanups.push(attachCanvasNavigation(freqRuler, freqRulerCanvas));
