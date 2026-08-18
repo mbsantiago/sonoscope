@@ -3,6 +3,7 @@ import react from '@astrojs/react';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import starlightThemeFlexoki from 'starlight-theme-flexoki';
+import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc';
 
 // https://astro.build/config
 export default defineConfig({
@@ -11,7 +12,25 @@ export default defineConfig({
 			title: 'Sonoscope',
 			description:
 				'High-performance WebGL2 & WASM audio spectrogram visualization ecosystem.',
-			plugins: [starlightThemeFlexoki()],
+			plugins: [
+				starlightThemeFlexoki(),
+				starlightTypeDoc({
+					entryPoints: [
+						'../packages/core/src/index.ts',
+						'../packages/react/src/index.ts',
+					],
+					tsconfig: '../tsconfig.json',
+					output: 'reference',
+					sidebar: {
+						label: 'API Reference',
+					},
+					typeDoc: {
+						readme: 'none',
+						excludeInternal: true,
+						excludePrivate: true,
+					},
+				}),
+			],
 			customCss: ['./src/styles/custom.css'],
 			social: [
 				{
@@ -45,10 +64,7 @@ export default defineConfig({
 						{ label: 'Python Widget', slug: 'demos/python' },
 					],
 				},
-				{
-					label: 'Reference',
-					items: [{ autogenerate: { directory: 'reference' } }],
-				},
+				typeDocSidebarGroup,
 			],
 		}),
 		react(),

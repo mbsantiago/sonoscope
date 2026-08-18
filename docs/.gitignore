@@ -1,7 +1,8 @@
 # build output
 dist/
-# generated types
+# generated types and typedoc reference
 .astro/
+src/content/docs/reference/
 
 # dependencies
 node_modules/
