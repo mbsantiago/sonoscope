@@ -4,6 +4,19 @@ import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import type { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import type { WaveformViewer } from "./viewers/waveform/viewer";
 
+export type TimeBounds = {
+  startTime: number;
+  endTime: number;
+  minDurationSeconds?: number;
+  maxDurationSeconds?: number;
+};
+
+export type FrequencyBounds = {
+  minFrequency: number;
+  maxFrequency: number;
+  minSpanHz?: number;
+};
+
 export interface NavigableViewer {
   setViewport(viewport: Partial<ViewportConfig>): void;
   requestRender(): void;
@@ -15,55 +28,58 @@ export interface NavigableViewer {
     frequencyScale?: string;
   };
   getCanvas?(): HTMLCanvasElement;
-  getScope?(): { getDuration(): number; [key: string]: unknown };
+  getScope?(): {
+    getDuration(): number;
+    getSampleRate?(): number;
+    [key: string]: unknown;
+  };
   getConfig(): {
     minViewportDuration?: number;
     maxViewportDuration?: number;
+    minFrequency?: number;
+    maxFrequency?: number;
     [key: string]: unknown;
   };
   getTimeBounds?: () => TimeBounds;
+  getFrequencyBounds?: () => FrequencyBounds;
   canvasToTimeFrequency?: (
     x: number,
     y: number,
   ) => { time: number; frequency: number };
   canvasToTime?: (x: number) => number;
+  canvasToFrequency?: (y: number) => number;
 }
 
-export type TimeBounds = {
-  startTime: number;
-  endTime: number;
-  minDurationSeconds?: number;
-  maxDurationSeconds?: number;
-};
+export type NavigationAxis = "auto" | "time" | "frequency" | "both";
 
 export type CanvasWheelNavigationOptions = {
-  panSensitivity?: number;
-  zoomSensitivity?: number;
-  zoomModifier?: "shift" | "ctrl" | "alt" | "meta";
-  onNavigate?: (viewport: ViewportConfig) => void;
+  axis?: NavigationAxis | undefined;
+  panSensitivity?: number | undefined;
+  zoomSensitivity?: number | undefined;
+  zoomModifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
+  frequencyModifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
+  frequencyPanSensitivity?: number | undefined;
+  frequencyZoomSensitivity?: number | undefined;
+  onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
 };
 
 export type CanvasDragNavigationOptions = {
-  button?: number;
-  modifier?: "shift" | "ctrl" | "alt" | "meta";
-  dragThreshold?: number;
-  cursor?: boolean;
-  onNavigate?: (viewport: ViewportConfig) => void;
-  onDragStart?: (event: PointerEvent | MouseEvent) => void;
-  onDragEnd?: (event: PointerEvent | MouseEvent) => void;
+  axis?: NavigationAxis | undefined;
+  button?: number | undefined;
+  modifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
+  frequencyModifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
+  dragThreshold?: number | undefined;
+  cursor?: boolean | undefined;
+  onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
+  onDragStart?: ((event: PointerEvent | MouseEvent) => void) | undefined;
+  onDragEnd?: ((event: PointerEvent | MouseEvent) => void) | undefined;
 };
 
 export type CanvasNavigationOptions = CanvasWheelNavigationOptions &
   CanvasDragNavigationOptions & {
-    enableWheel?: boolean;
-    enableDrag?: boolean;
+    enableWheel?: boolean | undefined;
+    enableDrag?: boolean | undefined;
   };
-
-export type FrequencyBounds = {
-  minFrequency: number;
-  maxFrequency: number;
-  minSpanHz?: number;
-};
 
 export type AnyNavigableViewer =
   | NavigableViewer
@@ -158,6 +174,22 @@ export function zoomViewportFrequency(
   return { ...viewport, minFrequency, maxFrequency: minFrequency + span };
 }
 
+function resolveViewerAxis(
+  viewer: AnyNavigableViewer,
+  configuredAxis?: NavigationAxis,
+): "time" | "frequency" | "both" {
+  if (configuredAxis && configuredAxis !== "auto") {
+    return configuredAxis;
+  }
+  if ("canvasToTimeFrequency" in viewer) {
+    return "both";
+  }
+  if ("canvasToFrequency" in viewer && !("canvasToTime" in viewer)) {
+    return "frequency";
+  }
+  return "time";
+}
+
 function resolveViewerCanvas(
   viewer: AnyNavigableViewer,
   canvas?: HTMLCanvasElement,
@@ -172,7 +204,7 @@ function resolveViewerCanvas(
   throw new Error("Canvas is required for navigation attachment");
 }
 
-function resolveViewerTimeBounds(
+export function resolveViewerTimeBounds(
   viewer: AnyNavigableViewer,
 ): TimeBounds {
   if ("getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function") {
@@ -194,15 +226,44 @@ function resolveViewerTimeBounds(
   };
 }
 
+export function resolveViewerFrequencyBounds(
+  viewer: AnyNavigableViewer,
+): FrequencyBounds {
+  if (
+    "getFrequencyBounds" in viewer &&
+    typeof (viewer as unknown as { getFrequencyBounds?: () => FrequencyBounds })
+      .getFrequencyBounds === "function"
+  ) {
+    return (
+      viewer as unknown as { getFrequencyBounds: () => FrequencyBounds }
+    ).getFrequencyBounds();
+  }
+  const sampleRate =
+    "getScope" in viewer && typeof viewer.getScope === "function"
+      ? viewer.getScope()?.getSampleRate?.() ?? 48000
+      : 48000;
+  const nyquist = Math.floor(sampleRate / 2);
+  return {
+    minFrequency: 0,
+    maxFrequency: nyquist,
+    minSpanHz: 20,
+  };
+}
+
 export function attachCanvasWheelNavigation(
   viewer: AnyNavigableViewer,
   canvas?: HTMLCanvasElement,
   options: CanvasWheelNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
+  const axis = resolveViewerAxis(viewer, options.axis);
   const panSensitivity = options.panSensitivity ?? 260;
   const zoomSensitivity = options.zoomSensitivity ?? 0.055;
   const zoomModifier = options.zoomModifier ?? "ctrl";
+  const freqModifier = options.frequencyModifier ?? "shift";
+  const freqPanSensitivity = options.frequencyPanSensitivity ?? 200;
+  const freqZoomSensitivity = options.frequencyZoomSensitivity ?? 0.055;
+
   let pendingWheel:
     | {
         deltaY: number;
@@ -239,12 +300,71 @@ export function attachCanvasWheelNavigation(
       const wheel = pendingWheel;
       pendingWheel = undefined;
       const viewport = viewer.getViewport() as ViewportConfig;
+
+      const isFreqAction =
+        axis === "frequency" ||
+        (axis === "both" && modifierPressed(wheel, freqModifier));
+
+      if (isFreqAction) {
+        const isZooming = modifierPressed(wheel, zoomModifier);
+        const freqBounds = resolveViewerFrequencyBounds(viewer);
+
+        if (isZooming) {
+          const rect = targetCanvas.getBoundingClientRect?.() ?? {
+            left: 0,
+            top: 0,
+            width: 0,
+            height: 0,
+          };
+          const freq =
+            "canvasToTimeFrequency" in viewer &&
+            typeof viewer.canvasToTimeFrequency === "function"
+              ? viewer.canvasToTimeFrequency(
+                  wheel.clientX - rect.left,
+                  wheel.clientY - rect.top,
+                ).frequency
+              : "canvasToFrequency" in viewer &&
+                  typeof viewer.canvasToFrequency === "function"
+                ? viewer.canvasToFrequency(wheel.clientY - rect.top)
+                : (() => {
+                    const height =
+                      rect.height || targetCanvas.clientHeight || 1;
+                    const ratio = 1 - (wheel.clientY - rect.top) / height;
+                    return (
+                      viewport.minFrequency +
+                      ratio * (viewport.maxFrequency - viewport.minFrequency)
+                    );
+                  })();
+
+          apply(
+            zoomViewportFrequency(
+              viewport,
+              freqBounds,
+              freq,
+              Math.exp((wheel.deltaY < 0 ? -1 : 1) * freqZoomSensitivity),
+            ),
+          );
+          return;
+        }
+
+        // Panning frequency
+        const deltaHz =
+          -(wheel.deltaY / freqPanSensitivity) *
+          (viewport.maxFrequency - viewport.minFrequency);
+        apply(panViewportFrequency(viewport, freqBounds, deltaHz));
+        return;
+      }
+
+      // Time Navigation
+      const isZooming = modifierPressed(wheel, zoomModifier);
       const bounds = resolveViewerTimeBounds(viewer);
-      if (modifierPressed(wheel, zoomModifier)) {
+
+      if (isZooming) {
         const rect = targetCanvas.getBoundingClientRect?.() ?? {
           left: 0,
           top: 0,
           width: 0,
+          height: 0,
         };
         const time =
           "canvasToTimeFrequency" in viewer &&
@@ -274,6 +394,7 @@ export function attachCanvasWheelNavigation(
         );
         return;
       }
+
       apply(
         panViewportTime(
           viewport,
@@ -298,9 +419,11 @@ export function attachCanvasDragNavigation(
   options: CanvasDragNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
+  const axis = resolveViewerAxis(viewer, options.axis);
   const targetButton = options.button ?? 0;
   const dragThreshold = options.dragThreshold ?? 3;
   const manageCursor = options.cursor ?? true;
+  const freqModifier = options.frequencyModifier ?? "shift";
 
   let isPointerDown = false;
   let isDragging = false;
@@ -350,6 +473,21 @@ export function attachCanvasDragNavigation(
       options.onDragStart?.(event);
     }
 
+    const isFreqDrag =
+      axis === "frequency" ||
+      (axis === "both" && modifierPressed(event, freqModifier));
+
+    if (isFreqDrag) {
+      const rect = targetCanvas.getBoundingClientRect?.() ?? { height: 0 };
+      const canvasHeight = rect.height || targetCanvas.clientHeight || 1;
+      const span = startViewport.maxFrequency - startViewport.minFrequency;
+      const deltaHz = (dy / canvasHeight) * span;
+      const freqBounds = resolveViewerFrequencyBounds(viewer);
+      apply(panViewportFrequency(startViewport, freqBounds, deltaHz));
+      return;
+    }
+
+    // Time Drag
     const rect = targetCanvas.getBoundingClientRect?.() ?? { width: 0 };
     const canvasWidth = rect.width || targetCanvas.clientWidth || 1;
     const duration = startViewport.endTime - startViewport.startTime;

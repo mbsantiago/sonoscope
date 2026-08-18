@@ -201,6 +201,9 @@
         <p style="color: var(--text-muted); margin-top: 0.25rem;">
           Modular 2D Canvas coordinate scales: Vertical <strong>FrequencyRuler</strong> (supporting <strong>Mel</strong>, <strong>Linear</strong>, and <strong>Log</strong> scales) and Horizontal <strong>TimeRuler</strong> (Ticks and Boxes programs) locked in perfect sync with the WebGL2 Spectrogram.
         </p>
+        <p style="font-size: 0.8rem; color: #38bdf8; margin-top: 0.5rem; background: rgba(56, 189, 248, 0.08); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+          💡 <strong>Navigation Shortcuts:</strong> Drag or scroll directly on the <strong>Frequency Ruler</strong> to pan/zoom frequency. On the <strong>Spectrogram</strong>, use standard <strong>Drag / Wheel</strong> for Time, <strong>Ctrl+Wheel</strong> to Zoom Time, hold <strong>Shift+Wheel / Shift+Drag</strong> to Scroll Frequency, and <strong>Ctrl+Shift+Wheel</strong> to Zoom Frequency!
+        </p>
       </header>
 
       <div class="controls-card">
@@ -376,8 +379,16 @@
         playheadSpec = attachPlayheadOverlay(canvasSpectrogram.parentElement, scope);
         playheadBottom = attachPlayheadOverlay(canvasBottomRuler.parentElement, scope);
 
-        // Attach drag navigation to spectrogram
-        cleanupNav = attachCanvasNavigation(spectrogram, canvasSpectrogram);
+        // Attach full bidirectional navigation
+        const cleanups = [
+          attachCanvasNavigation(spectrogram, canvasSpectrogram),
+          attachCanvasNavigation(freqRuler, canvasFreqRuler),
+          attachCanvasNavigation(topRuler, canvasTopRuler),
+          attachCanvasNavigation(bottomRuler, canvasBottomRuler),
+        ];
+        cleanupNav = () => {
+          for (const fn of cleanups) fn();
+        };
       }
 
       presetSelect.addEventListener("change", () => loadTrack(presetSelect.value));
