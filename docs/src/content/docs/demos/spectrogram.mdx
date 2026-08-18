@@ -1,16 +1,16 @@
 ---
 title: Spectrogram
-description: Minimal standalone HTML & TypeScript spectrogram viewer.
+description: Minimal standalone HTML & JavaScript spectrogram viewer.
 ---
 
 Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`.
 
-```html live
+```astro live
 <div style="border: 1px solid rgba(128, 128, 128, 0.25); border-radius: 6px; overflow: hidden;">
   <canvas id="spectrogram-canvas" style="width: 100%; height: 280px; display: block;"></canvas>
 </div>
 
-<script type="module">
+<script>
   import { Sonoscope, attachCanvasNavigation } from '@sonoscope/core';
 
   const canvas = document.querySelector('#spectrogram-canvas');
