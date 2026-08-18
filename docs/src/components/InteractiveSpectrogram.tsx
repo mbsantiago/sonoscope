@@ -1,7 +1,11 @@
 import {
   type ColorMapConfig,
+  type FrequencyRulerViewer,
   type FrequencyScale,
   Sonoscope,
+  type SpectrogramViewer,
+  type TimeRulerViewer,
+  type WaveformViewer,
   attachCanvasNavigation,
   attachPlayheadOverlay,
 } from "@sonoscope/core";
@@ -29,11 +33,19 @@ export default function InteractiveSpectrogram({
   const waveCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // References to long-lived viewer instances
+  const scopeRef = useRef<Sonoscope | null>(null);
+  const specRef = useRef<SpectrogramViewer | null>(null);
+  const waveformRef = useRef<WaveformViewer | null>(null);
+  const freqRulerRef = useRef<FrequencyRulerViewer | null>(null);
+  const timeRulerRef = useRef<TimeRulerViewer | null>(null);
+
   const [cmap, setCmap] = useState<ColorMapConfig>(initialCmap);
   const [scale, setScale] = useState<FrequencyScale>(initialScale);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 1. Core audio loading and viewer instantiation (ONLY runs on audioUrl / layout change)
   useEffect(() => {
     let active = true;
     const cleanups: Array<() => void> = [];
@@ -75,6 +87,8 @@ export default function InteractiveSpectrogram({
           return;
         }
 
+        scopeRef.current = scope;
+
         const minFreq = scale === "log" ? 20 : 0;
         const maxFreq = Math.floor(scope.getSampleRate() / 2);
 
@@ -86,6 +100,7 @@ export default function InteractiveSpectrogram({
           minFrequency: minFreq,
           maxFrequency: maxFreq,
         });
+        specRef.current = spec;
         cleanups.push(attachCanvasNavigation(spec, specCanvasRef.current));
 
         if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
@@ -95,6 +110,7 @@ export default function InteractiveSpectrogram({
             color: "rgba(128, 128, 128, 0.75)",
             tickColor: "rgba(128, 128, 128, 0.35)",
           });
+          timeRulerRef.current = timeRuler;
           cleanups.push(attachCanvasNavigation(timeRuler, timeCanvasRef.current));
           const overlay = attachPlayheadOverlay(
             timeCanvasRef.current.parentElement,
@@ -124,6 +140,7 @@ export default function InteractiveSpectrogram({
             tickColor: "rgba(128, 128, 128, 0.35)",
             tickPosition: "right",
           });
+          freqRulerRef.current = freqRuler;
           cleanups.push(attachCanvasNavigation(freqRuler, freqCanvasRef.current));
         }
 
@@ -135,6 +152,7 @@ export default function InteractiveSpectrogram({
           const waveform = scope.createWaveform(waveCanvasRef.current, {
             colorMap: cmap,
           });
+          waveformRef.current = waveform;
           cleanups.push(attachCanvasNavigation(waveform, waveCanvasRef.current));
           const overlay = attachPlayheadOverlay(
             waveCanvasRef.current.parentElement,
@@ -178,7 +196,14 @@ export default function InteractiveSpectrogram({
           );
         }
 
-        cleanups.push(() => scope.destroy());
+        cleanups.push(() => {
+          specRef.current = null;
+          waveformRef.current = null;
+          freqRulerRef.current = null;
+          timeRulerRef.current = null;
+          scope.destroy();
+          scopeRef.current = null;
+        });
         setLoading(false);
       } catch (err: any) {
         if (active) {
@@ -194,7 +219,25 @@ export default function InteractiveSpectrogram({
       active = false;
       for (const cleanup of cleanups) cleanup();
     };
-  }, [audioUrl, cmap, scale, showWaveform]);
+  }, [audioUrl, showWaveform]);
+
+  // 2. Colormap change (Instantly swaps WebGL shader texture without re-decoding or recomputing STFT)
+  useEffect(() => {
+    specRef.current?.updateConfig({ colorMap: cmap });
+    waveformRef.current?.updateConfig({ colorMap: cmap });
+  }, [cmap]);
+
+  // 3. Frequency Scale change (Instantly updates projection and rulers without re-decoding)
+  useEffect(() => {
+    const scope = scopeRef.current;
+    if (!scope) return;
+    const minFreq = scale === "log" ? 20 : 0;
+    const maxFreq = Math.floor(scope.getSampleRate() / 2);
+
+    scope.setViewport({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
+    specRef.current?.updateConfig({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
+    freqRulerRef.current?.updateConfig({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
+  }, [scale]);
 
   return (
     <div
