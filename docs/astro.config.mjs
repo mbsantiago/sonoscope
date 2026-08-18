@@ -3,8 +3,12 @@ import react from '@astrojs/react';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import liveCode from 'astro-live-code';
+import starlightLinksValidator from 'starlight-links-validator';
 import starlightThemeFlexoki from 'starlight-theme-flexoki';
-import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc';
+import { createStarlightTypeDocPlugin } from 'starlight-typedoc';
+
+const [coreTypeDoc, coreSidebarGroup] = createStarlightTypeDocPlugin();
+const [reactTypeDoc, reactSidebarGroup] = createStarlightTypeDocPlugin();
 
 // https://astro.build/config
 export default defineConfig({
@@ -15,15 +19,26 @@ export default defineConfig({
 				'High-performance WebGL2 & WASM audio spectrogram visualization ecosystem.',
 			plugins: [
 				starlightThemeFlexoki(),
-				starlightTypeDoc({
-					entryPoints: [
-						'../packages/core/src/index.ts',
-						'../packages/react/src/index.ts',
-					],
+				starlightLinksValidator(),
+				coreTypeDoc({
+					entryPoints: ['../packages/core/src/index.ts'],
 					tsconfig: '../tsconfig.json',
-					output: 'reference',
+					output: 'reference/core',
 					sidebar: {
-						label: 'API Reference',
+						label: '@sonoscope/core',
+					},
+					typeDoc: {
+						readme: 'none',
+						excludeInternal: true,
+						excludePrivate: true,
+					},
+				}),
+				reactTypeDoc({
+					entryPoints: ['../packages/react/src/index.ts'],
+					tsconfig: '../tsconfig.json',
+					output: 'reference/react',
+					sidebar: {
+						label: '@sonoscope/react',
 					},
 					typeDoc: {
 						readme: 'none',
@@ -65,7 +80,10 @@ export default defineConfig({
 						{ label: 'Python Widget', slug: 'demos/python' },
 					],
 				},
-				typeDocSidebarGroup,
+				{
+					label: 'API Reference',
+					items: [coreSidebarGroup, reactSidebarGroup],
+				},
 			],
 		}),
 		react(),
