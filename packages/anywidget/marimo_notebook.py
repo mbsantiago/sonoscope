@@ -6,7 +6,7 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    from sonogram import Spectrogram
+    from sonoscope import Sonoscope, Spectrogram
 
     return (Spectrogram,)
 

@@ -1446,7 +1446,7 @@ wheels = [
 ]
 
 [[package]]
-name = "sonogram"
+name = "sonoscope"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [

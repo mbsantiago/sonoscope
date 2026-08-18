@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
-    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/react build",
+    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/react build && npm run --workspace=@sonoscope/anywidget build",
     "bench": "vitest bench",
     "fixtures:generate": "uv run scripts/generate_baseline_spectrograms.py",
     "capture:renderers": "node scripts/capture-renderers.mjs",

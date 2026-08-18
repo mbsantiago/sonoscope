@@ -18,8 +18,8 @@ const STANDARD_LOG_TICKS = [
 ];
 
 const STANDARD_MEL_CANDIDATES = [
-  0, 50, 100, 200, 300, 400, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000,
-  6000, 7000, 8000, 10000, 12000, 14000, 16000, 18000, 20000, 22050, 24000,
+  0, 50, 100, 200, 300, 400, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000, 6000,
+  7000, 8000, 10000, 12000, 14000, 16000, 18000, 20000, 22050, 24000,
 ];
 
 export type FrequencyTicksResult = {
@@ -102,7 +102,10 @@ export function computeFrequencyTicks(
     for (const f of majorCandidates) {
       const s = hzToScale(f, "log");
       const y = (1 - (s - minScaled) / spanScaled) * height;
-      if (Math.abs(y - lastY) >= minPixelSpacing * 0.75 || lastY === -Infinity) {
+      if (
+        Math.abs(y - lastY) >= minPixelSpacing * 0.75 ||
+        lastY === -Infinity
+      ) {
         majorTicks.push(f);
         lastY = y;
       }

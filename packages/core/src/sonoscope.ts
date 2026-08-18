@@ -341,16 +341,11 @@ export class Sonoscope implements ISonoscope {
       ? (centerFrequency as number)
       : (this.minFrequency + this.maxFrequency) / 2;
     const ratio =
-      currentSpan <= 0
-        ? 0.5
-        : (center - this.minFrequency) / currentSpan;
+      currentSpan <= 0 ? 0.5 : (center - this.minFrequency) / currentSpan;
     const newMin = Math.max(0, center - targetSpan * ratio);
     const newMax = newMin + targetSpan;
 
-    this.setViewport(
-      { minFrequency: newMin, maxFrequency: newMax },
-      source,
-    );
+    this.setViewport({ minFrequency: newMin, maxFrequency: newMax }, source);
   }
 
   panFrequency(deltaHz: number, source?: string): void {

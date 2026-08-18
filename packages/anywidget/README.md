@@ -1,15 +1,15 @@
-# sonogram
+# sonoscope
 
 ## Installation
 
 ```sh
-pip install sonogram
+pip install sonoscope
 ```
 
 or with [uv](https://github.com/astral-sh/uv):
 
 ```sh
-uv add sonogram
+uv add sonoscope
 ```
 
 ## Development

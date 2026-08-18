@@ -73,7 +73,11 @@ describe("FrequencyRulerViewer", () => {
     const canvas = createMockCanvas();
     const viewer = scope.createFrequencyRuler(canvas);
 
-    viewer.updateConfig({ frequencyScale: "log", minFrequency: 20, maxFrequency: 20000 });
+    viewer.updateConfig({
+      frequencyScale: "log",
+      minFrequency: 20,
+      maxFrequency: 20000,
+    });
     expect(viewer.getConfig().frequencyScale).toBe("log");
     expect(viewer.getViewport().frequencyScale).toBe("log");
 
@@ -117,14 +121,26 @@ describe("FrequencyRulerViewer", () => {
 
     // Zoom frequency on scope
     scope.zoomFrequency(0.5, 10000);
-    expect(ruler1.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
-    expect(ruler1.getViewport().maxFrequency).toBe(scope.getViewport().maxFrequency);
-    expect(ruler2.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
-    expect(ruler2.getViewport().maxFrequency).toBe(scope.getViewport().maxFrequency);
+    expect(ruler1.getViewport().minFrequency).toBe(
+      scope.getViewport().minFrequency,
+    );
+    expect(ruler1.getViewport().maxFrequency).toBe(
+      scope.getViewport().maxFrequency,
+    );
+    expect(ruler2.getViewport().minFrequency).toBe(
+      scope.getViewport().minFrequency,
+    );
+    expect(ruler2.getViewport().maxFrequency).toBe(
+      scope.getViewport().maxFrequency,
+    );
 
     // Pan frequency on scope
     scope.panFrequency(500);
-    expect(ruler1.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
-    expect(ruler2.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
+    expect(ruler1.getViewport().minFrequency).toBe(
+      scope.getViewport().minFrequency,
+    );
+    expect(ruler2.getViewport().minFrequency).toBe(
+      scope.getViewport().minFrequency,
+    );
   });
 });

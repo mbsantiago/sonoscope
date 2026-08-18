@@ -631,12 +631,14 @@ describe("React Components and Hooks", () => {
       const ref = createRef<SpectrogramHandle>();
 
       await act(async () => {
-        root.render(React.createElement(Spectrogram, { ref, scope, showPlayhead: true }));
+        root.render(
+          React.createElement(Spectrogram, { ref, scope, showPlayhead: true }),
+        );
       });
 
       // Find the playhead element in container
-      const playheadEl = container.childNodes[0]?.childNodes.find(
-        (child) => child.classList.contains("sonoscope-playhead"),
+      const playheadEl = container.childNodes[0]?.childNodes.find((child) =>
+        child.classList.contains("sonoscope-playhead"),
       );
       expect(playheadEl).toBeTruthy();
       expect(playheadEl?.style.position).toBe("absolute");
@@ -662,11 +664,13 @@ describe("React Components and Hooks", () => {
       const ref = createRef<WaveformHandle>();
 
       await act(async () => {
-        root.render(React.createElement(Waveform, { ref, scope, showPlayhead: true }));
+        root.render(
+          React.createElement(Waveform, { ref, scope, showPlayhead: true }),
+        );
       });
 
-      const playheadEl = container.childNodes[0]?.childNodes.find(
-        (child) => child.classList.contains("sonoscope-playhead"),
+      const playheadEl = container.childNodes[0]?.childNodes.find((child) =>
+        child.classList.contains("sonoscope-playhead"),
       );
       expect(playheadEl).toBeTruthy();
       expect(playheadEl?.style.position).toBe("absolute");
@@ -713,11 +717,13 @@ describe("React Components and Hooks", () => {
       });
 
       await act(async () => {
-        root.render(React.createElement(TimeRuler, { scope, showPlayhead: true }));
+        root.render(
+          React.createElement(TimeRuler, { scope, showPlayhead: true }),
+        );
       });
 
-      const playheadEl = container.childNodes[0]?.childNodes.find(
-        (child) => child.classList.contains("sonoscope-playhead"),
+      const playheadEl = container.childNodes[0]?.childNodes.find((child) =>
+        child.classList.contains("sonoscope-playhead"),
       );
       expect(playheadEl).toBeTruthy();
       expect(playheadEl?.style.position).toBe("absolute");
@@ -742,7 +748,11 @@ describe("React Components and Hooks", () => {
           React.createElement(
             SonoscopeProvider,
             { value: scope },
-            React.createElement(FrequencyRuler, { ref, program: "ticks", frequencyScale: "mel" }),
+            React.createElement(FrequencyRuler, {
+              ref,
+              program: "ticks",
+              frequencyScale: "mel",
+            }),
           ),
         );
       });

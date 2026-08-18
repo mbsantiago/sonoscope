@@ -216,7 +216,7 @@ export function resolveViewerTimeBounds(
   };
   const duration =
     "getScope" in viewer && typeof viewer.getScope === "function"
-      ? viewer.getScope()?.getDuration?.() ?? 0
+      ? (viewer.getScope()?.getDuration?.() ?? 0)
       : 0;
   return {
     startTime: 0,
@@ -240,7 +240,7 @@ export function resolveViewerFrequencyBounds(
   }
   const sampleRate =
     "getScope" in viewer && typeof viewer.getScope === "function"
-      ? viewer.getScope()?.getSampleRate?.() ?? 48000
+      ? (viewer.getScope()?.getSampleRate?.() ?? 48000)
       : 48000;
   const nyquist = Math.floor(sampleRate / 2);
   return {

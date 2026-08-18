@@ -6,9 +6,9 @@ export type TimeFormatMode =
   | ((sec: number) => string);
 
 const STANDARD_STEPS = [
-  0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2,
-  0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400,
-  28800, 86400,
+  0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5,
+  1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 28800,
+  86400,
 ];
 
 export type TimeTicksResult = {
@@ -26,7 +26,10 @@ export function computeTimeTicks(
 ): TimeTicksResult {
   const duration = Math.max(0.000001, endTime - startTime);
   const width = Math.max(1, pixelWidth);
-  const targetMajorCount = Math.max(1, Math.floor(width / minMajorPixelSpacing));
+  const targetMajorCount = Math.max(
+    1,
+    Math.floor(width / minMajorPixelSpacing),
+  );
   const rawStep = duration / targetMajorCount;
 
   let majorStep = STANDARD_STEPS[STANDARD_STEPS.length - 1]!;
@@ -116,7 +119,8 @@ export function formatTimeLabel(
   const absSec = Math.abs(seconds);
 
   if (format === "seconds") {
-    const decimals = step < 1 ? Math.min(4, Math.max(0, Math.ceil(-Math.log10(step)))) : 0;
+    const decimals =
+      step < 1 ? Math.min(4, Math.max(0, Math.ceil(-Math.log10(step)))) : 0;
     return `${isNegative ? "-" : ""}${absSec.toFixed(decimals)}s`;
   }
 
@@ -136,12 +140,14 @@ export function formatTimeLabel(
 
   // "auto" formatting:
   if (absSec < 1) {
-    const decimals = step < 1 ? Math.min(4, Math.max(1, Math.ceil(-Math.log10(step)))) : 2;
+    const decimals =
+      step < 1 ? Math.min(4, Math.max(1, Math.ceil(-Math.log10(step)))) : 2;
     return `${isNegative ? "-" : ""}${absSec.toFixed(decimals)}s`;
   }
 
   if (absSec < 60) {
-    const decimals = step < 1 ? Math.min(3, Math.max(0, Math.ceil(-Math.log10(step)))) : 0;
+    const decimals =
+      step < 1 ? Math.min(3, Math.max(0, Math.ceil(-Math.log10(step)))) : 0;
     return `${isNegative ? "-" : ""}${absSec.toFixed(decimals)}s`;
   }
 
@@ -150,7 +156,9 @@ export function formatTimeLabel(
     const s = Math.floor(absSec % 60);
     const pad = (n: number) => String(n).padStart(2, "0");
     if (step < 1) {
-      const frac = (absSec % 1).toFixed(Math.min(3, Math.ceil(-Math.log10(step)))).slice(1);
+      const frac = (absSec % 1)
+        .toFixed(Math.min(3, Math.ceil(-Math.log10(step))))
+        .slice(1);
       return `${isNegative ? "-" : ""}${m}:${pad(s)}${frac}`;
     }
     return `${isNegative ? "-" : ""}${m}:${pad(s)}`;

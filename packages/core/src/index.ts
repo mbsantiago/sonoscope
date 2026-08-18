@@ -36,6 +36,22 @@ export type {
   ViewportConfig,
   ViewportState,
 } from "./types";
+// FrequencyRuler Types
+export type {
+  FrequencyFormatMode,
+  FrequencyRulerConfig,
+  FrequencyRulerEvents,
+  FrequencyRulerFrame,
+  FrequencyRulerOptions,
+  FrequencyRulerProgram,
+  FrequencyRulerProgramName,
+  FrequencyRulerRenderInput,
+  FrequencyRulerStatus,
+  FrequencyRulerViewport,
+  FrequencyTicksResult,
+  IFrequencyRulerViewer,
+  ResolvedFrequencyRulerConfig,
+} from "./viewers/frequency-ruler";
 export type {
   ComputeTileRequest,
   SpectrogramComputeBackend,
@@ -78,22 +94,6 @@ export type {
   WebGLRendererProgram,
   WindowName,
 } from "./viewers/spectrogram/types";
-// FrequencyRuler Types
-export type {
-  FrequencyFormatMode,
-  FrequencyRulerConfig,
-  FrequencyRulerEvents,
-  FrequencyRulerFrame,
-  FrequencyRulerOptions,
-  FrequencyRulerProgram,
-  FrequencyRulerProgramName,
-  FrequencyRulerRenderInput,
-  FrequencyRulerStatus,
-  FrequencyRulerViewport,
-  FrequencyTicksResult,
-  IFrequencyRulerViewer,
-  ResolvedFrequencyRulerConfig,
-} from "./viewers/frequency-ruler";
 // TimeRuler Types
 export type {
   ITimeRulerViewer,
@@ -123,8 +123,6 @@ export type {
   WaveformStatus,
   WaveformViewport,
 } from "./viewers/waveform/types";
-// Viewport Utilities
-export { clampViewportTimes } from "./viewport-math";
 // Colormap Utilities
 export {
   buildColorMap,
@@ -157,6 +155,13 @@ export {
 } from "./sources/source";
 export { StreamingMp3Source } from "./sources/streaming-mp3-source";
 export { StreamingWavSource } from "./sources/streaming-wav-source";
+export {
+  BoxesFrequencyRulerProgram,
+  computeFrequencyTicks,
+  FrequencyRulerViewer,
+  formatFrequencyLabel,
+  TicksFrequencyRulerProgram,
+} from "./viewers/frequency-ruler";
 // Compute Backends & Renderers
 export { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
 export {
@@ -189,13 +194,6 @@ export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 export {
-  BoxesFrequencyRulerProgram,
-  computeFrequencyTicks,
-  formatFrequencyLabel,
-  FrequencyRulerViewer,
-  TicksFrequencyRulerProgram,
-} from "./viewers/frequency-ruler";
-export {
   BoxesTimeRulerProgram,
   computeTimeTicks,
   formatTimeLabel,
@@ -205,3 +203,5 @@ export {
 export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";
+// Viewport Utilities
+export { clampViewportTimes } from "./viewport-math";

@@ -29,6 +29,7 @@ export function useTimeRuler(
     [JSON.stringify(viewerConfig)],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses scope/canvas identity; in-place option updates handled below
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !scope) {

@@ -130,10 +130,7 @@ export class TicksTimeRulerProgram implements TimeRulerProgram {
         drawX = 4 * dpr;
       }
 
-      const drawY =
-        tickPosition === "top"
-          ? height * 0.55
-          : height * 0.45;
+      const drawY = tickPosition === "top" ? height * 0.55 : height * 0.45;
 
       ctx.fillText(text, drawX, drawY);
     }

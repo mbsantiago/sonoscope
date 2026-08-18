@@ -201,13 +201,19 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     const rect = this.canvas.getBoundingClientRect();
     const width = rect.width || this.canvas.width || 1;
     const norm = Math.max(0, Math.min(1, x / width));
-    return this.config.startTime + norm * (this.config.endTime - this.config.startTime);
+    return (
+      this.config.startTime +
+      norm * (this.config.endTime - this.config.startTime)
+    );
   }
 
   timeToCanvas(time: number): number {
     const rect = this.canvas.getBoundingClientRect();
     const width = rect.width || this.canvas.width || 1;
-    const duration = Math.max(0.000001, this.config.endTime - this.config.startTime);
+    const duration = Math.max(
+      0.000001,
+      this.config.endTime - this.config.startTime,
+    );
     return ((time - this.config.startTime) / duration) * width;
   }
 
@@ -228,7 +234,10 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     const rect = this.canvas.getBoundingClientRect();
     const dpr =
       typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(1, Math.floor((rect.width || this.canvas.width) * dpr));
+    const width = Math.max(
+      1,
+      Math.floor((rect.width || this.canvas.width) * dpr),
+    );
     const height = Math.max(
       1,
       Math.floor((rect.height || this.canvas.height) * dpr),

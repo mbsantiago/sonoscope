@@ -1,19 +1,24 @@
 export {
+  FrequencyRuler,
+  type FrequencyRulerHandle,
+  type FrequencyRulerProps,
+} from "./FrequencyRuler";
+export {
   SonoscopeContext,
   SonoscopeProvider,
   type SonoscopeProviderProps,
   useSonoscopeContext,
 } from "./SonoscopeContext";
 export {
-  FrequencyRuler,
-  type FrequencyRulerHandle,
-  type FrequencyRulerProps,
-} from "./FrequencyRuler";
-export {
   Spectrogram,
   type SpectrogramHandle,
   type SpectrogramProps,
 } from "./Spectrogram";
+export {
+  TimeRuler,
+  type TimeRulerHandle,
+  type TimeRulerProps,
+} from "./TimeRuler";
 export {
   type UseFrequencyRulerOptions,
   useFrequencyRuler,
@@ -29,11 +34,6 @@ export {
   type UseSpectrogramResult,
   useSpectrogram,
 } from "./useSpectrogram";
-export {
-  TimeRuler,
-  type TimeRulerHandle,
-  type TimeRulerProps,
-} from "./TimeRuler";
 export {
   type UseTimeRulerOptions,
   useTimeRuler,

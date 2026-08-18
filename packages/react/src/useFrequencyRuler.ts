@@ -1,7 +1,7 @@
 import {
-  FrequencyRulerViewer,
   type FrequencyRulerConfig,
   type FrequencyRulerStatus,
+  FrequencyRulerViewer,
   type ISonoscope,
 } from "@sonoscope/core";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
@@ -29,6 +29,7 @@ export function useFrequencyRuler(
     [JSON.stringify(viewerConfig)],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses scope/canvas identity; in-place option updates handled below
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !scope) {

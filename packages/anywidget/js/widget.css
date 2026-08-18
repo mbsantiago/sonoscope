@@ -1,23 +1,103 @@
-.sonogram button {
-  background: linear-gradient(
-    300deg,
-    #9933ff 33.26%,
-    #ff6666 46.51%,
-    #faca30 59.77%,
-    #00cd99 73.03%,
-    #00ccff 86.29%
-  );
-  border-radius: 10px;
-  border: 0;
-  color: white;
-  cursor: pointer;
-  font-family: "Roboto", sans-serif;
-  font-size: 2em;
-  margin: 10px;
-  padding: 10px 20px;
-  transition: transform 0.25s ease-in-out;
+.sonoscope-widget {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #f8fafc;
+  background: #090d16;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 10px;
+  gap: 8px;
+  max-width: 100%;
 }
 
-.sonogram button:hover {
-  transform: scale(1.05);
+.sonoscope-widget * {
+  box-sizing: border-box;
+}
+
+.sonoscope-grid {
+  display: grid;
+  background: #030508;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.sonoscope-corner {
+  background: #090d14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  user-select: none;
+}
+
+.sonoscope-corner-top {
+  border-right: 1px solid #1e293b;
+  border-bottom: 1px solid #1e293b;
+}
+
+.sonoscope-corner-wave {
+  border-right: 1px solid #1e293b;
+  border-top: 1px solid #1e293b;
+}
+
+.sonoscope-time-ruler-container {
+  position: relative;
+  background: #090d14;
+  border-bottom: 1px solid #1e293b;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.sonoscope-freq-ruler-container {
+  position: relative;
+  background: #090d14;
+  border-right: 1px solid #1e293b;
+  overflow: hidden;
+}
+
+.sonoscope-spec-container {
+  position: relative;
+  background: #030508;
+  overflow: hidden;
+}
+
+.sonoscope-waveform-container {
+  position: relative;
+  background: #05080f;
+  border-top: 1px solid #1e293b;
+  overflow: hidden;
+}
+
+.sonoscope-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sonoscope-audio {
+  width: 100%;
+  height: 36px;
+  outline: none;
+  border-radius: 4px;
+}
+
+.sonoscope-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1.5px;
+  background-color: #38bdf8;
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.8);
+  pointer-events: none;
+  z-index: 10;
+  will-change: transform;
 }

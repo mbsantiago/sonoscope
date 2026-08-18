@@ -1,8 +1,14 @@
 {
+	"name": "@sonoscope/anywidget",
+	"version": "0.1.0",
+	"type": "module",
 	"scripts": {
 		"dev": "npm run build -- --sourcemap=inline --watch",
-		"build": "esbuild js/widget.ts --minify --format=esm --bundle --outdir=src/sonogram/static",
+		"build": "esbuild js/widget.ts --minify --format=esm --bundle --outdir=src/sonoscope/static",
 		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@sonoscope/core": "^0.1.0"
 	},
 	"devDependencies": {
 		"@anywidget/types": "^0.3.0",

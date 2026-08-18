@@ -266,7 +266,10 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     const rect = this.canvas.getBoundingClientRect();
     const height = rect.height || this.canvas.height || 1;
     const scale = this.config.frequencyScale;
-    const minScaled = hzToScale(Math.max(scale === "log" ? 1 : 0, this.config.minFrequency), scale);
+    const minScaled = hzToScale(
+      Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
+      scale,
+    );
     const maxScaled = hzToScale(this.config.maxFrequency, scale);
     const scaled = maxScaled - (y / height) * (maxScaled - minScaled);
     return scaleToHz(scaled, scale);
@@ -276,7 +279,10 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     const rect = this.canvas.getBoundingClientRect();
     const height = rect.height || this.canvas.height || 1;
     const scale = this.config.frequencyScale;
-    const minScaled = hzToScale(Math.max(scale === "log" ? 1 : 0, this.config.minFrequency), scale);
+    const minScaled = hzToScale(
+      Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
+      scale,
+    );
     const maxScaled = hzToScale(this.config.maxFrequency, scale);
     const scaled = hzToScale(freq, scale);
     return (1 - (scaled - minScaled) / (maxScaled - minScaled)) * height;
@@ -299,7 +305,10 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     const rect = this.canvas.getBoundingClientRect();
     const dpr =
       typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(1, Math.floor((rect.width || this.canvas.width) * dpr));
+    const width = Math.max(
+      1,
+      Math.floor((rect.width || this.canvas.width) * dpr),
+    );
     const height = Math.max(
       1,
       Math.floor((rect.height || this.canvas.height) * dpr),

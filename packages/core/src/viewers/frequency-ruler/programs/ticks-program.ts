@@ -49,12 +49,21 @@ export class TicksFrequencyRulerProgram implements FrequencyRulerProgram {
     const actualTickColor = tickColor ?? color;
     const actualLabelColor = labelColor ?? color;
 
-    const minScaled = hzToScale(Math.max(frequencyScale === "log" ? 1 : 0, minFrequency), frequencyScale);
-    const maxScaled = hzToScale(Math.max(minFrequency + 1, maxFrequency), frequencyScale);
+    const minScaled = hzToScale(
+      Math.max(frequencyScale === "log" ? 1 : 0, minFrequency),
+      frequencyScale,
+    );
+    const maxScaled = hzToScale(
+      Math.max(minFrequency + 1, maxFrequency),
+      frequencyScale,
+    );
     const span = Math.max(0.000001, maxScaled - minScaled);
 
     const getY = (hz: number) => {
-      const s = hzToScale(Math.max(frequencyScale === "log" ? 1 : 0, hz), frequencyScale);
+      const s = hzToScale(
+        Math.max(frequencyScale === "log" ? 1 : 0, hz),
+        frequencyScale,
+      );
       return (1 - (s - minScaled) / span) * height;
     };
 

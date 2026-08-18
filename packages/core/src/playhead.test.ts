@@ -1,7 +1,7 @@
+import type { AudioSource } from "./types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attachPlayheadOverlay } from "./playhead";
 import { Sonoscope } from "./sonoscope";
-import type { AudioSource } from "./types";
 
 interface MockElement {
   style: Record<string, string>;

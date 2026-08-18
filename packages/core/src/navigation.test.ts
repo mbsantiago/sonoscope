@@ -308,12 +308,21 @@ describe("attachCanvasWheelNavigation", () => {
         listeners.set(name, listener),
       ),
       removeEventListener: vi.fn(),
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: 50, height: 400 }),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 50,
+        height: 400,
+      }),
     } as unknown as HTMLCanvasElement;
     const setViewport = vi.fn();
     const freqViewer = {
       getConfig: () => ({ minFrequency: 0, maxFrequency: 20000 }),
-      getViewport: () => ({ minFrequency: 0, maxFrequency: 20000, frequencyScale: "linear" }),
+      getViewport: () => ({
+        minFrequency: 0,
+        maxFrequency: 20000,
+        frequencyScale: "linear",
+      }),
       setViewport,
       requestRender: vi.fn(),
       canvasToFrequency: (y: number) => 10000,
@@ -466,8 +475,20 @@ describe("attachCanvasDragNavigation", () => {
     const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
     const move = listeners.get("pointermove") || listeners.get("mousemove")!;
 
-    down({ button: 0, clientX: 50, clientY: 50, shiftKey: true, pointerId: 1 } as PointerEvent);
-    move({ button: 0, clientX: 50, clientY: 75, shiftKey: true, pointerId: 1 } as PointerEvent);
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      shiftKey: true,
+      pointerId: 1,
+    } as PointerEvent);
+    move({
+      button: 0,
+      clientX: 50,
+      clientY: 75,
+      shiftKey: true,
+      pointerId: 1,
+    } as PointerEvent);
 
     expect(setViewport).toHaveBeenCalled();
     expect(setViewport.mock.calls[0]?.[0].minFrequency).toBeDefined();
@@ -484,12 +505,21 @@ describe("attachCanvasDragNavigation", () => {
       removeEventListener: vi.fn(),
       setPointerCapture: vi.fn(),
       releasePointerCapture: vi.fn(),
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: 50, height: 400 }),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 50,
+        height: 400,
+      }),
     } as unknown as HTMLCanvasElement;
     const setViewport = vi.fn();
     const freqViewer = {
       getConfig: () => ({ minFrequency: 0, maxFrequency: 20000 }),
-      getViewport: () => ({ minFrequency: 0, maxFrequency: 20000, frequencyScale: "linear" }),
+      getViewport: () => ({
+        minFrequency: 0,
+        maxFrequency: 20000,
+        frequencyScale: "linear",
+      }),
       setViewport,
       requestRender: vi.fn(),
       canvasToFrequency: (y: number) => 10000,
@@ -500,8 +530,18 @@ describe("attachCanvasDragNavigation", () => {
     const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
     const move = listeners.get("pointermove") || listeners.get("mousemove")!;
 
-    down({ button: 0, clientX: 25, clientY: 200, pointerId: 1 } as PointerEvent);
-    move({ button: 0, clientX: 25, clientY: 250, pointerId: 1 } as PointerEvent);
+    down({
+      button: 0,
+      clientX: 25,
+      clientY: 200,
+      pointerId: 1,
+    } as PointerEvent);
+    move({
+      button: 0,
+      clientX: 25,
+      clientY: 250,
+      pointerId: 1,
+    } as PointerEvent);
 
     expect(setViewport).toHaveBeenCalled();
     expect(setViewport.mock.calls[0]?.[0].minFrequency).toBeDefined();

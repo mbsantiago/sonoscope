@@ -7,7 +7,7 @@
       "scripts/**",
       "examples/**",
       "!packages/core/src/viewers/spectrogram/backends/wasm-stft-binary.ts",
-      "!packages/anywidget/src/sonogram/static",
+      "!packages/anywidget/src/sonoscope/static",
       "!**/dist"
     ]
   },

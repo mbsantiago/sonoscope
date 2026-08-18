@@ -1,9 +1,9 @@
 import {
   type AudioSource,
-  FrequencyRulerViewer,
-  Sonoscope,
   type FrequencyRulerConfig,
   type FrequencyRulerStatus,
+  FrequencyRulerViewer,
+  Sonoscope,
 } from "@sonoscope/core";
 import {
   type CSSProperties,
@@ -61,7 +61,9 @@ export const FrequencyRuler = forwardRef<
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
 
-  const [_status, setStatus] = useState<FrequencyRulerStatus>({ state: "idle" });
+  const [_status, setStatus] = useState<FrequencyRulerStatus>({
+    state: "idle",
+  });
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: serialize config to avoid shallow object recreations
   const memoizedConfig = useMemo(

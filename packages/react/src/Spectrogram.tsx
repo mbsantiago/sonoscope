@@ -1,7 +1,4 @@
-import {
-  attachPlayheadOverlay,
-  type SpectrogramViewer,
-} from "@sonoscope/core";
+import { attachPlayheadOverlay, type SpectrogramViewer } from "@sonoscope/core";
 import {
   type CSSProperties,
   forwardRef,

@@ -3,14 +3,18 @@ import "./widget.css";
 import {
   attachCanvasNavigation,
   attachPlayheadOverlay,
+  type FollowPlaybackMode,
+  type FrequencyRulerProgramName,
+  type FrequencyScale,
   Sonoscope,
+  type TimeRulerProgramName,
 } from "@sonoscope/core";
 
 interface WidgetModel {
   url: string;
   width: number;
   height: number;
-  program: "dither" | "normal";
+  program: "dither" | "normal" | "sobel" | "terrain";
   cmap:
     | "viridis"
     | "plasma"
@@ -21,12 +25,22 @@ interface WidgetModel {
     | "jet"
     | "rainbow"
     | "bone"
-    | "gray";
-  frequency_scale: "mel" | "linear";
+    | "gray"
+    | "gray_r";
+  frequency_scale: FrequencyScale;
   min_db: number;
   max_db: number;
   window_size: number;
   hop_size: number;
+  show_frequency_ruler: boolean;
+  freq_ruler_program: FrequencyRulerProgramName;
+  freq_ruler_width: number;
+  show_time_ruler: boolean;
+  time_ruler_program: TimeRulerProgramName;
+  time_ruler_height: number;
+  show_waveform: boolean;
+  waveform_height: number;
+  follow_playback: FollowPlaybackMode;
 }
 
 async function render({
@@ -35,82 +49,277 @@ async function render({
   signal,
 }: RenderProps<WidgetModel> & { signal: AbortSignal }) {
   const url = model.get("url");
+  const width = model.get("width") || 800;
+  const height = model.get("height") || 400;
+  const showFreqRuler = model.get("show_frequency_ruler") ?? true;
+  const freqRulerWidth = showFreqRuler
+    ? model.get("freq_ruler_width") || 56
+    : 0;
+  const showTimeRuler = model.get("show_time_ruler") ?? true;
+  const timeRulerHeight = showTimeRuler
+    ? model.get("time_ruler_height") || 24
+    : 0;
+  const showWaveform = model.get("show_waveform") ?? true;
+  const waveformHeight = showWaveform ? model.get("waveform_height") || 80 : 0;
+  const frequencyScale: FrequencyScale = model.get("frequency_scale") || "mel";
+  const program = model.get("program") || "normal";
+  const cmap = model.get("cmap") || "viridis";
+  const minDb = model.get("min_db") ?? -80;
+  const maxDb = model.get("max_db") ?? 0;
+  const windowSize = model.get("window_size") || 512;
+  const hopSize = model.get("hop_size") || 128;
+  const timeRulerProg: TimeRulerProgramName =
+    model.get("time_ruler_program") || "ticks";
+  const freqRulerProg: FrequencyRulerProgramName =
+    model.get("freq_ruler_program") || "ticks";
+  const followPlayback: FollowPlaybackMode =
+    model.get("follow_playback") || "page";
 
-  const width = model.get("width");
-  const height = model.get("height");
+  const root = document.createElement("div");
+  root.className = "sonoscope-widget";
+  root.style.width = `${width + freqRulerWidth + 22}px`;
+  root.style.maxWidth = "100%";
+  el.appendChild(root);
 
-  const flex = document.createElement("div");
-  flex.style.display = "flex";
-  flex.style.flexDirection = "column";
-  flex.style.height = `${height + 80 + 40}px`;
-  flex.style.width = `${width}px`;
-  el.appendChild(flex);
+  const grid = document.createElement("div");
+  grid.className = "sonoscope-grid";
+  if (showFreqRuler) {
+    grid.style.gridTemplateColumns = `${freqRulerWidth}px 1fr`;
+  } else {
+    grid.style.gridTemplateColumns = "1fr";
+  }
+  root.appendChild(grid);
 
-  const audio = document.createElement("audio");
-  audio.src = url;
-  audio.controls = true;
-  flex.appendChild(audio);
+  let timeRulerCanvas: HTMLCanvasElement | null = null;
+  let timeRulerContainer: HTMLDivElement | null = null;
+
+  if (showTimeRuler) {
+    if (showFreqRuler) {
+      const cornerTop = document.createElement("div");
+      cornerTop.className = "sonoscope-corner sonoscope-corner-top";
+      cornerTop.style.height = `${timeRulerHeight}px`;
+      cornerTop.textContent = "Hz \\ s";
+      grid.appendChild(cornerTop);
+    }
+
+    timeRulerContainer = document.createElement("div");
+    timeRulerContainer.className = "sonoscope-time-ruler-container";
+    timeRulerContainer.style.height = `${timeRulerHeight}px`;
+    timeRulerCanvas = document.createElement("canvas");
+    timeRulerCanvas.className = "sonoscope-canvas";
+    timeRulerContainer.appendChild(timeRulerCanvas);
+    grid.appendChild(timeRulerContainer);
+  }
+
+  let freqRulerCanvas: HTMLCanvasElement | null = null;
+  let freqRulerContainer: HTMLDivElement | null = null;
+
+  if (showFreqRuler) {
+    freqRulerContainer = document.createElement("div");
+    freqRulerContainer.className = "sonoscope-freq-ruler-container";
+    freqRulerContainer.style.width = `${freqRulerWidth}px`;
+    freqRulerContainer.style.height = `${height}px`;
+    freqRulerCanvas = document.createElement("canvas");
+    freqRulerCanvas.className = "sonoscope-canvas";
+    freqRulerContainer.appendChild(freqRulerCanvas);
+    grid.appendChild(freqRulerContainer);
+  }
 
   const specContainer = document.createElement("div");
-  specContainer.style.position = "relative";
-  specContainer.style.width = `${width}px`;
+  specContainer.className = "sonoscope-spec-container";
   specContainer.style.height = `${height}px`;
-  flex.appendChild(specContainer);
-
   const specCanvas = document.createElement("canvas");
-  specCanvas.width = width;
-  specCanvas.height = height;
-  specCanvas.style.width = "100%";
-  specCanvas.style.height = "100%";
-  specCanvas.style.display = "block";
+  specCanvas.className = "sonoscope-canvas";
   specContainer.appendChild(specCanvas);
+  grid.appendChild(specContainer);
 
-  const waveformContainer = document.createElement("div");
-  waveformContainer.style.position = "relative";
-  waveformContainer.style.width = `${width}px`;
-  waveformContainer.style.height = "80px";
-  flex.appendChild(waveformContainer);
+  let waveformCanvas: HTMLCanvasElement | null = null;
+  let waveformContainer: HTMLDivElement | null = null;
 
-  const waveformCanvas = document.createElement("canvas");
-  waveformCanvas.width = width;
-  waveformCanvas.height = 80;
-  waveformCanvas.style.width = "100%";
-  waveformCanvas.style.height = "100%";
-  waveformCanvas.style.display = "block";
-  waveformContainer.appendChild(waveformCanvas);
+  if (showWaveform) {
+    if (showFreqRuler) {
+      const cornerWave = document.createElement("div");
+      cornerWave.className = "sonoscope-corner sonoscope-corner-wave";
+      cornerWave.style.height = `${waveformHeight}px`;
+      cornerWave.textContent = "WAV";
+      grid.appendChild(cornerWave);
+    }
+
+    waveformContainer = document.createElement("div");
+    waveformContainer.className = "sonoscope-waveform-container";
+    waveformContainer.style.height = `${waveformHeight}px`;
+    waveformCanvas = document.createElement("canvas");
+    waveformCanvas.className = "sonoscope-canvas";
+    waveformContainer.appendChild(waveformCanvas);
+    grid.appendChild(waveformContainer);
+  }
+
+  const audio = document.createElement("audio");
+  audio.className = "sonoscope-audio";
+  audio.src = url;
+  audio.controls = true;
+  audio.crossOrigin = "anonymous";
+  root.appendChild(audio);
+
+  const scope = await Sonoscope.fromAudio(audio, {
+    followPlayback,
+    frequencyScale,
+  });
+
+  const minFreq = frequencyScale === "log" ? 20 : 0;
+  const maxFreq = Math.floor(scope.getSampleRate() / 2);
+
+  const navCleanups: Array<() => void> = [];
+  const playheadOverlays: Array<{ destroy: () => void }> = [];
+
+  let timeRuler: ReturnType<typeof scope.createTimeRuler> | null = null;
+  if (timeRulerCanvas && timeRulerContainer) {
+    timeRuler = scope.createTimeRuler(timeRulerCanvas, {
+      program: timeRulerProg,
+      tickPosition: "top",
+      color: "#cbd5e1",
+      tickColor: "#475569",
+    });
+    navCleanups.push(attachCanvasNavigation(timeRuler, timeRulerCanvas));
+    playheadOverlays.push(attachPlayheadOverlay(timeRulerContainer, scope));
+
+    const onTimeRulerClick = (e: MouseEvent) => {
+      if (!timeRulerCanvas || !timeRuler) return;
+      const rect = timeRulerCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const time = timeRuler.canvasToTime(x);
+      scope.seek(time);
+    };
+    timeRulerCanvas.addEventListener("dblclick", onTimeRulerClick);
+    timeRulerCanvas.addEventListener("click", onTimeRulerClick);
+  }
+
+  let freqRuler: ReturnType<typeof scope.createFrequencyRuler> | null = null;
+  if (freqRulerCanvas) {
+    freqRuler = scope.createFrequencyRuler(freqRulerCanvas, {
+      program: freqRulerProg,
+      frequencyScale,
+      minFrequency: minFreq,
+      maxFrequency: maxFreq,
+      color: "#cbd5e1",
+      tickColor: "#334155",
+      tickPosition: "right",
+    });
+    navCleanups.push(attachCanvasNavigation(freqRuler, freqRulerCanvas));
+  }
+
+  const spec = scope.createSpectrogram(specCanvas, {
+    minValue: minDb,
+    maxValue: maxDb,
+    windowSize,
+    hopSize,
+    frequencyScale,
+    minFrequency: minFreq,
+    maxFrequency: maxFreq,
+    renderer: { type: "webgl", program },
+    colorMap: cmap,
+  });
+  navCleanups.push(attachCanvasNavigation(spec, specCanvas));
+  playheadOverlays.push(attachPlayheadOverlay(specContainer, scope));
 
   specCanvas.addEventListener("dblclick", (e) => {
     const rect = specCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const { time } = spec.canvasToTimeFrequency(x, y);
-    audio.currentTime = time;
+    scope.seek(time);
   });
 
-  const program = model.get("program");
-  const cmap = model.get("cmap");
-  const frequencyScale = model.get("frequency_scale");
-  const scope = await Sonoscope.fromAudio(audio);
-  const spec = scope.createSpectrogram(specCanvas, {
-    minValue: model.get("min_db"),
-    maxValue: model.get("max_db"),
-    windowSize: model.get("window_size"),
-    hopSize: model.get("hop_size"),
-    frequencyScale: frequencyScale,
-    renderer: { type: "webgl", program: program },
-    colorMap: cmap,
-  });
-  const waveform = scope.createWaveform(waveformCanvas);
-  attachCanvasNavigation(spec, specCanvas);
-  attachCanvasNavigation(waveform, waveformCanvas);
-  const specOverlay = attachPlayheadOverlay(specContainer, scope);
-  const waveOverlay = attachPlayheadOverlay(waveformContainer, scope);
+  let waveform: ReturnType<typeof scope.createWaveform> | null = null;
+  if (waveformCanvas && waveformContainer) {
+    waveform = scope.createWaveform(waveformCanvas, {
+      colorMap: cmap,
+    });
+    navCleanups.push(attachCanvasNavigation(waveform, waveformCanvas));
+    playheadOverlays.push(attachPlayheadOverlay(waveformContainer, scope));
+
+    waveformCanvas.addEventListener("dblclick", (e) => {
+      if (!waveformCanvas || !waveform) return;
+      const rect = waveformCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const time = waveform.canvasToTime(x);
+      scope.seek(time);
+    });
+  }
+
+  const modelUnsubs: Array<() => void> = [];
+
+  const onCmapChange = () => {
+    const nextCmap = model.get("cmap");
+    spec.updateConfig({ colorMap: nextCmap });
+    waveform?.updateConfig({ colorMap: nextCmap });
+  };
+  model.on("change:cmap", onCmapChange);
+  modelUnsubs.push(() => model.off("change:cmap", onCmapChange));
+
+  const onMinDbChange = () => {
+    spec.updateConfig({ minValue: model.get("min_db") });
+  };
+  model.on("change:min_db", onMinDbChange);
+  modelUnsubs.push(() => model.off("change:min_db", onMinDbChange));
+
+  const onMaxDbChange = () => {
+    spec.updateConfig({ maxValue: model.get("max_db") });
+  };
+  model.on("change:max_db", onMaxDbChange);
+  modelUnsubs.push(() => model.off("change:max_db", onMaxDbChange));
+
+  const onScaleChange = () => {
+    const nextScale = model.get("frequency_scale");
+    const nextMinFreq = nextScale === "log" ? 20 : 0;
+    scope.setViewport({ frequencyScale: nextScale, minFrequency: nextMinFreq });
+    spec.updateConfig({ frequencyScale: nextScale, minFrequency: nextMinFreq });
+    freqRuler?.updateConfig({
+      frequencyScale: nextScale,
+      minFrequency: nextMinFreq,
+    });
+  };
+  model.on("change:frequency_scale", onScaleChange);
+  modelUnsubs.push(() => model.off("change:frequency_scale", onScaleChange));
+
+  const onProgramChange = () => {
+    spec.updateConfig({
+      renderer: { type: "webgl", program: model.get("program") },
+    });
+  };
+  model.on("change:program", onProgramChange);
+  modelUnsubs.push(() => model.off("change:program", onProgramChange));
+
+  const onTimeProgChange = () => {
+    timeRuler?.updateConfig({ program: model.get("time_ruler_program") });
+  };
+  model.on("change:time_ruler_program", onTimeProgChange);
+  modelUnsubs.push(() =>
+    model.off("change:time_ruler_program", onTimeProgChange),
+  );
+
+  const onFreqProgChange = () => {
+    freqRuler?.updateConfig({ program: model.get("freq_ruler_program") });
+  };
+  model.on("change:freq_ruler_program", onFreqProgChange);
+  modelUnsubs.push(() =>
+    model.off("change:freq_ruler_program", onFreqProgChange),
+  );
+
+  const onFollowChange = () => {
+    scope.setFollowPlayback(model.get("follow_playback"));
+  };
+  model.on("change:follow_playback", onFollowChange);
+  modelUnsubs.push(() => model.off("change:follow_playback", onFollowChange));
 
   signal.addEventListener("abort", () => {
-    specOverlay.destroy();
-    waveOverlay.destroy();
+    for (const unsub of modelUnsubs) unsub();
+    for (const cleanup of navCleanups) cleanup();
+    for (const overlay of playheadOverlays) overlay.destroy();
+    timeRuler?.destroy();
+    freqRuler?.destroy();
     spec.destroy();
-    waveform.destroy();
+    waveform?.destroy();
     scope.destroy();
   });
 }
