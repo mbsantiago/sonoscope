@@ -1,8 +1,9 @@
 import {
   type AudioSource,
   attachCanvasNavigation,
+  attachPlayheadOverlay,
   type CanvasNavigationOptions,
-  Sonoscope,
+  type Sonoscope,
   type WaveformConfig,
   type WaveformStatus,
   WaveformViewer,
@@ -35,6 +36,9 @@ export interface WaveformProps extends WaveformConfig {
   style?: CSSProperties | undefined;
   canvasProps?: HTMLAttributes<HTMLCanvasElement> | undefined;
   navigation?: boolean | CanvasNavigationOptions | undefined;
+  showPlayhead?: boolean | undefined;
+  playheadClassName?: string | undefined;
+  playheadStyle?: CSSProperties | undefined;
   onReady?: ((viewer: WaveformViewer) => void) | undefined;
 }
 
@@ -52,12 +56,17 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
       style,
       canvasProps,
       navigation,
+      showPlayhead = true,
+      playheadClassName,
+      playheadStyle,
       onReady,
       ...viewerConfig
     } = props;
 
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const viewerRef = useRef<WaveformViewer | null>(null);
+    const [activeScope, setActiveScope] = useState<Sonoscope | null>(null);
     const onReadyRef = useRef(onReady);
     onReadyRef.current = onReady;
 
@@ -124,6 +133,7 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
           }
 
           viewerRef.current = viewer;
+          setActiveScope(effectiveScope);
           setStatus(viewer.getStatus());
 
           onReadyRef.current?.(viewer);
@@ -164,9 +174,24 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
         for (const unsub of unsubs) unsub();
         viewerRef.current?.destroy();
         viewerRef.current = null;
+        setActiveScope(null);
         ownedScope?.destroy();
       };
     }, [scope, url, source, audio, navSerialized]);
+
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container || !activeScope || showPlayhead === false) return;
+
+      const overlay = attachPlayheadOverlay(container, activeScope, {
+        className: playheadClassName,
+        style: playheadStyle as Partial<CSSStyleDeclaration>,
+      });
+
+      return () => {
+        overlay.destroy();
+      };
+    }, [activeScope, showPlayhead, playheadClassName, playheadStyle]);
 
     // Handle in-place reactive config updates on existing viewer
     useEffect(() => {
@@ -184,6 +209,7 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
 
     return (
       <div
+        ref={containerRef}
         className={className}
         style={{
           position: "relative",

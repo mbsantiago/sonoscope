@@ -1,9 +1,14 @@
-import type { SpectrogramViewer } from "@sonoscope/core";
+import {
+  attachPlayheadOverlay,
+  type SpectrogramViewer,
+} from "@sonoscope/core";
 import {
   type CSSProperties,
   forwardRef,
   type HTMLAttributes,
+  useEffect,
   useImperativeHandle,
+  useRef,
 } from "react";
 import { useSonoscopeContext } from "./SonoscopeContext";
 import { type UseSpectrogramOptions, useSpectrogram } from "./useSpectrogram";
@@ -21,6 +26,9 @@ export type SpectrogramProps = UseSpectrogramOptions & {
   style?: CSSProperties | undefined;
   canvasProps?: HTMLAttributes<HTMLCanvasElement> | undefined;
   showAudioControls?: boolean | undefined;
+  showPlayhead?: boolean | undefined;
+  playheadClassName?: string | undefined;
+  playheadStyle?: CSSProperties | undefined;
 };
 
 export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
@@ -34,13 +42,37 @@ export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
       style,
       canvasProps,
       showAudioControls = false,
+      showPlayhead = true,
+      playheadClassName,
+      playheadStyle,
       ...options
     } = props;
 
-    const { canvasRef, audioRef, viewerRef } = useSpectrogram({
+    const containerRef = useRef<HTMLDivElement | null>(null);
+
+    const {
+      canvasRef,
+      audioRef,
+      viewerRef,
+      scope: activeScope,
+    } = useSpectrogram({
       ...options,
       scope,
     });
+
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container || !activeScope || showPlayhead === false) return;
+
+      const overlay = attachPlayheadOverlay(container, activeScope, {
+        className: playheadClassName,
+        style: playheadStyle as Partial<CSSStyleDeclaration>,
+      });
+
+      return () => {
+        overlay.destroy();
+      };
+    }, [activeScope, showPlayhead, playheadClassName, playheadStyle]);
 
     useImperativeHandle(ref, () => ({
       getViewer: () => viewerRef.current,
@@ -50,6 +82,7 @@ export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
 
     return (
       <div
+        ref={containerRef}
         className={className}
         style={{
           position: "relative",

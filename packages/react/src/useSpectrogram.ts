@@ -37,6 +37,7 @@ export type UseSpectrogramResult = {
   duration: number;
   sampleRate: number;
   nyquist: number;
+  scope: Sonoscope | null;
 };
 
 export function useSpectrogram(
@@ -66,6 +67,7 @@ export function useSpectrogram(
   const [duration, setDuration] = useState<number>(0);
   const [sampleRate, setSampleRate] = useState<number>(0);
   const [nyquist, setNyquist] = useState<number>(0);
+  const [activeScope, setActiveScope] = useState<Sonoscope | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: serialize config to avoid shallow object recreations
   const memoizedConfig = useMemo(
@@ -144,6 +146,7 @@ export function useSpectrogram(
         setSampleRate(sr);
         setNyquist(nq);
         setViewport(vp);
+        setActiveScope(effectiveScope);
         setStatus(viewer.getStatus());
 
         onReadyRef.current?.({
@@ -194,6 +197,7 @@ export function useSpectrogram(
       for (const unsub of unsubs) unsub();
       viewerRef.current?.destroy();
       viewerRef.current = null;
+      setActiveScope(null);
       ownedScope?.destroy();
     };
   }, [scope, url, source, audio, navSerialized]);
@@ -216,5 +220,6 @@ export function useSpectrogram(
     duration,
     sampleRate,
     nyquist,
+    scope: activeScope,
   };
 }

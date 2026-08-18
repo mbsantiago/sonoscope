@@ -87,11 +87,29 @@ class MockDOMElement {
   height = 400;
   clientWidth = 800;
   clientHeight = 400;
-  currentTime = 0;
-  duration = 10;
-  paused = true;
-  src = "";
+  className = "";
   private listeners = new Map<string, Array<(...args: unknown[]) => void>>();
+
+  classList = {
+    add: (cls: string) => {
+      const classes = (this.className || "").split(/\s+/).filter(Boolean);
+      if (!classes.includes(cls)) classes.push(cls);
+      this.className = classes.join(" ");
+      this.attributes.class = this.className;
+    },
+    remove: (cls: string) => {
+      const classes = (this.className || "").split(/\s+/).filter(Boolean);
+      this.className = classes.filter((c) => c !== cls).join(" ");
+      this.attributes.class = this.className;
+    },
+    contains: (cls: string) => {
+      return (this.className || "").split(/\s+/).includes(cls);
+    },
+  };
+
+  get parentElement(): MockDOMElement | null {
+    return this.parentNode;
+  }
 
   constructor(nodeType = 1, nodeName = "DIV") {
     this.nodeType = nodeType;
@@ -592,6 +610,64 @@ describe("React Components and Hooks", () => {
       });
 
       expect(destroySpy).toHaveBeenCalled();
+      scope.destroy();
+    });
+
+    it("attaches DOM playhead overlay and updates transform on scope timeupdate", async () => {
+      const source = createMockAudioSource(10);
+      const scope = new Sonoscope({
+        source,
+        startTime: 0,
+        endTime: 10,
+      });
+      const ref = createRef<SpectrogramHandle>();
+
+      await act(async () => {
+        root.render(React.createElement(Spectrogram, { ref, scope, showPlayhead: true }));
+      });
+
+      // Find the playhead element in container
+      const playheadEl = container.childNodes[0]?.childNodes.find(
+        (child) => child.classList.contains("sonoscope-playhead"),
+      );
+      expect(playheadEl).toBeTruthy();
+      expect(playheadEl?.style.position).toBe("absolute");
+
+      // Seek on scope updates playhead transform
+      act(() => {
+        scope.seek(5);
+      });
+
+      expect(playheadEl?.style.transform).toContain("translate3d(");
+      scope.destroy();
+    });
+  });
+
+  describe("<Waveform /> DOM Playhead", () => {
+    it("attaches DOM playhead overlay and updates transform on scope timeupdate", async () => {
+      const source = createMockAudioSource(10);
+      const scope = new Sonoscope({
+        source,
+        startTime: 0,
+        endTime: 10,
+      });
+      const ref = createRef<WaveformHandle>();
+
+      await act(async () => {
+        root.render(React.createElement(Waveform, { ref, scope, showPlayhead: true }));
+      });
+
+      const playheadEl = container.childNodes[0]?.childNodes.find(
+        (child) => child.classList.contains("sonoscope-playhead"),
+      );
+      expect(playheadEl).toBeTruthy();
+      expect(playheadEl?.style.position).toBe("absolute");
+
+      act(() => {
+        scope.seek(2.5);
+      });
+
+      expect(playheadEl?.style.transform).toContain("translate3d(");
       scope.destroy();
     });
   });
