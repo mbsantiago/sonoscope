@@ -11,7 +11,13 @@ import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
+import type {
+  AnyNavigableViewer,
+  NavigableViewer,
+  NavigationOptions,
+} from "./navigation";
 import { TypedEventEmitter } from "./events";
+import { attachCanvasNavigation } from "./navigation";
 import { ArrayAudioSource } from "./sources/array-source";
 import {
   createAudioSourceFromBlob,
@@ -57,6 +63,7 @@ export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
+  private navigationCleanups: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
   private animationFrame: number | undefined;
 
@@ -664,6 +671,100 @@ export class Sonoscope implements ISonoscope {
     return new FrequencyRulerViewer(this, canvas, options);
   }
 
+  attachNavigation(
+    target: HTMLCanvasElement | AnyNavigableViewer,
+    options?: NavigationOptions,
+  ): () => void {
+    if (
+      typeof target === "object" &&
+      target !== null &&
+      "getViewport" in target &&
+      "requestRender" in target
+    ) {
+      if (typeof (target as any).attachNavigation === "function") {
+        const cleanup = (target as any).attachNavigation(options);
+        this.navigationCleanups.push(cleanup);
+        return () => {
+          const idx = this.navigationCleanups.indexOf(cleanup);
+          if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+          cleanup();
+        };
+      }
+      const cleanup = attachCanvasNavigation(
+        target as AnyNavigableViewer,
+        undefined,
+        options,
+      );
+      this.navigationCleanups.push(cleanup);
+      return () => {
+        const idx = this.navigationCleanups.indexOf(cleanup);
+        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+        cleanup();
+      };
+    }
+
+    if (
+      (typeof HTMLCanvasElement !== "undefined" &&
+        target instanceof HTMLCanvasElement) ||
+      (typeof target === "object" &&
+        target !== null &&
+        "addEventListener" in target)
+    ) {
+      const scopeAdapter: NavigableViewer = {
+        getViewport: () => {
+          const vp = this.getViewport();
+          return {
+            startTime: vp.startTime,
+            endTime: vp.endTime,
+            minFrequency: vp.minFrequency,
+            maxFrequency: vp.maxFrequency,
+            frequencyScale: vp.frequencyScale,
+          };
+        },
+        setViewport: (vp) => {
+          this.setViewport(vp, "navigation");
+        },
+        requestRender: () => {},
+        getCanvas: () => target as HTMLCanvasElement,
+        getScope: () => this,
+        getConfig: () => ({
+          canvas: target as HTMLCanvasElement,
+          minViewportDuration: this.minDuration,
+          maxViewportDuration: this.maxDuration,
+          minFrequency: this.minFrequency,
+          maxFrequency: this.maxFrequency,
+        }),
+        getTimeBounds: () => ({
+          startTime: 0,
+          endTime: this.totalDuration,
+          minDurationSeconds: this.minDuration,
+          maxDurationSeconds: this.maxDuration,
+        }),
+        getFrequencyBounds: () => ({
+          minFrequency: 0,
+          maxFrequency: this.maxFrequency,
+          minSpanHz: 20,
+        }),
+      };
+
+      const cleanup = attachCanvasNavigation(
+        scopeAdapter,
+        target as HTMLCanvasElement,
+        options,
+      );
+      this.navigationCleanups.push(cleanup);
+      return () => {
+        const idx = this.navigationCleanups.indexOf(cleanup);
+        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+        cleanup();
+      };
+    }
+
+    throw new Error(
+      "Invalid navigation target: expected HTMLCanvasElement or NavigableViewer",
+    );
+  }
+
   on<K extends keyof SonoscopeEvents>(
     event: K,
     handler: (e: SonoscopeEvents[K]) => void,
@@ -673,6 +774,10 @@ export class Sonoscope implements ISonoscope {
 
   destroy(): void {
     this.detachAudio();
+    for (const cleanup of this.navigationCleanups) {
+      cleanup();
+    }
+    this.navigationCleanups = [];
     this.events.emit("destroy", undefined);
     this.events.clear();
   }

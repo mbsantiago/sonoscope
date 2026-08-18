@@ -27,11 +27,36 @@ function createMockAudio(src = "fixture.wav"): AudioFixture {
   } as unknown as AudioFixture;
 }
 
-function createMockCanvas(): HTMLCanvasElement {
+type MockCanvasFixture = HTMLCanvasElement & {
+  listeners: Map<string, Array<EventListener>>;
+};
+
+function createMockCanvas(): MockCanvasFixture {
+  const listeners = new Map<string, Array<EventListener>>();
   return {
     width: 100,
     height: 100,
-    getBoundingClientRect: () => ({ width: 100, height: 100 }),
+    style: { cursor: "" },
+    listeners,
+    addEventListener: vi.fn((name: string, fn: EventListener) => {
+      if (!listeners.has(name)) listeners.set(name, []);
+      listeners.get(name)!.push(fn);
+    }),
+    removeEventListener: vi.fn((name: string, fn: EventListener) => {
+      const list = listeners.get(name);
+      if (list) {
+        const idx = list.indexOf(fn);
+        if (idx !== -1) list.splice(idx, 1);
+      }
+    }),
+    setPointerCapture: vi.fn(),
+    releasePointerCapture: vi.fn(),
+    getBoundingClientRect: () => ({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    }),
     getContext: () => ({
       setTransform: vi.fn(),
       clearRect: vi.fn(),
@@ -50,7 +75,7 @@ function createMockCanvas(): HTMLCanvasElement {
       lineTo: vi.fn(),
       stroke: vi.fn(),
     }),
-  } as unknown as HTMLCanvasElement;
+  } as unknown as MockCanvasFixture;
 }
 
 function createMockBuffer(
@@ -486,6 +511,123 @@ describe("Sonoscope", () => {
       expect(typeof viewer.render).toBe("function");
       expect(typeof viewer.destroy).toBe("function");
       viewer.destroy();
+    });
+  });
+
+  describe("attachNavigation", () => {
+    it("attaches navigation directly to a canvas using scope.attachNavigation(canvas)", () => {
+      const scope = new Sonoscope({
+        source: createMockSource(20),
+        startTime: 2,
+        endTime: 8,
+      });
+      const canvas = createMockCanvas();
+
+      const detach = scope.attachNavigation(canvas);
+      expect(typeof detach).toBe("function");
+
+      expect(canvas.addEventListener).toHaveBeenCalledWith(
+        "wheel",
+        expect.any(Function),
+        { passive: false },
+      );
+
+      const hasPointerEvents =
+        typeof window !== "undefined" && "PointerEvent" in window;
+      const downEvent = hasPointerEvents ? "pointerdown" : "mousedown";
+      const moveEvent = hasPointerEvents ? "pointermove" : "mousemove";
+
+      const down = canvas.listeners.get(downEvent)![0]!;
+      const move = canvas.listeners.get(moveEvent)![0]!;
+
+      // Drag left 25px on 100px width canvas with 6s duration -> delta = +1.5s
+      down({
+        button: 0,
+        clientX: 50,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      move({
+        button: 0,
+        clientX: 25,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      expect(scope.getViewport().startTime).toBeCloseTo(3.5);
+      expect(scope.getViewport().endTime).toBeCloseTo(9.5);
+
+      detach();
+    });
+
+    it("attaches navigation to a viewer using scope.attachNavigation(viewer)", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      const canvas = createMockCanvas();
+      const spec = scope.createSpectrogram(canvas);
+      const attachSpy = vi.spyOn(spec, "attachNavigation");
+
+      const detach = scope.attachNavigation(spec, { axis: "time" });
+      expect(attachSpy).toHaveBeenCalledWith({ axis: "time" });
+      expect(typeof detach).toBe("function");
+
+      // Also test standard NavigableViewer without native attachNavigation
+      const customViewer = {
+        getViewport: () => ({
+          startTime: 2,
+          endTime: 8,
+          minFrequency: 0,
+          maxFrequency: 20000,
+          frequencyScale: "linear",
+        }),
+        setViewport: vi.fn(),
+        requestRender: vi.fn(),
+        getCanvas: () => canvas,
+        getConfig: () => ({ canvas }),
+        getTimeBounds: () => ({
+          startTime: 0,
+          endTime: 20,
+          minDurationSeconds: 0.05,
+          maxDurationSeconds: 20,
+        }),
+      };
+
+      const detach2 = scope.attachNavigation(customViewer as any);
+      expect(typeof detach2).toBe("function");
+
+      detach();
+      detach2();
+      spec.destroy();
+    });
+
+    it("supports manual detach and unbinds listeners", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      const canvas = createMockCanvas();
+
+      const detach = scope.attachNavigation(canvas);
+      expect(canvas.addEventListener).toHaveBeenCalled();
+
+      detach();
+      expect(canvas.removeEventListener).toHaveBeenCalled();
+    });
+
+    it("automatically cleans up scope navigations when scope.destroy() is called", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      const canvas1 = createMockCanvas();
+      const canvas2 = createMockCanvas();
+
+      scope.attachNavigation(canvas1);
+      scope.attachNavigation(canvas2);
+
+      scope.destroy();
+      expect(canvas1.removeEventListener).toHaveBeenCalled();
+      expect(canvas2.removeEventListener).toHaveBeenCalled();
+    });
+
+    it("throws when target is invalid", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      expect(() => scope.attachNavigation(null as any)).toThrow();
+      expect(() => scope.attachNavigation({} as any)).toThrow();
     });
   });
 

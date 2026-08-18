@@ -2,6 +2,7 @@
 
 // Navigation Types
 export type {
+  AnyNavigableViewer,
   CanvasDragNavigationOptions,
   CanvasNavigationOptions,
   CanvasWheelNavigationOptions,

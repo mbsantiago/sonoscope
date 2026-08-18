@@ -23,21 +23,20 @@ export interface NavigableViewer {
   getViewport(): {
     startTime: number;
     endTime: number;
-    minFrequency?: number;
-    maxFrequency?: number;
-    frequencyScale?: string;
+    minFrequency?: number | undefined;
+    maxFrequency?: number | undefined;
+    frequencyScale?: string | undefined;
   };
   getCanvas?(): HTMLCanvasElement;
   getScope?(): {
     getDuration(): number;
-    getSampleRate?(): number;
-    [key: string]: unknown;
+    getSampleRate?(): number | undefined;
   };
   getConfig(): {
-    minViewportDuration?: number;
-    maxViewportDuration?: number;
-    minFrequency?: number;
-    maxFrequency?: number;
+    minViewportDuration?: number | undefined;
+    maxViewportDuration?: number | undefined;
+    minFrequency?: number | undefined;
+    maxFrequency?: number | undefined;
     [key: string]: unknown;
   };
   getTimeBounds?: () => TimeBounds;

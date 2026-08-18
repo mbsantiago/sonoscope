@@ -1,3 +1,5 @@
+import type { AnyNavigableViewer, NavigationOptions } from "./navigation";
+
 export type Rgba = [number, number, number, number];
 
 export type BuiltInColorMap =
@@ -198,6 +200,11 @@ export interface ISonoscope {
   detachAudio(): void;
   setSource(source: AudioSource): void;
 
+  attachNavigation(
+    target: HTMLCanvasElement | AnyNavigableViewer,
+    options?: NavigationOptions,
+  ): () => void;
+
   on<K extends keyof SonoscopeEvents>(
     event: K,
     handler: (e: SonoscopeEvents[K]) => void,
@@ -206,6 +213,7 @@ export interface ISonoscope {
 }
 
 export type {
+  AnyNavigableViewer,
   CanvasDragNavigationOptions,
   CanvasNavigationOptions,
   CanvasWheelNavigationOptions,
