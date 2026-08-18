@@ -378,10 +378,6 @@ export class WaveformViewer implements IWaveformViewer {
       this.requestRender();
     });
 
-    const unlistenTime = this.scope.on("timeupdate", () => {
-      this.requestRender();
-    });
-
-    this.scopeCleanup.push(unlistenViewport, unlistenSource, unlistenTime);
+    this.scopeCleanup.push(unlistenViewport, unlistenSource);
   }
 }

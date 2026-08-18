@@ -158,16 +158,19 @@ describe("playback sync", () => {
     const specRenderSpy = vi.spyOn(spec, "requestRender");
     const waveRenderSpy = vi.spyOn(wave, "requestRender");
 
-    // Audio progress within page triggers timeupdate without shifting viewport
+    // Audio progress within page triggers timeupdate without triggering canvas redraws
     audio.currentTime = 0.5;
     audio.emit("timeupdate");
-    expect(waveRenderSpy).toHaveBeenCalled();
+    expect(scope.getCurrentTime()).toBe(0.5);
+    expect(waveRenderSpy).not.toHaveBeenCalled();
+    expect(specRenderSpy).not.toHaveBeenCalled();
 
     // Audio progress past viewport shifts page and triggers render on both viewers
     audio.currentTime = 3.0;
     audio.emit("timeupdate");
     expect(scope.getViewport().startTime).toBe(3);
     expect(specRenderSpy).toHaveBeenCalled();
+    expect(waveRenderSpy).toHaveBeenCalled();
   });
 
   it("coalesces repeated requested renders on viewer", async () => {
