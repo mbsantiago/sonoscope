@@ -94,6 +94,21 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     );
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
 
+    if (
+      options?.minFrequency !== undefined ||
+      options?.maxFrequency !== undefined ||
+      options?.frequencyScale !== undefined
+    ) {
+      scope.setViewport(
+        {
+          minFrequency: this.config.minFrequency,
+          maxFrequency: this.config.maxFrequency,
+          frequencyScale: this.config.frequencyScale,
+        },
+        "frequency-ruler",
+      );
+    }
+
     this.bindScope();
 
     if (this.config.autoRender) {

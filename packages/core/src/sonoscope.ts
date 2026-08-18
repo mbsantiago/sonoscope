@@ -67,14 +67,19 @@ export class Sonoscope implements ISonoscope {
       : (options as SonoscopeOptions);
 
     this._source = opts.source;
+    const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
+    const defaultScale = opts.frequencyScale ?? "linear";
+    const defaultMinFreq =
+      opts.minFrequency ?? (defaultScale === "log" ? 20 : 0);
+    const defaultMaxFreq = opts.maxFrequency ?? nyquist;
 
     this.viewportController = new ViewportController({
       totalDuration: this._source.duration,
       startTime: opts.startTime,
       endTime: opts.endTime,
-      minFrequency: opts.minFrequency,
-      maxFrequency: opts.maxFrequency,
-      frequencyScale: opts.frequencyScale,
+      minFrequency: defaultMinFreq,
+      maxFrequency: defaultMaxFreq,
+      frequencyScale: defaultScale,
       minDuration: opts.minDuration,
       maxDuration: opts.maxDuration,
       followPlayback: opts.followPlayback,
@@ -205,6 +210,18 @@ export class Sonoscope implements ISonoscope {
 
   panTo(startTime: number, source?: string): void {
     this.viewportController.panTo(startTime, source);
+  }
+
+  zoomFrequency(
+    factor: number,
+    centerFrequency?: number,
+    source?: string,
+  ): void {
+    this.viewportController.zoomFrequency(factor, centerFrequency, source);
+  }
+
+  panFrequency(deltaHz: number, source?: string): void {
+    this.viewportController.panFrequency(deltaHz, source);
   }
 
   getDuration(): number {

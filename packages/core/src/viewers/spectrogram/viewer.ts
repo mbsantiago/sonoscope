@@ -65,10 +65,29 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
     const scopeVp = scope.getViewport();
     const resolvedConfig = resolveConfig(scope.source, {
+      minFrequency: scopeVp.minFrequency,
+      maxFrequency: scopeVp.maxFrequency,
+      frequencyScale: scopeVp.frequencyScale,
       ...options,
       startTime: scopeVp.startTime,
       endTime: scopeVp.endTime,
     });
+
+    // If options specified frequency overrides, sync to source
+    if (
+      options?.minFrequency !== undefined ||
+      options?.maxFrequency !== undefined ||
+      options?.frequencyScale !== undefined
+    ) {
+      scope.setViewport(
+        {
+          minFrequency: resolvedConfig.minFrequency,
+          maxFrequency: resolvedConfig.maxFrequency,
+          frequencyScale: resolvedConfig.frequencyScale,
+        },
+        "spectrogram",
+      );
+    }
 
     const backend = isSpectrogramComputeBackend(options?.backend)
       ? options.backend

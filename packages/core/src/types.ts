@@ -179,6 +179,12 @@ export interface ISonoscope {
   zoom(factor: number, centerTime?: number, source?: string): void;
   pan(deltaSeconds: number, source?: string): void;
   panTo(startTime: number, source?: string): void;
+  zoomFrequency(
+    factor: number,
+    centerFrequency?: number,
+    source?: string,
+  ): void;
+  panFrequency(deltaHz: number, source?: string): void;
   getDuration(): number;
   getSampleRate(): number;
   getFollowPlayback(): FollowPlaybackMode;

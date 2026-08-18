@@ -219,13 +219,13 @@ export type SpectrogramConfig = {
   window?: WindowName;
 
   // Viewport & Constraints
-  startTime?: number;
-  endTime?: number;
-  minFrequency?: number;
-  maxFrequency?: number;
-  frequencyScale?: FrequencyScale;
-  minViewportDuration?: number;
-  maxViewportDuration?: number;
+  startTime?: number | undefined;
+  endTime?: number | undefined;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
+  frequencyScale?: FrequencyScale | undefined;
+  minViewportDuration?: number | undefined;
+  maxViewportDuration?: number | undefined;
 
   // Value Scale
   valueMode?: ValueMode;

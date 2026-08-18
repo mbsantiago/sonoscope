@@ -99,4 +99,32 @@ describe("FrequencyRulerViewer", () => {
     expect(viewer.getViewport().minFrequency).toBe(200);
     expect(viewer.getViewport().maxFrequency).toBe(5000);
   });
+
+  it("keeps multiple attached viewers in sync via source frequency methods", () => {
+    const scope = new Sonoscope({
+      source: dummySource,
+      minFrequency: 0,
+      maxFrequency: 20000,
+    });
+    const canvas1 = createMockCanvas();
+    const canvas2 = createMockCanvas();
+
+    const ruler1 = scope.createFrequencyRuler(canvas1);
+    const ruler2 = scope.createFrequencyRuler(canvas2);
+
+    expect(ruler1.getViewport().maxFrequency).toBe(20000);
+    expect(ruler2.getViewport().maxFrequency).toBe(20000);
+
+    // Zoom frequency on scope
+    scope.zoomFrequency(0.5, 10000);
+    expect(ruler1.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
+    expect(ruler1.getViewport().maxFrequency).toBe(scope.getViewport().maxFrequency);
+    expect(ruler2.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
+    expect(ruler2.getViewport().maxFrequency).toBe(scope.getViewport().maxFrequency);
+
+    // Pan frequency on scope
+    scope.panFrequency(500);
+    expect(ruler1.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
+    expect(ruler2.getViewport().minFrequency).toBe(scope.getViewport().minFrequency);
+  });
 });

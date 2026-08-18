@@ -332,6 +332,48 @@ export class ViewportController implements IViewportController {
     );
   }
 
+  zoomFrequency(
+    factor: number,
+    centerFrequency?: number,
+    source?: string,
+  ): void {
+    if (!Number.isFinite(factor) || factor <= 0) return;
+    const minFreq = this.minFrequency ?? 0;
+    const maxFreq = this.maxFrequency ?? 20000;
+    const currentSpan = maxFreq - minFreq;
+    const minSpan = 10;
+    const maxSpan = 48000;
+    const targetSpan = Math.max(
+      minSpan,
+      Math.min(maxSpan, currentSpan * factor),
+    );
+    if (Math.abs(targetSpan - currentSpan) < 1e-9) return;
+
+    const center = Number.isFinite(centerFrequency)
+      ? (centerFrequency as number)
+      : (minFreq + maxFreq) / 2;
+    const ratio = currentSpan <= 0 ? 0.5 : (center - minFreq) / currentSpan;
+    const newMin = Math.max(0, center - targetSpan * ratio);
+    const newMax = newMin + targetSpan;
+
+    this.setViewport(
+      { minFrequency: newMin, maxFrequency: newMax },
+      source,
+    );
+  }
+
+  panFrequency(deltaHz: number, source?: string): void {
+    if (!Number.isFinite(deltaHz) || deltaHz === 0) return;
+    const minFreq = this.minFrequency ?? 0;
+    const maxFreq = this.maxFrequency ?? 20000;
+    const span = maxFreq - minFreq;
+    const newMin = Math.max(0, minFreq + deltaHz);
+    this.setViewport(
+      { minFrequency: newMin, maxFrequency: newMin + span },
+      source,
+    );
+  }
+
   getFollowPlayback(): FollowPlaybackMode {
     return this.followPlayback;
   }

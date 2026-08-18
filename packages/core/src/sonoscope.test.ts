@@ -91,6 +91,9 @@ describe("Sonoscope", () => {
       endTime: 10,
       duration: 10,
       totalDuration: 15,
+      minFrequency: 0,
+      maxFrequency: 22050,
+      frequencyScale: "linear",
     });
     expect(scope.getAudio()).toBeUndefined();
     expect(scope.getCurrentTime()).toBe(0);
@@ -119,6 +122,9 @@ describe("Sonoscope", () => {
       endTime: 8,
       duration: 6,
       totalDuration: 30,
+      minFrequency: 0,
+      maxFrequency: 24000,
+      frequencyScale: "linear",
     });
     expect(scope.getAudio()).toBe(audio);
     expect(scope.getFollowPlayback()).toBe("smooth");
