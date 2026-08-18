@@ -1,0 +1,96 @@
+import type {
+  FrequencyRulerFrame,
+  FrequencyRulerProgram,
+  FrequencyRulerRenderInput,
+} from "../types";
+import { hzToScale } from "../../spectrogram/frequency-scale";
+import { computeFrequencyTicks, formatFrequencyLabel } from "../ticks";
+
+export class BoxesFrequencyRulerProgram implements FrequencyRulerProgram {
+  readonly name = "boxes" as const;
+
+  draw(
+    ctx: CanvasRenderingContext2D,
+    input: FrequencyRulerRenderInput,
+    frame: FrequencyRulerFrame,
+  ): void {
+    const {
+      minFrequency,
+      maxFrequency,
+      frequencyScale = "linear",
+      color = "#e2e8f0",
+      backgroundColor = "#0b0f17",
+      tickColor = "#334155",
+      labelColor,
+      font,
+      frequencyFormat = "auto",
+      minMajorPixelSpacing = 50,
+    } = input;
+
+    const { width, height, dpr } = frame;
+
+    ctx.save();
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+
+    const { majorTicks } = computeFrequencyTicks(
+      minFrequency,
+      maxFrequency,
+      height / dpr,
+      frequencyScale,
+      minMajorPixelSpacing,
+    );
+
+    const actualBorderColor = tickColor ?? color;
+    const actualLabelColor = labelColor ?? color;
+
+    const minScaled = hzToScale(Math.max(frequencyScale === "log" ? 1 : 0, minFrequency), frequencyScale);
+    const maxScaled = hzToScale(Math.max(minFrequency + 1, maxFrequency), frequencyScale);
+    const span = Math.max(0.000001, maxScaled - minScaled);
+
+    const getY = (hz: number) => {
+      const s = hzToScale(Math.max(frequencyScale === "log" ? 1 : 0, hz), frequencyScale);
+      return (1 - (s - minScaled) / span) * height;
+    };
+
+    // Draw outer left and right borders
+    ctx.strokeStyle = actualBorderColor;
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0.5 * dpr, 0);
+    ctx.lineTo(0.5 * dpr, height);
+    ctx.moveTo(width - 0.5 * dpr, 0);
+    ctx.lineTo(width - 0.5 * dpr, height);
+    ctx.stroke();
+
+    const fontSize = Math.max(9, Math.min(13, Math.floor(10 * dpr)));
+    ctx.font =
+      font ??
+      `500 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace`;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+
+    for (let i = 0; i < majorTicks.length; i++) {
+      const hz = majorTicks[i]!;
+      const y = Math.round(getY(hz)) + 0.5 * dpr;
+
+      // Draw horizontal band divider
+      ctx.beginPath();
+      ctx.strokeStyle = actualBorderColor;
+      ctx.lineWidth = 1 * dpr;
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+
+      // Draw label
+      ctx.fillStyle = actualLabelColor;
+      const text = formatFrequencyLabel(hz, frequencyFormat);
+      const textY = Math.max(7 * dpr, Math.min(height - 7 * dpr, y));
+      ctx.fillText(text, width / 2, textY);
+    }
+
+    ctx.restore();
+  }
+}
