@@ -32,8 +32,12 @@
       audio {
         margin-bottom: 1rem;
       }
+      .stage {
+        position: relative;
+      }
       canvas {
         display: block;
+        width: 100%;
         height: 600px;
         border: 1px solid #334155;
       }
@@ -41,7 +45,7 @@
   </head>
   <body>
     <p><a href="./index.html">Back to demos</a></p>
-    <h1>Loading demo</h1>
+    <h1>Shaders demo</h1>
     <form>
       <input
         name="url"
@@ -69,7 +73,11 @@
     <p data-status></p>
 
     <script type="module">
-      import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
+      import {
+        attachCanvasNavigation,
+        attachPlayheadOverlay,
+        Sonoscope,
+      } from "@sonoscope/core";
 
       let canvas = document.querySelector("canvas");
       const form = document.querySelector("form");
@@ -80,11 +88,13 @@
       let scope;
       let spectrogram;
       let cleanupNavigation;
+      let cleanupPlayhead;
 
       async function main(shader) {
         spectrogram?.destroy();
         scope?.destroy();
         cleanupNavigation?.();
+        cleanupPlayhead?.destroy();
         canvas = resetCanvas(canvas);
 
         scope = await Sonoscope.fromAudio(audio, {
@@ -102,6 +112,7 @@
         });
 
         cleanupNavigation = attachCanvasNavigation(spectrogram, canvas);
+        cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
       }
 
       form.addEventListener("submit", async (event) => {

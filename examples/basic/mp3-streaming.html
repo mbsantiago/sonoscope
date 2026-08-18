@@ -326,7 +326,11 @@
     </div>
 
     <script type="module">
-      import { Sonoscope, StreamingMp3Source } from "@sonoscope/core";
+      import {
+        attachPlayheadOverlay,
+        Sonoscope,
+        StreamingMp3Source,
+      } from "@sonoscope/core";
 
       const canvas = document.getElementById("spectrogram-canvas");
       const audio = document.getElementById("audio-element");
@@ -348,6 +352,7 @@
 
       let scope = null;
       let viewer = null;
+      let playhead = null;
       let maxDecodedTime = 0;
 
       async function init() {
@@ -367,6 +372,7 @@
         if (corsNotice) corsNotice.style.display = "none";
 
         try {
+          playhead?.destroy();
           viewer?.destroy();
           scope?.destroy();
 
@@ -389,6 +395,7 @@
             colorMap: { base: "magma", gamma: 1.5 },
             renderOnSeek: true,
           });
+          playhead = attachPlayheadOverlay(canvas.parentElement, scope);
 
           const source = scope.source;
           statFormat.textContent = `${source.sampleRate.toLocaleString()} Hz · ${source.channelCount === 1 ? "Mono" : "Stereo"}`;

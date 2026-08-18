@@ -148,7 +148,7 @@
     <div class="grid" id="grid"></div>
 
     <script type="module">
-      import { Sonoscope } from "@sonoscope/core";
+      import { attachPlayheadOverlay, Sonoscope } from "@sonoscope/core";
 
       const ITEMS = [
         {
@@ -221,6 +221,7 @@
       const rendererSelect = document.getElementById("renderer-select");
       let currentRenderer = "auto";
       const viewers = [];
+      const playheads = [];
       const audios = [];
 
       for (let i = 0; i < ITEMS.length; i++) {
@@ -291,7 +292,11 @@
         for (const v of viewers) {
           try { v.destroy?.(); } catch {}
         }
+        for (const p of playheads) {
+          try { p.destroy?.(); } catch {}
+        }
         viewers.length = 0;
+        playheads.length = 0;
 
         // Concurrency queue: load up to 4 streams in parallel
         const concurrency = 4;
@@ -328,6 +333,7 @@
               });
 
               viewers[i] = viewer;
+              playheads[i] = attachPlayheadOverlay(canvas.parentElement, scope);
               const source = scope.source;
               rateEl.textContent = `${(source.sampleRate / 1000).toFixed(1)} kHz · ${source.duration.toFixed(1)}s`;
             } catch (err) {

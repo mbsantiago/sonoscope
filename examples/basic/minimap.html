@@ -14,10 +14,13 @@
       a {
         color: #93c5fd;
       }
+      .stage {
+        position: relative;
+        width: min(100%, 960px);
+      }
       form,
       audio,
       canvas,
-      .stage,
       .minimap,
       pre,
       .note {
@@ -141,7 +144,11 @@
     </main>
 
     <script type="module">
-      import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
+      import {
+        attachCanvasNavigation,
+        attachPlayheadOverlay,
+        Sonoscope,
+      } from "@sonoscope/core";
 
       const DEFAULT_AUDIO_URL =
         "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
@@ -160,6 +167,7 @@
       let lastTileSummary = "tiles: none yet";
       let lastPaintSummary = "paint passes: none yet";
       let lastPlaybackSummary = "playback fps: none yet";
+      let cleanupPlayhead;
       let cleanupNavigation;
       let cleanupAudioPause;
 
@@ -254,6 +262,7 @@
       async function load(url) {
         cleanupNavigation?.();
         cleanupAudioPause?.();
+        cleanupPlayhead?.destroy();
         spectrogram?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
@@ -272,6 +281,7 @@
             renderer: "auto",
             renderOnSeek: true,
           });
+          cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
         } catch (error) {
           status.textContent =
             error instanceof Error ? error.message : String(error);

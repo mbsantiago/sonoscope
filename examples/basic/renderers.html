@@ -12,6 +12,7 @@
         font-family: system-ui, sans-serif;
       }
       canvas,
+      .stage,
       .controls,
       pre,
       .note {
@@ -24,8 +25,12 @@
         align-items: center;
         margin-bottom: 1rem;
       }
+      .stage {
+        position: relative;
+      }
       canvas {
         display: block;
+        width: 100%;
         height: 320px;
         border: 1px solid #334155;
       }
@@ -67,12 +72,12 @@
         </label>
         <button id="render" type="button">Render</button>
       </div>
-      <canvas id="spectrogram"></canvas>
+      <div class="stage"><canvas id="spectrogram"></canvas></div>
       <pre id="status">Ready.</pre>
     </main>
 
     <script type="module">
-      import { Sonoscope } from "@sonoscope/core";
+      import { attachPlayheadOverlay, Sonoscope } from "@sonoscope/core";
 
       class SyntheticSource {
         id = "synthetic-renderers";
@@ -146,8 +151,10 @@
       };
       let scope;
       let viewer;
+      let playhead;
 
       async function renderSelected() {
+        playhead?.destroy();
         viewer?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
@@ -172,6 +179,7 @@
             fftSize: 2048,
             hopSize: 512,
           });
+          playhead = attachPlayheadOverlay(canvas.parentElement, scope);
           viewer.on("rendercomplete", (event) => {
             status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nrequest: ${event.requestId}\nrender duration: ${(event.durationMs ?? 0).toFixed(1)} ms\ntiles rendered: ${event.renderedTiles}`;
           });

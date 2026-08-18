@@ -30,6 +30,9 @@
       audio {
         margin-bottom: 1rem;
       }
+      .stage {
+        position: relative;
+      }
       canvas {
         display: block;
         height: 320px;
@@ -55,6 +58,7 @@
     <script type="module">
       import {
         attachCanvasNavigation,
+        attachPlayheadOverlay,
         createAudioSourceFromUrl,
         Sonoscope,
       } from "@sonoscope/core";
@@ -141,6 +145,7 @@
       }
 
       attachCanvasNavigation(spectrogram, canvas, {});
+      attachPlayheadOverlay(canvas.parentElement, scope);
 
       document
         .querySelector('[data-action="previous"]')

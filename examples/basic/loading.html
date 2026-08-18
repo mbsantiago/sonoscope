@@ -32,6 +32,9 @@
       audio {
         margin-bottom: 1rem;
       }
+      .stage {
+        position: relative;
+      }
       canvas {
         display: block;
         height: 320px;
@@ -62,6 +65,7 @@
     <script type="module">
       import {
         attachCanvasNavigation,
+        attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
 
@@ -75,6 +79,7 @@
       });
 
       let spectrogram = scope.createSpectrogram(canvas);
+      let playhead = attachPlayheadOverlay(canvas.parentElement, scope);
 
       attachCanvasNavigation(spectrogram, canvas, {
         enableWheel: true,
@@ -87,9 +92,11 @@
         if (!url) return;
         audio.src = url;
         const nextScope = await Sonoscope.fromAudio(audio, { followPlayback: "page" });
+        playhead?.destroy();
         scope.destroy();
         scope = nextScope;
         spectrogram = scope.createSpectrogram(canvas);
+        playhead = attachPlayheadOverlay(canvas.parentElement, scope);
       });
     </script>
   </body>

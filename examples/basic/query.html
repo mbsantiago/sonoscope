@@ -260,7 +260,13 @@
     </div>
 
     <script type="module">
-      import { hzToScale, Sonoscope, SpectrogramViewer, scaleToHz } from '@sonoscope/core';
+      import {
+        attachPlayheadOverlay,
+        hzToScale,
+        Sonoscope,
+        SpectrogramViewer,
+        scaleToHz,
+      } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       
@@ -272,6 +278,7 @@
       let specCanvas = document.querySelector('.spec-canvas');
       const sliceCanvas = document.querySelector('.slice-canvas');
       const sliceCtx = sliceCanvas.getContext('2d');
+      let cleanupPlayhead = null;
 
       const statusEl = document.getElementById('spec-status');
       const sliceTimeEl = document.getElementById('slice-time-label');
@@ -478,18 +485,22 @@
       }
 
       async function load(url) {
+        cleanupPlayhead?.destroy?.();
         viewer?.destroy();
         scope?.destroy();
         statusEl.textContent = 'Loading audio...';
         audio.src = url;
         try {
           resizeCanvas(sliceCanvas);
-          scope = await Sonoscope.fromAudio(audio);
+          scope = await Sonoscope.fromAudio(audio, {
+            followPlayback: "page",
+          });
           viewer = scope.createSpectrogram(specCanvas, {
             colorMap: 'magma',
             frequencyScale: scaleSelect.value,
             valueMode: modeSelect.value,
           });
+          cleanupPlayhead = attachPlayheadOverlay(specCanvas.parentElement, scope);
           statusEl.textContent = `Ready (${scope.getSampleRate().toLocaleString()} Hz)`;
           
           // Initial slice at t = 0

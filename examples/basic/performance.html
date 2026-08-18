@@ -13,8 +13,8 @@
       button.primary { background: #0284c7; border-color: #0369a1; }
       button.primary:hover { background: #0369a1; }
       label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.875rem; color: #cbd5e1; }
-      select, input[type="number"] { background: #1e293b; color: #f8fafc; border: 1px solid #475569; padding: 0.35rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
-      canvas { display: block; height: 320px; border: 1px solid #334155; border-radius: 4px; }
+      .stage { position: relative; width: 100%; }
+      canvas { display: block; width: 100%; height: 320px; border: 1px solid #334155; border-radius: 4px; }
       pre { box-sizing: border-box; overflow: auto; padding: 1.25rem; background: #020617; border: 1px solid #334155; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85rem; line-height: 1.6; color: #e2e8f0; min-height: 240px; }
       .note { color: #94a3b8; font-size: 0.9rem; margin-top: -0.25rem; margin-bottom: 1.25rem; }
     </style>
@@ -60,12 +60,13 @@
         <button id="pan">Pan viewport</button>
       </div>
 
-      <canvas id="spectrogram"></canvas>
+      <div class="stage"><canvas id="spectrogram"></canvas></div>
       <pre id="profile">Ready. Click any button above to profile or benchmark backends.</pre>
     </main>
 
     <script type="module">
       import {
+        attachPlayheadOverlay,
         MainThreadComputeBackend,
         Sonoscope,
         SpectrogramProfiler,
@@ -139,6 +140,7 @@
       async function profileBackend(name, backendFactory, iterations = 20, overrideRenderer = null) {
         if (running) return null;
         running = true;
+        playhead?.destroy();
         viewer?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
@@ -171,6 +173,7 @@
             hopSize: 512,
             window: 'hann',
           });
+          playhead = attachPlayheadOverlay(canvas.parentElement, scope);
 
           const profiler = new SpectrogramProfiler(viewer);
 
