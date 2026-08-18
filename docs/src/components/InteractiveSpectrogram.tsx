@@ -215,10 +215,10 @@ export default function InteractiveSpectrogram({
           justifyContent: "space-between",
           alignItems: "center",
           gap: "12px",
-          marginBottom: "14px",
+          marginBottom: "20px",
           fontSize: "13px",
           lineHeight: 1,
-          margin: 0,
+          margin: "0 0 20px 0",
         }}
       >
         <div
