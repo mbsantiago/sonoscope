@@ -198,6 +198,7 @@ export default function InteractiveSpectrogram({
 
   return (
     <div
+      className="not-content"
       style={{
         border: "1px solid rgba(128, 128, 128, 0.25)",
         borderRadius: "8px",
@@ -217,6 +218,7 @@ export default function InteractiveSpectrogram({
           marginBottom: "14px",
           fontSize: "13px",
           lineHeight: 1,
+          margin: 0,
         }}
       >
         <div
@@ -225,6 +227,7 @@ export default function InteractiveSpectrogram({
             flexWrap: "wrap",
             gap: "16px",
             alignItems: "center",
+            margin: 0,
           }}
         >
           <div
@@ -232,6 +235,7 @@ export default function InteractiveSpectrogram({
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
+              margin: 0,
             }}
           >
             <span style={{ fontWeight: 500, opacity: 0.85, fontSize: "12px" }}>
@@ -289,6 +293,7 @@ export default function InteractiveSpectrogram({
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
+              margin: 0,
             }}
           >
             <span style={{ fontWeight: 500, opacity: 0.85, fontSize: "12px" }}>
