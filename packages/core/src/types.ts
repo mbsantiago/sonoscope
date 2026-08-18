@@ -201,7 +201,7 @@ export interface ISonoscope {
   setSource(source: AudioSource): void;
 
   attachNavigation(
-    target: HTMLCanvasElement | AnyNavigableViewer,
+    container: HTMLElement,
     options?: NavigationOptions,
   ): () => void;
 

@@ -324,7 +324,10 @@ export interface ISpectrogramViewer {
   getViewport(): ViewportConfig;
   updateViewport(viewport: Partial<ViewportConfig>): void;
   setViewport(viewport: Partial<ViewportConfig>): void;
-  attachNavigation(options?: NavigationOptions): () => void;
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void;
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;

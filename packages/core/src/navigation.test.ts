@@ -1005,12 +1005,12 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     };
   }
 
-  it("attaches navigation via spec.attachNavigation() and automatically cleans up on spec.destroy()", () => {
+  it("attaches navigation via spec.attachNavigation(canvas) and automatically cleans up on spec.destroy()", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
     const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach = spec.attachNavigation();
+    const detach = spec.attachNavigation(canvas);
     expect(typeof detach).toBe("function");
 
     // Wheel and drag down listeners should be attached
@@ -1036,12 +1036,34 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     );
   });
 
+  it("attaches navigation to a wrapper div container via spec.attachNavigation(containerDiv)", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const canvas = createTestCanvas();
+    const containerDiv = createTestCanvas();
+    const spec = new SpectrogramViewer(scope, canvas);
+
+    const detach = spec.attachNavigation(containerDiv);
+    expect(typeof detach).toBe("function");
+
+    expect(containerDiv.addEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+      { passive: false },
+    );
+
+    spec.destroy();
+    expect(containerDiv.removeEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+    );
+  });
+
   it("allows manual detach before viewer destroy", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
     const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach = spec.attachNavigation();
+    const detach = spec.attachNavigation(canvas);
     detach();
 
     expect(canvas.removeEventListener).toHaveBeenCalledWith(
@@ -1062,8 +1084,8 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     const canvas = createTestCanvas();
     const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach1 = spec.attachNavigation({ wheel: true, drag: false });
-    const detach2 = spec.attachNavigation({ wheel: false, drag: true });
+    const detach1 = spec.attachNavigation(canvas, { wheel: true, drag: false });
+    const detach2 = spec.attachNavigation(canvas, { wheel: false, drag: true });
 
     // Detach first
     detach1();
@@ -1072,12 +1094,12 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     expect(() => spec.destroy()).not.toThrow();
   });
 
-  it("attaches navigation via waveform.attachNavigation({ axis: 'time' }) and cleans up on destroy", () => {
+  it("attaches navigation via waveform.attachNavigation(canvas, { axis: 'time' }) and cleans up on destroy", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
     const waveform = new WaveformViewer(scope, canvas);
 
-    const detach = waveform.attachNavigation({
+    const detach = waveform.attachNavigation(canvas, {
       axis: "time",
     });
     expect(typeof detach).toBe("function");
@@ -1099,7 +1121,7 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     const canvas = createTestCanvas();
     const ruler = new TimeRulerViewer(scope, canvas);
 
-    const detach = ruler.attachNavigation();
+    const detach = ruler.attachNavigation(canvas);
     expect(typeof detach).toBe("function");
     expect(canvas.addEventListener).toHaveBeenCalledWith(
       "wheel",
@@ -1119,7 +1141,7 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     const canvas = createTestCanvas();
     const ruler = new FrequencyRulerViewer(scope, canvas);
 
-    const detach = ruler.attachNavigation();
+    const detach = ruler.attachNavigation(canvas);
     expect(typeof detach).toBe("function");
     expect(canvas.addEventListener).toHaveBeenCalledWith(
       "wheel",
@@ -1134,7 +1156,7 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     );
   });
 
-  it("navigates via drag and triggers onNavigate on viewer.attachNavigation()", () => {
+  it("navigates via drag and triggers onNavigate on viewer.attachNavigation(canvas)", () => {
     const onNavigate = vi.fn();
     const scope = new Sonoscope({
       source: dummySource,
@@ -1144,7 +1166,7 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     const canvas = createTestCanvas();
     const spec = new SpectrogramViewer(scope, canvas);
 
-    spec.attachNavigation({
+    spec.attachNavigation(canvas, {
       axis: "time",
       onNavigate,
     });

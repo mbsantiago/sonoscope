@@ -87,26 +87,26 @@ Sonoscope provides first-class navigation via `attachNavigation()` on viewer ins
 
 ### Native Viewer Navigation
 
-Every viewer supports calling `attachNavigation(options?)` directly without needing to pass the canvas element or import standalone helpers:
+Every viewer supports calling `attachNavigation(container, options?)` with a target DOM container element (such as a `<canvas>` or wrapping `<div>`):
 
 ```typescript
 // 1. Spectrogram (pan/zoom time and frequency)
-const detachSpec = spectrogram.attachNavigation();
+const detachSpec = spectrogram.attachNavigation(specCanvas);
 
 // 2. Waveform (defaults to time-only axis)
-const detachWave = waveform.attachNavigation({ axis: "time" });
+const detachWave = waveform.attachNavigation(waveCanvas, { axis: "time" });
 
 // 3. Time Ruler (time axis) and Frequency Ruler (frequency axis)
-timeRuler.attachNavigation();
-freqRuler.attachNavigation();
+timeRuler.attachNavigation(timeCanvas);
+freqRuler.attachNavigation(freqCanvas);
 ```
 
 ### Scope-Level Navigation
 
-You can also attach coordinated navigation directly to any `<canvas>` element from the root `Sonoscope` instance:
+You can also attach coordinated navigation directly to any `<canvas>` or container `<div>` element from the root `Sonoscope` instance:
 
 ```typescript
-// Attach navigation for any canvas bound to the scope's timeline
+// Attach navigation for any canvas or wrapper bound to the scope's timeline
 const detachScopeNav = scope.attachNavigation(customCanvas, {
   axis: "time",
 });
@@ -117,7 +117,7 @@ const detachScopeNav = scope.attachNavigation(customCanvas, {
 `attachNavigation` accepts comprehensive configuration for axes, modifier keys, sensitivities, and wheel/drag behavior:
 
 ```typescript
-spectrogram.attachNavigation({
+spectrogram.attachNavigation(specCanvas, {
   // Constrain navigation to a specific axis: 'both' | 'time' | 'frequency'
   axis: "both",
 
@@ -134,7 +134,7 @@ spectrogram.attachNavigation({
     button: 0, // 0 = left, 1 = middle, 2 = right
     modifier: "none",
     dragThreshold: 3,
-    cursor: "grab",
+    cursor: true,
   },
 
   onNavigate: (viewport) => {

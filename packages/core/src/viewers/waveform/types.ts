@@ -92,7 +92,10 @@ export interface IWaveformViewer {
   getViewport(): WaveformViewport;
   updateViewport(viewport: Partial<WaveformViewport>): void;
   setViewport(viewport: Partial<WaveformViewport>): void;
-  attachNavigation(options?: NavigationOptions): () => void;
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void;
 
   // Configuration
   getConfig(): ResolvedWaveformConfig;

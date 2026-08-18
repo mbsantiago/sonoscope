@@ -561,43 +561,19 @@ describe("Sonoscope", () => {
       detach();
     });
 
-    it("attaches navigation to a viewer using scope.attachNavigation(viewer)", () => {
+    it("attaches navigation to a container wrapper div using scope.attachNavigation(container)", () => {
       const scope = new Sonoscope(createMockSource(20));
-      const canvas = createMockCanvas();
-      const spec = scope.createSpectrogram(canvas);
-      const attachSpy = vi.spyOn(spec, "attachNavigation");
+      const containerDiv = createMockCanvas();
 
-      const detach = scope.attachNavigation(spec, { axis: "time" });
-      expect(attachSpy).toHaveBeenCalledWith({ axis: "time" });
+      const detach = scope.attachNavigation(containerDiv, { axis: "time" });
       expect(typeof detach).toBe("function");
-
-      // Also test standard NavigableViewer without native attachNavigation
-      const customViewer = {
-        getViewport: () => ({
-          startTime: 2,
-          endTime: 8,
-          minFrequency: 0,
-          maxFrequency: 20000,
-          frequencyScale: "linear",
-        }),
-        setViewport: vi.fn(),
-        requestRender: vi.fn(),
-        getCanvas: () => canvas,
-        getConfig: () => ({ canvas }),
-        getTimeBounds: () => ({
-          startTime: 0,
-          endTime: 20,
-          minDurationSeconds: 0.05,
-          maxDurationSeconds: 20,
-        }),
-      };
-
-      const detach2 = scope.attachNavigation(customViewer as any);
-      expect(typeof detach2).toBe("function");
+      expect(containerDiv.addEventListener).toHaveBeenCalledWith(
+        "wheel",
+        expect.any(Function),
+        { passive: false },
+      );
 
       detach();
-      detach2();
-      spec.destroy();
     });
 
     it("supports manual detach and unbinds listeners", () => {

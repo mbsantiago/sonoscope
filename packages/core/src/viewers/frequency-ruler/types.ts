@@ -96,7 +96,10 @@ export interface IFrequencyRulerViewer {
   getViewport(): FrequencyRulerViewport;
   updateViewport(viewport: Partial<FrequencyRulerViewport>): void;
   setViewport(viewport: Partial<FrequencyRulerViewport>): void;
-  attachNavigation(options?: NavigationOptions): () => void;
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void;
 
   getConfig(): ResolvedFrequencyRulerConfig;
   updateConfig(input: Partial<FrequencyRulerOptions>): void;

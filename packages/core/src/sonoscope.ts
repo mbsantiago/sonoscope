@@ -672,43 +672,14 @@ export class Sonoscope implements ISonoscope {
   }
 
   attachNavigation(
-    target: HTMLCanvasElement | AnyNavigableViewer,
+    container: HTMLElement,
     options?: NavigationOptions,
   ): () => void {
     if (
-      typeof target === "object" &&
-      target !== null &&
-      "getViewport" in target &&
-      "requestRender" in target
-    ) {
-      if (typeof (target as any).attachNavigation === "function") {
-        const cleanup = (target as any).attachNavigation(options);
-        this.navigationCleanups.push(cleanup);
-        return () => {
-          const idx = this.navigationCleanups.indexOf(cleanup);
-          if (idx !== -1) this.navigationCleanups.splice(idx, 1);
-          cleanup();
-        };
-      }
-      const cleanup = attachCanvasNavigation(
-        target as AnyNavigableViewer,
-        undefined,
-        options,
-      );
-      this.navigationCleanups.push(cleanup);
-      return () => {
-        const idx = this.navigationCleanups.indexOf(cleanup);
-        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
-        cleanup();
-      };
-    }
-
-    if (
-      (typeof HTMLCanvasElement !== "undefined" &&
-        target instanceof HTMLCanvasElement) ||
-      (typeof target === "object" &&
-        target !== null &&
-        "addEventListener" in target)
+      (typeof HTMLElement !== "undefined" && container instanceof HTMLElement) ||
+      (typeof container === "object" &&
+        container !== null &&
+        "addEventListener" in container)
     ) {
       const scopeAdapter: NavigableViewer = {
         getViewport: () => {
@@ -725,10 +696,10 @@ export class Sonoscope implements ISonoscope {
           this.setViewport(vp, "navigation");
         },
         requestRender: () => {},
-        getCanvas: () => target as HTMLCanvasElement,
+        getCanvas: () => container,
         getScope: () => this,
         getConfig: () => ({
-          canvas: target as HTMLCanvasElement,
+          canvas: container,
           minViewportDuration: this.minDuration,
           maxViewportDuration: this.maxDuration,
           minFrequency: this.minFrequency,
@@ -749,7 +720,7 @@ export class Sonoscope implements ISonoscope {
 
       const cleanup = attachCanvasNavigation(
         scopeAdapter,
-        target as HTMLCanvasElement,
+        container,
         options,
       );
       this.navigationCleanups.push(cleanup);
@@ -761,7 +732,7 @@ export class Sonoscope implements ISonoscope {
     }
 
     throw new Error(
-      "Invalid navigation target: expected HTMLCanvasElement or NavigableViewer",
+      "Invalid navigation target: expected DOM container element",
     );
   }
 

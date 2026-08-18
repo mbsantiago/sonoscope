@@ -27,7 +27,7 @@ export interface NavigableViewer {
     maxFrequency?: number | undefined;
     frequencyScale?: string | undefined;
   };
-  getCanvas?(): HTMLCanvasElement;
+  getCanvas?(): HTMLElement;
   getScope?(): {
     getDuration(): number;
     getSampleRate?(): number | undefined;
@@ -204,16 +204,16 @@ function resolveViewerAxis(
 
 function resolveViewerCanvas(
   viewer: AnyNavigableViewer,
-  canvas?: HTMLCanvasElement,
-): HTMLCanvasElement {
+  canvas?: HTMLElement,
+): HTMLElement {
   if (canvas) return canvas;
   if ("getCanvas" in viewer && typeof viewer.getCanvas === "function") {
     const fromViewer = viewer.getCanvas();
     if (fromViewer) return fromViewer;
   }
-  const config = viewer.getConfig() as { canvas?: HTMLCanvasElement };
+  const config = viewer.getConfig() as { canvas?: HTMLElement };
   if (config.canvas) return config.canvas;
-  throw new Error("Canvas is required for navigation attachment");
+  throw new Error("Canvas or container element is required for navigation attachment");
 }
 
 export function resolveViewerTimeBounds(
@@ -264,7 +264,7 @@ export function resolveViewerFrequencyBounds(
 
 export function attachCanvasWheelNavigation(
   viewer: AnyNavigableViewer,
-  canvas?: HTMLCanvasElement,
+  canvas?: HTMLElement,
   options: CanvasWheelNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
@@ -427,7 +427,7 @@ export function attachCanvasWheelNavigation(
 
 export function attachCanvasDragNavigation(
   viewer: AnyNavigableViewer,
-  canvas?: HTMLCanvasElement,
+  canvas?: HTMLElement,
   options: CanvasDragNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
@@ -558,7 +558,7 @@ export function attachCanvasDragNavigation(
 
 export function attachCanvasNavigation(
   viewer: AnyNavigableViewer,
-  canvas?: HTMLCanvasElement,
+  canvas?: HTMLElement,
   options: CanvasNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
@@ -598,6 +598,8 @@ export function attachCanvasNavigation(
     for (const cleanup of cleanups) cleanup();
   };
 }
+
+export const attachNavigation = attachCanvasNavigation;
 
 function modifierPressed(
   event: {

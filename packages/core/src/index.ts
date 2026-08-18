@@ -140,6 +140,7 @@ export {
   attachCanvasDragNavigation,
   attachCanvasNavigation,
   attachCanvasWheelNavigation,
+  attachNavigation,
   panViewportFrequency,
   panViewportTime,
   setViewerViewport,

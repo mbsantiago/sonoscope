@@ -247,8 +247,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.requestRender();
   }
 
-  attachNavigation(options?: NavigationOptions): () => void {
-    const cleanup = attachCanvasNavigation(this, this.canvas, options);
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void {
+    const cleanup = attachCanvasNavigation(this, container, options);
     this.navCleanups.push(cleanup);
     return () => {
       const idx = this.navCleanups.indexOf(cleanup);

@@ -97,7 +97,10 @@ export interface ITimeRulerViewer {
   getViewport(): TimeRulerViewport;
   updateViewport(viewport: Partial<TimeRulerViewport>): void;
   setViewport(viewport: Partial<TimeRulerViewport>): void;
-  attachNavigation(options?: NavigationOptions): () => void;
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void;
 
   getConfig(): ResolvedTimeRulerConfig;
   updateConfig(input: Partial<TimeRulerOptions>): void;

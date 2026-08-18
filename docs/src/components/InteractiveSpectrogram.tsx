@@ -100,7 +100,7 @@ export default function InteractiveSpectrogram({
           maxFrequency: maxFreq,
         });
         specRef.current = spec;
-        cleanups.push(spec.attachNavigation());
+        cleanups.push(spec.attachNavigation(specCanvasRef.current));
 
         if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
           const timeRuler = scope.createTimeRuler(timeCanvasRef.current, {
@@ -110,7 +110,7 @@ export default function InteractiveSpectrogram({
             tickColor: "rgba(128, 128, 128, 0.35)",
           });
           timeRulerRef.current = timeRuler;
-          cleanups.push(timeRuler.attachNavigation());
+          cleanups.push(timeRuler.attachNavigation(timeCanvasRef.current));
           const overlay = attachPlayheadOverlay(
             timeCanvasRef.current.parentElement,
             scope,
@@ -140,7 +140,7 @@ export default function InteractiveSpectrogram({
             tickPosition: "right",
           });
           freqRulerRef.current = freqRuler;
-          cleanups.push(freqRuler.attachNavigation());
+          cleanups.push(freqRuler.attachNavigation(freqCanvasRef.current));
         }
 
         if (
@@ -152,7 +152,7 @@ export default function InteractiveSpectrogram({
             colorMap: cmap,
           });
           waveformRef.current = waveform;
-          cleanups.push(waveform.attachNavigation());
+          cleanups.push(waveform.attachNavigation(waveCanvasRef.current));
           const overlay = attachPlayheadOverlay(
             waveCanvasRef.current.parentElement,
             scope,
