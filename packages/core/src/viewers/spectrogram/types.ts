@@ -3,6 +3,7 @@ import type {
   ColorMapConfig,
   FrequencyScale,
   ISonoscope,
+  NavigationOptions,
   ViewportConfig,
 } from "../../types";
 import type { SpectrogramComputeBackend } from "./backends/backend";
@@ -323,6 +324,7 @@ export interface ISpectrogramViewer {
   getViewport(): ViewportConfig;
   updateViewport(viewport: Partial<ViewportConfig>): void;
   setViewport(viewport: Partial<ViewportConfig>): void;
+  attachNavigation(options?: NavigationOptions): () => void;
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;

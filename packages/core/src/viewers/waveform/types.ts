@@ -1,4 +1,4 @@
-import type { ColorMapConfig, ISonoscope } from "../../types";
+import type { ColorMapConfig, ISonoscope, NavigationOptions } from "../../types";
 
 export type PeakBlock = {
   min: Float32Array;
@@ -92,6 +92,7 @@ export interface IWaveformViewer {
   getViewport(): WaveformViewport;
   updateViewport(viewport: Partial<WaveformViewport>): void;
   setViewport(viewport: Partial<WaveformViewport>): void;
+  attachNavigation(options?: NavigationOptions): () => void;
 
   // Configuration
   getConfig(): ResolvedWaveformConfig;

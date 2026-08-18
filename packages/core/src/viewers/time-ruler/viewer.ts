@@ -1,4 +1,4 @@
-import type { ISonoscope } from "../../types";
+import type { ISonoscope, NavigationOptions } from "../../types";
 import type {
   ITimeRulerViewer,
   ResolvedTimeRulerConfig,
@@ -10,6 +10,7 @@ import type {
   TimeRulerViewport,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
+import { attachCanvasNavigation } from "../../navigation";
 import { clampViewportTimes } from "../../viewport-math";
 import { BoxesTimeRulerProgram } from "./programs/boxes-program";
 import { TicksTimeRulerProgram } from "./programs/ticks-program";
@@ -79,6 +80,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private config: ResolvedTimeRulerConfig;
   private programInstance: TimeRulerProgram;
   private scopeCleanup: Array<() => void> = [];
+  private navCleanups: Array<() => void> = [];
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -177,6 +179,18 @@ export class TimeRulerViewer implements ITimeRulerViewer {
 
   setViewport(viewport: Partial<TimeRulerViewport>): void {
     this.updateViewport(viewport);
+  }
+
+  attachNavigation(options?: NavigationOptions): () => void {
+    const cleanup = attachCanvasNavigation(this, this.canvas, options);
+    this.navCleanups.push(cleanup);
+    return () => {
+      const idx = this.navCleanups.indexOf(cleanup);
+      if (idx !== -1) {
+        this.navCleanups.splice(idx, 1);
+      }
+      cleanup();
+    };
   }
 
   getConfig(): ResolvedTimeRulerConfig {
@@ -307,5 +321,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
+    for (const cleanup of this.navCleanups) cleanup();
+    this.navCleanups = [];
   }
 }

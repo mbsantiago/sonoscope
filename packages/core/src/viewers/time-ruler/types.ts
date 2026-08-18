@@ -1,4 +1,4 @@
-import type { ISonoscope } from "../../types";
+import type { ISonoscope, NavigationOptions } from "../../types";
 import type { TimeFormatMode } from "./ticks";
 
 export type TimeRulerProgramName = "ticks" | "boxes";
@@ -97,6 +97,7 @@ export interface ITimeRulerViewer {
   getViewport(): TimeRulerViewport;
   updateViewport(viewport: Partial<TimeRulerViewport>): void;
   setViewport(viewport: Partial<TimeRulerViewport>): void;
+  attachNavigation(options?: NavigationOptions): () => void;
 
   getConfig(): ResolvedTimeRulerConfig;
   updateConfig(input: Partial<TimeRulerOptions>): void;
