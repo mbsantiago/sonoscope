@@ -240,6 +240,7 @@
     <script type="module">
       import {
         attachCanvasNavigation,
+        attachPlayheadOverlay,
         Sonoscope,
       } from '@sonoscope/core';
 
@@ -263,10 +264,14 @@
       let waveViewer = null;
       let cleanupSpecNav = null;
       let cleanupWaveNav = null;
+      let cleanupSpecPlayhead = null;
+      let cleanupWavePlayhead = null;
 
       async function load(url) {
         cleanupSpecNav?.();
         cleanupWaveNav?.();
+        cleanupSpecPlayhead?.destroy?.();
+        cleanupWavePlayhead?.destroy?.();
         specViewer?.destroy();
         waveViewer?.destroy();
         scope?.destroy();
@@ -309,9 +314,11 @@
             specStatusEl.textContent = `Error: ${event.error.message}`;
           });
 
-          // 5. Attach canvas navigation to viewers (delegates time pan/zoom to scope)
+          // 5. Attach canvas navigation and decoupled hardware-accelerated playhead overlays
           cleanupSpecNav = attachCanvasNavigation(specViewer, specCanvas);
           cleanupWaveNav = attachCanvasNavigation(waveViewer, waveCanvas);
+          cleanupSpecPlayhead = attachPlayheadOverlay(specCanvas.parentElement, scope);
+          cleanupWavePlayhead = attachPlayheadOverlay(waveCanvas.parentElement, scope);
 
           const source = scope.source;
           waveStatusEl.textContent = 'Ready';

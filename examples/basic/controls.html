@@ -53,8 +53,13 @@
       audio {
         margin-bottom: 1rem;
       }
+      .stage {
+        position: relative;
+        width: 100%;
+      }
       canvas {
         display: block;
+        width: 100%;
         height: 320px;
         border: 1px solid #334155;
       }
@@ -205,7 +210,11 @@
     <div class="stage"><canvas></canvas></div>
 
     <script type="module">
-      import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
+      import {
+        attachCanvasNavigation,
+        attachPlayheadOverlay,
+        Sonoscope,
+      } from "@sonoscope/core";
 
       const DEFAULT_AUDIO_URL =
         "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
@@ -225,6 +234,7 @@
       let viewer;
       let source;
       let cleanupNavigation;
+      let cleanupPlayhead;
 
       function value(name) {
         return document.querySelector(`[name="${name}"]`).value;
@@ -335,6 +345,7 @@
 
       async function load(url) {
         cleanupNavigation?.();
+        cleanupPlayhead?.destroy?.();
         viewer?.destroy();
         scope?.destroy();
         canvas = resetCanvas(canvas);
@@ -353,6 +364,7 @@
             enableWheel: true,
             enableDrag: true,
           });
+          cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
         } catch (error) {
           status.textContent =
             error instanceof Error ? error.message : String(error);

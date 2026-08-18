@@ -1,6 +1,10 @@
 import type { RenderProps } from "@anywidget/types";
 import "./widget.css";
-import { attachCanvasNavigation, Sonoscope } from "@sonoscope/core";
+import {
+  attachCanvasNavigation,
+  attachPlayheadOverlay,
+  Sonoscope,
+} from "@sonoscope/core";
 
 interface WidgetModel {
   url: string;
@@ -47,15 +51,33 @@ async function render({
   audio.controls = true;
   flex.appendChild(audio);
 
+  const specContainer = document.createElement("div");
+  specContainer.style.position = "relative";
+  specContainer.style.width = `${width}px`;
+  specContainer.style.height = `${height}px`;
+  flex.appendChild(specContainer);
+
   const specCanvas = document.createElement("canvas");
   specCanvas.width = width;
   specCanvas.height = height;
-  flex.appendChild(specCanvas);
+  specCanvas.style.width = "100%";
+  specCanvas.style.height = "100%";
+  specCanvas.style.display = "block";
+  specContainer.appendChild(specCanvas);
+
+  const waveformContainer = document.createElement("div");
+  waveformContainer.style.position = "relative";
+  waveformContainer.style.width = `${width}px`;
+  waveformContainer.style.height = "80px";
+  flex.appendChild(waveformContainer);
 
   const waveformCanvas = document.createElement("canvas");
   waveformCanvas.width = width;
   waveformCanvas.height = 80;
-  flex.appendChild(waveformCanvas);
+  waveformCanvas.style.width = "100%";
+  waveformCanvas.style.height = "100%";
+  waveformCanvas.style.display = "block";
+  waveformContainer.appendChild(waveformCanvas);
 
   specCanvas.addEventListener("dblclick", (e) => {
     const rect = specCanvas.getBoundingClientRect();
@@ -81,11 +103,15 @@ async function render({
   const waveform = scope.createWaveform(waveformCanvas);
   attachCanvasNavigation(spec, specCanvas);
   attachCanvasNavigation(waveform, waveformCanvas);
+  const specOverlay = attachPlayheadOverlay(specContainer, scope);
+  const waveOverlay = attachPlayheadOverlay(waveformContainer, scope);
 
   signal.addEventListener("abort", () => {
+    specOverlay.destroy();
+    waveOverlay.destroy();
     spec.destroy();
-    scope.destroy();
     waveform.destroy();
+    scope.destroy();
   });
 }
 
