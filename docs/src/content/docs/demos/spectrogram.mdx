@@ -1,172 +1,32 @@
 ---
 title: Spectrogram
-description: Interactive WebGL2 audio spectrogram viewer with time and frequency rulers.
+description: Minimal standalone HTML & TypeScript spectrogram viewer.
 ---
 
-Client-side GPU spectrogram rendering with dynamic tile caching and synchronized time/frequency rulers using `@sonoscope/core`.
+Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`.
 
-```tsx live props={{ "client:only": "react" }}
-import {
-  Sonoscope,
-  attachCanvasNavigation,
-  attachPlayheadOverlay,
-} from "@sonoscope/core";
-import { useEffect, useRef } from "react";
+```html live
+<div style="border: 1px solid rgba(128, 128, 128, 0.25); border-radius: 6px; overflow: hidden;">
+  <canvas id="spectrogram-canvas" style="width: 100%; height: 280px; display: block;"></canvas>
+</div>
 
-export default function SpectrogramLiveDemo() {
-  const specCanvasRef = useRef<HTMLCanvasElement>(null);
-  const timeCanvasRef = useRef<HTMLCanvasElement>(null);
-  const freqCanvasRef = useRef<HTMLCanvasElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+<script type="module">
+  import { Sonoscope, attachCanvasNavigation } from '@sonoscope/core';
 
-  useEffect(() => {
-    if (!specCanvasRef.current || !audioRef.current) return;
-    let active = true;
-    const cleanups: Array<() => void> = [];
+  const canvas = document.querySelector('#spectrogram-canvas');
+  const audioUrl =
+    'https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
 
-    const audioUrl =
-      "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+  const scope = await Sonoscope.fromUrl(audioUrl, {
+    frequencyScale: 'mel',
+  });
 
-    Sonoscope.fromUrl(audioUrl, {
-      audio: audioRef.current,
-      frequencyScale: "mel",
-      followPlayback: "page",
-    }).then((scope) => {
-      if (!active) {
-        scope.destroy();
-        return;
-      }
-      cleanups.push(() => scope.destroy());
+  const spec = scope.createSpectrogram(canvas, {
+    colorMap: 'inferno',
+    minValue: -80,
+    maxValue: 0,
+  });
 
-      // 1. Spectrogram Viewer
-      const spec = scope.createSpectrogram(specCanvasRef.current!, {
-        colorMap: "inferno",
-        minValue: -80,
-        maxValue: 0,
-      });
-      cleanups.push(attachCanvasNavigation(spec, specCanvasRef.current!));
-
-      // 2. Time Ruler
-      if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
-        const timeRuler = scope.createTimeRuler(timeCanvasRef.current, {
-          program: "ticks",
-          tickPosition: "top",
-          color: "rgba(128, 128, 128, 0.75)",
-          tickColor: "rgba(128, 128, 128, 0.35)",
-        });
-        cleanups.push(attachCanvasNavigation(timeRuler, timeCanvasRef.current));
-        const overlay = attachPlayheadOverlay(
-          timeCanvasRef.current.parentElement,
-          scope,
-        );
-        cleanups.push(() => overlay.destroy());
-      }
-
-      // 3. Frequency Ruler
-      if (freqCanvasRef.current) {
-        const freqRuler = scope.createFrequencyRuler(freqCanvasRef.current, {
-          program: "ticks",
-          tickPosition: "right",
-          color: "rgba(128, 128, 128, 0.75)",
-          tickColor: "rgba(128, 128, 128, 0.35)",
-        });
-        cleanups.push(attachCanvasNavigation(freqRuler, freqCanvasRef.current));
-      }
-
-      if (specCanvasRef.current?.parentElement) {
-        const overlay = attachPlayheadOverlay(
-          specCanvasRef.current.parentElement,
-          scope,
-        );
-        cleanups.push(() => overlay.destroy());
-      }
-    });
-
-    return () => {
-      active = false;
-      for (const cleanup of cleanups) cleanup();
-    };
-  }, []);
-
-  return (
-    <div
-      style={{
-        border: "1px solid rgba(128, 128, 128, 0.25)",
-        borderRadius: "8px",
-        padding: "16px",
-        background: "rgba(0, 0, 0, 0.03)",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "56px 1fr",
-          border: "1px solid rgba(128, 128, 128, 0.25)",
-          borderRadius: "4px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "24px",
-            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-            borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-            fontSize: "10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: 0.6,
-            fontFamily: "monospace",
-          }}
-        >
-          Hz \ s
-        </div>
-        <div
-          style={{
-            position: "relative",
-            height: "24px",
-            borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-          }}
-        >
-          <canvas
-            ref={timeCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-
-        <div
-          style={{
-            position: "relative",
-            width: "56px",
-            height: "280px",
-            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-          }}
-        >
-          <canvas
-            ref={freqCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-        <div style={{ position: "relative", height: "280px" }}>
-          <canvas
-            ref={specCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-      </div>
-
-      <audio
-        ref={audioRef}
-        crossOrigin="anonymous"
-        controls
-        style={{
-          width: "100%",
-          height: "36px",
-          marginTop: "12px",
-          outline: "none",
-        }}
-      />
-    </div>
-  );
-}
+  attachCanvasNavigation(spec, canvas);
+</script>
 ```
