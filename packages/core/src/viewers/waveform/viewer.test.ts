@@ -67,7 +67,7 @@ describe("WaveformViewer", () => {
     expect(viewer.getStatus().state).toBe("ready");
   });
 
-  it("updates viewport and emits viewportchange events", async () => {
+  it("updates viewport when scope updates", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({
       source: dummySource,
@@ -79,7 +79,7 @@ describe("WaveformViewer", () => {
     const onViewportChange = vi.fn();
     viewer.on("viewportchange", onViewportChange);
 
-    viewer.updateViewport({ startTime: 1, endTime: 4 });
+    scope.setViewport({ startTime: 1, endTime: 4 });
 
     expect(viewer.getViewport()).toMatchObject({ startTime: 1, endTime: 4 });
     expect(onViewportChange).toHaveBeenCalledTimes(1);
@@ -271,15 +271,17 @@ describe("WaveformViewer", () => {
       expect(requestRender).toHaveBeenCalledTimes(1);
     });
 
-    it("updates scope when viewer.updateViewport() modifies time bounds", () => {
+    it("updates viewer viewport and emits viewportchange when scope.setViewport() is called", () => {
       const scope = new Sonoscope({
         source: dummySource,
         startTime: 0,
         endTime: 10,
       });
       const viewer = new WaveformViewer(scope, createMockCanvas());
+      const onViewportChange = vi.fn();
+      viewer.on("viewportchange", onViewportChange);
 
-      viewer.updateViewport({
+      scope.setViewport({
         startTime: 2,
         endTime: 7,
       });
@@ -290,6 +292,7 @@ describe("WaveformViewer", () => {
         startTime: 2,
         endTime: 7,
       });
+      expect(onViewportChange).toHaveBeenCalled();
     });
 
     it("unbinds from scope on destroy() without destroying externally owned scope", () => {

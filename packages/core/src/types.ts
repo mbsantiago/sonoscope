@@ -179,11 +179,18 @@ export interface ISonoscope {
     source?: string | undefined,
   ): void;
   zoom(factor: number, centerTime?: number, source?: string): void;
+  zoomTime(factor: number, centerTime?: number, source?: string): void;
   pan(deltaSeconds: number, source?: string): void;
   panTo(startTime: number, source?: string): void;
   zoomFrequency(
     factor: number,
     centerFrequency?: number,
+    source?: string,
+  ): void;
+  zoomFreq(factor: number, centerFrequency?: number, source?: string): void;
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
     source?: string,
   ): void;
   panFrequency(deltaHz: number, source?: string): void;

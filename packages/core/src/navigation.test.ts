@@ -4,6 +4,7 @@ import {
   attachDragNavigation,
   attachNavigation,
   attachWheelNavigation,
+  type NavigableViewer,
   panViewportFrequency,
   panViewportTime,
   zoomViewportFrequency,
@@ -180,7 +181,7 @@ describe("attachWheelNavigation", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
     attachWheelNavigation(viewer, canvas);
     const wheel = listeners.get("wheel")!;
 
@@ -579,7 +580,7 @@ describe("attachDragNavigation", () => {
       setViewport: vi.fn(),
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
     const cleanup = attachDragNavigation(viewer, canvas);
     expect(canvas.style.cursor).toBe("grab");
@@ -619,7 +620,7 @@ describe("attachNavigation composite", () => {
       setViewport: vi.fn(),
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
     const cleanup = attachNavigation(viewer, canvas);
     expect(listeners.has("wheel")).toBe(true);
@@ -672,7 +673,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
     attachNavigation(viewer, canvas, {
       wheel: { zoomModifier: "alt" },
@@ -736,7 +737,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
     attachNavigation(viewer, canvas, {
       wheel: false,
@@ -852,7 +853,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
     attachNavigation(viewer, canvas, {
       axis: "time",
@@ -906,7 +907,7 @@ function setupWheelNavigation() {
     setViewport,
     requestRender: vi.fn(),
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-  } as unknown as SpectrogramViewer;
+  } as unknown as NavigableViewer;
   attachWheelNavigation(viewer, canvas);
 
   return {
@@ -944,7 +945,7 @@ function setupDragNavigation(options = {}) {
     setViewport,
     requestRender: vi.fn(),
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-  } as unknown as SpectrogramViewer;
+  } as unknown as NavigableViewer;
 
   const cleanup = attachDragNavigation(viewer, canvas, options);
 

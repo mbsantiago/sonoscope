@@ -96,7 +96,6 @@ export class WaveformViewer implements IWaveformViewer {
   private renderAgain = false;
   private requestCounter = 0;
   private status: WaveformStatus = { state: "idle" };
-  private isSelfUpdating = false;
   private scope: ISonoscope;
   private readonly canvas: HTMLCanvasElement;
   private config: ResolvedWaveformConfig;
@@ -157,35 +156,6 @@ export class WaveformViewer implements IWaveformViewer {
       startTime: scopeVp.startTime,
       endTime: scopeVp.endTime,
     };
-  }
-
-  setViewport(viewport: Partial<WaveformViewport>): void {
-    const prev = this.getViewport();
-    if (viewport.startTime !== undefined || viewport.endTime !== undefined) {
-      const nextStart = viewport.startTime ?? prev.startTime;
-      const nextEnd = viewport.endTime ?? prev.endTime;
-      if (
-        Math.abs(prev.startTime - nextStart) >= 1e-6 ||
-        Math.abs(prev.endTime - nextEnd) >= 1e-6
-      ) {
-        this.isSelfUpdating = true;
-        try {
-          this.scope.setViewport(
-            { startTime: nextStart, endTime: nextEnd },
-            "viewer",
-          );
-        } finally {
-          this.isSelfUpdating = false;
-        }
-        this.config.startTime = nextStart;
-        this.config.endTime = nextEnd;
-      }
-    }
-  }
-
-  updateViewport(viewport: Partial<WaveformViewport>): void {
-    this.setViewport(viewport);
-    this.requestRender();
   }
 
   getConfig(): ResolvedWaveformConfig {
@@ -362,9 +332,7 @@ export class WaveformViewer implements IWaveformViewer {
       this.config.startTime = e.viewport.startTime;
       this.config.endTime = e.viewport.endTime;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
-      if (!this.isSelfUpdating) {
-        this.requestRender();
-      }
+      this.requestRender();
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {

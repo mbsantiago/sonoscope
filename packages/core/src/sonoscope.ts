@@ -419,6 +419,10 @@ export class Sonoscope implements ISonoscope {
     );
   }
 
+  zoomTime(factor: number, centerTime?: number, source?: string): void {
+    this.zoom(factor, centerTime, source);
+  }
+
   pan(deltaSeconds: number, source?: string): void {
     if (!Number.isFinite(deltaSeconds)) return;
     const duration = this.endTime - this.startTime;
@@ -469,6 +473,75 @@ export class Sonoscope implements ISonoscope {
     const newMax = newMin + targetSpan;
 
     this.setViewport({ minFrequency: newMin, maxFrequency: newMax }, source);
+  }
+
+  zoomFreq(factor: number, centerFrequency?: number, source?: string): void {
+    this.zoomFrequency(factor, centerFrequency, source);
+  }
+
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
+    source?: string,
+  ): void {
+    const timeFactor = typeof factor === "number" ? factor : factor.time;
+    const freqFactor = typeof factor === "number" ? factor : factor.frequency;
+
+    let nextStartTime = this.startTime;
+    let nextEndTime = this.endTime;
+    let nextMinFreq = this.minFrequency;
+    let nextMaxFreq = this.maxFrequency;
+
+    if (Number.isFinite(timeFactor) && timeFactor > 0) {
+      const duration = this.endTime - this.startTime;
+      const cTime = Number.isFinite(center?.time)
+        ? (center!.time as number)
+        : (this.startTime + this.endTime) / 2;
+      const targetDuration = Math.max(
+        this.minDuration,
+        Math.min(this.maxDuration, this.totalDuration, duration * timeFactor),
+      );
+      if (Math.abs(targetDuration - duration) >= 1e-9) {
+        const ratio = (cTime - this.startTime) / (duration || 1);
+        nextStartTime = Math.max(
+          0,
+          Math.min(
+            this.totalDuration - targetDuration,
+            cTime - targetDuration * ratio,
+          ),
+        );
+        nextEndTime = nextStartTime + targetDuration;
+      }
+    }
+
+    if (Number.isFinite(freqFactor) && freqFactor > 0) {
+      const currentSpan = this.maxFrequency - this.minFrequency;
+      const minSpan = 10;
+      const maxSpan = 48000;
+      const targetSpan = Math.max(
+        minSpan,
+        Math.min(maxSpan, currentSpan * freqFactor),
+      );
+      if (Math.abs(targetSpan - currentSpan) >= 1e-9) {
+        const cFreq = Number.isFinite(center?.frequency)
+          ? (center!.frequency as number)
+          : (this.minFrequency + this.maxFrequency) / 2;
+        const ratio =
+          currentSpan <= 0 ? 0.5 : (cFreq - this.minFrequency) / currentSpan;
+        nextMinFreq = Math.max(0, cFreq - targetSpan * ratio);
+        nextMaxFreq = nextMinFreq + targetSpan;
+      }
+    }
+
+    this.setViewport(
+      {
+        startTime: nextStartTime,
+        endTime: nextEndTime,
+        minFrequency: nextMinFreq,
+        maxFrequency: nextMaxFreq,
+      },
+      source,
+    );
   }
 
   panFrequency(deltaHz: number, source?: string): void {

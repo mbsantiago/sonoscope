@@ -318,21 +318,14 @@ export interface ISpectrogramViewer {
   getStatus(): SpectrogramStatus;
   getCanvas(): HTMLCanvasElement;
 
-  // Viewport & Navigation
+  // Viewport & Dimensions
   getScope(): ISonoscope;
   getViewport(): ViewportConfig;
-  updateViewport(viewport: Partial<ViewportConfig>): void;
-  setViewport(viewport: Partial<ViewportConfig>): void;
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;
   };
   getNyquist(): number;
-  zoomFreq(factor: number, centerFrequency?: number): void;
-  zoomBoth(
-    factor: number | { time: number; frequency: number },
-    center?: { time?: number; frequency?: number },
-  ): void;
 
   // Configuration
   getConfig(): ResolvedSpectrogramConfig;

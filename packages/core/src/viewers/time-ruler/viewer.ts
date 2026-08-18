@@ -84,7 +84,6 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private renderAgain = false;
   private requestCounter = 0;
   private status: TimeRulerStatus = { state: "idle" };
-  private isSelfUpdating = false;
 
   constructor(
     scope: ISonoscope,
@@ -119,9 +118,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       this.config.startTime = e.viewport.startTime;
       this.config.endTime = e.viewport.endTime;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
-      if (!this.isSelfUpdating) {
-        this.requestRender();
-      }
+      this.requestRender();
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {
@@ -148,47 +145,6 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       startTime: this.config.startTime,
       endTime: this.config.endTime,
     };
-  }
-
-  updateViewport(viewport: Partial<TimeRulerViewport>): void {
-    if (this.isSelfUpdating) return;
-    const duration = this.scope.getDuration();
-    const clamped = clampViewportTimes(
-      viewport.startTime ?? this.config.startTime,
-      viewport.endTime ?? this.config.endTime,
-      duration,
-      this.config.minViewportDuration,
-      this.config.maxViewportDuration,
-    );
-
-    const changed =
-      clamped.startTime !== this.config.startTime ||
-      clamped.endTime !== this.config.endTime;
-
-    if (!changed) return;
-
-    this.config.startTime = clamped.startTime;
-    this.config.endTime = clamped.endTime;
-
-    this.isSelfUpdating = true;
-    try {
-      this.scope.setViewport(
-        {
-          startTime: clamped.startTime,
-          endTime: clamped.endTime,
-        },
-        "viewer",
-      );
-    } finally {
-      this.isSelfUpdating = false;
-    }
-
-    this.events.emit("viewportchange", { viewport: this.getViewport() });
-    this.requestRender();
-  }
-
-  setViewport(viewport: Partial<TimeRulerViewport>): void {
-    this.updateViewport(viewport);
   }
 
   getConfig(): ResolvedTimeRulerConfig {

@@ -94,8 +94,6 @@ export interface IFrequencyRulerViewer {
 
   getScope(): ISonoscope;
   getViewport(): FrequencyRulerViewport;
-  updateViewport(viewport: Partial<FrequencyRulerViewport>): void;
-  setViewport(viewport: Partial<FrequencyRulerViewport>): void;
 
   getConfig(): ResolvedFrequencyRulerConfig;
   updateConfig(input: Partial<FrequencyRulerOptions>): void;

@@ -93,12 +93,7 @@ describe("FrequencyRulerViewer", () => {
       maxFrequency: 20000,
     });
 
-    // 1. Viewer updating viewport updates global scope
-    viewer.setViewport({ minFrequency: 500, maxFrequency: 8000 });
-    expect(scope.getViewport().minFrequency).toBe(500);
-    expect(scope.getViewport().maxFrequency).toBe(8000);
-
-    // 2. Scope updating viewport updates viewer
+    // Scope updating viewport updates viewer
     scope.setViewport({ minFrequency: 200, maxFrequency: 5000 });
     expect(viewer.getViewport().minFrequency).toBe(200);
     expect(viewer.getViewport().maxFrequency).toBe(5000);

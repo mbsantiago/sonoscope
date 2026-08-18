@@ -62,7 +62,6 @@ export function ReactSpectrogramDemo(): React.ReactElement {
         maxFrequency: nq,
       };
       setViewport(nextVp);
-      viewer.setViewport(nextVp);
       setCacheSummary(formatCacheStats(viewer.getCacheStats()));
     });
   }
@@ -150,7 +149,6 @@ export function ReactSpectrogramDemo(): React.ReactElement {
           endTime: next.endTime,
         });
       }
-      spectrogramRef.current?.getViewer()?.updateViewport(next);
     });
   }
 
@@ -169,7 +167,6 @@ export function ReactSpectrogramDemo(): React.ReactElement {
           endTime: next.endTime,
         });
       }
-      spectrogramRef.current?.getViewer()?.updateViewport(next);
     });
   }
 

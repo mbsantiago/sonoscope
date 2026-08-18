@@ -95,8 +95,6 @@ export interface ITimeRulerViewer {
 
   getScope(): ISonoscope;
   getViewport(): TimeRulerViewport;
-  updateViewport(viewport: Partial<TimeRulerViewport>): void;
-  setViewport(viewport: Partial<TimeRulerViewport>): void;
 
   getConfig(): ResolvedTimeRulerConfig;
   updateConfig(input: Partial<TimeRulerOptions>): void;
