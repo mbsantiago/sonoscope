@@ -1,0 +1,70 @@
+---
+title: React Components Demo
+description: Declarative audio visualization with @sonoscope/react components and hooks.
+---
+
+import ReactDemo from '../../../components/ReactDemo';
+
+This demo showcases declarative JSX composition using `@sonoscope/react`. All components (`<Spectrogram />`, `<Waveform />`, `<TimeRuler />`, `<FrequencyRuler />`) automatically synchronize viewport state, zoom/pan interactions, and audio playhead tracking through `<SonoscopeProvider />`.
+
+### React Implementation
+
+```tsx
+import {
+  SonoscopeProvider,
+  Spectrogram,
+  Waveform,
+  TimeRuler,
+  FrequencyRuler,
+} from "@sonoscope/react";
+import { useRef } from "react";
+
+export function ReactSpectrogramViewer() {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioUrl = "https://upload.wikimedia.org/.../Marico_Sunbird.ogg";
+
+  return (
+    <div className="audio-viewer-card">
+      <SonoscopeProvider
+        url={audioUrl}
+        frequencyScale="mel"
+        followPlayback="page"
+        audio={audioRef.current || undefined}
+      >
+        <div className="sonoscope-grid">
+          {/* Top Time Axis */}
+          <TimeRuler height={24} tickPosition="top" />
+
+          {/* Spectrogram with Frequency Axis */}
+          <div className="spectrogram-row">
+            <FrequencyRuler width={56} tickPosition="right" />
+            <Spectrogram
+              height={260}
+              colorMap="plasma"
+              minValue={-80}
+              maxValue={0}
+            />
+          </div>
+
+          {/* Waveform View */}
+          <Waveform height={65} colorMap="plasma" />
+        </div>
+      </SonoscopeProvider>
+
+      {/* Synchronized HTML5 Audio Player */}
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        crossOrigin="anonymous"
+        controls
+      />
+    </div>
+  );
+}
+```
+
+---
+
+### Live Interactive Preview
+
+<ReactDemo client:only="react" />

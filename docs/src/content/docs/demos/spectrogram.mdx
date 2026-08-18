@@ -1,12 +1,11 @@
 ---
-title: Live Spectrogram Demo
-description: Interactive spectrogram viewer with time and frequency rulers.
+title: Live Spectrogram Demo (TypeScript API)
+description: Interactive spectrogram viewer with time and frequency rulers using the @sonoscope/core TypeScript API.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
 import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
 
-This live demo runs client-side using `@sonoscope/core` with WebGL2 GPU rendering, dynamic tile caching, and coordinated time/frequency rulers.
+This interactive demo runs entirely client-side with `@sonoscope/core`, demonstrating GPU-accelerated WebGL2 rendering, dynamic FFT tile caching, and coordinated time/frequency rulers.
 
 ### Navigation Controls
 - **Scroll / Pinch**: Zoom in and out horizontally (time) and vertically (frequency).
@@ -15,94 +14,52 @@ This live demo runs client-side using `@sonoscope/core` with WebGL2 GPU renderin
 
 ---
 
-### Implementation Code
+### TypeScript Implementation
 
-<Tabs>
-  <TabItem label="TypeScript / Core API">
-  ```typescript
-  import {
-    Sonoscope,
-    attachCanvasNavigation,
-    attachPlayheadOverlay,
-  } from "@sonoscope/core";
+```typescript
+import {
+  Sonoscope,
+  attachCanvasNavigation,
+  attachPlayheadOverlay,
+} from "@sonoscope/core";
 
-  // 1. Initialize Sonoscope from an audio URL or <audio> element
-  const audio = document.querySelector<HTMLAudioElement>("audio")!;
-  const scope = await Sonoscope.fromUrl("https://.../audio.ogg", {
+// 1. Initialize Sonoscope from an audio URL and connect to <audio> element
+const audio = document.querySelector<HTMLAudioElement>("audio")!;
+const scope = await Sonoscope.fromUrl(
+  "https://upload.wikimedia.org/.../Marico_Sunbird.ogg",
+  {
     audio,
     frequencyScale: "mel",
     followPlayback: "page",
-  });
-
-  // 2. Create GPU-accelerated WebGL2 spectrogram
-  const specCanvas = document.querySelector<HTMLCanvasElement>("#spec-canvas")!;
-  const spec = scope.createSpectrogram(specCanvas, {
-    colorMap: "inferno",
-    minValue: -80,
-    maxValue: 0,
-  });
-  attachCanvasNavigation(spec, specCanvas);
-  attachPlayheadOverlay(specCanvas.parentElement!, scope);
-
-  // 3. Attach synchronized Time and Frequency rulers
-  const timeCanvas = document.querySelector<HTMLCanvasElement>("#time-canvas")!;
-  const timeRuler = scope.createTimeRuler(timeCanvas, {
-    program: "ticks",
-    tickPosition: "top",
-  });
-  attachCanvasNavigation(timeRuler, timeCanvas);
-
-  const freqCanvas = document.querySelector<HTMLCanvasElement>("#freq-canvas")!;
-  const freqRuler = scope.createFrequencyRuler(freqCanvas, {
-    program: "ticks",
-    tickPosition: "right",
-  });
-  attachCanvasNavigation(freqRuler, freqCanvas);
-  ```
-  </TabItem>
-
-  <TabItem label="React (@sonoscope/react)">
-  ```tsx
-  import {
-    SonoscopeProvider,
-    Spectrogram,
-    TimeRuler,
-    FrequencyRuler,
-  } from "@sonoscope/react";
-
-  export function SpectrogramDemo() {
-    return (
-      <SonoscopeProvider
-        url="https://.../audio.ogg"
-        frequencyScale="mel"
-        followPlayback="page"
-      >
-        <TimeRuler height={24} tickPosition="top" />
-        <div style={{ display: "flex" }}>
-          <FrequencyRuler width={56} tickPosition="right" />
-          <Spectrogram height={280} colorMap="inferno" showAudioControls />
-        </div>
-      </SonoscopeProvider>
-    );
   }
-  ```
-  </TabItem>
+);
 
-  <TabItem label="Python (Jupyter / Marimo)">
-  ```python
-  from sonoscope import Sonoscope
+// 2. Attach WebGL2 Spectrogram Viewer
+const specCanvas = document.querySelector<HTMLCanvasElement>("#spec-canvas")!;
+const spec = scope.createSpectrogram(specCanvas, {
+  colorMap: "inferno",
+  minValue: -80,
+  maxValue: 0,
+});
+attachCanvasNavigation(spec, specCanvas);
+attachPlayheadOverlay(specCanvas.parentElement!, scope);
 
-  # Embedded interactive widget in Jupyter / VS Code / Marimo
-  widget = Sonoscope.from_url(
-      "https://.../audio.ogg",
-      cmap="inferno",
-      frequency_scale="mel",
-      show_waveform=False,
-  )
-  widget
-  ```
-  </TabItem>
-</Tabs>
+// 3. Attach Synchronized Time and Frequency Rulers
+const timeCanvas = document.querySelector<HTMLCanvasElement>("#time-canvas")!;
+const timeRuler = scope.createTimeRuler(timeCanvas, {
+  program: "ticks",
+  tickPosition: "top",
+});
+attachCanvasNavigation(timeRuler, timeCanvas);
+attachPlayheadOverlay(timeCanvas.parentElement!, scope);
+
+const freqCanvas = document.querySelector<HTMLCanvasElement>("#freq-canvas")!;
+const freqRuler = scope.createFrequencyRuler(freqCanvas, {
+  program: "ticks",
+  tickPosition: "right",
+});
+attachCanvasNavigation(freqRuler, freqCanvas);
+```
 
 ---
 

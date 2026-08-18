@@ -37,8 +37,19 @@ export default defineConfig({
 				{
 					label: 'Interactive Demos',
 					items: [
-						{ label: 'Live Spectrogram', slug: 'demos/spectrogram' },
-						{ label: 'Audio Waveform', slug: 'demos/waveform' },
+						{
+							label: 'Spectrogram (TypeScript API)',
+							slug: 'demos/spectrogram',
+						},
+						{
+							label: 'Waveform & Multi-Track (TypeScript API)',
+							slug: 'demos/waveform',
+						},
+						{ label: 'React Components Demo', slug: 'demos/react' },
+						{
+							label: 'Python & Jupyter Widget Demo',
+							slug: 'demos/python',
+						},
 					],
 				},
 				{
