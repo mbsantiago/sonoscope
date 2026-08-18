@@ -30,18 +30,11 @@ in float v_xNormalized;
 in vec2 v_position;
 
 uniform vec4 u_color;
-uniform vec4 u_progressColor;
-uniform float u_progressRatio;
-uniform bool u_hasProgress;
 
 out vec4 fragColor;
 
 void main() {
-  if (u_hasProgress && v_xNormalized <= u_progressRatio) {
-    fragColor = u_progressColor;
-  } else {
-    fragColor = u_color;
-  }
+  fragColor = u_color;
 }
 `;
 

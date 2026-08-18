@@ -21,12 +21,7 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       canvas,
       peaks,
       color = "#38bdf8",
-      progressColor,
       backgroundColor = "transparent",
-      cursorColor = "#ffffff",
-      playheadTime,
-      startTime,
-      endTime,
       amplitudeScale = 1.0,
     } = input;
 
@@ -114,39 +109,12 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       "u_amplitudeScale",
     );
     const uColor = gl.getUniformLocation(this.program, "u_color");
-    const uProgressColor = gl.getUniformLocation(
-      this.program,
-      "u_progressColor",
-    );
-    const uProgressRatio = gl.getUniformLocation(
-      this.program,
-      "u_progressRatio",
-    );
-    const uHasProgress = gl.getUniformLocation(this.program, "u_hasProgress");
 
     gl.uniform2f(uResolution, width, height);
     gl.uniform1f(uAmplitudeScale, amplitudeScale);
 
     const [cR, cG, cB, cA] = parseColor(color);
     gl.uniform4f(uColor, cR / 255, cG / 255, cB / 255, cA / 255);
-
-    if (
-      progressColor &&
-      playheadTime !== undefined &&
-      playheadTime >= startTime &&
-      endTime > startTime
-    ) {
-      const [pcR, pcG, pcB, pcA] = parseColor(progressColor);
-      gl.uniform4f(uProgressColor, pcR / 255, pcG / 255, pcB / 255, pcA / 255);
-      const ratio = Math.max(
-        0,
-        Math.min(1, (playheadTime - startTime) / (endTime - startTime)),
-      );
-      gl.uniform1f(uProgressRatio, ratio);
-      gl.uniform1i(uHasProgress, 1);
-    } else {
-      gl.uniform1i(uHasProgress, 0);
-    }
 
     const len = peaks.min.length;
     if (len > 0) {
@@ -207,46 +175,6 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       gl.vertexAttribPointer(aXNorm, 1, gl.FLOAT, false, 0, 0);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
-    }
-
-    // Draw playhead cursor line
-    if (
-      playheadTime !== undefined &&
-      playheadTime >= startTime &&
-      playheadTime <= endTime &&
-      endTime > startTime
-    ) {
-      const playRatio = (playheadTime - startTime) / (endTime - startTime);
-      const playX = playRatio * width;
-      const [curR, curG, curB, curA] = parseColor(cursorColor);
-      gl.uniform4f(uColor, curR / 255, curG / 255, curB / 255, curA / 255);
-      gl.uniform1i(uHasProgress, 0);
-
-      const cursorWidth = 2 * dpr;
-      const cursorPositions = new Float32Array([
-        playX - cursorWidth / 2,
-        0,
-        playX + cursorWidth / 2,
-        0,
-        playX - cursorWidth / 2,
-        height,
-        playX + cursorWidth / 2,
-        height,
-      ]);
-      const cursorXNorms = new Float32Array([
-        playRatio,
-        playRatio,
-        playRatio,
-        playRatio,
-      ]);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, cursorPositions, gl.DYNAMIC_DRAW);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.xNormBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, cursorXNorms, gl.DYNAMIC_DRAW);
-
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
   }
 

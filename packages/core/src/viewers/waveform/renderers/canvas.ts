@@ -8,12 +8,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       canvas,
       peaks,
       color = "#38bdf8",
-      progressColor,
       backgroundColor = "transparent",
-      cursorColor = "#ffffff",
-      playheadTime,
-      startTime,
-      endTime,
       amplitudeScale = 1.0,
     } = input;
 
@@ -63,7 +58,19 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       }
       const isLineMode = maxSpread < 0.04;
 
-      const traceEnvelope = () => {
+      if (isLineMode) {
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+          const x = (i / Math.max(1, len - 1)) * width;
+          const sample = (peaks.max[i]! + peaks.min[i]!) / 2;
+          const y = centerY - sample * halfH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * dpr;
+        ctx.stroke();
+      } else {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
           const x = (i / Math.max(1, len - 1)) * width;
@@ -79,76 +86,9 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
           ctx.lineTo(x, y);
         }
         ctx.closePath();
-      };
-
-      const traceLine = () => {
-        ctx.beginPath();
-        for (let i = 0; i < len; i++) {
-          const x = (i / Math.max(1, len - 1)) * width;
-          const sample = (peaks.max[i]! + peaks.min[i]!) / 2;
-          const y = centerY - sample * halfH;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-      };
-
-      if (isLineMode) {
-        traceLine();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2 * dpr;
-        ctx.stroke();
-      } else {
-        traceEnvelope();
         ctx.fillStyle = color;
         ctx.fill();
       }
-
-      // If progressColor and playheadTime are provided, fill played portion
-      if (
-        progressColor &&
-        playheadTime !== undefined &&
-        playheadTime >= startTime &&
-        endTime > startTime
-      ) {
-        const playRatio = Math.max(
-          0,
-          Math.min(1, (playheadTime - startTime) / (endTime - startTime)),
-        );
-        const playX = playRatio * width;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, 0, playX, height);
-        ctx.clip();
-        if (isLineMode) {
-          traceLine();
-          ctx.strokeStyle = progressColor;
-          ctx.lineWidth = 2 * dpr;
-          ctx.stroke();
-        } else {
-          traceEnvelope();
-          ctx.fillStyle = progressColor;
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-    }
-
-    // Draw playhead cursor line
-    if (
-      playheadTime !== undefined &&
-      playheadTime >= startTime &&
-      playheadTime <= endTime &&
-      endTime > startTime
-    ) {
-      const playX =
-        ((playheadTime - startTime) / (endTime - startTime)) * width;
-      ctx.strokeStyle = cursorColor;
-      ctx.lineWidth = 2 * dpr;
-      ctx.beginPath();
-      ctx.moveTo(playX, 0);
-      ctx.lineTo(playX, height);
-      ctx.stroke();
     }
 
     ctx.restore();

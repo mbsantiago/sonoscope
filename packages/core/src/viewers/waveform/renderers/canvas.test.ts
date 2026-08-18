@@ -43,7 +43,7 @@ describe("CanvasWaveformRenderer", () => {
     ).not.toThrow();
   });
 
-  it("renders with playhead and progress color", () => {
+  it("renders with custom color and amplitude scale", () => {
     const renderer = new CanvasWaveformRenderer();
     const canvas = createMockCanvas();
     const peaks = {
@@ -57,9 +57,8 @@ describe("CanvasWaveformRenderer", () => {
         peaks,
         startTime: 0,
         endTime: 2,
-        playheadTime: 1,
         color: "#38bdf8",
-        progressColor: "#f59e0b",
+        amplitudeScale: 1.5,
       }),
     ).not.toThrow();
   });

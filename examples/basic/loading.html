@@ -75,7 +75,7 @@
       const canvas = document.querySelector("canvas");
 
       let scope = await Sonoscope.fromAudio(audio, {
-        followPlayback: "page",
+        followPlayback: "smooth",
       });
 
       let spectrogram = scope.createSpectrogram(canvas);

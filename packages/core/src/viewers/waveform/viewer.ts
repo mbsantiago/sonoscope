@@ -327,7 +327,6 @@ export class WaveformViewer implements IWaveformViewer {
       progressColor: this.config.progressColor,
       backgroundColor: this.config.backgroundColor,
       cursorColor: this.config.cursorColor,
-      playheadTime: this.scope.getCurrentTime(),
       startTime: vp.startTime,
       endTime: vp.endTime,
       amplitudeScale: this.config.amplitudeScale,
