@@ -24,7 +24,7 @@ export class BoxesFrequencyRulerProgram implements FrequencyRulerProgram {
       labelColor,
       font,
       frequencyFormat = "auto",
-      minMajorPixelSpacing = 50,
+      minMajorPixelSpacing = 45,
     } = input;
 
     const { width, height, dpr } = frame;
@@ -55,7 +55,7 @@ export class BoxesFrequencyRulerProgram implements FrequencyRulerProgram {
       return (1 - (s - minScaled) / span) * height;
     };
 
-    // Draw outer left and right borders
+    // Draw outer left and right container borders
     ctx.strokeStyle = actualBorderColor;
     ctx.lineWidth = 1 * dpr;
     ctx.beginPath();
@@ -65,6 +65,18 @@ export class BoxesFrequencyRulerProgram implements FrequencyRulerProgram {
     ctx.lineTo(width - 0.5 * dpr, height);
     ctx.stroke();
 
+    // Draw horizontal dividers at all tick boundaries
+    ctx.beginPath();
+    for (let i = 0; i < majorTicks.length; i++) {
+      const hz = majorTicks[i]!;
+      const y = Math.round(getY(hz)) + 0.5 * dpr;
+      if (y >= 0 && y <= height) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+    }
+    ctx.stroke();
+
     const fontSize = Math.max(9, Math.min(13, Math.floor(10 * dpr)));
     ctx.font =
       font ??
@@ -72,23 +84,39 @@ export class BoxesFrequencyRulerProgram implements FrequencyRulerProgram {
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
 
-    for (let i = 0; i < majorTicks.length; i++) {
-      const hz = majorTicks[i]!;
-      const y = Math.round(getY(hz)) + 0.5 * dpr;
+    // Draw labels centered inside each boxed interval
+    if (majorTicks.length >= 2) {
+      for (let i = 0; i < majorTicks.length - 1; i++) {
+        const fLower = majorTicks[i]!;
+        const fUpper = majorTicks[i + 1]!;
+        const yLower = getY(fLower);
+        const yUpper = getY(fUpper);
+        const cellHeight = Math.abs(yLower - yUpper);
+        const centerY = (yLower + yUpper) / 2;
 
-      // Draw horizontal band divider
-      ctx.beginPath();
-      ctx.strokeStyle = actualBorderColor;
-      ctx.lineWidth = 1 * dpr;
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
+        if (cellHeight >= fontSize + 2 * dpr) {
+          const text = formatFrequencyLabel(fUpper, frequencyFormat);
+          const metrics = ctx.measureText(text);
+          const padX = 3 * dpr;
+          const padY = 2 * dpr;
 
-      // Draw label
+          // Clear background under label so text never touches or overlaps lines
+          ctx.fillStyle = backgroundColor;
+          ctx.fillRect(
+            width / 2 - metrics.width / 2 - padX,
+            centerY - fontSize / 2 - padY,
+            metrics.width + padX * 2,
+            fontSize + padY * 2,
+          );
+
+          ctx.fillStyle = actualLabelColor;
+          ctx.fillText(text, width / 2, centerY);
+        }
+      }
+    } else if (majorTicks.length === 1) {
+      const text = formatFrequencyLabel(majorTicks[0]!, frequencyFormat);
       ctx.fillStyle = actualLabelColor;
-      const text = formatFrequencyLabel(hz, frequencyFormat);
-      const textY = Math.max(7 * dpr, Math.min(height - 7 * dpr, y));
-      ctx.fillText(text, width / 2, textY);
+      ctx.fillText(text, width / 2, height / 2);
     }
 
     ctx.restore();
