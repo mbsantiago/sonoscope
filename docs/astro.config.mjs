@@ -88,7 +88,8 @@ export default defineConfig({
 					label: 'Interactive Demos',
 					items: [
 						{ label: 'Spectrogram', slug: 'demos/spectrogram' },
-						{ label: 'Waveform & Multi-Track', slug: 'demos/waveform' },
+						{ label: 'Waveform', slug: 'demos/waveform' },
+            { label: 'Rulers', slug: 'demos/rulers' },
 						{ label: 'React Components', slug: 'demos/react' },
 						{ label: 'Python Widget', slug: 'demos/python' },
 					],

@@ -192,12 +192,12 @@ function resolveViewerCanvas(
   }
   const config = viewer.getConfig() as { canvas?: HTMLElement };
   if (config.canvas) return config.canvas;
-  throw new Error("Canvas or container element is required for navigation attachment");
+  throw new Error(
+    "Canvas or container element is required for navigation attachment",
+  );
 }
 
-export function resolveViewerTimeBounds(
-  viewer: NavigableViewer,
-): TimeBounds {
+export function resolveViewerTimeBounds(viewer: NavigableViewer): TimeBounds {
   if ("getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function") {
     return viewer.getTimeBounds();
   }

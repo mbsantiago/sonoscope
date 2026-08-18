@@ -261,9 +261,7 @@ async function render({
       color: "rgba(128, 128, 128, 0.75)",
       tickColor: "rgba(128, 128, 128, 0.35)",
     });
-    navCleanups.push(
-      scope.attachNavigation(timeRulerCanvas, { axis: "time" }),
-    );
+    navCleanups.push(scope.attachNavigation(timeRulerCanvas, { axis: "time" }));
     playheadOverlays.push(attachPlayheadOverlay(timeRulerContainer, scope));
 
     const onTimeRulerClick = (e: MouseEvent) => {
@@ -320,9 +318,7 @@ async function render({
     waveform = scope.createWaveform(waveformCanvas, {
       colorMap: cmap,
     });
-    navCleanups.push(
-      scope.attachNavigation(waveformCanvas, { axis: "time" }),
-    );
+    navCleanups.push(scope.attachNavigation(waveformCanvas, { axis: "time" }));
     playheadOverlays.push(attachPlayheadOverlay(waveformContainer, scope));
 
     waveformCanvas.addEventListener("dblclick", (e) => {

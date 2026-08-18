@@ -22,7 +22,7 @@ interface MockElement {
   };
 }
 
-function createMockElement(tag = "div"): MockElement {
+function createMockElement(_tag = "div"): MockElement {
   const el: MockElement = {
     style: {},
     className: "",

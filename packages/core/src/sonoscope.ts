@@ -1,3 +1,4 @@
+import type { NavigableViewer, NavigationOptions } from "./navigation";
 import type {
   AudioSource,
   FollowPlaybackMode,
@@ -11,10 +12,6 @@ import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
-import type {
-  NavigableViewer,
-  NavigationOptions,
-} from "./navigation";
 import { TypedEventEmitter } from "./events";
 import { attachNavigation } from "./navigation";
 import { ArrayAudioSource } from "./sources/array-source";
@@ -456,8 +453,9 @@ export class Sonoscope implements ISonoscope {
   ): void {
     if (!Number.isFinite(factor) || factor <= 0) return;
     const currentSpan = this.maxFrequency - this.minFrequency;
+    const nyquist = this.getNyquist();
     const minSpan = 10;
-    const maxSpan = 48000;
+    const maxSpan = nyquist;
     const targetSpan = Math.max(
       minSpan,
       Math.min(maxSpan, currentSpan * factor),
@@ -469,7 +467,10 @@ export class Sonoscope implements ISonoscope {
       : (this.minFrequency + this.maxFrequency) / 2;
     const ratio =
       currentSpan <= 0 ? 0.5 : (center - this.minFrequency) / currentSpan;
-    const newMin = Math.max(0, center - targetSpan * ratio);
+    const newMin = Math.max(
+      0,
+      Math.min(nyquist - targetSpan, center - targetSpan * ratio),
+    );
     const newMax = newMin + targetSpan;
 
     this.setViewport({ minFrequency: newMin, maxFrequency: newMax }, source);
@@ -516,8 +517,9 @@ export class Sonoscope implements ISonoscope {
 
     if (Number.isFinite(freqFactor) && freqFactor > 0) {
       const currentSpan = this.maxFrequency - this.minFrequency;
+      const nyquist = this.getNyquist();
       const minSpan = 10;
-      const maxSpan = 48000;
+      const maxSpan = nyquist;
       const targetSpan = Math.max(
         minSpan,
         Math.min(maxSpan, currentSpan * freqFactor),
@@ -528,7 +530,10 @@ export class Sonoscope implements ISonoscope {
           : (this.minFrequency + this.maxFrequency) / 2;
         const ratio =
           currentSpan <= 0 ? 0.5 : (cFreq - this.minFrequency) / currentSpan;
-        nextMinFreq = Math.max(0, cFreq - targetSpan * ratio);
+        nextMinFreq = Math.max(
+          0,
+          Math.min(nyquist - targetSpan, cFreq - targetSpan * ratio),
+        );
         nextMaxFreq = nextMinFreq + targetSpan;
       }
     }
@@ -547,7 +552,8 @@ export class Sonoscope implements ISonoscope {
   panFrequency(deltaHz: number, source?: string): void {
     if (!Number.isFinite(deltaHz) || deltaHz === 0) return;
     const span = this.maxFrequency - this.minFrequency;
-    const newMin = Math.max(0, this.minFrequency + deltaHz);
+    const nyquist = this.getNyquist();
+    const newMin = Math.max(0, Math.min(nyquist - span, this.minFrequency + deltaHz));
     this.setViewport(
       { minFrequency: newMin, maxFrequency: newMin + span },
       source,
@@ -560,6 +566,10 @@ export class Sonoscope implements ISonoscope {
 
   getSampleRate(): number {
     return this._source.sampleRate;
+  }
+
+  getNyquist(): number {
+    return Math.floor(this._source.sampleRate / 2);
   }
 
   getFollowPlayback(): FollowPlaybackMode {
@@ -748,7 +758,8 @@ export class Sonoscope implements ISonoscope {
     options?: NavigationOptions,
   ): () => void {
     if (
-      (typeof HTMLElement !== "undefined" && container instanceof HTMLElement) ||
+      (typeof HTMLElement !== "undefined" &&
+        container instanceof HTMLElement) ||
       (typeof container === "object" &&
         container !== null &&
         "addEventListener" in container)
@@ -774,8 +785,8 @@ export class Sonoscope implements ISonoscope {
           canvas: container,
           minViewportDuration: this.minDuration,
           maxViewportDuration: this.maxDuration,
-          minFrequency: this.minFrequency,
-          maxFrequency: this.maxFrequency,
+          minFrequency: 0,
+          maxFrequency: this.getNyquist(),
         }),
         getTimeBounds: () => ({
           startTime: 0,
@@ -785,16 +796,12 @@ export class Sonoscope implements ISonoscope {
         }),
         getFrequencyBounds: () => ({
           minFrequency: 0,
-          maxFrequency: this.maxFrequency,
+          maxFrequency: this.getNyquist(),
           minSpanHz: 20,
         }),
       };
 
-      const cleanup = attachNavigation(
-        scopeAdapter,
-        container,
-        options,
-      );
+      const cleanup = attachNavigation(scopeAdapter, container, options);
       this.navigationCleanups.push(cleanup);
       return () => {
         const idx = this.navigationCleanups.indexOf(cleanup);

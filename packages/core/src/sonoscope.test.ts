@@ -337,6 +337,54 @@ describe("Sonoscope", () => {
       expect(scope.getViewport().endTime).toBeCloseTo(10);
     });
 
+    it("zooms in frequency and allows zooming back out to Nyquist", () => {
+      const source = createMockSource(30, 48000);
+      const scope = new Sonoscope({
+        source,
+        minFrequency: 0,
+        maxFrequency: 24000,
+      });
+
+      expect(scope.getNyquist()).toBe(24000);
+      expect(scope.getViewport().minFrequency).toBe(0);
+      expect(scope.getViewport().maxFrequency).toBe(24000);
+
+      // Zoom in frequency 2x centered at 12000
+      scope.zoomFrequency(0.5, 12000);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(6000);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(18000);
+
+      // Zoom back out 2x centered at 12000
+      scope.zoomFrequency(2.0, 12000);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(0);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(24000);
+    });
+
+    it("zooms both time and frequency and allows zooming back out", () => {
+      const source = createMockSource(30, 48000);
+      const scope = new Sonoscope({
+        source,
+        startTime: 0,
+        endTime: 20,
+        minFrequency: 0,
+        maxFrequency: 24000,
+      });
+
+      // Zoom in both 2x
+      scope.zoomBoth(0.5, { time: 10, frequency: 12000 });
+      expect(scope.getViewport().startTime).toBeCloseTo(5);
+      expect(scope.getViewport().endTime).toBeCloseTo(15);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(6000);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(18000);
+
+      // Zoom back out 2x
+      scope.zoomBoth(2.0, { time: 10, frequency: 12000 });
+      expect(scope.getViewport().startTime).toBeCloseTo(0);
+      expect(scope.getViewport().endTime).toBeCloseTo(20);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(0);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(24000);
+    });
+
     it("changes followPlayback mode and emits playbackchange event", () => {
       const source = createMockSource(30);
       const scope = new Sonoscope(source);

@@ -196,6 +196,7 @@ export interface ISonoscope {
   panFrequency(deltaHz: number, source?: string): void;
   getDuration(): number;
   getSampleRate(): number;
+  getNyquist(): number;
   getFollowPlayback(): FollowPlaybackMode;
   setFollowPlayback(mode: FollowPlaybackMode): void;
 
@@ -229,4 +230,3 @@ export type {
   TimeBounds,
   WheelNavigationOptions,
 } from "./navigation";
-

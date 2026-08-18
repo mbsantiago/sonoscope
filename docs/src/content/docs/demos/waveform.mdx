@@ -1,219 +1,35 @@
 ---
-title: Waveform & Multi-Track
-description: Synchronized spectrogram and peak-pyramid audio waveform visualization.
+title: Waveform
+description: Audio waveform visualization.
 ---
 
-Synchronized multi-viewer navigation between a **WebGL2 Spectrogram**, a **Peak-Pyramid Waveform**, and dual **Time & Frequency Rulers**.
+```astro live
+<div id="waveform-container">
+  <canvas id="waveform-canvas" ></canvas>
+</div>
 
-```tsx live props={{ "client:only": "react" }}
-import {
-  Sonoscope,
-  attachPlayheadOverlay,
-} from "@sonoscope/core";
-import { useEffect, useRef } from "react";
+<script>
+  import { Sonoscope } from '@sonoscope/core';
 
-export default function WaveformLiveDemo() {
-  const specCanvasRef = useRef<HTMLCanvasElement>(null);
-  const timeCanvasRef = useRef<HTMLCanvasElement>(null);
-  const freqCanvasRef = useRef<HTMLCanvasElement>(null);
-  const waveCanvasRef = useRef<HTMLCanvasElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const canvas = document.querySelector('#waveform-canvas');
+  const audioUrl = '/audio/marico-sunbird.ogg';
 
-  useEffect(() => {
-    if (!specCanvasRef.current || !audioRef.current) return;
-    let active = true;
-    const cleanups: Array<() => void> = [];
+  const scope = await Sonoscope.fromUrl(audioUrl);
+  const wave = scope.createWaveform(canvas);
+  scope.attachNavigation(canvas);
+</script>
 
-    const audioUrl =
-      "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+<style>
+  #waveform-container {
+    border: 1px solid rgba(128, 128, 128, 0.25);
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.03);
+  }
 
-    Sonoscope.fromUrl(audioUrl, {
-      audio: audioRef.current,
-      frequencyScale: "mel",
-      followPlayback: "page",
-    }).then((scope) => {
-      if (!active) {
-        scope.destroy();
-        return;
-      }
-      cleanups.push(() => scope.destroy());
-
-      // 1. Spectrogram Viewer
-      const spec = scope.createSpectrogram(specCanvasRef.current!, {
-        colorMap: "turbo",
-        minValue: -80,
-        maxValue: 0,
-      });
-      cleanups.push(scope.attachNavigation(specCanvasRef.current!));
-
-      // 2. Time Ruler
-      if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
-        const timeRuler = scope.createTimeRuler(timeCanvasRef.current, {
-          program: "ticks",
-          tickPosition: "top",
-          color: "rgba(128, 128, 128, 0.75)",
-          tickColor: "rgba(128, 128, 128, 0.35)",
-        });
-        cleanups.push(
-          scope.attachNavigation(timeCanvasRef.current, { axis: "time" }),
-        );
-        const overlay = attachPlayheadOverlay(
-          timeCanvasRef.current.parentElement,
-          scope,
-        );
-        cleanups.push(() => overlay.destroy());
-      }
-
-      // 3. Frequency Ruler
-      if (freqCanvasRef.current) {
-        const freqRuler = scope.createFrequencyRuler(freqCanvasRef.current, {
-          program: "ticks",
-          tickPosition: "right",
-          color: "rgba(128, 128, 128, 0.75)",
-          tickColor: "rgba(128, 128, 128, 0.35)",
-        });
-        cleanups.push(
-          scope.attachNavigation(freqCanvasRef.current, { axis: "frequency" }),
-        );
-      }
-
-      // 4. Waveform Viewer
-      if (waveCanvasRef.current && waveCanvasRef.current.parentElement) {
-        const waveform = scope.createWaveform(waveCanvasRef.current, {
-          colorMap: "turbo",
-        });
-        cleanups.push(
-          scope.attachNavigation(waveCanvasRef.current, { axis: "time" }),
-        );
-        const overlay = attachPlayheadOverlay(
-          waveCanvasRef.current.parentElement,
-          scope,
-        );
-        cleanups.push(() => overlay.destroy());
-      }
-
-      if (specCanvasRef.current?.parentElement) {
-        const overlay = attachPlayheadOverlay(
-          specCanvasRef.current.parentElement,
-          scope,
-        );
-        cleanups.push(() => overlay.destroy());
-      }
-    });
-
-    return () => {
-      active = false;
-      for (const cleanup of cleanups) cleanup();
-    };
-  }, []);
-
-  return (
-    <div
-      style={{
-        border: "1px solid rgba(128, 128, 128, 0.25)",
-        borderRadius: "8px",
-        padding: "16px",
-        background: "rgba(0, 0, 0, 0.03)",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "56px 1fr",
-          border: "1px solid rgba(128, 128, 128, 0.25)",
-          borderRadius: "4px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "24px",
-            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-            borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-            fontSize: "10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: 0.6,
-            fontFamily: "monospace",
-          }}
-        >
-          Hz \ s
-        </div>
-        <div
-          style={{
-            position: "relative",
-            height: "24px",
-            borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-          }}
-        >
-          <canvas
-            ref={timeCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-
-        <div
-          style={{
-            position: "relative",
-            width: "56px",
-            height: "260px",
-            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-          }}
-        >
-          <canvas
-            ref={freqCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-        <div style={{ position: "relative", height: "260px" }}>
-          <canvas
-            ref={specCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-
-        <div
-          style={{
-            height: "65px",
-            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-            borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-            fontSize: "10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: 0.6,
-            fontFamily: "monospace",
-          }}
-        >
-          WAV
-        </div>
-        <div
-          style={{
-            position: "relative",
-            height: "65px",
-            borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-          }}
-        >
-          <canvas
-            ref={waveCanvasRef}
-            style={{ width: "100%", height: "100%", display: "block" }}
-          />
-        </div>
-      </div>
-
-      <audio
-        ref={audioRef}
-        crossOrigin="anonymous"
-        controls
-        style={{
-          width: "100%",
-          height: "36px",
-          marginTop: "12px",
-          outline: "none",
-        }}
-      />
-    </div>
-  );
-}
+  #waveform-canvas {
+    width: 100%;
+    height: 280px;
+    display: block;
+  }
+</style>
 ```

@@ -6,8 +6,8 @@ description: Minimal standalone HTML & JavaScript spectrogram viewer.
 Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`.
 
 ```astro live
-<div style="border: 1px solid rgba(128, 128, 128, 0.25); border-radius: 6px; overflow: hidden; background: rgba(0, 0, 0, 0.03);">
-  <canvas id="spectrogram-canvas" style="width: 100%; height: 280px; display: block;"></canvas>
+<div id="spectrogram-container">
+  <canvas id="spectrogram-canvas" ></canvas>
 </div>
 
 <script>
@@ -16,18 +16,31 @@ Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@son
   const canvas = document.querySelector('#spectrogram-canvas');
   const audioUrl = '/audio/marico-sunbird.ogg';
 
-  if (canvas instanceof HTMLCanvasElement) {
-    const scope = await Sonoscope.fromUrl(audioUrl, {
-      frequencyScale: 'mel',
-    });
+  const scope = await Sonoscope.fromUrl(audioUrl, {
+    frequencyScale: 'mel',
+  });
 
-    const spec = scope.createSpectrogram(canvas, {
-      colorMap: 'inferno',
-      minValue: -80,
-      maxValue: 0,
-    });
+  const spec = scope.createSpectrogram(canvas, {
+    colorMap: 'inferno',
+    minValue: -80,
+    maxValue: 0,
+  });
 
-    scope.attachNavigation(canvas);
-  }
+  scope.attachNavigation(canvas);
 </script>
+
+<style>
+  #spectrogram-container {
+    border: 1px solid rgba(128, 128, 128, 0.25);
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  #spectrogram-canvas {
+    width: 100%;
+    height: 280px;
+    display: block;
+  }
+</style>
+
 ```

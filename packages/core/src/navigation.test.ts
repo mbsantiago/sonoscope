@@ -11,10 +11,6 @@ import {
   zoomViewportTime,
 } from "./navigation";
 import { Sonoscope } from "./sonoscope";
-import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
-import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
-import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
-import { WaveformViewer } from "./viewers/waveform/viewer";
 
 const viewport: ViewportConfig = {
   startTime: 4,
@@ -107,6 +103,21 @@ describe("navigation utilities", () => {
       (next.maxFrequency - next.minFrequency);
 
     expect(ratioAfter).toBeCloseTo(ratioBefore, 12);
+  });
+
+  it("zooms out frequency back to full bounds", () => {
+    const zoomedInViewport: ViewportConfig = {
+      ...viewport,
+      minFrequency: 250,
+      maxFrequency: 750,
+    };
+    const next = zoomViewportFrequency(
+      zoomedInViewport,
+      { minFrequency: 0, maxFrequency: 1000 },
+      500,
+      2.0,
+    );
+    expect(next).toMatchObject({ minFrequency: 0, maxFrequency: 1000 });
   });
 
   it("does not shift sideways when zooming out at maximum duration", () => {
@@ -330,7 +341,7 @@ describe("attachWheelNavigation", () => {
       }),
       setViewport,
       requestRender: vi.fn(),
-      canvasToFrequency: (y: number) => 10000,
+      canvasToFrequency: (_y: number) => 10000,
     } as unknown as any;
 
     attachWheelNavigation(freqViewer, canvas);
@@ -527,7 +538,7 @@ describe("attachDragNavigation", () => {
       }),
       setViewport,
       requestRender: vi.fn(),
-      canvasToFrequency: (y: number) => 10000,
+      canvasToFrequency: (_y: number) => 10000,
     } as unknown as any;
 
     attachDragNavigation(freqViewer, canvas);
@@ -681,7 +692,9 @@ describe("NavigationOptions nested config and modifier keys", () => {
     });
 
     expect(listeners.has("wheel")).toBe(true);
-    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(false);
+    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
+      false,
+    );
 
     const wheel = listeners.get("wheel")!;
 
@@ -745,7 +758,9 @@ describe("NavigationOptions nested config and modifier keys", () => {
     });
 
     expect(listeners.has("wheel")).toBe(false);
-    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(true);
+    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
+      true,
+    );
 
     const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
     const move = listeners.get("pointermove") || listeners.get("mousemove")!;
@@ -1080,8 +1095,14 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
 
-    const detach1 = scope.attachNavigation(canvas, { wheel: true, drag: false });
-    const detach2 = scope.attachNavigation(canvas, { wheel: false, drag: true });
+    const detach1 = scope.attachNavigation(canvas, {
+      wheel: true,
+      drag: false,
+    });
+    const detach2 = scope.attachNavigation(canvas, {
+      wheel: false,
+      drag: true,
+    });
 
     // Detach first
     detach1();
@@ -1154,12 +1175,21 @@ describe("viewer attachNavigation with auto-cleanup", () => {
         : "mousemove";
     const move = listeners.get(moveEvent)![0]!;
 
-    down({ button: 0, clientX: 50, clientY: 50, pointerId: 1 } as unknown as PointerEvent);
-    move({ button: 0, clientX: 25, clientY: 50, pointerId: 1 } as unknown as PointerEvent);
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      pointerId: 1,
+    } as unknown as PointerEvent);
+    move({
+      button: 0,
+      clientX: 25,
+      clientY: 50,
+      pointerId: 1,
+    } as unknown as PointerEvent);
 
     expect(onNavigate).toHaveBeenCalled();
     expect(scope.getViewport().startTime).toBeGreaterThan(4);
     scope.destroy();
   });
 });
-

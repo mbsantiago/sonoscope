@@ -487,10 +487,9 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 400,
     });
 
-    viewer.getScope().zoomBoth(
-      { time: 0.5, frequency: 0.25 },
-      { time: 0.5, frequency: 200 },
-    );
+    viewer
+      .getScope()
+      .zoomBoth({ time: 0.5, frequency: 0.25 }, { time: 0.5, frequency: 200 });
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.25,
