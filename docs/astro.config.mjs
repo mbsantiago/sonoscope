@@ -2,6 +2,7 @@
 import react from '@astrojs/react';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
+import starlightThemeFlexoki from 'starlight-theme-flexoki';
 
 // https://astro.build/config
 export default defineConfig({
@@ -10,6 +11,7 @@ export default defineConfig({
 			title: 'Sonoscope',
 			description:
 				'High-performance WebGL2 & WASM audio spectrogram visualization ecosystem.',
+			plugins: [starlightThemeFlexoki()],
 			customCss: ['./src/styles/custom.css'],
 			social: [
 				{
