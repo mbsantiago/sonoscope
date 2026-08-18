@@ -1,10 +1,105 @@
 ---
-title: Audio Waveform Demo
-description: Coordinated spectrogram and waveform visualization.
+title: Audio Waveform & Multi-Track Demo
+description: Synchronized spectrogram and peak-pyramid audio waveform visualization.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
 
-This demo illustrates synchronized navigation between the WebGL2 Spectrogram, Peak-Pyramid Waveform, and time/frequency rulers.
+This demo illustrates synchronized multi-viewer navigation between a **WebGL2 Spectrogram**, a **Peak-Pyramid Waveform**, and dual **Time & Frequency Rulers**.
+
+### Navigation Controls
+- **Scroll / Pinch**: Zoom in and out horizontally (time) and vertically (frequency).
+- **Drag**: Pan across time and frequency.
+- **Click Rulers / Waveform**: Seek playback position across all synchronized viewers.
+
+---
+
+### Implementation Code
+
+<Tabs>
+  <TabItem label="TypeScript / Core API">
+  ```typescript
+  import {
+    Sonoscope,
+    attachCanvasNavigation,
+    attachPlayheadOverlay,
+  } from "@sonoscope/core";
+
+  const audio = document.querySelector<HTMLAudioElement>("audio")!;
+  const scope = await Sonoscope.fromUrl("https://.../audio.ogg", {
+    audio,
+    frequencyScale: "mel",
+    followPlayback: "page",
+  });
+
+  // 1. Spectrogram Viewer
+  const specCanvas = document.querySelector<HTMLCanvasElement>("#spec-canvas")!;
+  const spec = scope.createSpectrogram(specCanvas, { colorMap: "turbo" });
+  attachCanvasNavigation(spec, specCanvas);
+  attachPlayheadOverlay(specCanvas.parentElement!, scope);
+
+  // 2. Waveform Viewer (Synchronized with scope viewport and playhead)
+  const waveCanvas = document.querySelector<HTMLCanvasElement>("#wave-canvas")!;
+  const waveform = scope.createWaveform(waveCanvas, { colorMap: "turbo" });
+  attachCanvasNavigation(waveform, waveCanvas);
+  attachPlayheadOverlay(waveCanvas.parentElement!, scope);
+
+  // 3. Time Ruler
+  const timeCanvas = document.querySelector<HTMLCanvasElement>("#time-canvas")!;
+  const timeRuler = scope.createTimeRuler(timeCanvas, { tickPosition: "top" });
+  attachCanvasNavigation(timeRuler, timeCanvas);
+  attachPlayheadOverlay(timeCanvas.parentElement!, scope);
+  ```
+  </TabItem>
+
+  <TabItem label="React (@sonoscope/react)">
+  ```tsx
+  import {
+    SonoscopeProvider,
+    Spectrogram,
+    Waveform,
+    TimeRuler,
+    FrequencyRuler,
+  } from "@sonoscope/react";
+
+  export function WaveformDemo() {
+    return (
+      <SonoscopeProvider
+        url="https://.../audio.ogg"
+        frequencyScale="mel"
+        followPlayback="page"
+      >
+        <TimeRuler height={24} tickPosition="top" />
+        <div style={{ display: "flex" }}>
+          <FrequencyRuler width={56} tickPosition="right" />
+          <Spectrogram height={280} colorMap="turbo" showAudioControls />
+        </div>
+        <Waveform height={70} colorMap="turbo" />
+      </SonoscopeProvider>
+    );
+  }
+  ```
+  </TabItem>
+
+  <TabItem label="Python (Jupyter / Marimo)">
+  ```python
+  from sonoscope import Sonoscope
+
+  # Full widget with Spectrogram and Waveform
+  widget = Sonoscope.from_url(
+      "https://.../audio.ogg",
+      cmap="turbo",
+      frequency_scale="mel",
+      show_waveform=True,
+  )
+  widget
+  ```
+  </TabItem>
+</Tabs>
+
+---
+
+### Live Interactive Preview
 
 <InteractiveSpectrogram client:only="react" initialCmap="turbo" showWaveform={true} />
