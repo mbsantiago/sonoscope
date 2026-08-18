@@ -396,8 +396,7 @@
       scaleSelect.addEventListener("change", () => {
         const scale = scaleSelect.value;
         const minFreq = scale === "log" ? 20 : 0;
-        freqRuler?.updateConfig({ frequencyScale: scale, minFrequency: minFreq });
-        spectrogram?.updateConfig({ frequencyScale: scale, minFrequency: minFreq });
+        scope?.setViewport({ frequencyScale: scale, minFrequency: minFreq });
       });
 
       freqProgramSelect.addEventListener("change", () => {

@@ -1,3 +1,4 @@
+import type { FrequencyScale } from "./types";
 import { TypedEventEmitter } from "./events";
 
 export function clampViewportTimes(
@@ -24,6 +25,9 @@ export type FollowPlaybackMode = "page" | "smooth" | "off";
 export type ViewportControllerConfig = {
   startTime?: number | undefined;
   endTime?: number | undefined;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
+  frequencyScale?: FrequencyScale | undefined;
   totalDuration?: number | undefined;
   minDuration?: number | undefined;
   maxDuration?: number | undefined;
@@ -37,6 +41,9 @@ export type ViewportState = {
   endTime: number;
   duration: number;
   totalDuration: number;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
+  frequencyScale?: FrequencyScale | undefined;
 };
 
 export type ViewportControllerEvents = {
@@ -45,12 +52,32 @@ export type ViewportControllerEvents = {
 };
 
 export interface ITimeBoundViewer {
-  getViewport(): { startTime: number; endTime: number };
-  updateViewport(vp: Partial<{ startTime: number; endTime: number }>): void;
+  getViewport(): {
+    startTime: number;
+    endTime: number;
+    minFrequency?: number | undefined;
+    maxFrequency?: number | undefined;
+    frequencyScale?: FrequencyScale | undefined;
+  };
+  updateViewport(
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+  ): void;
   on(
     event: "viewportchange",
     handler: (event: {
-      viewport: { startTime: number; endTime: number };
+      viewport: {
+        startTime: number;
+        endTime: number;
+        minFrequency?: number | undefined;
+        maxFrequency?: number | undefined;
+        frequencyScale?: FrequencyScale | undefined;
+      };
     }) => void,
   ): () => void;
   getDuration?(): number;
@@ -59,12 +86,24 @@ export interface ITimeBoundViewer {
 export interface IViewportController {
   getViewport(): ViewportState;
   setViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void;
   updateViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void;
   bind(viewer: ITimeBoundViewer): () => void;
   unbind?(viewer: ITimeBoundViewer): void;
@@ -102,6 +141,9 @@ export class ViewportController implements IViewportController {
   private readonly events = new TypedEventEmitter<ViewportControllerEvents>();
   private startTime: number;
   private endTime: number;
+  private minFrequency: number | undefined;
+  private maxFrequency: number | undefined;
+  private frequencyScale: FrequencyScale | undefined;
   private totalDuration: number;
   private minDuration: number;
   private maxDuration: number;
@@ -122,6 +164,9 @@ export class ViewportController implements IViewportController {
     );
     this.followPlayback = config.followPlayback ?? "page";
     this.smoothAnchor = Math.max(0, Math.min(1, config.smoothAnchor ?? 0.5));
+    this.minFrequency = config.minFrequency;
+    this.maxFrequency = config.maxFrequency;
+    this.frequencyScale = config.frequencyScale;
 
     const initialStart = config.startTime ?? 0;
     const initialEnd = config.endTime ?? Math.min(10, this.totalDuration);
@@ -146,42 +191,89 @@ export class ViewportController implements IViewportController {
       endTime: this.endTime,
       duration: this.endTime - this.startTime,
       totalDuration: this.totalDuration,
+      minFrequency: this.minFrequency,
+      maxFrequency: this.maxFrequency,
+      frequencyScale: this.frequencyScale,
     };
   }
 
   setViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void {
-    const targetStart = Number.isFinite(vp.startTime)
-      ? (vp.startTime as number)
-      : this.startTime;
-    const targetEnd = Number.isFinite(vp.endTime)
-      ? (vp.endTime as number)
-      : this.endTime;
-    const clamped = clampViewportTimes(
-      targetStart,
-      targetEnd,
-      this.totalDuration,
-      this.minDuration,
-      this.maxDuration,
-    );
+    let changed = false;
 
-    if (
-      Math.abs(clamped.startTime - this.startTime) < 1e-6 &&
-      Math.abs(clamped.endTime - this.endTime) < 1e-6
-    ) {
-      return;
+    if (vp.startTime !== undefined || vp.endTime !== undefined) {
+      const targetStart = Number.isFinite(vp.startTime)
+        ? (vp.startTime as number)
+        : this.startTime;
+      const targetEnd = Number.isFinite(vp.endTime)
+        ? (vp.endTime as number)
+        : this.endTime;
+      const clamped = clampViewportTimes(
+        targetStart,
+        targetEnd,
+        this.totalDuration,
+        this.minDuration,
+        this.maxDuration,
+      );
+
+      if (
+        Math.abs(clamped.startTime - this.startTime) >= 1e-6 ||
+        Math.abs(clamped.endTime - this.endTime) >= 1e-6
+      ) {
+        this.startTime = clamped.startTime;
+        this.endTime = clamped.endTime;
+        changed = true;
+      }
     }
 
-    this.startTime = clamped.startTime;
-    this.endTime = clamped.endTime;
-    this.broadcast(source);
+    if (
+      vp.minFrequency !== undefined &&
+      (this.minFrequency === undefined ||
+        Math.abs(this.minFrequency - vp.minFrequency) >= 1e-6)
+    ) {
+      this.minFrequency = vp.minFrequency;
+      changed = true;
+    }
+
+    if (
+      vp.maxFrequency !== undefined &&
+      (this.maxFrequency === undefined ||
+        Math.abs(this.maxFrequency - vp.maxFrequency) >= 1e-6)
+    ) {
+      this.maxFrequency = vp.maxFrequency;
+      changed = true;
+    }
+
+    if (
+      vp.frequencyScale !== undefined &&
+      this.frequencyScale !== vp.frequencyScale
+    ) {
+      this.frequencyScale = vp.frequencyScale;
+      changed = true;
+    }
+
+    if (changed) {
+      this.broadcast(source);
+    }
   }
 
   updateViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void {
     this.setViewport(vp, source);
   }
@@ -308,19 +400,24 @@ export class ViewportController implements IViewportController {
     viewer.updateViewport({
       startTime: this.startTime,
       endTime: this.endTime,
+      minFrequency: this.minFrequency,
+      maxFrequency: this.maxFrequency,
+      frequencyScale: this.frequencyScale,
     });
 
     // Listen to changes from the viewer and forward to controller
     const unlistenViewer = viewer.on("viewportchange", (event) => {
       if (this.isBroadcasting) return;
       const vp = event.viewport;
-      if (
-        vp &&
-        typeof vp.startTime === "number" &&
-        typeof vp.endTime === "number"
-      ) {
+      if (vp) {
         this.setViewport(
-          { startTime: vp.startTime, endTime: vp.endTime },
+          {
+            startTime: vp.startTime,
+            endTime: vp.endTime,
+            minFrequency: vp.minFrequency,
+            maxFrequency: vp.maxFrequency,
+            frequencyScale: vp.frequencyScale,
+          },
           "viewer",
         );
       }
@@ -369,6 +466,9 @@ export class ViewportController implements IViewportController {
         viewer.updateViewport({
           startTime: this.startTime,
           endTime: this.endTime,
+          minFrequency: this.minFrequency,
+          maxFrequency: this.maxFrequency,
+          frequencyScale: this.frequencyScale,
         });
       }
     }

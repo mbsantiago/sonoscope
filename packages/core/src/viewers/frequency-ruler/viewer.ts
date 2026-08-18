@@ -68,6 +68,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private config: ResolvedFrequencyRulerConfig;
   private programInstance: FrequencyRulerProgram;
   private scopeCleanup: Array<() => void> = [];
+  private isSelfUpdating = false;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -81,7 +82,16 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   ) {
     this.scope = scope;
     this.canvas = canvas;
-    this.config = resolveFrequencyRulerConfig(options, scope.getSampleRate());
+    const scopeVp = scope.getViewport();
+    this.config = resolveFrequencyRulerConfig(
+      {
+        minFrequency: scopeVp.minFrequency,
+        maxFrequency: scopeVp.maxFrequency,
+        frequencyScale: scopeVp.frequencyScale,
+        ...options,
+      },
+      scope.getSampleRate(),
+    );
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
 
     this.bindScope();
@@ -95,6 +105,37 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
 
+    const unlistenViewport = this.scope.on("viewportchange", (e) => {
+      let changed = false;
+      if (
+        e.viewport.minFrequency !== undefined &&
+        Math.abs(this.config.minFrequency - e.viewport.minFrequency) >= 1e-6
+      ) {
+        this.config.minFrequency = e.viewport.minFrequency;
+        changed = true;
+      }
+      if (
+        e.viewport.maxFrequency !== undefined &&
+        Math.abs(this.config.maxFrequency - e.viewport.maxFrequency) >= 1e-6
+      ) {
+        this.config.maxFrequency = e.viewport.maxFrequency;
+        changed = true;
+      }
+      if (
+        e.viewport.frequencyScale !== undefined &&
+        this.config.frequencyScale !== e.viewport.frequencyScale
+      ) {
+        this.config.frequencyScale = e.viewport.frequencyScale;
+        changed = true;
+      }
+      if (!changed) return;
+
+      this.events.emit("viewportchange", { viewport: this.getViewport() });
+      if (!this.isSelfUpdating) {
+        this.requestRender();
+      }
+    });
+
     const unlistenSource = this.scope.on("sourcechange", () => {
       const nyquist = Math.floor(this.scope.getSampleRate() / 2);
       if (this.config.maxFrequency > nyquist) {
@@ -103,7 +144,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
       this.requestRender();
     });
 
-    this.scopeCleanup.push(unlistenSource);
+    this.scopeCleanup.push(unlistenViewport, unlistenSource);
   }
 
   getScope(): ISonoscope {
@@ -127,18 +168,46 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   updateViewport(viewport: Partial<FrequencyRulerViewport>): void {
-    if (viewport.minFrequency !== undefined) {
+    let changed = false;
+    if (
+      viewport.minFrequency !== undefined &&
+      Math.abs(this.config.minFrequency - viewport.minFrequency) >= 1e-6
+    ) {
       this.config.minFrequency = viewport.minFrequency;
+      changed = true;
     }
-    if (viewport.maxFrequency !== undefined) {
+    if (
+      viewport.maxFrequency !== undefined &&
+      Math.abs(this.config.maxFrequency - viewport.maxFrequency) >= 1e-6
+    ) {
       this.config.maxFrequency = viewport.maxFrequency;
+      changed = true;
     }
-    if (viewport.frequencyScale !== undefined) {
+    if (
+      viewport.frequencyScale !== undefined &&
+      this.config.frequencyScale !== viewport.frequencyScale
+    ) {
       this.config.frequencyScale = viewport.frequencyScale;
+      changed = true;
     }
 
-    this.events.emit("viewportchange", { viewport: this.getViewport() });
-    this.requestRender();
+    if (changed) {
+      this.isSelfUpdating = true;
+      try {
+        this.scope.setViewport(
+          {
+            minFrequency: this.config.minFrequency,
+            maxFrequency: this.config.maxFrequency,
+            frequencyScale: this.config.frequencyScale,
+          },
+          "frequency-ruler",
+        );
+      } finally {
+        this.isSelfUpdating = false;
+      }
+      this.events.emit("viewportchange", { viewport: this.getViewport() });
+      this.requestRender();
+    }
   }
 
   setViewport(viewport: Partial<FrequencyRulerViewport>): void {
@@ -154,6 +223,20 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     const baseConfig = { ...this.config, ...input };
     this.config = resolveFrequencyRulerConfig(baseConfig, sampleRate);
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
+
+    this.isSelfUpdating = true;
+    try {
+      this.scope.setViewport(
+        {
+          minFrequency: this.config.minFrequency,
+          maxFrequency: this.config.maxFrequency,
+          frequencyScale: this.config.frequencyScale,
+        },
+        "frequency-ruler",
+      );
+    } finally {
+      this.isSelfUpdating = false;
+    }
 
     this.events.emit("configchange", { config: this.getConfig() });
     this.events.emit("viewportchange", { viewport: this.getViewport() });

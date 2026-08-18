@@ -1,6 +1,7 @@
 import type {
   AudioSource,
   FollowPlaybackMode,
+  FrequencyScale,
   ISonoscope,
   SonoscopeEvents,
   SonoscopeOptions,
@@ -71,6 +72,9 @@ export class Sonoscope implements ISonoscope {
       totalDuration: this._source.duration,
       startTime: opts.startTime,
       endTime: opts.endTime,
+      minFrequency: opts.minFrequency,
+      maxFrequency: opts.maxFrequency,
+      frequencyScale: opts.frequencyScale,
       minDuration: opts.minDuration,
       maxDuration: opts.maxDuration,
       followPlayback: opts.followPlayback,
@@ -166,15 +170,27 @@ export class Sonoscope implements ISonoscope {
   }
 
   setViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void {
     this.viewportController.setViewport(vp, source);
   }
 
   updateViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void {
     this.viewportController.updateViewport(vp, source);
   }

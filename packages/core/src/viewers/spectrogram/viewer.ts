@@ -186,27 +186,33 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       this.config.frequencyScale = nextScale;
     }
 
-    if (viewport.startTime !== undefined || viewport.endTime !== undefined) {
-      const nextStart = viewport.startTime ?? prev.startTime;
-      const nextEnd = viewport.endTime ?? prev.endTime;
-      if (
-        Math.abs(prev.startTime - nextStart) >= 1e-6 ||
-        Math.abs(prev.endTime - nextEnd) >= 1e-6
-      ) {
-        timeChanged = true;
-        this.isSelfUpdating = true;
-        try {
-          this.scope.setViewport(
-            { startTime: nextStart, endTime: nextEnd },
-            "viewer",
-          );
-        } finally {
-          this.isSelfUpdating = false;
-        }
-      }
+    const nextStart = viewport.startTime ?? prev.startTime;
+    const nextEnd = viewport.endTime ?? prev.endTime;
+    if (
+      Math.abs(prev.startTime - nextStart) >= 1e-6 ||
+      Math.abs(prev.endTime - nextEnd) >= 1e-6
+    ) {
+      timeChanged = true;
+      this.config.startTime = nextStart;
+      this.config.endTime = nextEnd;
     }
 
-    if (freqChanged && !timeChanged) {
+    if (timeChanged || freqChanged) {
+      this.isSelfUpdating = true;
+      try {
+        this.scope.setViewport(
+          {
+            startTime: this.config.startTime,
+            endTime: this.config.endTime,
+            minFrequency: this.config.minFrequency,
+            maxFrequency: this.config.maxFrequency,
+            frequencyScale: this.config.frequencyScale,
+          },
+          "spectrogram",
+        );
+      } finally {
+        this.isSelfUpdating = false;
+      }
       this.renderGeneration += 1;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
     }
@@ -594,16 +600,40 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.scopeCleanup = [];
 
     const unlistenViewport = this.scope.on("viewportchange", (e) => {
+      let changed = false;
       const currentStart = this.config.startTime;
       const currentEnd = this.config.endTime;
       if (
-        Math.abs(currentStart - e.viewport.startTime) < 1e-6 &&
-        Math.abs(currentEnd - e.viewport.endTime) < 1e-6
+        Math.abs(currentStart - e.viewport.startTime) >= 1e-6 ||
+        Math.abs(currentEnd - e.viewport.endTime) >= 1e-6
       ) {
-        return;
+        this.config.startTime = e.viewport.startTime;
+        this.config.endTime = e.viewport.endTime;
+        changed = true;
       }
-      this.config.startTime = e.viewport.startTime;
-      this.config.endTime = e.viewport.endTime;
+      if (
+        e.viewport.minFrequency !== undefined &&
+        Math.abs(this.config.minFrequency - e.viewport.minFrequency) >= 1e-6
+      ) {
+        this.config.minFrequency = e.viewport.minFrequency;
+        changed = true;
+      }
+      if (
+        e.viewport.maxFrequency !== undefined &&
+        Math.abs(this.config.maxFrequency - e.viewport.maxFrequency) >= 1e-6
+      ) {
+        this.config.maxFrequency = e.viewport.maxFrequency;
+        changed = true;
+      }
+      if (
+        e.viewport.frequencyScale !== undefined &&
+        this.config.frequencyScale !== e.viewport.frequencyScale
+      ) {
+        this.config.frequencyScale = e.viewport.frequencyScale;
+        changed = true;
+      }
+      if (!changed) return;
+
       this.renderGeneration += 1;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
       if (!this.isSelfUpdating) {

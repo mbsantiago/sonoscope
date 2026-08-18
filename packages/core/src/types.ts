@@ -122,6 +122,9 @@ export type ViewportState = {
   endTime: number;
   duration: number;
   totalDuration: number;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
+  frequencyScale?: FrequencyScale | undefined;
 };
 
 export type SonoscopeOptions = {
@@ -129,6 +132,9 @@ export type SonoscopeOptions = {
   audio?: HTMLAudioElement | undefined;
   startTime?: number | undefined;
   endTime?: number | undefined;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
+  frequencyScale?: FrequencyScale | undefined;
   minDuration?: number | undefined;
   maxDuration?: number | undefined;
   followPlayback?: FollowPlaybackMode | undefined;
@@ -151,12 +157,24 @@ export interface ISonoscope {
   readonly source: AudioSource;
   getViewport(): ViewportState;
   setViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void;
   updateViewport(
-    vp: Partial<{ startTime: number; endTime: number }>,
-    source?: string,
+    vp: Partial<{
+      startTime: number | undefined;
+      endTime: number | undefined;
+      minFrequency: number | undefined;
+      maxFrequency: number | undefined;
+      frequencyScale: FrequencyScale | undefined;
+    }>,
+    source?: string | undefined,
   ): void;
   zoom(factor: number, centerTime?: number, source?: string): void;
   pan(deltaSeconds: number, source?: string): void;
