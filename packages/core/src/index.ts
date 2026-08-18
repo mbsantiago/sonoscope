@@ -78,6 +78,22 @@ export type {
   WebGLRendererProgram,
   WindowName,
 } from "./viewers/spectrogram/types";
+// FrequencyRuler Types
+export type {
+  FrequencyFormatMode,
+  FrequencyRulerConfig,
+  FrequencyRulerEvents,
+  FrequencyRulerFrame,
+  FrequencyRulerOptions,
+  FrequencyRulerProgram,
+  FrequencyRulerProgramName,
+  FrequencyRulerRenderInput,
+  FrequencyRulerStatus,
+  FrequencyRulerViewport,
+  FrequencyTicksResult,
+  IFrequencyRulerViewer,
+  ResolvedFrequencyRulerConfig,
+} from "./viewers/frequency-ruler";
 // TimeRuler Types
 export type {
   ITimeRulerViewer,
@@ -177,6 +193,13 @@ export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-
 export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+export {
+  BoxesFrequencyRulerProgram,
+  computeFrequencyTicks,
+  formatFrequencyLabel,
+  FrequencyRulerViewer,
+  TicksFrequencyRulerProgram,
+} from "./viewers/frequency-ruler";
 export {
   BoxesTimeRulerProgram,
   computeTimeTicks,

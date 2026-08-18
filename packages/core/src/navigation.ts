@@ -1,4 +1,5 @@
 import type { ViewportConfig } from "./types";
+import type { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
 import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import type { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import type { WaveformViewer } from "./viewers/waveform/viewer";
@@ -64,8 +65,15 @@ export type FrequencyBounds = {
   minSpanHz?: number;
 };
 
+export type AnyNavigableViewer =
+  | NavigableViewer
+  | SpectrogramViewer
+  | WaveformViewer
+  | TimeRulerViewer
+  | FrequencyRulerViewer;
+
 export function setViewerViewport(
-  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer | TimeRulerViewer,
+  viewer: AnyNavigableViewer,
   viewport: Partial<ViewportConfig>,
 ): ViewportConfig {
   viewer.setViewport(viewport);
@@ -151,7 +159,7 @@ export function zoomViewportFrequency(
 }
 
 function resolveViewerCanvas(
-  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer | TimeRulerViewer,
+  viewer: AnyNavigableViewer,
   canvas?: HTMLCanvasElement,
 ): HTMLCanvasElement {
   if (canvas) return canvas;
@@ -165,12 +173,15 @@ function resolveViewerCanvas(
 }
 
 function resolveViewerTimeBounds(
-  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer | TimeRulerViewer,
+  viewer: AnyNavigableViewer,
 ): TimeBounds {
   if ("getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function") {
     return viewer.getTimeBounds();
   }
-  const config = viewer.getConfig();
+  const config = viewer.getConfig() as {
+    minViewportDuration?: number;
+    maxViewportDuration?: number;
+  };
   const duration =
     "getScope" in viewer && typeof viewer.getScope === "function"
       ? viewer.getScope()?.getDuration?.() ?? 0
@@ -184,7 +195,7 @@ function resolveViewerTimeBounds(
 }
 
 export function attachCanvasWheelNavigation(
-  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer | TimeRulerViewer,
+  viewer: AnyNavigableViewer,
   canvas?: HTMLCanvasElement,
   options: CanvasWheelNavigationOptions = {},
 ): () => void {
@@ -282,7 +293,7 @@ export function attachCanvasWheelNavigation(
 }
 
 export function attachCanvasDragNavigation(
-  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer | TimeRulerViewer,
+  viewer: AnyNavigableViewer,
   canvas?: HTMLCanvasElement,
   options: CanvasDragNavigationOptions = {},
 ): () => void {
@@ -396,7 +407,7 @@ export function attachCanvasDragNavigation(
 }
 
 export function attachCanvasNavigation(
-  viewer: NavigableViewer | SpectrogramViewer | WaveformViewer | TimeRulerViewer,
+  viewer: AnyNavigableViewer,
   canvas?: HTMLCanvasElement,
   options: CanvasNavigationOptions = {},
 ): () => void {
