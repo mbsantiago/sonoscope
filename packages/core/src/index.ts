@@ -78,6 +78,22 @@ export type {
   WebGLRendererProgram,
   WindowName,
 } from "./viewers/spectrogram/types";
+// TimeRuler Types
+export type {
+  ITimeRulerViewer,
+  ResolvedTimeRulerConfig,
+  TimeFormatMode,
+  TimeRulerConfig,
+  TimeRulerEvents,
+  TimeRulerFrame,
+  TimeRulerOptions,
+  TimeRulerProgram,
+  TimeRulerProgramName,
+  TimeRulerRenderInput,
+  TimeRulerStatus,
+  TimeRulerViewport,
+  TimeTicksResult,
+} from "./viewers/time-ruler";
 // Waveform Types
 export type {
   IWaveformViewer,
@@ -161,6 +177,13 @@ export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-
 export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+export {
+  BoxesTimeRulerProgram,
+  computeTimeTicks,
+  formatTimeLabel,
+  TicksTimeRulerProgram,
+  TimeRulerViewer,
+} from "./viewers/time-ruler";
 export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";

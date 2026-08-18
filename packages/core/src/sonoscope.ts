@@ -7,10 +7,12 @@ import type {
   ViewportState,
 } from "./types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
+import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
 import { TypedEventEmitter } from "./events";
 import { createAudioSourceFromUrl, DecodedAudioSource } from "./sources/source";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
+import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 import { ViewportController } from "./viewport-controller";
 
@@ -323,6 +325,13 @@ export class Sonoscope implements ISonoscope {
     options?: Partial<WaveformOptions>,
   ): WaveformViewer {
     return new WaveformViewer(this, canvas, options);
+  }
+
+  createTimeRuler(
+    canvas: HTMLCanvasElement,
+    options?: Partial<TimeRulerOptions>,
+  ): TimeRulerViewer {
+    return new TimeRulerViewer(this, canvas, options);
   }
 
   on<K extends keyof SonoscopeEvents>(
