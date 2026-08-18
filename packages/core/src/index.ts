@@ -15,6 +15,11 @@ export type {
   PerformanceDetail,
   PerformanceMeasure,
 } from "./performance";
+// Playhead Types
+export type {
+  IPlayheadOverlay,
+  PlayheadOverlayOptions,
+} from "./playhead";
 // Common & Coordinator Types
 export type {
   AudioRange,
@@ -116,6 +121,7 @@ export {
   PerformanceProfiler,
   SpectrogramProfiler,
 } from "./performance";
+export { attachPlayheadOverlay, PlayheadOverlay } from "./playhead";
 export { isSonoscope, Sonoscope } from "./sonoscope";
 // Audio Sources
 export {
