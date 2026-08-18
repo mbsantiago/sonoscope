@@ -1,0 +1,14 @@
+---
+title: Live Spectrogram Demo
+description: Interactive spectrogram viewer with time and frequency rulers.
+---
+
+import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
+
+This live demo runs client-side using `@sonoscope/core` and `@astrojs/react`.
+
+- **Scroll / Pinch**: Zoom in and out horizontally (time) and vertically (frequency).
+- **Drag**: Pan across time and frequency dimensions.
+- **Double click**: Seek playhead position.
+
+<InteractiveSpectrogram client:only="react" initialCmap="inferno" showWaveform={false} />

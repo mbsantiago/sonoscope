@@ -1,0 +1,10 @@
+---
+title: Audio Waveform Demo
+description: Coordinated spectrogram and waveform visualization.
+---
+
+import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
+
+This demo illustrates synchronized navigation between the WebGL2 Spectrogram, Peak-Pyramid Waveform, and time/frequency rulers.
+
+<InteractiveSpectrogram client:only="react" initialCmap="turbo" showWaveform={true} />

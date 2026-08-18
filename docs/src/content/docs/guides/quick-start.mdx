@@ -1,0 +1,91 @@
+---
+title: Quick Start
+description: Get started with Sonoscope across TypeScript, React, and Python.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Sonoscope is available as three specialized packages across JavaScript, React, and Python environments.
+
+## Installation
+
+<Tabs>
+  <TabItem label="TypeScript / Vanilla JS">
+  ```bash
+  npm install @sonoscope/core
+  ```
+  </TabItem>
+
+  <TabItem label="React">
+  ```bash
+  npm install @sonoscope/react @sonoscope/core
+  ```
+  </TabItem>
+
+  <TabItem label="Python (Jupyter / Marimo)">
+  ```bash
+  pip install sonoscope
+  # or with uv
+  uv add sonoscope
+  ```
+  </TabItem>
+</Tabs>
+
+## Basic Usage
+
+### 1. Vanilla TypeScript / JavaScript
+
+```typescript
+import { Sonoscope, attachCanvasNavigation } from '@sonoscope/core';
+
+// Initialize Sonoscope from an HTML <audio> element
+const audioElement = document.querySelector('audio');
+const scope = await Sonoscope.fromAudio(audioElement, {
+  frequencyScale: 'mel',
+});
+
+// Render Spectrogram on a canvas
+const canvas = document.querySelector('canvas#spectrogram');
+const spec = scope.createSpectrogram(canvas, {
+  colorMap: 'viridis',
+  minValue: -80,
+  maxValue: 0,
+});
+
+// Enable interactive zoom and pan
+attachCanvasNavigation(spec, canvas);
+```
+
+### 2. React
+
+```tsx
+import { SonoscopeProvider, Spectrogram, Waveform, TimeRuler } from '@sonoscope/react';
+
+export function AudioViewer() {
+  return (
+    <SonoscopeProvider url="/audio/sample.wav" frequencyScale="mel">
+      <TimeRuler height={24} />
+      <Spectrogram height={300} colorMap="inferno" showAudioControls />
+      <Waveform height={80} />
+    </SonoscopeProvider>
+  );
+}
+```
+
+### 3. Python (Jupyter / Marimo)
+
+```python
+from sonoscope import Sonoscope
+import numpy as np
+
+# Create widget from local file
+widget = Sonoscope.from_file("recording.wav", cmap="viridis")
+display(widget)
+
+# Or create directly from NumPy arrays
+sr = 44100
+t = np.linspace(0, 3.0, sr * 3, endpoint=False)
+signal = np.sin(2 * np.pi * 440 * t)
+
+Sonoscope.from_array(signal, sample_rate=sr, frequency_scale="log")
+```

@@ -1,0 +1,68 @@
+name: Release & Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write # Required for NPM Provenance and PyPI Trusted Publishing (OIDC)
+
+jobs:
+  publish:
+    name: Build & Publish Packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Monorepo Packages
+        run: npm run build
+
+      - name: Publish NPM Packages
+        run: |
+          npm publish --workspace=@sonoscope/core --access public --provenance
+          npm publish --workspace=@sonoscope/react --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Build Python Package (Wheel & SDist)
+        working-directory: packages/anywidget
+        run: uv build
+
+      - name: Publish to PyPI (Trusted Publishing via OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/anywidget/dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            packages/anywidget/dist/*
+          generate_release_notes: true

@@ -1,0 +1,69 @@
+---
+title: "@sonoscope/core"
+description: Architecture and API reference for the core Sonoscope visualization engine.
+---
+
+`@sonoscope/core` is the zero-dependency WebGL2 and WASM-accelerated rendering engine powering Sonoscope.
+
+## Core Capabilities
+
+- **Coordinated Viewport Sync**: Synchronize time and frequency zoom/pan effortlessly between multiple spectrogram, waveform, and ruler renderers.
+- **WASM STFT Pipeline**: Rust-compiled WebAssembly engine calculating Fast Fourier Transforms with high efficiency.
+- **WebGL2 Tile Rendering**: GPU shader-driven spectrogram tile computation with built-in colormaps (`viridis`, `plasma`, `inferno`, `magma`, `cividis`, `turbo`, `gray`).
+- **Flexible Frequency Scales**: Support for `linear`, `log`, and `mel` perceptual frequency scales.
+- **Decoupled Playhead & Rulers**: Customizable time and frequency rulers with responsive ticks.
+
+## Creating a Sonoscope Instance
+
+```typescript
+import { Sonoscope } from "@sonoscope/core";
+
+// From Audio Element
+const scope = await Sonoscope.fromAudio(audioElement, {
+  frequencyScale: "mel",
+  followPlayback: "page",
+});
+
+// From Blob / File
+const fileScope = await Sonoscope.fromBlob(audioBlob);
+
+// From URL
+const urlScope = await Sonoscope.fromUrl("https://example.com/sound.mp3");
+```
+
+## Viewers
+
+### Spectrogram Viewer
+
+```typescript
+const spectrogram = scope.createSpectrogram(canvas, {
+  colorMap: "turbo",
+  minValue: -90,
+  maxValue: 0,
+  windowSize: 1024,
+  hopSize: 256,
+});
+```
+
+### Waveform Viewer
+
+```typescript
+const waveform = scope.createWaveform(canvas, {
+  colorMap: "turbo",
+  amplitudeScale: 1.0,
+});
+```
+
+### Rulers & Playheads
+
+```typescript
+import { attachPlayheadOverlay, attachCanvasNavigation } from "@sonoscope/core";
+
+const timeRuler = scope.createTimeRuler(timeCanvas, {
+  program: "ticks",
+  tickPosition: "top",
+});
+
+attachCanvasNavigation(spectrogram, canvas);
+attachPlayheadOverlay(containerElement, scope);
+```
