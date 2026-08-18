@@ -2,6 +2,7 @@
 import react from '@astrojs/react';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
+import liveCode from 'astro-live-code';
 import starlightThemeFlexoki from 'starlight-theme-flexoki';
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc';
 
@@ -68,5 +69,8 @@ export default defineConfig({
 			],
 		}),
 		react(),
+		liveCode({
+			layout: '/src/components/LiveCodeLayout.astro',
+		}),
 	],
 });

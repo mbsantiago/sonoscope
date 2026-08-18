@@ -3,58 +3,212 @@ title: Waveform & Multi-Track
 description: Synchronized spectrogram and peak-pyramid audio waveform visualization.
 ---
 
-import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
-
 Synchronized multi-viewer navigation between a **WebGL2 Spectrogram**, a **Peak-Pyramid Waveform**, and dual **Time & Frequency Rulers**.
 
-- **Scroll / Pinch**: Zoom in/out horizontally (time) and vertically (frequency).
-- **Drag**: Pan across time and frequency.
-- **Click Rulers / Waveform**: Seek playback position across all synchronized tracks.
-
-<InteractiveSpectrogram client:only="react" initialCmap="turbo" showWaveform={true} />
-
-<details>
-<summary><strong>View TypeScript Implementation Code</strong></summary>
-
-```typescript
+```tsx live props={{ "client:only": "react" }}
 import {
   Sonoscope,
   attachCanvasNavigation,
   attachPlayheadOverlay,
 } from "@sonoscope/core";
+import { useEffect, useRef } from "react";
 
-// 1. Initialize Sonoscope from an audio URL
-const audio = document.querySelector<HTMLAudioElement>("audio")!;
-const scope = await Sonoscope.fromUrl(
-  "https://upload.wikimedia.org/.../Marico_Sunbird.ogg",
-  {
-    audio,
-    frequencyScale: "mel",
-    followPlayback: "page",
-  }
-);
+export default function WaveformLiveDemo() {
+  const specCanvasRef = useRef<HTMLCanvasElement>(null);
+  const timeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const freqCanvasRef = useRef<HTMLCanvasElement>(null);
+  const waveCanvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-// 2. Spectrogram Viewer
-const specCanvas = document.querySelector<HTMLCanvasElement>("#spec-canvas")!;
-const spec = scope.createSpectrogram(specCanvas, { colorMap: "turbo" });
-attachCanvasNavigation(spec, specCanvas);
-attachPlayheadOverlay(specCanvas.parentElement!, scope);
+  useEffect(() => {
+    if (!specCanvasRef.current || !audioRef.current) return;
+    let active = true;
+    const cleanups: Array<() => void> = [];
 
-// 3. Waveform Viewer (Synchronized with scope viewport and playhead)
-const waveCanvas = document.querySelector<HTMLCanvasElement>("#wave-canvas")!;
-const waveform = scope.createWaveform(waveCanvas, { colorMap: "turbo" });
-attachCanvasNavigation(waveform, waveCanvas);
-attachPlayheadOverlay(waveCanvas.parentElement!, scope);
+    const audioUrl =
+      "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
 
-// 4. Time and Frequency Rulers
-const timeCanvas = document.querySelector<HTMLCanvasElement>("#time-canvas")!;
-const timeRuler = scope.createTimeRuler(timeCanvas, { tickPosition: "top" });
-attachCanvasNavigation(timeRuler, timeCanvas);
-attachPlayheadOverlay(timeCanvas.parentElement!, scope);
+    Sonoscope.fromUrl(audioUrl, {
+      audio: audioRef.current,
+      frequencyScale: "mel",
+      followPlayback: "page",
+    }).then((scope) => {
+      if (!active) {
+        scope.destroy();
+        return;
+      }
+      cleanups.push(() => scope.destroy());
 
-const freqCanvas = document.querySelector<HTMLCanvasElement>("#freq-canvas")!;
-const freqRuler = scope.createFrequencyRuler(freqCanvas, { tickPosition: "right" });
-attachCanvasNavigation(freqRuler, freqCanvas);
+      // 1. Spectrogram Viewer
+      const spec = scope.createSpectrogram(specCanvasRef.current!, {
+        colorMap: "turbo",
+        minValue: -80,
+        maxValue: 0,
+      });
+      cleanups.push(attachCanvasNavigation(spec, specCanvasRef.current!));
+
+      // 2. Time Ruler
+      if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
+        const timeRuler = scope.createTimeRuler(timeCanvasRef.current, {
+          program: "ticks",
+          tickPosition: "top",
+          color: "rgba(128, 128, 128, 0.75)",
+          tickColor: "rgba(128, 128, 128, 0.35)",
+        });
+        cleanups.push(attachCanvasNavigation(timeRuler, timeCanvasRef.current));
+        const overlay = attachPlayheadOverlay(
+          timeCanvasRef.current.parentElement,
+          scope,
+        );
+        cleanups.push(() => overlay.destroy());
+      }
+
+      // 3. Frequency Ruler
+      if (freqCanvasRef.current) {
+        const freqRuler = scope.createFrequencyRuler(freqCanvasRef.current, {
+          program: "ticks",
+          tickPosition: "right",
+          color: "rgba(128, 128, 128, 0.75)",
+          tickColor: "rgba(128, 128, 128, 0.35)",
+        });
+        cleanups.push(attachCanvasNavigation(freqRuler, freqCanvasRef.current));
+      }
+
+      // 4. Waveform Viewer
+      if (waveCanvasRef.current && waveCanvasRef.current.parentElement) {
+        const waveform = scope.createWaveform(waveCanvasRef.current, {
+          colorMap: "turbo",
+        });
+        cleanups.push(attachCanvasNavigation(waveform, waveCanvasRef.current));
+        const overlay = attachPlayheadOverlay(
+          waveCanvasRef.current.parentElement,
+          scope,
+        );
+        cleanups.push(() => overlay.destroy());
+      }
+
+      if (specCanvasRef.current?.parentElement) {
+        const overlay = attachPlayheadOverlay(
+          specCanvasRef.current.parentElement,
+          scope,
+        );
+        cleanups.push(() => overlay.destroy());
+      }
+    });
+
+    return () => {
+      active = false;
+      for (const cleanup of cleanups) cleanup();
+    };
+  }, []);
+
+  return (
+    <div
+      style={{
+        border: "1px solid rgba(128, 128, 128, 0.25)",
+        borderRadius: "8px",
+        padding: "16px",
+        background: "rgba(0, 0, 0, 0.03)",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "56px 1fr",
+          border: "1px solid rgba(128, 128, 128, 0.25)",
+          borderRadius: "4px",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "24px",
+            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
+            borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
+            fontSize: "10px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.6,
+            fontFamily: "monospace",
+          }}
+        >
+          Hz \ s
+        </div>
+        <div
+          style={{
+            position: "relative",
+            height: "24px",
+            borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
+          }}
+        >
+          <canvas
+            ref={timeCanvasRef}
+            style={{ width: "100%", height: "100%", display: "block" }}
+          />
+        </div>
+
+        <div
+          style={{
+            position: "relative",
+            width: "56px",
+            height: "260px",
+            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
+          }}
+        >
+          <canvas
+            ref={freqCanvasRef}
+            style={{ width: "100%", height: "100%", display: "block" }}
+          />
+        </div>
+        <div style={{ position: "relative", height: "260px" }}>
+          <canvas
+            ref={specCanvasRef}
+            style={{ width: "100%", height: "100%", display: "block" }}
+          />
+        </div>
+
+        <div
+          style={{
+            height: "65px",
+            borderRight: "1px solid rgba(128, 128, 128, 0.2)",
+            borderTop: "1px solid rgba(128, 128, 128, 0.2)",
+            fontSize: "10px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.6,
+            fontFamily: "monospace",
+          }}
+        >
+          WAV
+        </div>
+        <div
+          style={{
+            position: "relative",
+            height: "65px",
+            borderTop: "1px solid rgba(128, 128, 128, 0.2)",
+          }}
+        >
+          <canvas
+            ref={waveCanvasRef}
+            style={{ width: "100%", height: "100%", display: "block" }}
+          />
+        </div>
+      </div>
+
+      <audio
+        ref={audioRef}
+        crossOrigin="anonymous"
+        controls
+        style={{
+          width: "100%",
+          height: "36px",
+          marginTop: "12px",
+          outline: "none",
+        }}
+      />
+    </div>
+  );
+}
 ```
-
-</details>

@@ -1,0 +1,22 @@
+---
+interface Props {
+  lang: string;
+  filename: string;
+  componentProps: Record<string, unknown>;
+}
+---
+
+<div class="not-content live-code-card" style="margin: 1.5rem 0;">
+  <div class="live-code-preview" style="margin-bottom: 0.75rem;">
+    <slot name="example" />
+  </div>
+
+  <details style="border: 1px solid rgba(128, 128, 128, 0.25); border-radius: 6px; padding: 10px 14px; background: rgba(128, 128, 128, 0.04);">
+    <summary style="cursor: pointer; font-size: 13px; font-weight: 500; user-select: none; opacity: 0.9;">
+      View Source Code
+    </summary>
+    <div style="margin-top: 10px;">
+      <slot name="code" />
+    </div>
+  </details>
+</div>
