@@ -5,9 +5,14 @@ export type {
   CanvasDragNavigationOptions,
   CanvasNavigationOptions,
   CanvasWheelNavigationOptions,
+  DragNavigationOptions,
   FrequencyBounds,
+  ModifierKey,
   NavigableViewer,
+  NavigationAxis,
+  NavigationOptions,
   TimeBounds,
+  WheelNavigationOptions,
 } from "./navigation";
 // Performance Types
 export type {

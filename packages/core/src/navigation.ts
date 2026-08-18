@@ -50,32 +50,45 @@ export interface NavigableViewer {
   canvasToFrequency?: (y: number) => number;
 }
 
-export type NavigationAxis = "auto" | "time" | "frequency" | "both";
+export type NavigationAxis = "time" | "frequency" | "both" | "auto";
 
-export type CanvasWheelNavigationOptions = {
+export type ModifierKey = "ctrl" | "shift" | "alt" | "meta" | "none";
+
+export interface WheelNavigationOptions {
   axis?: NavigationAxis | undefined;
   panSensitivity?: number | undefined;
   zoomSensitivity?: number | undefined;
-  zoomModifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
-  frequencyModifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
   frequencyPanSensitivity?: number | undefined;
   frequencyZoomSensitivity?: number | undefined;
+  zoomModifier?: ModifierKey | undefined;
+  frequencyModifier?: ModifierKey | undefined;
   onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
-};
+}
 
-export type CanvasDragNavigationOptions = {
+export interface DragNavigationOptions {
   axis?: NavigationAxis | undefined;
   button?: number | undefined;
-  modifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
-  frequencyModifier?: "shift" | "ctrl" | "alt" | "meta" | undefined;
+  modifier?: ModifierKey | undefined;
+  frequencyModifier?: ModifierKey | undefined;
   dragThreshold?: number | undefined;
   cursor?: boolean | undefined;
   onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
   onDragStart?: ((event: PointerEvent | MouseEvent) => void) | undefined;
   onDragEnd?: ((event: PointerEvent | MouseEvent) => void) | undefined;
-};
+}
 
-export type CanvasNavigationOptions = CanvasWheelNavigationOptions &
+export interface NavigationOptions {
+  axis?: NavigationAxis | undefined;
+  wheel?: boolean | WheelNavigationOptions | undefined;
+  drag?: boolean | DragNavigationOptions | undefined;
+  onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
+}
+
+export type CanvasWheelNavigationOptions = WheelNavigationOptions;
+export type CanvasDragNavigationOptions = DragNavigationOptions;
+
+export type CanvasNavigationOptions = NavigationOptions &
+  CanvasWheelNavigationOptions &
   CanvasDragNavigationOptions & {
     enableWheel?: boolean | undefined;
     enableDrag?: boolean | undefined;
@@ -552,12 +565,34 @@ export function attachCanvasNavigation(
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const cleanups: Array<() => void> = [];
 
-  if (options.enableWheel !== false) {
-    cleanups.push(attachCanvasWheelNavigation(viewer, targetCanvas, options));
+  if (options.wheel !== false && options.enableWheel !== false) {
+    const wheelOpts: WheelNavigationOptions =
+      typeof options.wheel === "object" && options.wheel !== null
+        ? {
+            ...(options.axis !== undefined ? { axis: options.axis } : {}),
+            ...(options.onNavigate !== undefined
+              ? { onNavigate: options.onNavigate }
+              : {}),
+            ...options,
+            ...options.wheel,
+          }
+        : options;
+    cleanups.push(attachCanvasWheelNavigation(viewer, targetCanvas, wheelOpts));
   }
 
-  if (options.enableDrag !== false) {
-    cleanups.push(attachCanvasDragNavigation(viewer, targetCanvas, options));
+  if (options.drag !== false && options.enableDrag !== false) {
+    const dragOpts: DragNavigationOptions =
+      typeof options.drag === "object" && options.drag !== null
+        ? {
+            ...(options.axis !== undefined ? { axis: options.axis } : {}),
+            ...(options.onNavigate !== undefined
+              ? { onNavigate: options.onNavigate }
+              : {}),
+            ...options,
+            ...options.drag,
+          }
+        : options;
+    cleanups.push(attachCanvasDragNavigation(viewer, targetCanvas, dragOpts));
   }
 
   return () => {
@@ -572,12 +607,14 @@ function modifierPressed(
     altKey: boolean;
     metaKey: boolean;
   },
-  modifier: NonNullable<CanvasWheelNavigationOptions["zoomModifier"]>,
+  modifier?: ModifierKey | undefined,
 ): boolean {
+  if (!modifier || modifier === "none") return true;
   if (modifier === "shift") return event.shiftKey;
   if (modifier === "ctrl") return event.ctrlKey;
   if (modifier === "alt") return event.altKey;
-  return event.metaKey;
+  if (modifier === "meta") return event.metaKey;
+  return false;
 }
 
 function clamp(value: number, min: number, max: number): number {

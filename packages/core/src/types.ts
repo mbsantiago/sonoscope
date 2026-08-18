@@ -204,3 +204,15 @@ export interface ISonoscope {
   ): () => void;
   destroy(): void;
 }
+
+export type {
+  CanvasDragNavigationOptions,
+  CanvasNavigationOptions,
+  CanvasWheelNavigationOptions,
+  DragNavigationOptions,
+  ModifierKey,
+  NavigationAxis,
+  NavigationOptions,
+  WheelNavigationOptions,
+} from "./navigation";
+
