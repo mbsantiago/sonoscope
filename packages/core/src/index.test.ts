@@ -27,7 +27,6 @@ describe("public entrypoint", () => {
   it("exports Sonoscope coordinator and viewers", () => {
     expect(typeof Sonoscope).toBe("function");
     expect(typeof Sonoscope.fromUrl).toBe("function");
-    expect(typeof Sonoscope.fromURL).toBe("function");
     expect(typeof Sonoscope.fromAudio).toBe("function");
     expect(typeof Sonoscope.fromSource).toBe("function");
     expect(typeof Sonoscope.fromAudioBuffer).toBe("function");

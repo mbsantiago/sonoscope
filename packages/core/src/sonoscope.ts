@@ -142,13 +142,6 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
-  static async fromURL(
-    url: string,
-    options?: Omit<SonoscopeOptions, "source">,
-  ): Promise<Sonoscope> {
-    return Sonoscope.fromUrl(url, options);
-  }
-
   static async fromAudio(
     audio: HTMLAudioElement,
     options?: Omit<SonoscopeOptions, "source" | "audio">,

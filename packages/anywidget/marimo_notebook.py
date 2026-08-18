@@ -9,25 +9,28 @@ def _():
     from sonoscope import Sonoscope
     from pathlib import Path
 
-    return Path, Sonoscope
+    return (Sonoscope,)
 
 
 @app.cell
 def _():
     import numpy as np
 
-    return
+    return (np,)
 
 
 @app.cell
-def _():
-    return
+def _(np):
+    sr = 22050
+    y = np.sin(2 * np.pi * 440 * np.linspace(0, 5, sr * 5, endpoint=False))
+    return sr, y
 
 
 @app.cell
-def _(Path, Sonoscope):
-    Sonoscope.from_file(
-        Path("~/Datasets/martyn_cooke_2021/audio/myomys_surrey_audiomoth_1_20210608_215003_0_1000.wav").expanduser(),
+def _(Sonoscope, sr, y):
+    Sonoscope.from_array(
+        audio=y,
+        sample_rate=sr,
         frequency_scale="linear",
         min_db=-60,
         max_db=0,

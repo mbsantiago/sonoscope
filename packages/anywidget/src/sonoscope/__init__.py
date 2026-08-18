@@ -205,14 +205,8 @@ class Sonoscope(anywidget.AnyWidget):
         """Create a Sonoscope widget from a remote audio URL."""
         return cls(url=url, **kwargs)
 
-    # Aliases
-    from_URL = from_url
-    fromURL = from_url
-    fromUrl = from_url
-    fromFile = from_file
-    fromArray = from_array
-
 
 # Keep Spectrogram as an alias for backwards compatibility
 Spectrogram = Sonoscope
+
 
