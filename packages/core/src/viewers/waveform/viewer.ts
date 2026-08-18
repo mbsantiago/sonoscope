@@ -1,4 +1,4 @@
-import type { AudioSource, ISonoscope, NavigationOptions } from "../../types";
+import type { AudioSource, ISonoscope } from "../../types";
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
@@ -10,7 +10,6 @@ import type {
 } from "./types";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
-import { attachCanvasNavigation } from "../../navigation";
 import { clampViewportTimes } from "../../viewport-math";
 import { WaveformPeakPyramid } from "./peaks";
 import { CanvasWaveformRenderer } from "./renderers/canvas";
@@ -92,7 +91,6 @@ export class WaveformViewer implements IWaveformViewer {
   private pyramid: WaveformPeakPyramid;
   private renderer: WaveformRenderer;
   private scopeCleanup: Array<() => void> = [];
-  private navCleanups: Array<() => void> = [];
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -188,21 +186,6 @@ export class WaveformViewer implements IWaveformViewer {
   updateViewport(viewport: Partial<WaveformViewport>): void {
     this.setViewport(viewport);
     this.requestRender();
-  }
-
-  attachNavigation(
-    container: HTMLElement,
-    options?: NavigationOptions,
-  ): () => void {
-    const cleanup = attachCanvasNavigation(this, container, options);
-    this.navCleanups.push(cleanup);
-    return () => {
-      const idx = this.navCleanups.indexOf(cleanup);
-      if (idx !== -1) {
-        this.navCleanups.splice(idx, 1);
-      }
-      cleanup();
-    };
   }
 
   getConfig(): ResolvedWaveformConfig {
@@ -359,8 +342,6 @@ export class WaveformViewer implements IWaveformViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
-    for (const cleanup of this.navCleanups) cleanup();
-    this.navCleanups = [];
     this.pyramid.clear();
     this.renderer.destroy?.();
   }

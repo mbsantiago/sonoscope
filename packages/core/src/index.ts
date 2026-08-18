@@ -1,11 +1,6 @@
 // Core Coordinator
 
-// Navigation Types
 export type {
-  AnyNavigableViewer,
-  CanvasDragNavigationOptions,
-  CanvasNavigationOptions,
-  CanvasWheelNavigationOptions,
   DragNavigationOptions,
   FrequencyBounds,
   ModifierKey,
@@ -137,10 +132,9 @@ export {
 } from "./colormap";
 // Navigation & Coordinate Helpers
 export {
-  attachCanvasDragNavigation,
-  attachCanvasNavigation,
-  attachCanvasWheelNavigation,
+  attachDragNavigation,
   attachNavigation,
+  attachWheelNavigation,
   panViewportFrequency,
   panViewportTime,
   setViewerViewport,

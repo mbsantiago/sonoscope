@@ -1,7 +1,6 @@
 import type { RenderProps } from "@anywidget/types";
 import "./widget.css";
 import {
-  attachCanvasNavigation,
   attachPlayheadOverlay,
   type FollowPlaybackMode,
   type FrequencyRulerProgramName,
@@ -262,7 +261,9 @@ async function render({
       color: "rgba(128, 128, 128, 0.75)",
       tickColor: "rgba(128, 128, 128, 0.35)",
     });
-    navCleanups.push(attachCanvasNavigation(timeRuler, timeRulerCanvas));
+    navCleanups.push(
+      scope.attachNavigation(timeRulerCanvas, { axis: "time" }),
+    );
     playheadOverlays.push(attachPlayheadOverlay(timeRulerContainer, scope));
 
     const onTimeRulerClick = (e: MouseEvent) => {
@@ -287,7 +288,9 @@ async function render({
       tickColor: "rgba(128, 128, 128, 0.35)",
       tickPosition: "right",
     });
-    navCleanups.push(attachCanvasNavigation(freqRuler, freqRulerCanvas));
+    navCleanups.push(
+      scope.attachNavigation(freqRulerCanvas, { axis: "frequency" }),
+    );
   }
 
   const spec = scope.createSpectrogram(specCanvas, {
@@ -301,7 +304,7 @@ async function render({
     renderer: { type: "webgl", program },
     colorMap: cmap,
   });
-  navCleanups.push(attachCanvasNavigation(spec, specCanvas));
+  navCleanups.push(scope.attachNavigation(specCanvas));
   playheadOverlays.push(attachPlayheadOverlay(specContainer, scope));
 
   specCanvas.addEventListener("dblclick", (e) => {
@@ -317,7 +320,9 @@ async function render({
     waveform = scope.createWaveform(waveformCanvas, {
       colorMap: cmap,
     });
-    navCleanups.push(attachCanvasNavigation(waveform, waveformCanvas));
+    navCleanups.push(
+      scope.attachNavigation(waveformCanvas, { axis: "time" }),
+    );
     playheadOverlays.push(attachPlayheadOverlay(waveformContainer, scope));
 
     waveformCanvas.addEventListener("dblclick", (e) => {

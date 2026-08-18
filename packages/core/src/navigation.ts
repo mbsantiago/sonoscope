@@ -1,8 +1,4 @@
 import type { ViewportConfig } from "./types";
-import type { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
-import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
-import type { TimeRulerViewer } from "./viewers/time-ruler/viewer";
-import type { WaveformViewer } from "./viewers/waveform/viewer";
 
 export type TimeBounds = {
   startTime: number;
@@ -83,25 +79,8 @@ export interface NavigationOptions {
   onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
 }
 
-export type CanvasWheelNavigationOptions = WheelNavigationOptions;
-export type CanvasDragNavigationOptions = DragNavigationOptions;
-
-export type CanvasNavigationOptions = NavigationOptions &
-  CanvasWheelNavigationOptions &
-  CanvasDragNavigationOptions & {
-    enableWheel?: boolean | undefined;
-    enableDrag?: boolean | undefined;
-  };
-
-export type AnyNavigableViewer =
-  | NavigableViewer
-  | SpectrogramViewer
-  | WaveformViewer
-  | TimeRulerViewer
-  | FrequencyRulerViewer;
-
 export function setViewerViewport(
-  viewer: AnyNavigableViewer,
+  viewer: NavigableViewer,
   viewport: Partial<ViewportConfig>,
 ): ViewportConfig {
   viewer.setViewport(viewport);
@@ -187,7 +166,7 @@ export function zoomViewportFrequency(
 }
 
 function resolveViewerAxis(
-  viewer: AnyNavigableViewer,
+  viewer: NavigableViewer,
   configuredAxis?: NavigationAxis,
 ): "time" | "frequency" | "both" {
   if (configuredAxis && configuredAxis !== "auto") {
@@ -203,7 +182,7 @@ function resolveViewerAxis(
 }
 
 function resolveViewerCanvas(
-  viewer: AnyNavigableViewer,
+  viewer: NavigableViewer,
   canvas?: HTMLElement,
 ): HTMLElement {
   if (canvas) return canvas;
@@ -217,7 +196,7 @@ function resolveViewerCanvas(
 }
 
 export function resolveViewerTimeBounds(
-  viewer: AnyNavigableViewer,
+  viewer: NavigableViewer,
 ): TimeBounds {
   if ("getTimeBounds" in viewer && typeof viewer.getTimeBounds === "function") {
     return viewer.getTimeBounds();
@@ -239,16 +218,13 @@ export function resolveViewerTimeBounds(
 }
 
 export function resolveViewerFrequencyBounds(
-  viewer: AnyNavigableViewer,
+  viewer: NavigableViewer,
 ): FrequencyBounds {
   if (
     "getFrequencyBounds" in viewer &&
-    typeof (viewer as unknown as { getFrequencyBounds?: () => FrequencyBounds })
-      .getFrequencyBounds === "function"
+    typeof viewer.getFrequencyBounds === "function"
   ) {
-    return (
-      viewer as unknown as { getFrequencyBounds: () => FrequencyBounds }
-    ).getFrequencyBounds();
+    return viewer.getFrequencyBounds();
   }
   const sampleRate =
     "getScope" in viewer && typeof viewer.getScope === "function"
@@ -262,10 +238,10 @@ export function resolveViewerFrequencyBounds(
   };
 }
 
-export function attachCanvasWheelNavigation(
-  viewer: AnyNavigableViewer,
+export function attachWheelNavigation(
+  viewer: NavigableViewer,
   canvas?: HTMLElement,
-  options: CanvasWheelNavigationOptions = {},
+  options: WheelNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const axis = resolveViewerAxis(viewer, options.axis);
@@ -425,10 +401,10 @@ export function attachCanvasWheelNavigation(
   };
 }
 
-export function attachCanvasDragNavigation(
-  viewer: AnyNavigableViewer,
+export function attachDragNavigation(
+  viewer: NavigableViewer,
   canvas?: HTMLElement,
-  options: CanvasDragNavigationOptions = {},
+  options: DragNavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const axis = resolveViewerAxis(viewer, options.axis);
@@ -556,15 +532,15 @@ export function attachCanvasDragNavigation(
   };
 }
 
-export function attachCanvasNavigation(
-  viewer: AnyNavigableViewer,
+export function attachNavigation(
+  viewer: NavigableViewer,
   canvas?: HTMLElement,
-  options: CanvasNavigationOptions = {},
+  options: NavigationOptions = {},
 ): () => void {
   const targetCanvas = resolveViewerCanvas(viewer, canvas);
   const cleanups: Array<() => void> = [];
 
-  if (options.wheel !== false && options.enableWheel !== false) {
+  if (options.wheel !== false) {
     const wheelOpts: WheelNavigationOptions =
       typeof options.wheel === "object" && options.wheel !== null
         ? {
@@ -572,14 +548,18 @@ export function attachCanvasNavigation(
             ...(options.onNavigate !== undefined
               ? { onNavigate: options.onNavigate }
               : {}),
-            ...options,
             ...options.wheel,
           }
-        : options;
-    cleanups.push(attachCanvasWheelNavigation(viewer, targetCanvas, wheelOpts));
+        : {
+            ...(options.axis !== undefined ? { axis: options.axis } : {}),
+            ...(options.onNavigate !== undefined
+              ? { onNavigate: options.onNavigate }
+              : {}),
+          };
+    cleanups.push(attachWheelNavigation(viewer, targetCanvas, wheelOpts));
   }
 
-  if (options.drag !== false && options.enableDrag !== false) {
+  if (options.drag !== false) {
     const dragOpts: DragNavigationOptions =
       typeof options.drag === "object" && options.drag !== null
         ? {
@@ -587,19 +567,21 @@ export function attachCanvasNavigation(
             ...(options.onNavigate !== undefined
               ? { onNavigate: options.onNavigate }
               : {}),
-            ...options,
             ...options.drag,
           }
-        : options;
-    cleanups.push(attachCanvasDragNavigation(viewer, targetCanvas, dragOpts));
+        : {
+            ...(options.axis !== undefined ? { axis: options.axis } : {}),
+            ...(options.onNavigate !== undefined
+              ? { onNavigate: options.onNavigate }
+              : {}),
+          };
+    cleanups.push(attachDragNavigation(viewer, targetCanvas, dragOpts));
   }
 
   return () => {
     for (const cleanup of cleanups) cleanup();
   };
 }
-
-export const attachNavigation = attachCanvasNavigation;
 
 function modifierPressed(
   event: {

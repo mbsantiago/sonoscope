@@ -53,17 +53,14 @@ const spec = scope.createSpectrogram(canvas, {
 });
 
 // Enable interactive zoom and pan (defaults to both time and frequency axes)
-spec.attachNavigation(canvas);
+scope.attachNavigation(canvas);
 
 // Or customize navigation axes, modifiers, and sensitivities:
-// spec.attachNavigation(canvas, {
+// scope.attachNavigation(canvas, {
 //   axis: 'both',
 //   wheel: { zoomModifier: 'alt' },
 //   drag: { modifier: 'none' },
 // });
-
-// Or attach navigation directly to any canvas or container via Sonoscope:
-// scope.attachNavigation(canvas, { axis: 'time' });
 ```
 
 ### 2. React

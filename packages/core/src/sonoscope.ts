@@ -12,12 +12,11 @@ import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
 import type {
-  AnyNavigableViewer,
   NavigableViewer,
   NavigationOptions,
 } from "./navigation";
 import { TypedEventEmitter } from "./events";
-import { attachCanvasNavigation } from "./navigation";
+import { attachNavigation } from "./navigation";
 import { ArrayAudioSource } from "./sources/array-source";
 import {
   createAudioSourceFromBlob,
@@ -718,7 +717,7 @@ export class Sonoscope implements ISonoscope {
         }),
       };
 
-      const cleanup = attachCanvasNavigation(
+      const cleanup = attachNavigation(
         scopeAdapter,
         container,
         options,

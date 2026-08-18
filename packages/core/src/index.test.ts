@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ArrayAudioSource,
-  attachCanvasNavigation,
+  attachNavigation,
   BlobByteSource,
   BufferByteSource,
   buildColorMap,
@@ -54,7 +54,7 @@ describe("public entrypoint", () => {
   });
 
   it("exports navigation and visual utilities", () => {
-    expect(typeof attachCanvasNavigation).toBe("function");
+    expect(typeof attachNavigation).toBe("function");
     expect(typeof buildColorMap).toBe("function");
     expect(typeof SpectrogramProfiler).toBe("function");
     expect(typeof createSpectrogramBackend).toBe("function");

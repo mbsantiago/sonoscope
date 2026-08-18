@@ -1,4 +1,4 @@
-import type { ISonoscope, NavigationOptions, ViewportConfig } from "../../types";
+import type { ISonoscope, ViewportConfig } from "../../types";
 import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { RenderInput, SpectrogramRenderer } from "./renderers/canvas";
 import type {
@@ -18,7 +18,6 @@ import type {
 } from "./types";
 import { TypedEventEmitter } from "../../events";
 import {
-  attachCanvasNavigation,
   zoomViewportFrequency,
   zoomViewportTime,
 } from "../../navigation";
@@ -41,7 +40,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private readonly cache: SpectrogramCache;
   private renderer: SpectrogramRenderer;
   private scopeCleanup: Array<() => void> = [];
-  private navCleanups: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
@@ -245,21 +243,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   updateViewport(viewport: Partial<ViewportConfig>): void {
     this.setViewport(viewport);
     this.requestRender();
-  }
-
-  attachNavigation(
-    container: HTMLElement,
-    options?: NavigationOptions,
-  ): () => void {
-    const cleanup = attachCanvasNavigation(this, container, options);
-    this.navCleanups.push(cleanup);
-    return () => {
-      const idx = this.navCleanups.indexOf(cleanup);
-      if (idx !== -1) {
-        this.navCleanups.splice(idx, 1);
-      }
-      cleanup();
-    };
   }
 
   getFrequencyBounds(): {
@@ -626,8 +609,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
-    for (const cleanup of this.navCleanups) cleanup();
-    this.navCleanups = [];
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
     this.cache.clear();

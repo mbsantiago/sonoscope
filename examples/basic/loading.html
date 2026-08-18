@@ -64,7 +64,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
@@ -81,10 +80,7 @@
       let spectrogram = scope.createSpectrogram(canvas);
       let playhead = attachPlayheadOverlay(canvas.parentElement, scope);
 
-      attachCanvasNavigation(spectrogram, canvas, {
-        enableWheel: true,
-        enableDrag: true,
-      });
+      scope.attachNavigation(canvas);
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();

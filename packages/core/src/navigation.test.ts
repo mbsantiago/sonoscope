@@ -1,9 +1,9 @@
 import type { ViewportConfig } from "./types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  attachCanvasDragNavigation,
-  attachCanvasNavigation,
-  attachCanvasWheelNavigation,
+  attachDragNavigation,
+  attachNavigation,
+  attachWheelNavigation,
   panViewportFrequency,
   panViewportTime,
   zoomViewportFrequency,
@@ -143,7 +143,7 @@ describe("navigation utilities", () => {
   });
 });
 
-describe("attachCanvasWheelNavigation", () => {
+describe("attachWheelNavigation", () => {
   it("coalesces wheel navigation to one viewport update per animation frame", () => {
     let frame: FrameRequestCallback | undefined;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -181,7 +181,7 @@ describe("attachCanvasWheelNavigation", () => {
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
-    attachCanvasWheelNavigation(viewer, canvas);
+    attachWheelNavigation(viewer, canvas);
     const wheel = listeners.get("wheel")!;
 
     wheel({
@@ -332,7 +332,7 @@ describe("attachCanvasWheelNavigation", () => {
       canvasToFrequency: (y: number) => 10000,
     } as unknown as any;
 
-    attachCanvasWheelNavigation(freqViewer, canvas);
+    attachWheelNavigation(freqViewer, canvas);
     const wheel = listeners.get("wheel")!;
 
     wheel({
@@ -350,7 +350,7 @@ describe("attachCanvasWheelNavigation", () => {
   });
 });
 
-describe("attachCanvasDragNavigation", () => {
+describe("attachDragNavigation", () => {
   it("pans time when dragging beyond threshold", () => {
     const { listeners, setViewport, canvas } = setupDragNavigation();
 
@@ -529,7 +529,7 @@ describe("attachCanvasDragNavigation", () => {
       canvasToFrequency: (y: number) => 10000,
     } as unknown as any;
 
-    attachCanvasDragNavigation(freqViewer, canvas);
+    attachDragNavigation(freqViewer, canvas);
 
     const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
     const move = listeners.get("pointermove") || listeners.get("mousemove")!;
@@ -581,7 +581,7 @@ describe("attachCanvasDragNavigation", () => {
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
 
-    const cleanup = attachCanvasDragNavigation(viewer, canvas);
+    const cleanup = attachDragNavigation(viewer, canvas);
     expect(canvas.style.cursor).toBe("grab");
 
     cleanup();
@@ -590,7 +590,7 @@ describe("attachCanvasDragNavigation", () => {
   });
 });
 
-describe("attachCanvasNavigation composite", () => {
+describe("attachNavigation composite", () => {
   it("attaches both wheel and drag navigation by default", () => {
     const listeners = new Map<string, EventListener>();
     const canvas = {
@@ -621,7 +621,7 @@ describe("attachCanvasNavigation composite", () => {
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
 
-    const cleanup = attachCanvasNavigation(viewer, canvas);
+    const cleanup = attachNavigation(viewer, canvas);
     expect(listeners.has("wheel")).toBe(true);
     expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
       true,
@@ -674,7 +674,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
 
-    attachCanvasNavigation(viewer, canvas, {
+    attachNavigation(viewer, canvas, {
       wheel: { zoomModifier: "alt" },
       drag: false,
     });
@@ -738,7 +738,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
 
-    attachCanvasNavigation(viewer, canvas, {
+    attachNavigation(viewer, canvas, {
       wheel: false,
       drag: { button: 0, modifier: "none" },
     });
@@ -779,7 +779,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
     });
   });
 
-  it("supports modifier: 'none' on attachCanvasDragNavigation directly", () => {
+  it("supports modifier: 'none' on attachDragNavigation directly", () => {
     const { listeners, setViewport } = setupDragNavigation({
       button: 0,
       modifier: "none",
@@ -854,7 +854,7 @@ describe("NavigationOptions nested config and modifier keys", () => {
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
     } as unknown as SpectrogramViewer;
 
-    attachCanvasNavigation(viewer, canvas, {
+    attachNavigation(viewer, canvas, {
       axis: "time",
       onNavigate,
       wheel: { zoomModifier: "ctrl" },
@@ -907,7 +907,7 @@ function setupWheelNavigation() {
     requestRender: vi.fn(),
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
   } as unknown as SpectrogramViewer;
-  attachCanvasWheelNavigation(viewer, canvas);
+  attachWheelNavigation(viewer, canvas);
 
   return {
     runFrame: () => frame?.(0),
@@ -946,7 +946,7 @@ function setupDragNavigation(options = {}) {
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
   } as unknown as SpectrogramViewer;
 
-  const cleanup = attachCanvasDragNavigation(viewer, canvas, options);
+  const cleanup = attachDragNavigation(viewer, canvas, options);
 
   return {
     listeners,
@@ -1005,12 +1005,11 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     };
   }
 
-  it("attaches navigation via spec.attachNavigation(canvas) and automatically cleans up on spec.destroy()", () => {
+  it("attaches navigation via scope.attachNavigation(canvas) and automatically cleans up on scope.destroy()", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
-    const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach = spec.attachNavigation(canvas);
+    const detach = scope.attachNavigation(canvas);
     expect(typeof detach).toBe("function");
 
     // Wheel and drag down listeners should be attached
@@ -1024,8 +1023,8 @@ describe("viewer attachNavigation with auto-cleanup", () => {
       expect.any(Function),
     );
 
-    // Destroying viewer cleans up all attached navigation listeners
-    spec.destroy();
+    // Destroying scope cleans up all attached navigation listeners
+    scope.destroy();
     expect(canvas.removeEventListener).toHaveBeenCalledWith(
       "wheel",
       expect.any(Function),
@@ -1036,13 +1035,11 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     );
   });
 
-  it("attaches navigation to a wrapper div container via spec.attachNavigation(containerDiv)", () => {
+  it("attaches navigation to a wrapper div container via scope.attachNavigation(containerDiv)", () => {
     const scope = new Sonoscope({ source: dummySource });
-    const canvas = createTestCanvas();
     const containerDiv = createTestCanvas();
-    const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach = spec.attachNavigation(containerDiv);
+    const detach = scope.attachNavigation(containerDiv);
     expect(typeof detach).toBe("function");
 
     expect(containerDiv.addEventListener).toHaveBeenCalledWith(
@@ -1051,19 +1048,18 @@ describe("viewer attachNavigation with auto-cleanup", () => {
       { passive: false },
     );
 
-    spec.destroy();
+    scope.destroy();
     expect(containerDiv.removeEventListener).toHaveBeenCalledWith(
       "wheel",
       expect.any(Function),
     );
   });
 
-  it("allows manual detach before viewer destroy", () => {
+  it("allows manual detach before scope destroy", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
-    const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach = spec.attachNavigation(canvas);
+    const detach = scope.attachNavigation(canvas);
     detach();
 
     expect(canvas.removeEventListener).toHaveBeenCalledWith(
@@ -1076,30 +1072,28 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     );
 
     // Destroying after manual detach should not error
-    expect(() => spec.destroy()).not.toThrow();
+    expect(() => scope.destroy()).not.toThrow();
   });
 
   it("handles multiple attachNavigation calls and independent detach", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
-    const spec = new SpectrogramViewer(scope, canvas);
 
-    const detach1 = spec.attachNavigation(canvas, { wheel: true, drag: false });
-    const detach2 = spec.attachNavigation(canvas, { wheel: false, drag: true });
+    const detach1 = scope.attachNavigation(canvas, { wheel: true, drag: false });
+    const detach2 = scope.attachNavigation(canvas, { wheel: false, drag: true });
 
     // Detach first
     detach1();
     // Second should still be active or clean up gracefully on destroy
     expect(() => detach2()).not.toThrow();
-    expect(() => spec.destroy()).not.toThrow();
+    expect(() => scope.destroy()).not.toThrow();
   });
 
-  it("attaches navigation via waveform.attachNavigation(canvas, { axis: 'time' }) and cleans up on destroy", () => {
+  it("attaches navigation for time-only axis and cleans up on destroy", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
-    const waveform = new WaveformViewer(scope, canvas);
 
-    const detach = waveform.attachNavigation(canvas, {
+    const detach = scope.attachNavigation(canvas, {
       axis: "time",
     });
     expect(typeof detach).toBe("function");
@@ -1109,19 +1103,20 @@ describe("viewer attachNavigation with auto-cleanup", () => {
       { passive: false },
     );
 
-    waveform.destroy();
+    scope.destroy();
     expect(canvas.removeEventListener).toHaveBeenCalledWith(
       "wheel",
       expect.any(Function),
     );
   });
 
-  it("attaches navigation to TimeRulerViewer and cleans up on destroy", () => {
+  it("attaches navigation for frequency-only axis and cleans up on destroy", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createTestCanvas();
-    const ruler = new TimeRulerViewer(scope, canvas);
 
-    const detach = ruler.attachNavigation(canvas);
+    const detach = scope.attachNavigation(canvas, {
+      axis: "frequency",
+    });
     expect(typeof detach).toBe("function");
     expect(canvas.addEventListener).toHaveBeenCalledWith(
       "wheel",
@@ -1129,34 +1124,14 @@ describe("viewer attachNavigation with auto-cleanup", () => {
       { passive: false },
     );
 
-    ruler.destroy();
+    scope.destroy();
     expect(canvas.removeEventListener).toHaveBeenCalledWith(
       "wheel",
       expect.any(Function),
     );
   });
 
-  it("attaches navigation to FrequencyRulerViewer and cleans up on destroy", () => {
-    const scope = new Sonoscope({ source: dummySource });
-    const canvas = createTestCanvas();
-    const ruler = new FrequencyRulerViewer(scope, canvas);
-
-    const detach = ruler.attachNavigation(canvas);
-    expect(typeof detach).toBe("function");
-    expect(canvas.addEventListener).toHaveBeenCalledWith(
-      "wheel",
-      expect.any(Function),
-      { passive: false },
-    );
-
-    ruler.destroy();
-    expect(canvas.removeEventListener).toHaveBeenCalledWith(
-      "wheel",
-      expect.any(Function),
-    );
-  });
-
-  it("navigates via drag and triggers onNavigate on viewer.attachNavigation(canvas)", () => {
+  it("navigates via drag and triggers onNavigate on scope.attachNavigation(canvas)", () => {
     const onNavigate = vi.fn();
     const scope = new Sonoscope({
       source: dummySource,
@@ -1164,9 +1139,8 @@ describe("viewer attachNavigation with auto-cleanup", () => {
       endTime: 8,
     });
     const canvas = createTestCanvas();
-    const spec = new SpectrogramViewer(scope, canvas);
 
-    spec.attachNavigation(canvas, {
+    scope.attachNavigation(canvas, {
       axis: "time",
       onNavigate,
     });
@@ -1183,8 +1157,8 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     move({ button: 0, clientX: 25, clientY: 50, pointerId: 1 } as unknown as PointerEvent);
 
     expect(onNavigate).toHaveBeenCalled();
-    expect(spec.getViewport().startTime).toBeGreaterThan(4);
-    spec.destroy();
+    expect(scope.getViewport().startTime).toBeGreaterThan(4);
+    scope.destroy();
   });
 });
 

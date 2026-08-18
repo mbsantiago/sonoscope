@@ -1,4 +1,4 @@
-import type { AnyNavigableViewer, NavigationOptions } from "./navigation";
+import type { NavigationOptions } from "./navigation";
 
 export type Rgba = [number, number, number, number];
 
@@ -213,14 +213,13 @@ export interface ISonoscope {
 }
 
 export type {
-  AnyNavigableViewer,
-  CanvasDragNavigationOptions,
-  CanvasNavigationOptions,
-  CanvasWheelNavigationOptions,
   DragNavigationOptions,
+  FrequencyBounds,
   ModifierKey,
+  NavigableViewer,
   NavigationAxis,
   NavigationOptions,
+  TimeBounds,
   WheelNavigationOptions,
 } from "./navigation";
 

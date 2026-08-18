@@ -1,4 +1,4 @@
-import type { FrequencyScale, ISonoscope, NavigationOptions } from "../../types";
+import type { FrequencyScale, ISonoscope } from "../../types";
 import type {
   FrequencyRulerEvents,
   FrequencyRulerOptions,
@@ -10,7 +10,6 @@ import type {
   ResolvedFrequencyRulerConfig,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
-import { attachCanvasNavigation } from "../../navigation";
 import { hzToScale, scaleToHz } from "../spectrogram/frequency-scale";
 import { BoxesFrequencyRulerProgram } from "./programs/boxes-program";
 import { TicksFrequencyRulerProgram } from "./programs/ticks-program";
@@ -69,7 +68,6 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private config: ResolvedFrequencyRulerConfig;
   private programInstance: FrequencyRulerProgram;
   private scopeCleanup: Array<() => void> = [];
-  private navCleanups: Array<() => void> = [];
   private isSelfUpdating = false;
   private renderQueued = false;
   private renderRunning = false;
@@ -231,21 +229,6 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     this.updateViewport(viewport);
   }
 
-  attachNavigation(
-    container: HTMLElement,
-    options?: NavigationOptions,
-  ): () => void {
-    const cleanup = attachCanvasNavigation(this, container, options);
-    this.navCleanups.push(cleanup);
-    return () => {
-      const idx = this.navCleanups.indexOf(cleanup);
-      if (idx !== -1) {
-        this.navCleanups.splice(idx, 1);
-      }
-      cleanup();
-    };
-  }
-
   getConfig(): ResolvedFrequencyRulerConfig {
     return { ...this.config };
   }
@@ -393,7 +376,5 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
-    for (const cleanup of this.navCleanups) cleanup();
-    this.navCleanups = [];
   }
 }

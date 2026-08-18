@@ -1,4 +1,4 @@
-import type { ISonoscope, NavigationOptions } from "../../types";
+import type { ISonoscope } from "../../types";
 import type {
   ITimeRulerViewer,
   ResolvedTimeRulerConfig,
@@ -10,7 +10,6 @@ import type {
   TimeRulerViewport,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
-import { attachCanvasNavigation } from "../../navigation";
 import { clampViewportTimes } from "../../viewport-math";
 import { BoxesTimeRulerProgram } from "./programs/boxes-program";
 import { TicksTimeRulerProgram } from "./programs/ticks-program";
@@ -80,7 +79,6 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private config: ResolvedTimeRulerConfig;
   private programInstance: TimeRulerProgram;
   private scopeCleanup: Array<() => void> = [];
-  private navCleanups: Array<() => void> = [];
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -142,7 +140,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   getStatus(): TimeRulerStatus {
-    return this.status;
+    return { ...this.status };
   }
 
   getViewport(): TimeRulerViewport {
@@ -153,22 +151,34 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   updateViewport(viewport: Partial<TimeRulerViewport>): void {
-    const current = this.getViewport();
+    if (this.isSelfUpdating) return;
     const duration = this.scope.getDuration();
     const clamped = clampViewportTimes(
-      viewport.startTime ?? current.startTime,
-      viewport.endTime ?? current.endTime,
+      viewport.startTime ?? this.config.startTime,
+      viewport.endTime ?? this.config.endTime,
       duration,
       this.config.minViewportDuration,
       this.config.maxViewportDuration,
     );
+
+    const changed =
+      clamped.startTime !== this.config.startTime ||
+      clamped.endTime !== this.config.endTime;
+
+    if (!changed) return;
 
     this.config.startTime = clamped.startTime;
     this.config.endTime = clamped.endTime;
 
     this.isSelfUpdating = true;
     try {
-      this.scope.setViewport(clamped, "user");
+      this.scope.setViewport(
+        {
+          startTime: clamped.startTime,
+          endTime: clamped.endTime,
+        },
+        "viewer",
+      );
     } finally {
       this.isSelfUpdating = false;
     }
@@ -179,21 +189,6 @@ export class TimeRulerViewer implements ITimeRulerViewer {
 
   setViewport(viewport: Partial<TimeRulerViewport>): void {
     this.updateViewport(viewport);
-  }
-
-  attachNavigation(
-    container: HTMLElement,
-    options?: NavigationOptions,
-  ): () => void {
-    const cleanup = attachCanvasNavigation(this, container, options);
-    this.navCleanups.push(cleanup);
-    return () => {
-      const idx = this.navCleanups.indexOf(cleanup);
-      if (idx !== -1) {
-        this.navCleanups.splice(idx, 1);
-      }
-      cleanup();
-    };
   }
 
   getConfig(): ResolvedTimeRulerConfig {
@@ -324,7 +319,5 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
-    for (const cleanup of this.navCleanups) cleanup();
-    this.navCleanups = [];
   }
 }

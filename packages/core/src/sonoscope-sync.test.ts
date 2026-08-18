@@ -1,6 +1,5 @@
 import type { AudioSource } from "./types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { attachCanvasNavigation } from "./navigation";
 import { Sonoscope } from "./sonoscope";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
@@ -402,7 +401,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = new SpectrogramViewer(scope, specCanvas);
       const waveform = new WaveformViewer(scope, waveCanvas);
 
-      const cleanup = attachCanvasNavigation(spectrogram, specCanvas);
+      const cleanup = scope.attachNavigation(specCanvas);
 
       // Trigger wheel event on spectrogram canvas (pan right)
       specCanvas.emit("wheel", {
@@ -442,7 +441,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = new SpectrogramViewer(scope, specCanvas);
       const waveform = new WaveformViewer(scope, waveCanvas);
 
-      const cleanup = attachCanvasNavigation(waveform, waveCanvas);
+      const cleanup = scope.attachNavigation(waveCanvas);
 
       // Drag on waveform canvas to the left (dx = -100px on 400px width canvas => pans forward in time by (100/400)*4 = 1s)
       waveCanvas.emit("mousedown", {
@@ -483,7 +482,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = new SpectrogramViewer(scope, specCanvas);
       const waveform = new WaveformViewer(scope, waveCanvas);
 
-      const cleanup = attachCanvasNavigation(spectrogram, specCanvas);
+      const cleanup = scope.attachNavigation(specCanvas);
 
       // Drag on spectrogram canvas to the right (dx = +100px => pans back in time by 1s)
       specCanvas.emit("mousedown", {

@@ -44,7 +44,7 @@ export default function WaveformLiveDemo() {
         minValue: -80,
         maxValue: 0,
       });
-      cleanups.push(spec.attachNavigation(specCanvasRef.current!));
+      cleanups.push(scope.attachNavigation(specCanvasRef.current!));
 
       // 2. Time Ruler
       if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
@@ -54,7 +54,9 @@ export default function WaveformLiveDemo() {
           color: "rgba(128, 128, 128, 0.75)",
           tickColor: "rgba(128, 128, 128, 0.35)",
         });
-        cleanups.push(timeRuler.attachNavigation(timeCanvasRef.current));
+        cleanups.push(
+          scope.attachNavigation(timeCanvasRef.current, { axis: "time" }),
+        );
         const overlay = attachPlayheadOverlay(
           timeCanvasRef.current.parentElement,
           scope,
@@ -70,7 +72,9 @@ export default function WaveformLiveDemo() {
           color: "rgba(128, 128, 128, 0.75)",
           tickColor: "rgba(128, 128, 128, 0.35)",
         });
-        cleanups.push(freqRuler.attachNavigation(freqCanvasRef.current));
+        cleanups.push(
+          scope.attachNavigation(freqCanvasRef.current, { axis: "frequency" }),
+        );
       }
 
       // 4. Waveform Viewer
@@ -79,7 +83,7 @@ export default function WaveformLiveDemo() {
           colorMap: "turbo",
         });
         cleanups.push(
-          waveform.attachNavigation(waveCanvasRef.current, { axis: "time" }),
+          scope.attachNavigation(waveCanvasRef.current, { axis: "time" }),
         );
         const overlay = attachPlayheadOverlay(
           waveCanvasRef.current.parentElement,

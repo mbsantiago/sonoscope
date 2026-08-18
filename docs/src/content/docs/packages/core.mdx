@@ -83,33 +83,25 @@ attachPlayheadOverlay(containerElement, scope);
 
 ## Interactive Navigation
 
-Sonoscope provides first-class navigation via `attachNavigation()` on viewer instances and the root `Sonoscope` instance.
+Sonoscope provides coordinated navigation via `scope.attachNavigation(container, options?)` on the root `Sonoscope` instance.
 
-### Native Viewer Navigation
+### Attaching Navigation
 
-Every viewer supports calling `attachNavigation(container, options?)` with a target DOM container element (such as a `<canvas>` or wrapping `<div>`):
+You can attach interactive pan and zoom navigation directly to any `<canvas>` or wrapping container element (such as a `<div>`):
 
 ```typescript
-// 1. Spectrogram (pan/zoom time and frequency)
-const detachSpec = spectrogram.attachNavigation(specCanvas);
+const scope = await Sonoscope.fromUrl(audioUrl, { frequencyScale: "mel" });
+const spec = scope.createSpectrogram(specCanvas);
 
-// 2. Waveform (defaults to time-only axis)
-const detachWave = waveform.attachNavigation(waveCanvas, { axis: "time" });
+// 1. Spectrogram navigation (pans and zooms both time & frequency)
+const detachSpecNav = scope.attachNavigation(specCanvas);
+
+// 2. Waveform navigation (time-only axis)
+const detachWaveNav = scope.attachNavigation(waveCanvas, { axis: "time" });
 
 // 3. Time Ruler (time axis) and Frequency Ruler (frequency axis)
-timeRuler.attachNavigation(timeCanvas);
-freqRuler.attachNavigation(freqCanvas);
-```
-
-### Scope-Level Navigation
-
-You can also attach coordinated navigation directly to any `<canvas>` or container `<div>` element from the root `Sonoscope` instance:
-
-```typescript
-// Attach navigation for any canvas or wrapper bound to the scope's timeline
-const detachScopeNav = scope.attachNavigation(customCanvas, {
-  axis: "time",
-});
+scope.attachNavigation(timeCanvas, { axis: "time" });
+scope.attachNavigation(freqCanvas, { axis: "frequency" });
 ```
 
 ### Navigation Options & Modifiers
@@ -117,7 +109,7 @@ const detachScopeNav = scope.attachNavigation(customCanvas, {
 `attachNavigation` accepts comprehensive configuration for axes, modifier keys, sensitivities, and wheel/drag behavior:
 
 ```typescript
-spectrogram.attachNavigation(specCanvas, {
+scope.attachNavigation(specCanvas, {
   // Constrain navigation to a specific axis: 'both' | 'time' | 'frequency'
   axis: "both",
 
@@ -145,5 +137,5 @@ spectrogram.attachNavigation(specCanvas, {
 
 ### Lifecycle & Automatic Cleanup
 
-- Calling `attachNavigation()` returns a manual `detach: () => void` cleanup function.
-- All attached navigation listeners are also **automatically cleaned up** whenever `destroy()` is called on the owning viewer or `Sonoscope` instance.
+- Calling `scope.attachNavigation()` returns a manual `detach: () => void` cleanup function.
+- All attached navigation listeners are also **automatically cleaned up** whenever `scope.destroy()` is called.

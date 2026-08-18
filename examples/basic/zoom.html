@@ -35,7 +35,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from '@sonoscope/core';
@@ -77,8 +76,8 @@
           spectrogram = scope.createSpectrogram(canvas);
           cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
           resetViewport = spectrogram.getViewport();
-          cleanupNavigation = attachCanvasNavigation(spectrogram, canvas, {
-            enableDrag: false,
+          cleanupNavigation = scope.attachNavigation(canvas, {
+            drag: false,
             onNavigate: () => {
               status.textContent = statusText();
             },

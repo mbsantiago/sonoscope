@@ -145,7 +145,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
@@ -303,7 +302,7 @@
           lastPlaybackSummary = `playback fps: ${stats.fps.toFixed(1)} avg frame ${stats.averageFrameMs.toFixed(1)}ms max ${stats.maxFrameMs.toFixed(1)}ms avg work ${(stats.averageWorkMs ?? 0).toFixed(1)}ms max work ${(stats.maxWorkMs ?? 0).toFixed(1)}ms`;
           if (audio.paused) scheduleMinimapUpdate();
         });
-        cleanupNavigation = attachCanvasNavigation(spectrogram, canvas, {
+        cleanupNavigation = scope.attachNavigation(canvas, {
           onNavigate: scheduleMinimapUpdate,
         });
         updateMinimap();

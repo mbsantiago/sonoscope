@@ -287,7 +287,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
@@ -381,10 +380,10 @@
 
         // Attach full bidirectional navigation
         const cleanups = [
-          attachCanvasNavigation(spectrogram, canvasSpectrogram),
-          attachCanvasNavigation(freqRuler, canvasFreqRuler),
-          attachCanvasNavigation(topRuler, canvasTopRuler),
-          attachCanvasNavigation(bottomRuler, canvasBottomRuler),
+          scope.attachNavigation(canvasSpectrogram),
+          scope.attachNavigation(canvasFreqRuler, { axis: "frequency" }),
+          scope.attachNavigation(canvasTopRuler, { axis: "time" }),
+          scope.attachNavigation(canvasBottomRuler, { axis: "time" }),
         ];
         cleanupNav = () => {
           for (const fn of cleanups) fn();
