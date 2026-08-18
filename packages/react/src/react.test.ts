@@ -2,6 +2,7 @@ import {
   type AudioSource,
   Sonoscope,
   SpectrogramViewer,
+  TimeRulerViewer,
   WaveformViewer,
 } from "@sonoscope/core";
 import React, { act, createRef } from "react";
@@ -12,10 +13,13 @@ import {
   SonoscopeProvider,
   Spectrogram,
   type SpectrogramHandle,
+  TimeRuler,
+  type TimeRulerHandle,
   type UseSonoscopeResult,
   useSonoscope,
   useSonoscopeContext,
   useSpectrogram,
+  useTimeRuler,
   Waveform,
   type WaveformHandle,
 } from "./index";
@@ -665,6 +669,57 @@ describe("React Components and Hooks", () => {
 
       act(() => {
         scope.seek(2.5);
+      });
+
+      expect(playheadEl?.style.transform).toContain("translate3d(");
+      scope.destroy();
+    });
+  });
+
+  describe("<TimeRuler /> and useTimeRuler", () => {
+    it("renders canvas and attaches TimeRulerViewer in SonoscopeProvider", async () => {
+      const source = createMockAudioSource(30);
+      const scope = new Sonoscope({ source });
+      const ref = createRef<TimeRulerHandle>();
+
+      await act(async () => {
+        root.render(
+          React.createElement(
+            SonoscopeProvider,
+            { value: scope },
+            React.createElement(TimeRuler, { ref, program: "ticks" }),
+          ),
+        );
+      });
+
+      const canvas = container.childNodes[0]?.childNodes.find(
+        (child) => child.tagName === "CANVAS",
+      );
+      expect(canvas).toBeTruthy();
+      expect(ref.current?.getViewer()).toBeInstanceOf(TimeRulerViewer);
+      scope.destroy();
+    });
+
+    it("attaches DOM playhead overlay to TimeRuler", async () => {
+      const source = createMockAudioSource(10);
+      const scope = new Sonoscope({
+        source,
+        startTime: 0,
+        endTime: 10,
+      });
+
+      await act(async () => {
+        root.render(React.createElement(TimeRuler, { scope, showPlayhead: true }));
+      });
+
+      const playheadEl = container.childNodes[0]?.childNodes.find(
+        (child) => child.classList.contains("sonoscope-playhead"),
+      );
+      expect(playheadEl).toBeTruthy();
+      expect(playheadEl?.style.position).toBe("absolute");
+
+      act(() => {
+        scope.seek(4);
       });
 
       expect(playheadEl?.style.transform).toContain("translate3d(");

@@ -21,6 +21,15 @@ export {
   useSpectrogram,
 } from "./useSpectrogram";
 export {
+  TimeRuler,
+  type TimeRulerHandle,
+  type TimeRulerProps,
+} from "./TimeRuler";
+export {
+  type UseTimeRulerOptions,
+  useTimeRuler,
+} from "./useTimeRuler";
+export {
   Waveform,
   type WaveformHandle,
   type WaveformProps,
