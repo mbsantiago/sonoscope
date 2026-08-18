@@ -6,25 +6,26 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    from sonoscope import Sonoscope, Spectrogram
+    from sonoscope import Sonoscope
+    from pathlib import Path
 
-    return (Spectrogram,)
+    return Path, Sonoscope
 
 
 @app.cell
-def _(Spectrogram):
-    Spectrogram(
-        url="https://xeno-canto.org/510976/download",
+def _(Path, Sonoscope):
+    Sonoscope.from_file(
+        Path("~/Datasets/martyn_cooke_2021/audio/myomys_surrey_audiomoth_1_20210608_215003_0_1000.wav").expanduser(),
         frequency_scale="linear",
-        min_db=-100,
-        max_db=-20,
-        cmap="jet"
+        min_db=-60,
+        max_db=0,
     )
     return
 
 
 @app.cell
 def _():
+ 
     return
 
 

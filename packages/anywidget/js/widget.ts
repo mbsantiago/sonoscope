@@ -12,7 +12,7 @@ import {
 
 interface WidgetModel {
   url: string;
-  audio_bytes?: DataView | ArrayBuffer | Uint8Array;
+  audio_bytes?: unknown;
   mime_type?: string;
   width: number;
   height: number;
@@ -44,6 +44,67 @@ interface WidgetModel {
   waveform_height: number;
   follow_playback: FollowPlaybackMode;
 }
+
+function toUint8Array(input: unknown): Uint8Array | null {
+  if (!input) return null;
+  if (input instanceof Uint8Array) {
+    return new Uint8Array(
+      input.buffer,
+      input.byteOffset,
+      input.byteLength,
+    );
+  }
+  if (input instanceof ArrayBuffer) {
+    return new Uint8Array(input);
+  }
+  if (input instanceof DataView) {
+    return new Uint8Array(
+      input.buffer,
+      input.byteOffset,
+      input.byteLength,
+    );
+  }
+  if (Array.isArray(input)) {
+    return new Uint8Array(input);
+  }
+  if (typeof input === "string") {
+    const raw = input.includes(",") ? input.split(",")[1] || "" : input;
+    try {
+      const binaryString = atob(raw);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    } catch {
+      const bytes = new Uint8Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        bytes[i] = input.charCodeAt(i) & 0xff;
+      }
+      return bytes;
+    }
+  }
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "buffer" in input &&
+    (input as { buffer: unknown }).buffer instanceof ArrayBuffer
+  ) {
+    const obj = input as {
+      buffer: ArrayBuffer;
+      byteOffset?: number;
+      byteLength?: number;
+    };
+    return new Uint8Array(
+      obj.buffer,
+      obj.byteOffset || 0,
+      obj.byteLength || obj.buffer.byteLength,
+    );
+  }
+  return null;
+}
+
 
 async function render({
   model,
@@ -162,21 +223,12 @@ async function render({
   audio.crossOrigin = "anonymous";
   root.appendChild(audio);
 
-  const audioBytes = model.get("audio_bytes");
+  const rawAudioBytes = model.get("audio_bytes");
   const mimeType = model.get("mime_type") || "audio/wav";
+  const uint8 = toUint8Array(rawAudioBytes);
 
   let scope: Sonoscope;
-  if (audioBytes && audioBytes.byteLength > 0) {
-    const uint8 =
-      audioBytes instanceof DataView
-        ? new Uint8Array(
-            audioBytes.buffer,
-            audioBytes.byteOffset,
-            audioBytes.byteLength,
-          )
-        : audioBytes instanceof Uint8Array
-          ? audioBytes
-          : new Uint8Array(audioBytes as ArrayBuffer);
+  if (uint8 && uint8.length > 0) {
     const blob = new Blob([uint8 as unknown as BlobPart], { type: mimeType });
     scope = await Sonoscope.fromBlob(blob, {
       followPlayback,

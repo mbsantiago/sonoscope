@@ -86,8 +86,26 @@ export class DecodedAudioSource implements AudioSource {
             buffer.byteOffset + buffer.byteLength,
           ) as ArrayBuffer);
     const audioContext = resolveAudioContext(arrayBuffer, options);
-    const decoded = await audioContext.decodeAudioData(arrayBuffer);
-    return new DecodedAudioSource(decoded, id);
+    try {
+      const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      return new DecodedAudioSource(decoded, id);
+    } catch (err) {
+      if (
+        typeof AudioContext !== "undefined" &&
+        !(audioContext instanceof AudioContext)
+      ) {
+        try {
+          const fallbackCtx = new AudioContext();
+          const decoded = await fallbackCtx.decodeAudioData(
+            arrayBuffer.slice(0),
+          );
+          return new DecodedAudioSource(decoded, id);
+        } catch {
+          // fall through to original error
+        }
+      }
+      throw err;
+    }
   }
 
   read(options: {
@@ -166,8 +184,11 @@ export async function createAudioSourceFromUrl(
   options?: AudioSourceOptions,
 ): Promise<AudioSource> {
   const byteSource = FetchByteSource.fromUrl(url);
-  return createAudioSourceFromByteSource(byteSource, options, url, () =>
-    DecodedAudioSource.fromUrl(url, options),
+  return createAudioSourceFromByteSource(
+    byteSource,
+    options,
+    url,
+    () => DecodedAudioSource.fromUrl(url, options),
   );
 }
 
@@ -183,8 +204,11 @@ export async function createAudioSourceFromBlob(
   id?: string,
 ): Promise<AudioSource> {
   const byteSource = new BlobByteSource(blob);
-  return createAudioSourceFromByteSource(byteSource, options, id, () =>
-    DecodedAudioSource.fromBlob(blob, options, id),
+  return createAudioSourceFromByteSource(
+    byteSource,
+    options,
+    id,
+    () => DecodedAudioSource.fromBlob(blob, options, id),
   );
 }
 
@@ -200,8 +224,11 @@ export async function createAudioSourceFromBuffer(
   id?: string,
 ): Promise<AudioSource> {
   const byteSource = new BufferByteSource(buffer);
-  return createAudioSourceFromByteSource(byteSource, options, id, () =>
-    DecodedAudioSource.fromBuffer(buffer, options, id),
+  return createAudioSourceFromByteSource(
+    byteSource,
+    options,
+    id,
+    () => DecodedAudioSource.fromBuffer(buffer, options, id),
   );
 }
 
@@ -210,18 +237,22 @@ export type AudioContextLike = {
 };
 
 function getSharedDecodeContext(sampleRate?: number): AudioContextLike {
+  if (typeof AudioContext !== "undefined") {
+    try {
+      return new AudioContext(
+        sampleRate === undefined ? undefined : { sampleRate },
+      );
+    } catch {
+      return new AudioContext();
+    }
+  }
+
   if (typeof OfflineAudioContext !== "undefined") {
     try {
       return new OfflineAudioContext(1, 1, sampleRate ?? 44100);
     } catch {
       return new OfflineAudioContext(1, 1, 44100);
     }
-  }
-
-  if (typeof AudioContext !== "undefined") {
-    return new AudioContext(
-      sampleRate === undefined ? undefined : { sampleRate },
-    );
   }
 
   throw new Error("Web Audio API is not supported in this environment");
