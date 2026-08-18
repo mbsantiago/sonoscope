@@ -367,7 +367,7 @@ describe("WebGL2 shaders", () => {
     }
   });
 
-  it("renders a visible contour-following playhead in terrain mode", () => {
+  it("renders a visible 3D contour terrain in terrain mode", () => {
     const canvas = document.createElement("canvas");
     Object.defineProperty(canvas, "getBoundingClientRect", {
       value: () => ({ width: 48, height: 32 }),
@@ -391,7 +391,7 @@ describe("WebGL2 shaders", () => {
     };
 
     renderer.render(input);
-    const withoutPlayhead = new Uint8Array(canvas.width * canvas.height * 4);
+    const terrainPixels = new Uint8Array(canvas.width * canvas.height * 4);
     gl.readPixels(
       0,
       0,
@@ -399,28 +399,11 @@ describe("WebGL2 shaders", () => {
       canvas.height,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
-      withoutPlayhead,
-    );
-    renderer.render({ ...input, playheadTime: 0.5 });
-    const withPlayhead = new Uint8Array(canvas.width * canvas.height * 4);
-    gl.readPixels(
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      withPlayhead,
+      terrainPixels,
     );
 
-    expect(
-      meanRgbDifference(
-        withoutPlayhead,
-        withPlayhead,
-        canvas.width,
-        canvas.height,
-      ),
-    ).toBeGreaterThan(0.1);
+    expect(terrainPixels.some((v) => v > 0)).toBe(true);
+    expect(gl.getError()).toBe(gl.NO_ERROR);
     renderer.destroy();
   });
 

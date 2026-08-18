@@ -3,10 +3,7 @@ import type { ColorMapConfig, Rgba, ViewportConfig } from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { WebGL2RenderProgram } from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
-import {
-  canvasToTimeFrequency,
-  timeFrequencyToCanvas,
-} from "../frequency-scale";
+import { canvasToTimeFrequency } from "../frequency-scale";
 import {
   locateSamplePosition,
   sampleValueDataPosition,
@@ -31,40 +28,19 @@ export type RenderInput = {
   profile?: PerformanceProfiler;
 };
 
-export type PlayheadRenderInput = {
-  canvas: HTMLCanvasElement;
-  viewport: ViewportConfig;
-  playheadTime: number;
-};
-
 export type RendererKind = "webgl2" | "canvas2d";
 
 export interface SpectrogramRenderer {
   readonly kind: RendererKind;
   invalidate(): void;
   render(input: RenderInput): void;
-  renderPlayhead(input: PlayheadRenderInput): boolean;
   destroy?(): void;
 }
 
-type BaseFrame = {
-  canvas: HTMLCanvasElement;
-  width: number;
-  height: number;
-  dpr: number;
-  deviceWidth: number;
-  deviceHeight: number;
-  viewport: ViewportConfig;
-  image: ImageData;
-};
-
 export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "canvas2d" as const;
-  private baseFrame: BaseFrame | undefined;
 
-  invalidate(): void {
-    this.baseFrame = undefined;
-  }
+  invalidate(): void {}
 
   render(input: RenderInput): void {
     const paint = () => {
@@ -111,25 +87,6 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
           colors,
         );
       context.putImageData(image, 0, 0);
-      this.baseFrame = {
-        canvas: input.canvas,
-        width,
-        height,
-        dpr,
-        deviceWidth,
-        deviceHeight,
-        viewport: { ...input.viewport },
-        image,
-      };
-
-      if (input.playheadTime !== undefined)
-        this.drawPlayhead(
-          context,
-          width,
-          height,
-          input.viewport,
-          input.playheadTime,
-        );
     };
 
     if (input.profile) {
@@ -141,50 +98,6 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
       return;
     }
     paint();
-  }
-
-  renderPlayhead(input: PlayheadRenderInput): boolean {
-    const frame = this.baseFrame;
-    if (
-      !frame ||
-      frame.canvas !== input.canvas ||
-      !sameViewport(frame.viewport, input.viewport)
-    )
-      return false;
-
-    const rect = input.canvas.getBoundingClientRect();
-    const width = Math.max(
-      1,
-      Math.round(rect.width || input.canvas.width || 1),
-    );
-    const height = Math.max(
-      1,
-      Math.round(rect.height || input.canvas.height || 1),
-    );
-    const dpr = globalThis.devicePixelRatio || 1;
-    const deviceWidth = Math.max(1, Math.round(width * dpr));
-    const deviceHeight = Math.max(1, Math.round(height * dpr));
-    if (
-      frame.width !== width ||
-      frame.height !== height ||
-      frame.dpr !== dpr ||
-      frame.deviceWidth !== deviceWidth ||
-      frame.deviceHeight !== deviceHeight
-    )
-      return false;
-
-    const context = input.canvas.getContext("2d");
-    if (!context) throw new Error("Unable to get 2D canvas context");
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    context.putImageData(frame.image, 0, 0);
-    this.drawPlayhead(
-      context,
-      width,
-      height,
-      input.viewport,
-      input.playheadTime,
-    );
-    return true;
   }
 
   private paintTile(
@@ -269,32 +182,6 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     }
   }
 
-  private drawPlayhead(
-    context: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    viewport: ViewportConfig,
-    time: number,
-  ): void {
-    if (time < viewport.startTime || time > viewport.endTime) return;
-
-    const { x } = timeFrequencyToCanvas(
-      time,
-      viewport.minFrequency,
-      width,
-      height,
-      viewport,
-    );
-    context.save();
-    context.strokeStyle = "rgba(255,255,255,0.9)";
-    context.lineWidth = 1;
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, height);
-    context.stroke();
-    context.restore();
-  }
-
   private paintPlaceholder(
     image: ImageData,
     width: number,
@@ -332,14 +219,4 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
       }
     }
   }
-}
-
-function sameViewport(left: ViewportConfig, right: ViewportConfig): boolean {
-  return (
-    left.startTime === right.startTime &&
-    left.endTime === right.endTime &&
-    left.minFrequency === right.minFrequency &&
-    left.maxFrequency === right.maxFrequency &&
-    left.frequencyScale === right.frequencyScale
-  );
 }

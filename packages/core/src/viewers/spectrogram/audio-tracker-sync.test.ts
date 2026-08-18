@@ -213,11 +213,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       endTime: viewportEndTime,
     });
 
-    let capturedPlayheadX: number | undefined;
-    const { canvas, context } = createMockCanvas(canvasWidth, canvasHeight);
-    context.moveTo.mockImplementation((x: number) => {
-      capturedPlayheadX = x;
-    });
+    const { canvas } = createMockCanvas(canvasWidth, canvasHeight);
 
     const backend = new MainThreadComputeBackend();
     const viewer = new SpectrogramViewer(scope, canvas, {
@@ -250,9 +246,6 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
         (viewportEndTime - viewportStartTime)) *
       canvasWidth;
     expect(expectedPlayheadCanvasX).toBeCloseTo(expectedX, 5);
-    if (capturedPlayheadX !== undefined) {
-      expect(capturedPlayheadX).toBeCloseTo(expectedX, 5);
-    }
 
     // 2. Find spectral peak in the visible tile containing t = 3590.0s
     const tileRange = (

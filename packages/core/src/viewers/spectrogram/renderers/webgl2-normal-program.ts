@@ -1,4 +1,3 @@
-import type { ViewportConfig } from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput } from "./canvas";
 import { valueScaleBounds } from "../value-scale";
@@ -173,8 +172,6 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
       this.drawPlaceholder();
     for (const tile of input.tiles)
       this.drawTile(tile, input.valueScale, resources);
-    if (input.playheadTime !== undefined)
-      this.drawPlayhead(input.playheadTime, input.viewport, frame.deviceWidth);
     if (this.vao) {
       gl.bindVertexArray(null);
     }
@@ -254,58 +251,12 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  private drawPlayhead(
-    time: number,
-    viewport: ViewportConfig,
-    deviceWidth: number,
-  ): void {
-    const playheadTime = Number(time);
-    if (
-      !Number.isFinite(playheadTime) ||
-      playheadTime < viewport.startTime ||
-      playheadTime > viewport.endTime
-    )
-      return;
-    const position =
-      (playheadTime - viewport.startTime) /
-      Math.max(0.000001, viewport.endTime - viewport.startTime);
-    const halfWidth = 1 / Math.max(1, deviceWidth);
-    const left = position * 2 - 1 - halfWidth;
-    const right = position * 2 - 1 + halfWidth;
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
-    this.gl.bufferSubData(
-      this.gl.ARRAY_BUFFER,
-      0,
-      new Float32Array([
-        left,
-        -1,
-        0,
-        0,
-        right,
-        -1,
-        1,
-        0,
-        left,
-        1,
-        0,
-        1,
-        right,
-        1,
-        1,
-        1,
-      ]),
-    );
-    this.shader.uniform1f("u_overlayMode", 2);
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-    this.setFullViewportQuad();
-  }
-
   private setFullViewportQuad(): void {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
     this.gl.bufferData(
       this.gl.ARRAY_BUFFER,
       new Float32Array([-1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1, 1, 1, 1, 1]),
-      this.gl.DYNAMIC_DRAW,
+      this.gl.STATIC_DRAW,
     );
   }
 }

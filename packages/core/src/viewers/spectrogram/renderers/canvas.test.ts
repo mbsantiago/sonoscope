@@ -102,8 +102,6 @@ describe("renderer helpers", () => {
     expect(target.height).toBe(160);
     expect(context.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
     expect(context.createImageData).toHaveBeenCalledWith(300, 160);
-    expect(context.moveTo).toHaveBeenCalledWith(75, 0);
-    expect(context.lineTo).toHaveBeenCalledWith(75, 80);
   });
 
   it("records paint timing when a profiler is provided", () => {
@@ -151,55 +149,6 @@ describe("renderer helpers", () => {
     expect(profiler.measures().map((measure) => measure.name)).toContain(
       "renderer.paint",
     );
-  });
-
-  it("reuses high-DPR base frames only when CSS and device dimensions still match", () => {
-    globalThis.devicePixelRatio = 1.5;
-    const context = {
-      setTransform: vi.fn(),
-      clearRect: vi.fn(),
-      createImageData: vi.fn((w: number, h: number) => ({
-        width: w,
-        height: h,
-        data: new Uint8ClampedArray(w * h * 4),
-        colorSpace: "srgb" as const,
-      })),
-      putImageData: vi.fn(),
-      fillRect: vi.fn(),
-      fillText: vi.fn(),
-      save: vi.fn(),
-      restore: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      stroke: vi.fn(),
-    };
-    const target = canvas(101, 53, context);
-    const renderer = new CanvasSpectrogramRenderer();
-    const viewport = {
-      startTime: 4,
-      endTime: 8,
-      minFrequency: 0,
-      maxFrequency: 100,
-      frequencyScale: "linear" as const,
-    };
-
-    renderer.render({
-      canvas: target,
-      viewport,
-      valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
-      colorMap: "gray",
-      tiles: [matrix],
-    });
-    const rendered = renderer.renderPlayhead({
-      canvas: target,
-      viewport,
-      playheadTime: 5,
-    });
-
-    expect(rendered).toBe(true);
-    expect(context.createImageData).toHaveBeenCalledWith(152, 80);
-    expect(context.moveTo).toHaveBeenCalledWith(25.25, 0);
   });
 
   it("renders adjacent tile boundaries independent of tile order", () => {

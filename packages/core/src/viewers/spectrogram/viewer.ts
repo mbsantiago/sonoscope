@@ -402,7 +402,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       this.prefetchAroundViewport();
 
       this.paintPartial(Array.from(matrices.values()), []);
-      void this.renderPlaybackPlayhead();
       this.events.emit("renderprogress", {
         requestId,
         completed: tiles.length,
@@ -624,13 +623,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       this.requestRender();
     });
 
-    const unlistenTime = this.scope.on("timeupdate", () => {
-      if (this.config.showPlayhead) {
-        this.renderPlaybackPlayhead();
-      }
-    });
-
-    this.scopeCleanup.push(unlistenViewport, unlistenSource, unlistenTime);
+    this.scopeCleanup.push(unlistenViewport, unlistenSource);
   }
 
   private attachSourceRangeSync(): void {
@@ -725,16 +718,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         },
       );
     }
-  }
-
-  private renderPlaybackPlayhead(): boolean {
-    if (this.isDestroyed() || !this.config.showPlayhead) return true;
-    const rendered = this.renderer.renderPlayhead?.({
-      canvas: this.canvas,
-      viewport: this.getViewport(),
-      playheadTime: this.scope.getCurrentTime(),
-    });
-    return Boolean(rendered);
   }
 
   private get framesPerTile(): number {

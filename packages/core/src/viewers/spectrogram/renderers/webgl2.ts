@@ -5,7 +5,6 @@ import { valueDataForMode } from "../spectrogram-sampling";
 import { valueScaleBounds } from "../value-scale";
 import {
   CanvasSpectrogramRenderer,
-  type PlayheadRenderInput,
   type RenderInput,
   type SpectrogramRenderer,
 } from "./canvas";
@@ -138,33 +137,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       return;
     }
     paint();
-  }
-
-  renderPlayhead(input: PlayheadRenderInput): boolean {
-    if (this.gl.isContextLost()) {
-      return this.fallback.renderPlayhead(input);
-    }
-    const frame = this.frameState;
-    if (
-      !frame ||
-      frame.canvas !== input.canvas ||
-      !sameViewport(frame.viewport, input.viewport)
-    )
-      return false;
-    const size = canvasSize(input.canvas);
-    if (
-      frame.width !== size.width ||
-      frame.height !== size.height ||
-      frame.dpr !== size.dpr ||
-      frame.deviceWidth !== size.deviceWidth ||
-      frame.deviceHeight !== size.deviceHeight
-    )
-      return false;
-    this.paint(
-      { ...frame.input, playheadTime: input.playheadTime },
-      this.programFor(frame.input),
-    );
-    return true;
   }
 
   destroy(): void {

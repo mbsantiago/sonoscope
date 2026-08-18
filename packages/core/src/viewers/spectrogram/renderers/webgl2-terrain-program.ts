@@ -35,7 +35,6 @@ uniform vec2 u_canvasSize;
 uniform vec4 u_viewport;
 uniform float u_frequencyScale;
 uniform float u_terrainHeight;
-uniform float u_terrainPlayhead;
 
 float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
 float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
@@ -64,9 +63,8 @@ void main() {
   vec2 terrain = vec2(viewportX * 2.0 - 1.0, a_tileUv.y * 2.0 - 1.0);
   float liftedHeight = pow(heightValue, 0.72) * u_terrainHeight;
   float viewX = terrain.x * 0.96;
-  float playheadLift = u_terrainPlayhead == 1.0 ? 0.012 : 0.0;
-  float viewY = terrain.y * 0.76 + liftedHeight * 0.42 + playheadLift;
-  gl_Position = vec4(viewX, viewY - 0.01, -heightValue * 0.03 - playheadLift, 1.0);
+  float viewY = terrain.y * 0.76 + liftedHeight * 0.42;
+  gl_Position = vec4(viewX, viewY - 0.01, -heightValue * 0.03, 1.0);
 }`;
 
 export const WEBGL2_TERRAIN_FRAGMENT_SHADER = `#version 300 es
@@ -80,7 +78,6 @@ out vec4 outColor;
 uniform sampler2D u_tile;
 uniform sampler2D u_colormap;
 uniform vec2 u_tileSize;
-uniform float u_terrainPlayhead;
 
 void main() {
   vec2 stepSize = 1.0 / max(vec2(1.0), u_tileSize - 1.0);
@@ -94,10 +91,6 @@ void main() {
   float contour = smoothstep(0.015, 0.0, abs(fract(v_height * 18.0) - 0.5));
   float ridge = smoothstep(0.965, 1.0, fract(v_tileUv.y * u_tileSize.y));
   float edgeFade = smoothstep(0.0, 0.16, v_viewportX) * smoothstep(1.0, 0.84, v_viewportX);
-  if (u_terrainPlayhead == 1.0) {
-    outColor = vec4(vec3(1.0), 0.98);
-    return;
-  }
   vec3 baseColor = texture(u_colormap, vec2(clamp(v_height, 0.0, 1.0), 0.5)).rgb;
   vec3 color = baseColor * (0.48 + light * 0.5) + vec3(contour * 0.18 + ridge * 0.1);
   outColor = vec4(clamp(color * mix(0.18, 1.0, edgeFade), 0.0, 1.0), 1.0);
@@ -167,14 +160,11 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
       frequencyScaleCode(input.viewport.frequencyScale),
     );
     this.shader.uniform1f("u_terrainHeight", 0.34);
-    this.shader.uniform1f("u_terrainPlayhead", 0);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
     this.shader.uniform1i("u_colormap", 1);
     for (const tile of input.tiles)
       this.drawTile(tile, input.valueScale, resources);
-    if (input.playheadTime !== undefined)
-      this.drawPlayhead(input.playheadTime, input.valueScale, resources);
     gl.disable(gl.DEPTH_TEST);
     if (this.vao) {
       gl.bindVertexArray(null);
@@ -255,107 +245,4 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
     this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
   }
-
-  private drawPlayhead(
-    time: number,
-    valueScale: Required<ValueScaleConfig>,
-    resources: WebGL2RenderResources,
-  ): void {
-    this.gl.disable(this.gl.DEPTH_TEST);
-    this.gl.enable(this.gl.BLEND);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-    this.shader.uniform1f("u_terrainPlayhead", 1);
-    for (const tile of resources.tiles) {
-      const hopDuration =
-        tile.times.length > 1
-          ? tile.times[1]! - tile.times[0]!
-          : tile.sampleRate > 0
-            ? (tile.timeEnd - tile.timeStart) / tile.frameCount
-            : 0;
-      const tileEndTime = tile.timeStart + tile.frameCount * hopDuration;
-      if (time < tile.timeStart || time >= tileEndTime) continue;
-      this.drawPlayheadForTile(tile, time, valueScale, resources);
-    }
-    this.shader.uniform1f("u_terrainPlayhead", 0);
-    this.gl.disable(this.gl.BLEND);
-    this.gl.enable(this.gl.DEPTH_TEST);
-  }
-
-  private drawPlayheadForTile(
-    tile: SpectrogramMatrix,
-    time: number,
-    valueScale: Required<ValueScaleConfig>,
-    resources: WebGL2RenderResources,
-  ): void {
-    if (tile.frameCount < 2 || tile.binCount < 2) return;
-    const entry = resources.textureForTile(tile, valueScale);
-    const hopDuration =
-      tile.times.length > 1
-        ? (tile.times[tile.times.length - 1]! - tile.times[0]!) /
-          Math.max(1, tile.frameCount - 1)
-        : tile.sampleRate > 0
-          ? (tile.timeEnd - tile.timeStart) / tile.frameCount
-          : 0;
-    const tileStartTime =
-      tile.times.length > 0 ? tile.times[0]! : tile.timeStart;
-    const tileEndTime = tileStartTime + tile.frameCount * hopDuration;
-    const timeUv = Math.max(
-      0,
-      Math.min(
-        1,
-        (time - tileStartTime) /
-          Math.max(0.000001, tileEndTime - tileStartTime),
-      ),
-    );
-    this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, entry.texture);
-    this.shader.uniform1i("u_tile", 0);
-    this.shader.uniform2f("u_tileTimeRange", tile.timeStart, tileEndTime);
-    this.shader.uniform2f(
-      "u_tileFrequencyRange",
-      tile.frequencies[0] ?? 0,
-      tile.frequencies[tile.frequencies.length - 1] ??
-        Math.max(1, tile.sampleRate / 2),
-    );
-    this.shader.uniform2f("u_tileSize", entry.width, entry.height);
-    const vertices = terrainPlayheadVertices(timeUv, 96, 0.0035);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.terrainBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, vertices.length / 4);
-  }
-}
-
-function terrainPlayheadVertices(
-  timeUv: number,
-  rows: number,
-  halfWidth: number,
-): Float32Array {
-  const vertices = new Float32Array((rows - 1) * 6 * 4);
-  let offset = 0;
-  for (let row = 0; row < rows - 1; row++) {
-    const v0 = row / (rows - 1);
-    const v1 = (row + 1) / (rows - 1);
-    const u0 = Math.max(0, timeUv - halfWidth);
-    const u1 = Math.min(1, timeUv + halfWidth);
-    offset = writeVertex(vertices, offset, u0, v0);
-    offset = writeVertex(vertices, offset, u1, v0);
-    offset = writeVertex(vertices, offset, u0, v1);
-    offset = writeVertex(vertices, offset, u1, v0);
-    offset = writeVertex(vertices, offset, u1, v1);
-    offset = writeVertex(vertices, offset, u0, v1);
-  }
-  return vertices;
-}
-
-function writeVertex(
-  vertices: Float32Array,
-  offset: number,
-  u: number,
-  v: number,
-): number {
-  vertices[offset] = u;
-  vertices[offset + 1] = v;
-  vertices[offset + 2] = u;
-  vertices[offset + 3] = v;
-  return offset + 4;
 }
