@@ -285,6 +285,66 @@ describe("Sonoscope", () => {
       expect(events).toEqual(["smooth", "off"]);
     });
 
+    it("auto-pans viewport when followPlayback is page and playhead crosses boundary", () => {
+      const source = createMockSource(50);
+      const audio = createMockAudio();
+      audio.currentTime = 0;
+      const scope = new Sonoscope({
+        source,
+        audio,
+        startTime: 0,
+        endTime: 10,
+        followPlayback: "page",
+      });
+
+      // Playhead moves beyond endTime 10 -> viewport should page forward
+      audio.currentTime = 10.5;
+      audio.emit("timeupdate");
+      expect(scope.getViewport().startTime).toBe(10.5);
+      expect(scope.getViewport().endTime).toBe(20.5);
+    });
+
+    it("centers viewport when followPlayback is smooth", () => {
+      const source = createMockSource(50);
+      const audio = createMockAudio();
+      audio.currentTime = 0;
+      const scope = new Sonoscope({
+        source,
+        audio,
+        startTime: 0,
+        endTime: 10,
+        followPlayback: "smooth",
+        smoothAnchor: 0.5,
+      });
+
+      // At currentTime 20, center is anchored at 0.5 -> start is 20 - 5 = 15
+      audio.currentTime = 20;
+      audio.emit("timeupdate");
+      expect(scope.getViewport().startTime).toBe(15);
+      expect(scope.getViewport().endTime).toBe(25);
+    });
+
+    it("handles non-finite and extreme values gracefully", () => {
+      const source = createMockSource(30);
+      const scope = new Sonoscope({
+        source,
+        startTime: 5,
+        endTime: 15,
+      });
+
+      scope.zoom(-1);
+      expect(scope.getViewport().duration).toBeGreaterThan(0);
+      scope.zoom(Number.NaN);
+      expect(scope.getViewport().duration).toBeGreaterThan(0);
+
+      scope.pan(Number.NaN);
+      expect(Number.isFinite(scope.getViewport().startTime)).toBe(true);
+
+      scope.setViewport({ startTime: -100, endTime: 1000 });
+      expect(scope.getViewport().startTime).toBe(0);
+      expect(scope.getViewport().endTime).toBe(30);
+    });
+
     it("updates source and emits sourcechange event", () => {
       const source1 = createMockSource(10, 44100);
       const source2 = createMockSource(50, 96000);

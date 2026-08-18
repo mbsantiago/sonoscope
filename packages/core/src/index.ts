@@ -123,13 +123,8 @@ export type {
   WaveformStatus,
   WaveformViewport,
 } from "./viewers/waveform/types";
-// Viewport Controller Types
-export type {
-  ITimeBoundViewer,
-  IViewportController,
-  ViewportControllerConfig,
-  ViewportControllerEvents,
-} from "./viewport-controller";
+// Viewport Utilities
+export { clampViewportTimes } from "./viewport-math";
 // Colormap Utilities
 export {
   buildColorMap,
@@ -210,5 +205,3 @@ export {
 export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";
-// Standalone Viewport Controller
-export { ViewportController } from "./viewport-controller";

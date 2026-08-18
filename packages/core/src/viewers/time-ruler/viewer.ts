@@ -10,7 +10,7 @@ import type {
   TimeRulerViewport,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
-import { clampViewportTimes } from "../../viewport-controller";
+import { clampViewportTimes } from "../../viewport-math";
 import { BoxesTimeRulerProgram } from "./programs/boxes-program";
 import { TicksTimeRulerProgram } from "./programs/ticks-program";
 

@@ -5,7 +5,7 @@ import type {
   ValueMode,
   WindowName,
 } from "./types";
-import { clampViewportTimes } from "../../viewport-controller";
+import { clampViewportTimes } from "../../viewport-math";
 
 function isPowerOfTwo(value: number): boolean {
   return (

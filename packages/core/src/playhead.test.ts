@@ -104,7 +104,13 @@ describe("PlayheadOverlay", () => {
       removeEventListener: vi.fn(),
     } as unknown as HTMLAudioElement;
 
-    const scope = new Sonoscope({ source, audio, startTime: 0, endTime: 10 });
+    const scope = new Sonoscope({
+      source,
+      audio,
+      startTime: 0,
+      endTime: 10,
+      followPlayback: "off",
+    });
     const overlay = attachPlayheadOverlay(container, scope);
     const el = overlay.getElement();
 

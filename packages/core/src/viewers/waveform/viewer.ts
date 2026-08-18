@@ -10,7 +10,7 @@ import type {
 } from "./types";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
-import { clampViewportTimes } from "../../viewport-controller";
+import { clampViewportTimes } from "../../viewport-math";
 import { WaveformPeakPyramid } from "./peaks";
 import { CanvasWaveformRenderer } from "./renderers/canvas";
 import { WebGL2WaveformRenderer } from "./renderers/webgl2";

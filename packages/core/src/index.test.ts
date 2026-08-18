@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   attachCanvasNavigation,
   buildColorMap,
+  clampViewportTimes,
   createAudioSourceFromUrl,
   createSpectrogramBackend,
   createSpectrogramRenderer,
@@ -12,7 +13,6 @@ import {
   SpectrogramViewer,
   StreamingMp3Source,
   StreamingWavSource,
-  ViewportController,
   WaveformViewer,
 } from "./index";
 
@@ -25,7 +25,7 @@ describe("public entrypoint", () => {
     expect(typeof isSonoscope).toBe("function");
     expect(typeof SpectrogramViewer).toBe("function");
     expect(typeof WaveformViewer).toBe("function");
-    expect(typeof ViewportController).toBe("function");
+    expect(typeof clampViewportTimes).toBe("function");
   });
 
   it("exports audio sources", () => {

@@ -17,7 +17,7 @@ import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
-import { ViewportController } from "./viewport-controller";
+import { clampViewportTimes } from "./viewport-math";
 
 export function isSonoscope(value: unknown): value is ISonoscope {
   return (
@@ -50,10 +50,19 @@ export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
-  private readonly controllerCleanup: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
   private animationFrame: number | undefined;
-  readonly viewportController: ViewportController;
+
+  private startTime: number;
+  private endTime: number;
+  private minFrequency: number;
+  private maxFrequency: number;
+  private frequencyScale: FrequencyScale;
+  private totalDuration: number;
+  private minDuration: number;
+  private maxDuration: number;
+  private followPlayback: FollowPlaybackMode;
+  private smoothAnchor: number;
 
   constructor(options: SonoscopeOptions | AudioSource) {
     const isSource =
@@ -67,37 +76,32 @@ export class Sonoscope implements ISonoscope {
       : (options as SonoscopeOptions);
 
     this._source = opts.source;
+    this.totalDuration = Math.max(0.01, this._source.duration);
+    this.minDuration = Math.max(0.001, opts.minDuration ?? 0.05);
+    this.maxDuration = Math.max(
+      this.minDuration,
+      opts.maxDuration ?? Math.min(30, this.totalDuration),
+    );
+    this.followPlayback = opts.followPlayback ?? "page";
+    this.smoothAnchor = Math.max(0, Math.min(1, opts.smoothAnchor ?? 0.5));
+
     const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
-    const defaultScale = opts.frequencyScale ?? "linear";
-    const defaultMinFreq =
-      opts.minFrequency ?? (defaultScale === "log" ? 20 : 0);
-    const defaultMaxFreq = opts.maxFrequency ?? nyquist;
+    this.frequencyScale = opts.frequencyScale ?? "linear";
+    this.minFrequency =
+      opts.minFrequency ?? (this.frequencyScale === "log" ? 20 : 0);
+    this.maxFrequency = opts.maxFrequency ?? nyquist;
 
-    this.viewportController = new ViewportController({
-      totalDuration: this._source.duration,
-      startTime: opts.startTime,
-      endTime: opts.endTime,
-      minFrequency: defaultMinFreq,
-      maxFrequency: defaultMaxFreq,
-      frequencyScale: defaultScale,
-      minDuration: opts.minDuration,
-      maxDuration: opts.maxDuration,
-      followPlayback: opts.followPlayback,
-      smoothAnchor: opts.smoothAnchor,
-    });
-
-    const unlistenChange = this.viewportController.on("change", (e) => {
-      this.events.emit("viewportchange", {
-        viewport: e.viewport,
-        source: e.source,
-      });
-    });
-    const unlistenFollow = this.viewportController.on("followchange", (e) => {
-      this.events.emit("playbackchange", {
-        mode: e.mode,
-      });
-    });
-    this.controllerCleanup.push(unlistenChange, unlistenFollow);
+    const initialStart = opts.startTime ?? 0;
+    const initialEnd = opts.endTime ?? Math.min(10, this.totalDuration);
+    const clamped = clampViewportTimes(
+      initialStart,
+      initialEnd,
+      this.totalDuration,
+      this.minDuration,
+      this.maxDuration,
+    );
+    this.startTime = clamped.startTime;
+    this.endTime = clamped.endTime;
 
     if (opts.audio) {
       this.attachAudio(opts.audio);
@@ -171,7 +175,15 @@ export class Sonoscope implements ISonoscope {
   }
 
   getViewport(): ViewportState {
-    return this.viewportController.getViewport();
+    return {
+      startTime: this.startTime,
+      endTime: this.endTime,
+      duration: this.endTime - this.startTime,
+      totalDuration: this.totalDuration,
+      minFrequency: this.minFrequency,
+      maxFrequency: this.maxFrequency,
+      frequencyScale: this.frequencyScale,
+    };
   }
 
   setViewport(
@@ -184,7 +196,63 @@ export class Sonoscope implements ISonoscope {
     }>,
     source?: string | undefined,
   ): void {
-    this.viewportController.setViewport(vp, source);
+    let changed = false;
+
+    if (vp.startTime !== undefined || vp.endTime !== undefined) {
+      const targetStart = Number.isFinite(vp.startTime)
+        ? (vp.startTime as number)
+        : this.startTime;
+      const targetEnd = Number.isFinite(vp.endTime)
+        ? (vp.endTime as number)
+        : this.endTime;
+      const clamped = clampViewportTimes(
+        targetStart,
+        targetEnd,
+        this.totalDuration,
+        this.minDuration,
+        this.maxDuration,
+      );
+
+      if (
+        Math.abs(clamped.startTime - this.startTime) >= 1e-6 ||
+        Math.abs(clamped.endTime - this.endTime) >= 1e-6
+      ) {
+        this.startTime = clamped.startTime;
+        this.endTime = clamped.endTime;
+        changed = true;
+      }
+    }
+
+    if (
+      vp.minFrequency !== undefined &&
+      Math.abs(this.minFrequency - vp.minFrequency) >= 1e-6
+    ) {
+      this.minFrequency = vp.minFrequency;
+      changed = true;
+    }
+
+    if (
+      vp.maxFrequency !== undefined &&
+      Math.abs(this.maxFrequency - vp.maxFrequency) >= 1e-6
+    ) {
+      this.maxFrequency = vp.maxFrequency;
+      changed = true;
+    }
+
+    if (
+      vp.frequencyScale !== undefined &&
+      this.frequencyScale !== vp.frequencyScale
+    ) {
+      this.frequencyScale = vp.frequencyScale;
+      changed = true;
+    }
+
+    if (changed) {
+      this.events.emit("viewportchange", {
+        viewport: this.getViewport(),
+        source,
+      });
+    }
   }
 
   updateViewport(
@@ -197,19 +265,61 @@ export class Sonoscope implements ISonoscope {
     }>,
     source?: string | undefined,
   ): void {
-    this.viewportController.updateViewport(vp, source);
+    this.setViewport(vp, source);
   }
 
   zoom(factor: number, centerTime?: number, source?: string): void {
-    this.viewportController.zoom(factor, centerTime, source);
+    if (!Number.isFinite(factor) || factor <= 0) return;
+    const duration = this.endTime - this.startTime;
+    const center = Number.isFinite(centerTime)
+      ? (centerTime as number)
+      : (this.startTime + this.endTime) / 2;
+    const targetDuration = Math.max(
+      this.minDuration,
+      Math.min(this.maxDuration, this.totalDuration, duration * factor),
+    );
+
+    if (Math.abs(targetDuration - duration) < 1e-9) return;
+
+    const ratio = (center - this.startTime) / (duration || 1);
+    const startTime = Math.max(
+      0,
+      Math.min(
+        this.totalDuration - targetDuration,
+        center - targetDuration * ratio,
+      ),
+    );
+
+    this.setViewport(
+      { startTime, endTime: startTime + targetDuration },
+      source,
+    );
   }
 
   pan(deltaSeconds: number, source?: string): void {
-    this.viewportController.pan(deltaSeconds, source);
+    if (!Number.isFinite(deltaSeconds)) return;
+    const duration = this.endTime - this.startTime;
+    const nextStart = Math.max(
+      0,
+      Math.min(this.totalDuration - duration, this.startTime + deltaSeconds),
+    );
+    this.setViewport(
+      { startTime: nextStart, endTime: nextStart + duration },
+      source,
+    );
   }
 
   panTo(startTime: number, source?: string): void {
-    this.viewportController.panTo(startTime, source);
+    if (!Number.isFinite(startTime)) return;
+    const duration = this.endTime - this.startTime;
+    const nextStart = Math.max(
+      0,
+      Math.min(this.totalDuration - duration, startTime),
+    );
+    this.setViewport(
+      { startTime: nextStart, endTime: nextStart + duration },
+      source,
+    );
   }
 
   zoomFrequency(
@@ -217,11 +327,40 @@ export class Sonoscope implements ISonoscope {
     centerFrequency?: number,
     source?: string,
   ): void {
-    this.viewportController.zoomFrequency(factor, centerFrequency, source);
+    if (!Number.isFinite(factor) || factor <= 0) return;
+    const currentSpan = this.maxFrequency - this.minFrequency;
+    const minSpan = 10;
+    const maxSpan = 48000;
+    const targetSpan = Math.max(
+      minSpan,
+      Math.min(maxSpan, currentSpan * factor),
+    );
+    if (Math.abs(targetSpan - currentSpan) < 1e-9) return;
+
+    const center = Number.isFinite(centerFrequency)
+      ? (centerFrequency as number)
+      : (this.minFrequency + this.maxFrequency) / 2;
+    const ratio =
+      currentSpan <= 0
+        ? 0.5
+        : (center - this.minFrequency) / currentSpan;
+    const newMin = Math.max(0, center - targetSpan * ratio);
+    const newMax = newMin + targetSpan;
+
+    this.setViewport(
+      { minFrequency: newMin, maxFrequency: newMax },
+      source,
+    );
   }
 
   panFrequency(deltaHz: number, source?: string): void {
-    this.viewportController.panFrequency(deltaHz, source);
+    if (!Number.isFinite(deltaHz) || deltaHz === 0) return;
+    const span = this.maxFrequency - this.minFrequency;
+    const newMin = Math.max(0, this.minFrequency + deltaHz);
+    this.setViewport(
+      { minFrequency: newMin, maxFrequency: newMin + span },
+      source,
+    );
   }
 
   getDuration(): number {
@@ -233,11 +372,16 @@ export class Sonoscope implements ISonoscope {
   }
 
   getFollowPlayback(): FollowPlaybackMode {
-    return this.viewportController.getFollowPlayback();
+    return this.followPlayback;
   }
 
   setFollowPlayback(mode: FollowPlaybackMode): void {
-    this.viewportController.setFollowPlayback(mode);
+    if (this.followPlayback === mode) return;
+    this.followPlayback = mode;
+    this.events.emit("playbackchange", { mode });
+    if (mode !== "off" && this.audioElement) {
+      this.checkPlaybackFollow(this.audioElement.currentTime);
+    }
   }
 
   getAudio(): HTMLAudioElement | undefined {
@@ -252,6 +396,34 @@ export class Sonoscope implements ISonoscope {
     );
   }
 
+  private checkPlaybackFollow(currentTime: number): void {
+    if (this.followPlayback === "off") return;
+    const duration = this.endTime - this.startTime;
+
+    if (this.followPlayback === "page") {
+      if (currentTime >= this.endTime || currentTime < this.startTime) {
+        const nextStart = Math.max(
+          0,
+          Math.min(this.totalDuration - duration, currentTime),
+        );
+        this.setViewport(
+          { startTime: nextStart, endTime: nextStart + duration },
+          "playback",
+        );
+      }
+    } else if (this.followPlayback === "smooth") {
+      const targetStart = currentTime - duration * this.smoothAnchor;
+      const nextStart = Math.max(
+        0,
+        Math.min(this.totalDuration - duration, targetStart),
+      );
+      this.setViewport(
+        { startTime: nextStart, endTime: nextStart + duration },
+        "playback",
+      );
+    }
+  }
+
   private startPlaybackLoop(): void {
     if (this.animationFrame !== undefined) return;
     const tick = () => {
@@ -259,7 +431,9 @@ export class Sonoscope implements ISonoscope {
         this.stopPlaybackLoop();
         return;
       }
-      this.events.emit("timeupdate", { currentTime: this.getCurrentTime() });
+      const currentTime = this.getCurrentTime();
+      this.events.emit("timeupdate", { currentTime });
+      this.checkPlaybackFollow(currentTime);
       this.animationFrame = safeRequestAnimationFrame(tick);
     };
     this.animationFrame = safeRequestAnimationFrame(tick);
@@ -275,10 +449,10 @@ export class Sonoscope implements ISonoscope {
   attachAudio(audio: HTMLAudioElement): void {
     this.detachAudio();
     this.audioElement = audio;
-    this.viewportController.attachAudio(audio);
 
     const onTimeUpdate = () => {
       this.events.emit("timeupdate", { currentTime: audio.currentTime });
+      this.checkPlaybackFollow(audio.currentTime);
     };
     const onPlay = () => {
       this.startPlaybackLoop();
@@ -310,6 +484,7 @@ export class Sonoscope implements ISonoscope {
 
     this.events.emit("audiochange", { audio });
     this.events.emit("timeupdate", { currentTime: audio.currentTime });
+    this.checkPlaybackFollow(audio.currentTime);
 
     if (!audio.paused && !audio.ended) {
       this.startPlaybackLoop();
@@ -324,7 +499,6 @@ export class Sonoscope implements ISonoscope {
     this.audioCleanup = [];
     const hadAudio = this.audioElement !== undefined;
     this.audioElement = undefined;
-    this.viewportController.detachAudio();
     if (hadAudio) {
       this.events.emit("audiochange", { audio: undefined });
     }
@@ -340,11 +514,13 @@ export class Sonoscope implements ISonoscope {
       this.audioElement.currentTime = clamped;
     }
     this.events.emit("timeupdate", { currentTime: clamped });
+    this.checkPlaybackFollow(clamped);
   }
 
   setSource(source: AudioSource): void {
     this._source = source;
-    this.viewportController.setTotalDuration(source.duration);
+    this.totalDuration = Math.max(0.01, source.duration);
+    this.setViewport({ startTime: this.startTime, endTime: this.endTime });
     this.events.emit("sourcechange", { source });
   }
 
@@ -385,11 +561,6 @@ export class Sonoscope implements ISonoscope {
 
   destroy(): void {
     this.detachAudio();
-    for (const cleanup of this.controllerCleanup) {
-      cleanup();
-    }
-    this.controllerCleanup.length = 0;
-    this.viewportController.destroy();
     this.events.emit("destroy", undefined);
     this.events.clear();
   }
