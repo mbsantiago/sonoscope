@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time & Frequency Rulers Coordinate Demo</title>
+    <style>
+      :root {
+        --bg-main: #0b0f17;
+        --bg-panel: #131b2a;
+        --border-color: #1e293b;
+        --text-primary: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #38bdf8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg-main);
+        color: var(--text-primary);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .container {
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+
+      header {
+        margin-bottom: 1.5rem;
+      }
+
+      h1 {
+        margin: 0.5rem 0;
+        font-size: 1.75rem;
+        font-weight: 600;
+      }
+
+      .controls-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+
+      select,
+      input,
+      button {
+        background: #0f172a;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.4rem 0.65rem;
+        font-size: 0.85rem;
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.15s;
+      }
+      button:hover {
+        background: #1e293b;
+      }
+
+      .viewer-panel {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .layout-grid {
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 0;
+        background: #030508;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .grid-corner-top {
+        grid-column: 1;
+        grid-row: 1;
+        background: #090d14;
+        border-right: 1px solid #1e293b;
+        border-bottom: 1px solid #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        font-family: ui-monospace, monospace;
+      }
+
+      .grid-top-ruler {
+        grid-column: 2;
+        grid-row: 1;
+        position: relative;
+        height: 28px;
+        background: #090d14;
+        border-bottom: 1px solid #1e293b;
+      }
+
+      .grid-freq-ruler {
+        grid-column: 1;
+        grid-row: 2;
+        position: relative;
+        width: 64px;
+        height: 380px;
+        background: #090d14;
+        border-right: 1px solid #1e293b;
+      }
+
+      .grid-spectrogram {
+        grid-column: 2;
+        grid-row: 2;
+        position: relative;
+        width: 100%;
+        height: 380px;
+      }
+
+      .grid-corner-bottom {
+        grid-column: 1;
+        grid-row: 3;
+        background: #090d14;
+        border-right: 1px solid #1e293b;
+        border-top: 1px solid #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        font-family: ui-monospace, monospace;
+      }
+
+      .grid-bottom-ruler {
+        grid-column: 2;
+        grid-row: 3;
+        position: relative;
+        height: 28px;
+        background: #090d14;
+        border-top: 1px solid #1e293b;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      audio {
+        width: 100%;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <p><a href="./index.html">← Back to demos</a></p>
+        <h1>Time &amp; Frequency Rulers Demo</h1>
+        <p style="color: var(--text-muted); margin-top: 0.25rem;">
+          Modular 2D Canvas coordinate scales: Vertical <strong>FrequencyRuler</strong> (supporting <strong>Mel</strong>, <strong>Linear</strong>, and <strong>Log</strong> scales) and Horizontal <strong>TimeRuler</strong> (Ticks and Boxes programs) locked in perfect sync with the WebGL2 Spectrogram.
+        </p>
+      </header>
+
+      <div class="controls-card">
+        <label>
+          Track:
+          <select id="preset-select">
+            <option value="https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original">
+              After You've Gone (Harris 1918)
+            </option>
+            <option value="https://upload.wikimedia.org/wikipedia/commons/0/01/20210321_0900_Birdsong_Bourne_Lincolnshire.mp3?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original">
+              Birdsong Bourne
+            </option>
+            <option value="https://upload.wikimedia.org/wikipedia/commons/0/0c/Backyard_ambience_%28Gravity_Sound%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original">
+              Backyard Ambience
+            </option>
+          </select>
+        </label>
+
+        <label>
+          Frequency Scale:
+          <select id="scale-select">
+            <option value="mel" selected>Mel Scale</option>
+            <option value="linear">Linear Scale</option>
+            <option value="log">Logarithmic Scale</option>
+          </select>
+        </label>
+
+        <label>
+          Frequency Program:
+          <select id="freq-program-select">
+            <option value="ticks" selected>Ticks</option>
+            <option value="boxes">Boxes</option>
+          </select>
+        </label>
+
+        <label>
+          Color Map:
+          <select id="colormap-select">
+            <option value="magma" selected>Magma</option>
+            <option value="viridis">Viridis</option>
+            <option value="inferno">Inferno</option>
+            <option value="plasma">Plasma</option>
+            <option value="grayscale">Grayscale</option>
+          </select>
+        </label>
+
+        <label>
+          Follow:
+          <select id="follow-select">
+            <option value="page" selected>Page</option>
+            <option value="smooth">Smooth</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="viewer-panel">
+        <div class="layout-grid">
+          <div class="grid-corner-top">Hz \ Time</div>
+          <div class="grid-top-ruler" id="container-top-ruler">
+            <canvas id="canvas-top-ruler"></canvas>
+          </div>
+
+          <div class="grid-freq-ruler" id="container-freq-ruler">
+            <canvas id="canvas-freq-ruler"></canvas>
+          </div>
+
+          <div class="grid-spectrogram" id="container-spectrogram">
+            <canvas id="canvas-spectrogram"></canvas>
+          </div>
+
+          <div class="grid-corner-bottom">Intervals</div>
+          <div class="grid-bottom-ruler" id="container-bottom-ruler">
+            <canvas id="canvas-bottom-ruler"></canvas>
+          </div>
+        </div>
+
+        <audio id="audio-player" controls crossorigin="anonymous"></audio>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        attachCanvasNavigation,
+        attachPlayheadOverlay,
+        Sonoscope,
+      } from "@sonoscope/core";
+
+      const presetSelect = document.getElementById("preset-select");
+      const scaleSelect = document.getElementById("scale-select");
+      const freqProgramSelect = document.getElementById("freq-program-select");
+      const colormapSelect = document.getElementById("colormap-select");
+      const followSelect = document.getElementById("follow-select");
+      const audio = document.getElementById("audio-player");
+
+      const canvasTopRuler = document.getElementById("canvas-top-ruler");
+      const canvasFreqRuler = document.getElementById("canvas-freq-ruler");
+      const canvasSpectrogram = document.getElementById("canvas-spectrogram");
+      const canvasBottomRuler = document.getElementById("canvas-bottom-ruler");
+
+      let scope = null;
+      let topRuler = null;
+      let freqRuler = null;
+      let spectrogram = null;
+      let bottomRuler = null;
+
+      let playheadTop = null;
+      let playheadSpec = null;
+      let playheadBottom = null;
+
+      let cleanupNav = null;
+
+      async function loadTrack(url) {
+        cleanupNav?.();
+        playheadTop?.destroy();
+        playheadSpec?.destroy();
+        playheadBottom?.destroy();
+
+        topRuler?.destroy();
+        freqRuler?.destroy();
+        spectrogram?.destroy();
+        bottomRuler?.destroy();
+        scope?.destroy();
+
+        audio.src = url;
+
+        scope = await Sonoscope.fromAudio(audio, {
+          followPlayback: followSelect.value,
+          startTime: 0,
+          endTime: 12,
+        });
+
+        const scale = scaleSelect.value;
+        const minFreq = scale === "log" ? 20 : 0;
+        const maxFreq = Math.floor(scope.getSampleRate() / 2);
+
+        topRuler = scope.createTimeRuler(canvasTopRuler, {
+          program: "ticks",
+          tickPosition: "top",
+          color: "#cbd5e1",
+          tickColor: "#475569",
+        });
+
+        freqRuler = scope.createFrequencyRuler(canvasFreqRuler, {
+          program: freqProgramSelect.value,
+          frequencyScale: scale,
+          minFrequency: minFreq,
+          maxFrequency: maxFreq,
+          color: "#cbd5e1",
+          tickColor: "#334155",
+          tickPosition: "right",
+        });
+
+        spectrogram = scope.createSpectrogram(canvasSpectrogram, {
+          frequencyScale: scale,
+          minFrequency: minFreq,
+          maxFrequency: maxFreq,
+          valueMode: "db",
+          minValue: -80,
+          maxValue: -5,
+          colorMap: colormapSelect.value,
+        });
+
+        bottomRuler = scope.createTimeRuler(canvasBottomRuler, {
+          program: "boxes",
+          color: "#f8fafc",
+          backgroundColor: "#070b12",
+          tickColor: "#334155",
+        });
+
+        // Attach decoupled playheads across time axes
+        playheadTop = attachPlayheadOverlay(canvasTopRuler.parentElement, scope);
+        playheadSpec = attachPlayheadOverlay(canvasSpectrogram.parentElement, scope);
+        playheadBottom = attachPlayheadOverlay(canvasBottomRuler.parentElement, scope);
+
+        // Attach drag navigation to spectrogram
+        cleanupNav = attachCanvasNavigation(spectrogram, canvasSpectrogram);
+      }
+
+      presetSelect.addEventListener("change", () => loadTrack(presetSelect.value));
+
+      scaleSelect.addEventListener("change", () => {
+        const scale = scaleSelect.value;
+        const minFreq = scale === "log" ? 20 : 0;
+        freqRuler?.updateConfig({ frequencyScale: scale, minFrequency: minFreq });
+        spectrogram?.updateConfig({ frequencyScale: scale, minFrequency: minFreq });
+      });
+
+      freqProgramSelect.addEventListener("change", () => {
+        freqRuler?.updateConfig({ program: freqProgramSelect.value });
+      });
+
+      colormapSelect.addEventListener("change", () => {
+        spectrogram?.updateConfig({ colorMap: colormapSelect.value });
+      });
+
+      followSelect.addEventListener("change", () => {
+        scope?.setFollowPlayback(followSelect.value);
+      });
+
+      loadTrack(presetSelect.value);
+    </script>
+  </body>
+</html>
