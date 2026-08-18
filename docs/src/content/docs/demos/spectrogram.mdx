@@ -1,20 +1,20 @@
 ---
-title: Live Spectrogram Demo (TypeScript API)
-description: Interactive spectrogram viewer with time and frequency rulers using the @sonoscope/core TypeScript API.
+title: Spectrogram
+description: Interactive WebGL2 audio spectrogram viewer with time and frequency rulers.
 ---
 
 import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
 
-This interactive demo runs entirely client-side with `@sonoscope/core`, demonstrating GPU-accelerated WebGL2 rendering, dynamic FFT tile caching, and coordinated time/frequency rulers.
+Client-side GPU spectrogram rendering with dynamic tile caching and synchronized time/frequency rulers.
 
-### Navigation Controls
-- **Scroll / Pinch**: Zoom in and out horizontally (time) and vertically (frequency).
+- **Scroll / Pinch**: Zoom in/out horizontally (time) and vertically (frequency).
 - **Drag**: Pan across time and frequency.
 - **Click Rulers / Double Click Canvas**: Seek playback position.
 
----
+<InteractiveSpectrogram client:only="react" initialCmap="inferno" showWaveform={false} />
 
-### TypeScript Implementation
+<details>
+<summary><strong>View TypeScript Implementation Code</strong></summary>
 
 ```typescript
 import {
@@ -61,8 +61,4 @@ const freqRuler = scope.createFrequencyRuler(freqCanvas, {
 attachCanvasNavigation(freqRuler, freqCanvas);
 ```
 
----
-
-### Live Interactive Preview
-
-<InteractiveSpectrogram client:only="react" initialCmap="inferno" showWaveform={false} />
+</details>

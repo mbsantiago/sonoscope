@@ -1,13 +1,16 @@
 ---
-title: React Components Demo
+title: React Components
 description: Declarative audio visualization with @sonoscope/react components and hooks.
 ---
 
 import ReactDemo from '../../../components/ReactDemo';
 
-This demo showcases declarative JSX composition using `@sonoscope/react`. All components (`<Spectrogram />`, `<Waveform />`, `<TimeRuler />`, `<FrequencyRuler />`) automatically synchronize viewport state, zoom/pan interactions, and audio playhead tracking through `<SonoscopeProvider />`.
+Declarative JSX composition using `@sonoscope/react`. Viewport synchronization, zoom/pan navigation, and audio playhead tracking are coordinated by `<SonoscopeProvider />`.
 
-### React Implementation
+<ReactDemo client:only="react" />
+
+<details>
+<summary><strong>View React Implementation Code</strong></summary>
 
 ```tsx
 import {
@@ -63,8 +66,4 @@ export function ReactSpectrogramViewer() {
 }
 ```
 
----
-
-### Live Interactive Preview
-
-<ReactDemo client:only="react" />
+</details>

@@ -1,20 +1,20 @@
 ---
-title: Waveform & Multi-Track Demo (TypeScript API)
-description: Synchronized spectrogram and peak-pyramid audio waveform visualization using the @sonoscope/core TypeScript API.
+title: Waveform & Multi-Track
+description: Synchronized spectrogram and peak-pyramid audio waveform visualization.
 ---
 
 import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
 
-This demo illustrates synchronized multi-viewer navigation between a **WebGL2 Spectrogram**, a **Peak-Pyramid Waveform**, and dual **Time & Frequency Rulers** driven by `@sonoscope/core`.
+Synchronized multi-viewer navigation between a **WebGL2 Spectrogram**, a **Peak-Pyramid Waveform**, and dual **Time & Frequency Rulers**.
 
-### Navigation Controls
-- **Scroll / Pinch**: Zoom in and out horizontally (time) and vertically (frequency).
+- **Scroll / Pinch**: Zoom in/out horizontally (time) and vertically (frequency).
 - **Drag**: Pan across time and frequency.
-- **Click Rulers / Waveform**: Seek playback position across all synchronized viewers.
+- **Click Rulers / Waveform**: Seek playback position across all synchronized tracks.
 
----
+<InteractiveSpectrogram client:only="react" initialCmap="turbo" showWaveform={true} />
 
-### TypeScript Implementation
+<details>
+<summary><strong>View TypeScript Implementation Code</strong></summary>
 
 ```typescript
 import {
@@ -57,8 +57,4 @@ const freqRuler = scope.createFrequencyRuler(freqCanvas, { tickPosition: "right"
 attachCanvasNavigation(freqRuler, freqCanvas);
 ```
 
----
-
-### Live Interactive Preview
-
-<InteractiveSpectrogram client:only="react" initialCmap="turbo" showWaveform={true} />
+</details>

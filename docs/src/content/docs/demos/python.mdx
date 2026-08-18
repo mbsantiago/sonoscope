@@ -1,5 +1,5 @@
 ---
-title: Python & Jupyter Widget Demo
+title: Python Widget
 description: Interactive audio exploration in Jupyter Lab, Notebook, VS Code, and Marimo with sonoscope.
 ---
 
@@ -7,13 +7,16 @@ import InteractiveSpectrogram from '../../../components/InteractiveSpectrogram';
 
 The `sonoscope` Python library embeds high-performance WebGL2 spectrograms directly in Jupyter Notebooks, JupyterLab, VS Code Interactive Python, and Marimo.
 
-### Python Implementation
+<InteractiveSpectrogram client:only="react" initialCmap="magma" showWaveform={true} />
+
+<details>
+<summary><strong>View Python Implementation Code</strong></summary>
 
 ```python
 from sonoscope import Sonoscope
 import numpy as np
 
-# 1. Load from remote audio URL
+# 1. Load from remote audio URL or local audio file
 widget = Sonoscope.from_url(
     "https://upload.wikimedia.org/.../Marico_Sunbird.ogg",
     cmap="magma",
@@ -25,7 +28,7 @@ widget = Sonoscope.from_url(
 )
 widget
 
-# 2. Or visualize synthetic/analyzed NumPy audio arrays
+# 2. Or visualize NumPy audio arrays
 sample_rate = 44100
 t = np.linspace(0, 3.0, sample_rate * 3, endpoint=False)
 signal = np.sin(2 * np.pi * 440 * t) + np.sin(2 * np.pi * 880 * t)
@@ -39,10 +42,4 @@ array_widget = Sonoscope.from_array(
 array_widget
 ```
 
----
-
-### Live Widget Emulation
-
-Below is the live widget interface as rendered in notebook output cells:
-
-<InteractiveSpectrogram client:only="react" initialCmap="magma" showWaveform={true} />
+</details>
