@@ -1,0 +1,10 @@
+/* Reduce excessive hero padding on splash landing page */
+[data-has-hero] .hero {
+  padding-block: clamp(1.5rem, calc(1rem + 3vmin), 3rem) !important;
+}
+
+/* Compact spacing between hero and live preview */
+[data-has-hero] .sl-markdown-content > h2:first-of-type {
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.75rem !important;
+}

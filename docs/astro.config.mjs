@@ -10,6 +10,7 @@ export default defineConfig({
 			title: 'Sonoscope',
 			description:
 				'High-performance WebGL2 & WASM audio spectrogram visualization ecosystem.',
+			customCss: ['./src/styles/custom.css'],
 			social: [
 				{
 					icon: 'github',
