@@ -3,7 +3,7 @@ import {
   attachCanvasNavigation,
   attachPlayheadOverlay,
   type CanvasNavigationOptions,
-  type Sonoscope,
+  Sonoscope,
   type WaveformConfig,
   type WaveformStatus,
   WaveformViewer,
