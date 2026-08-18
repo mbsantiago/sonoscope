@@ -11,7 +11,7 @@ Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@son
 </div>
 
 <script>
-  import { Sonoscope, attachCanvasNavigation } from '@sonoscope/core';
+  import { Sonoscope } from '@sonoscope/core';
 
   const canvas = document.querySelector('#spectrogram-canvas');
   const audioUrl = '/audio/marico-sunbird.ogg';
@@ -27,7 +27,7 @@ Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@son
       maxValue: 0,
     });
 
-    attachCanvasNavigation(spec, canvas);
+    spec.attachNavigation();
   }
 </script>
 ```

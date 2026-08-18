@@ -30,7 +30,7 @@
   - `DragNavigationOptions`: axis, button, modifier, frequencyModifier, dragThreshold, cursor, onDragStart, onDragEnd
   - `NavigationOptions`: axis, wheel (`boolean | WheelNavigationOptions`), drag (`boolean | DragNavigationOptions`), onNavigate
 
-- [ ] **Step 1: Write failing unit tests for new option formats and modifier keys**
+- [x] **Step 1: Write failing unit tests for new option formats and modifier keys**
 
 ```typescript
 // in packages/core/src/navigation.test.ts
@@ -41,21 +41,21 @@ describe("NavigationOptions nested config and modifier keys", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 2: Run tests to verify failure**
 
 Run: `npm test packages/core/src/navigation.test.ts`
 Expected: FAIL (types/options not yet matching)
 
-- [ ] **Step 3: Implement normalized options parsing in `navigation.ts`**
+- [x] **Step 3: Implement normalized options parsing in `navigation.ts`**
 
 Update `packages/core/src/navigation.ts` to export `ModifierKey`, `WheelNavigationOptions`, `DragNavigationOptions`, `NavigationOptions`, update `modifierPressed` to handle `'none'`, and normalize options inside `attachCanvasNavigation`.
 
-- [ ] **Step 4: Run tests to verify pass**
+- [x] **Step 4: Run tests to verify pass**
 
 Run: `npm test packages/core/src/navigation.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/core/src/navigation.ts packages/core/src/types.ts packages/core/src/navigation.test.ts
@@ -84,19 +84,19 @@ git commit -m "feat(core): enhance navigation options with flexible modifier key
   - `ITimeRulerViewer.attachNavigation(options?: NavigationOptions): () => void`
   - `IFrequencyRulerViewer.attachNavigation(options?: NavigationOptions): () => void`
 
-- [ ] **Step 1: Write failing tests for viewer `attachNavigation` and lifecycle cleanup**
+- [x] **Step 1: Write failing tests for viewer `attachNavigation` and lifecycle cleanup**
 
 ```typescript
 it("attaches navigation via spec.attachNavigation() and automatically cleans up on spec.destroy()", () => { ... });
 it("attaches navigation via waveform.attachNavigation({ axis: 'time' })", () => { ... });
 ```
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 2: Run tests to verify failure**
 
 Run: `npm test packages/core/src/navigation.test.ts`
 Expected: FAIL (`attachNavigation` is not a function)
 
-- [ ] **Step 3: Implement `attachNavigation` and tracking in each viewer class**
+- [x] **Step 3: Implement `attachNavigation` and tracking in each viewer class**
 
 Add `navCleanups: Array<() => void> = []` to each viewer class. In `attachNavigation(options)`:
 1. Call `attachCanvasNavigation(this, this.canvas, options)`.
@@ -104,12 +104,12 @@ Add `navCleanups: Array<() => void> = []` to each viewer class. In `attachNaviga
 3. In `destroy()`, execute and clear `this.navCleanups`.
 4. Return a detach function that invokes cleanup and removes it from `this.navCleanups`.
 
-- [ ] **Step 4: Run tests to verify pass**
+- [x] **Step 4: Run tests to verify pass**
 
 Run: `npm test packages/core/src/navigation.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/core/src/viewers/ packages/core/src/navigation.test.ts
@@ -129,7 +129,7 @@ git commit -m "feat(core): add attachNavigation to Spectrogram, Waveform, and Ru
 - Produces:
   - `ISonoscope.attachNavigation(target: HTMLCanvasElement | AnyNavigableViewer, options?: NavigationOptions): () => void`
 
-- [ ] **Step 1: Write failing tests for `scope.attachNavigation`**
+- [x] **Step 1: Write failing tests for `scope.attachNavigation`**
 
 ```typescript
 it("attaches navigation directly to a canvas using scope.attachNavigation(canvas)", () => { ... });
@@ -137,24 +137,24 @@ it("attaches navigation to a viewer using scope.attachNavigation(viewer)", () =>
 it("automatically cleans up scope navigations when scope.destroy() is called", () => { ... });
 ```
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 2: Run tests to verify failure**
 
 Run: `npm test packages/core/src/sonoscope.test.ts`
 Expected: FAIL (`attachNavigation` is not a function on Sonoscope)
 
-- [ ] **Step 3: Implement `attachNavigation` on `Sonoscope` class**
+- [x] **Step 3: Implement `attachNavigation` on `Sonoscope` class**
 
 In `packages/core/src/sonoscope.ts`:
 1. If `target` is a viewer (`'getViewport'` in target && `'requestRender'` in target), delegate to `target.attachNavigation(options)`.
 2. If `target` is an `HTMLCanvasElement`, construct a navigation adapter wrapping the scope (viewing full time bounds) and call `attachCanvasNavigation`.
 3. Track cleanups in `this.navigationCleanups` and invoke on `scope.destroy()`.
 
-- [ ] **Step 4: Run tests to verify pass**
+- [x] **Step 4: Run tests to verify pass**
 
 Run: `npm test packages/core/src/sonoscope.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/core/src/sonoscope.ts packages/core/src/types.ts packages/core/src/sonoscope.test.ts
@@ -171,16 +171,16 @@ git commit -m "feat(core): add attachNavigation method to Sonoscope with auto-cl
 - Modify: `docs/src/content/docs/packages/core.mdx`
 - Modify: `docs/src/content/docs/guides/quick-start.mdx`
 
-- [ ] **Step 1: Update documentation and demo code snippets**
+- [x] **Step 1: Update documentation and demo code snippets**
 
 Replace verbose `import { attachCanvasNavigation }` with streamlined `spec.attachNavigation()` and `waveform.attachNavigation()`.
 
-- [ ] **Step 2: Run all tests, linters, type checks, and docs build**
+- [x] **Step 2: Run all tests, linters, type checks, and docs build**
 
 Run: `npm run test && npm run check:types && npm run build:docs`
 Expected: All tests pass, zero type errors, 0 broken links in docs validator.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/ packages/

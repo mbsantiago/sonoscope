@@ -6,7 +6,6 @@ import {
   type SpectrogramViewer,
   type TimeRulerViewer,
   type WaveformViewer,
-  attachCanvasNavigation,
   attachPlayheadOverlay,
 } from "@sonoscope/core";
 import { useEffect, useRef, useState } from "react";
@@ -101,7 +100,7 @@ export default function InteractiveSpectrogram({
           maxFrequency: maxFreq,
         });
         specRef.current = spec;
-        cleanups.push(attachCanvasNavigation(spec, specCanvasRef.current));
+        cleanups.push(spec.attachNavigation());
 
         if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
           const timeRuler = scope.createTimeRuler(timeCanvasRef.current, {
@@ -111,7 +110,7 @@ export default function InteractiveSpectrogram({
             tickColor: "rgba(128, 128, 128, 0.35)",
           });
           timeRulerRef.current = timeRuler;
-          cleanups.push(attachCanvasNavigation(timeRuler, timeCanvasRef.current));
+          cleanups.push(timeRuler.attachNavigation());
           const overlay = attachPlayheadOverlay(
             timeCanvasRef.current.parentElement,
             scope,
@@ -141,7 +140,7 @@ export default function InteractiveSpectrogram({
             tickPosition: "right",
           });
           freqRulerRef.current = freqRuler;
-          cleanups.push(attachCanvasNavigation(freqRuler, freqCanvasRef.current));
+          cleanups.push(freqRuler.attachNavigation());
         }
 
         if (
@@ -153,7 +152,7 @@ export default function InteractiveSpectrogram({
             colorMap: cmap,
           });
           waveformRef.current = waveform;
-          cleanups.push(attachCanvasNavigation(waveform, waveCanvasRef.current));
+          cleanups.push(waveform.attachNavigation());
           const overlay = attachPlayheadOverlay(
             waveCanvasRef.current.parentElement,
             scope,

@@ -36,7 +36,7 @@ Sonoscope is available as three specialized packages across JavaScript, React, a
 ### 1. Vanilla TypeScript / JavaScript
 
 ```typescript
-import { Sonoscope, attachCanvasNavigation } from '@sonoscope/core';
+import { Sonoscope } from '@sonoscope/core';
 
 // Initialize Sonoscope from an HTML <audio> element
 const audioElement = document.querySelector('audio');
@@ -52,8 +52,18 @@ const spec = scope.createSpectrogram(canvas, {
   maxValue: 0,
 });
 
-// Enable interactive zoom and pan
-attachCanvasNavigation(spec, canvas);
+// Enable interactive zoom and pan (defaults to both time and frequency axes)
+spec.attachNavigation();
+
+// Or customize navigation axes, modifiers, and sensitivities:
+// spec.attachNavigation({
+//   axis: 'both',
+//   wheel: { zoomModifier: 'alt' },
+//   drag: { modifier: 'none' },
+// });
+
+// Or attach navigation directly to any canvas via Sonoscope:
+// scope.attachNavigation(canvas, { axis: 'time' });
 ```
 
 ### 2. React

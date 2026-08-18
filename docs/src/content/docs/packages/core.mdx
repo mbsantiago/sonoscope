@@ -12,6 +12,7 @@ description: Architecture and API reference for the core Sonoscope visualization
 - **WebGL2 Tile Rendering**: GPU shader-driven spectrogram tile computation with built-in colormaps (`viridis`, `plasma`, `inferno`, `magma`, `cividis`, `turbo`, `gray`).
 - **Flexible Frequency Scales**: Support for `linear`, `log`, and `mel` perceptual frequency scales.
 - **Decoupled Playhead & Rulers**: Customizable time and frequency rulers with responsive ticks.
+- **Native Navigation**: First-class pan and zoom navigation on viewers and the central Sonoscope instance with automatic lifecycle cleanup.
 
 ## Creating a Sonoscope Instance
 
@@ -43,6 +44,9 @@ const spectrogram = scope.createSpectrogram(canvas, {
   windowSize: 1024,
   hopSize: 256,
 });
+
+// Attach 2D navigation (defaults to both time and frequency axes)
+spectrogram.attachNavigation();
 ```
 
 ### Waveform Viewer
@@ -52,18 +56,94 @@ const waveform = scope.createWaveform(canvas, {
   colorMap: "turbo",
   amplitudeScale: 1.0,
 });
+
+// Attach 1D temporal navigation (defaults to time axis)
+waveform.attachNavigation();
 ```
 
 ### Rulers & Playheads
 
 ```typescript
-import { attachPlayheadOverlay, attachCanvasNavigation } from "@sonoscope/core";
+import { attachPlayheadOverlay } from "@sonoscope/core";
 
 const timeRuler = scope.createTimeRuler(timeCanvas, {
   program: "ticks",
   tickPosition: "top",
 });
+timeRuler.attachNavigation();
 
-attachCanvasNavigation(spectrogram, canvas);
+const freqRuler = scope.createFrequencyRuler(freqCanvas, {
+  program: "ticks",
+  tickPosition: "right",
+});
+freqRuler.attachNavigation();
+
 attachPlayheadOverlay(containerElement, scope);
 ```
+
+## Interactive Navigation
+
+Sonoscope provides first-class navigation via `attachNavigation()` on viewer instances and the root `Sonoscope` instance.
+
+### Native Viewer Navigation
+
+Every viewer supports calling `attachNavigation(options?)` directly without needing to pass the canvas element or import standalone helpers:
+
+```typescript
+// 1. Spectrogram (pan/zoom time and frequency)
+const detachSpec = spectrogram.attachNavigation();
+
+// 2. Waveform (defaults to time-only axis)
+const detachWave = waveform.attachNavigation({ axis: "time" });
+
+// 3. Time Ruler (time axis) and Frequency Ruler (frequency axis)
+timeRuler.attachNavigation();
+freqRuler.attachNavigation();
+```
+
+### Scope-Level Navigation
+
+You can also attach coordinated navigation directly to any `<canvas>` element from the root `Sonoscope` instance:
+
+```typescript
+// Attach navigation for any canvas bound to the scope's timeline
+const detachScopeNav = scope.attachNavigation(customCanvas, {
+  axis: "time",
+});
+```
+
+### Navigation Options & Modifiers
+
+`attachNavigation` accepts comprehensive configuration for axes, modifier keys, sensitivities, and wheel/drag behavior:
+
+```typescript
+spectrogram.attachNavigation({
+  // Constrain navigation to a specific axis: 'both' | 'time' | 'frequency'
+  axis: "both",
+
+  // Configure or toggle mouse wheel navigation
+  wheel: {
+    panSensitivity: 1.0,
+    zoomSensitivity: 0.0015,
+    zoomModifier: "alt", // 'ctrl' | 'shift' | 'alt' | 'meta' | 'none'
+    frequencyModifier: "shift",
+  },
+
+  // Configure or toggle drag navigation
+  drag: {
+    button: 0, // 0 = left, 1 = middle, 2 = right
+    modifier: "none",
+    dragThreshold: 3,
+    cursor: "grab",
+  },
+
+  onNavigate: (viewport) => {
+    console.log("Viewport updated:", viewport);
+  },
+});
+```
+
+### Lifecycle & Automatic Cleanup
+
+- Calling `attachNavigation()` returns a manual `detach: () => void` cleanup function.
+- All attached navigation listeners are also **automatically cleaned up** whenever `destroy()` is called on the owning viewer or `Sonoscope` instance.

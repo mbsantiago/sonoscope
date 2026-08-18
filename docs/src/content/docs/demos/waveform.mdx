@@ -8,7 +8,6 @@ Synchronized multi-viewer navigation between a **WebGL2 Spectrogram**, a **Peak-
 ```tsx live props={{ "client:only": "react" }}
 import {
   Sonoscope,
-  attachCanvasNavigation,
   attachPlayheadOverlay,
 } from "@sonoscope/core";
 import { useEffect, useRef } from "react";
@@ -45,7 +44,7 @@ export default function WaveformLiveDemo() {
         minValue: -80,
         maxValue: 0,
       });
-      cleanups.push(attachCanvasNavigation(spec, specCanvasRef.current!));
+      spec.attachNavigation();
 
       // 2. Time Ruler
       if (timeCanvasRef.current && timeCanvasRef.current.parentElement) {
@@ -55,7 +54,7 @@ export default function WaveformLiveDemo() {
           color: "rgba(128, 128, 128, 0.75)",
           tickColor: "rgba(128, 128, 128, 0.35)",
         });
-        cleanups.push(attachCanvasNavigation(timeRuler, timeCanvasRef.current));
+        timeRuler.attachNavigation();
         const overlay = attachPlayheadOverlay(
           timeCanvasRef.current.parentElement,
           scope,
@@ -71,7 +70,7 @@ export default function WaveformLiveDemo() {
           color: "rgba(128, 128, 128, 0.75)",
           tickColor: "rgba(128, 128, 128, 0.35)",
         });
-        cleanups.push(attachCanvasNavigation(freqRuler, freqCanvasRef.current));
+        freqRuler.attachNavigation();
       }
 
       // 4. Waveform Viewer
@@ -79,7 +78,7 @@ export default function WaveformLiveDemo() {
         const waveform = scope.createWaveform(waveCanvasRef.current, {
           colorMap: "turbo",
         });
-        cleanups.push(attachCanvasNavigation(waveform, waveCanvasRef.current));
+        waveform.attachNavigation({ axis: "time" });
         const overlay = attachPlayheadOverlay(
           waveCanvasRef.current.parentElement,
           scope,
