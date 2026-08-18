@@ -18,6 +18,12 @@ class TestSonoscopeAnywidget(unittest.TestCase):
         self.assertEqual(w.url, "https://example.com/audio.wav")
         self.assertEqual(len(w.audio_bytes), 0)
 
+        w2 = Sonoscope.fromURL("https://example.com/audio2.wav")
+        self.assertEqual(w2.url, "https://example.com/audio2.wav")
+
+        w3 = Sonoscope.from_URL("https://example.com/audio3.wav")
+        self.assertEqual(w3.url, "https://example.com/audio3.wav")
+
     def test_from_array_python_list_mono(self):
         sr = 8000
         # 1-second 440Hz sine wave as python list

@@ -13,6 +13,18 @@ def _():
 
 
 @app.cell
+def _():
+    import numpy as np
+
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
 def _(Path, Sonoscope):
     Sonoscope.from_file(
         Path("~/Datasets/martyn_cooke_2021/audio/myomys_surrey_audiomoth_1_20210608_215003_0_1000.wav").expanduser(),
