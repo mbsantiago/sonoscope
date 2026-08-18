@@ -1,5 +1,6 @@
 import {
   type AudioSource,
+  FrequencyRulerViewer,
   Sonoscope,
   SpectrogramViewer,
   TimeRulerViewer,
@@ -9,6 +10,8 @@ import React, { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  FrequencyRuler,
+  type FrequencyRulerHandle,
   SonoscopeContext,
   SonoscopeProvider,
   Spectrogram,
@@ -16,6 +19,7 @@ import {
   TimeRuler,
   type TimeRulerHandle,
   type UseSonoscopeResult,
+  useFrequencyRuler,
   useSonoscope,
   useSonoscopeContext,
   useSpectrogram,
@@ -723,6 +727,31 @@ describe("React Components and Hooks", () => {
       });
 
       expect(playheadEl?.style.transform).toContain("translate3d(");
+      scope.destroy();
+    });
+  });
+
+  describe("<FrequencyRuler /> and useFrequencyRuler", () => {
+    it("renders canvas and attaches FrequencyRulerViewer in SonoscopeProvider", async () => {
+      const source = createMockAudioSource(30);
+      const scope = new Sonoscope({ source });
+      const ref = createRef<FrequencyRulerHandle>();
+
+      await act(async () => {
+        root.render(
+          React.createElement(
+            SonoscopeProvider,
+            { value: scope },
+            React.createElement(FrequencyRuler, { ref, program: "ticks", frequencyScale: "mel" }),
+          ),
+        );
+      });
+
+      const canvas = container.childNodes[0]?.childNodes.find(
+        (child) => child.tagName === "CANVAS",
+      );
+      expect(canvas).toBeTruthy();
+      expect(ref.current?.getViewer()).toBeInstanceOf(FrequencyRulerViewer);
       scope.destroy();
     });
   });

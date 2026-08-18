@@ -5,10 +5,19 @@ export {
   useSonoscopeContext,
 } from "./SonoscopeContext";
 export {
+  FrequencyRuler,
+  type FrequencyRulerHandle,
+  type FrequencyRulerProps,
+} from "./FrequencyRuler";
+export {
   Spectrogram,
   type SpectrogramHandle,
   type SpectrogramProps,
 } from "./Spectrogram";
+export {
+  type UseFrequencyRulerOptions,
+  useFrequencyRuler,
+} from "./useFrequencyRuler";
 export {
   type UseSonoscopeOptions,
   type UseSonoscopeResult,
