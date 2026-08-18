@@ -35,10 +35,16 @@ const audio = document.querySelector("audio")!;
 const waveCanvas = document.querySelector("#wave-canvas")!;
 const specCanvas = document.querySelector("#spec-canvas")!;
 
-// 1. Create unified coordinator bound to audio element
+// 1. Create unified coordinator from an Audio element, URL, Blob/File, or Float32Array
 const scope = await Sonoscope.fromAudio(audio, {
   followPlayback: "page",
 });
+
+// Or from a drag-and-drop / uploaded File or Blob:
+// const scope = await Sonoscope.fromBlob(file, { audio });
+
+// Or from raw synthesized Float32Array samples:
+// const scope = Sonoscope.fromArray(samples, 44100, { audio });
 
 // 2. Attach viewers (automatically render on creation)
 const waveform = scope.createWaveform(waveCanvas, {
@@ -52,6 +58,28 @@ const spectrogram = scope.createSpectrogram(specCanvas, {
   valueMode: "db",
 });
 ```
+
+### Python & Jupyter (`sonoscope`)
+
+```bash
+pip install sonoscope
+```
+
+```python
+import numpy as np
+from sonoscope import Sonoscope
+
+# 1. From a local file path (reads bytes and syncs via binary traitlets)
+widget = Sonoscope.from_file("recording.wav")
+
+# 2. Or from a NumPy array (automatically encoded to in-memory WAV)
+y = np.sin(2 * np.pi * 440 * np.linspace(0, 5, 22050 * 5, endpoint=False))
+widget = Sonoscope.from_array(y, sample_rate=22050, cmap="viridis", frequency_scale="mel")
+
+# Render directly in JupyterLab, VS Code, Google Colab, or Marimo
+widget
+```
+
 
 ### React (`@sonoscope/react`)
 

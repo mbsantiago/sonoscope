@@ -12,6 +12,8 @@ import {
 
 interface WidgetModel {
   url: string;
+  audio_bytes?: DataView | ArrayBuffer | Uint8Array;
+  mime_type?: string;
   width: number;
   height: number;
   program: "dither" | "normal" | "sobel" | "terrain";
@@ -156,15 +158,52 @@ async function render({
 
   const audio = document.createElement("audio");
   audio.className = "sonoscope-audio";
-  audio.src = url;
   audio.controls = true;
   audio.crossOrigin = "anonymous";
   root.appendChild(audio);
 
-  const scope = await Sonoscope.fromAudio(audio, {
-    followPlayback,
-    frequencyScale,
-  });
+  const audioBytes = model.get("audio_bytes");
+  const mimeType = model.get("mime_type") || "audio/wav";
+
+  let scope: Sonoscope;
+  if (audioBytes && audioBytes.byteLength > 0) {
+    const uint8 =
+      audioBytes instanceof DataView
+        ? new Uint8Array(
+            audioBytes.buffer,
+            audioBytes.byteOffset,
+            audioBytes.byteLength,
+          )
+        : audioBytes instanceof Uint8Array
+          ? audioBytes
+          : new Uint8Array(audioBytes as ArrayBuffer);
+    const blob = new Blob([uint8 as unknown as BlobPart], { type: mimeType });
+    scope = await Sonoscope.fromBlob(blob, {
+      followPlayback,
+      frequencyScale,
+      audio,
+    });
+  } else if (url) {
+    audio.src = url;
+    scope = await Sonoscope.fromAudio(audio, {
+      followPlayback,
+      frequencyScale,
+    });
+  } else {
+    // Empty initial placeholder or error
+    scope = new Sonoscope({
+      source: {
+        id: "empty",
+        duration: 0.1,
+        sampleRate: 44100,
+        channelCount: 1,
+        read: () => new Float32Array(0),
+      },
+      followPlayback,
+      frequencyScale,
+      audio,
+    });
+  }
 
   const minFreq = frequencyScale === "log" ? 20 : 0;
   const maxFreq = Math.floor(scope.getSampleRate() / 2);

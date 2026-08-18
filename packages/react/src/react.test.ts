@@ -19,11 +19,9 @@ import {
   TimeRuler,
   type TimeRulerHandle,
   type UseSonoscopeResult,
-  useFrequencyRuler,
   useSonoscope,
   useSonoscopeContext,
   useSpectrogram,
-  useTimeRuler,
   Waveform,
   type WaveformHandle,
 } from "./index";
@@ -404,6 +402,70 @@ describe("React Components and Hooks", () => {
       });
 
       expect(destroySpy).toHaveBeenCalled();
+    });
+
+    it("initializes Sonoscope from array and sampleRate", async () => {
+      const samples = new Float32Array(44100 * 2);
+      const resultRef = { current: null as UseSonoscopeResult | null };
+
+      function HookTest() {
+        resultRef.current = useSonoscope({ array: samples, sampleRate: 44100 });
+        return null;
+      }
+
+      await act(async () => {
+        root.render(React.createElement(HookTest));
+      });
+
+      expect(resultRef.current?.loading).toBe(false);
+      expect(resultRef.current?.error).toBeNull();
+      expect(resultRef.current?.scope).toBeInstanceOf(Sonoscope);
+      expect(resultRef.current?.scope?.getDuration()).toBe(2);
+      expect(resultRef.current?.scope?.getSampleRate()).toBe(44100);
+    });
+
+    it("initializes Sonoscope from Blob", async () => {
+      const blob = new Blob([new Uint8Array(100)]);
+      vi.spyOn(Sonoscope, "fromBlob").mockResolvedValue(
+        new Sonoscope(createMockAudioSource(5, 48000)),
+      );
+
+      const resultRef = { current: null as UseSonoscopeResult | null };
+      function HookTest() {
+        resultRef.current = useSonoscope({ blob });
+        return null;
+      }
+
+      await act(async () => {
+        root.render(React.createElement(HookTest));
+      });
+
+      expect(resultRef.current?.loading).toBe(false);
+      expect(resultRef.current?.error).toBeNull();
+      expect(resultRef.current?.scope).toBeInstanceOf(Sonoscope);
+      expect(resultRef.current?.scope?.getDuration()).toBe(5);
+    });
+
+    it("initializes Sonoscope from Buffer", async () => {
+      const buffer = new ArrayBuffer(100);
+      vi.spyOn(Sonoscope, "fromBuffer").mockResolvedValue(
+        new Sonoscope(createMockAudioSource(7, 44100)),
+      );
+
+      const resultRef = { current: null as UseSonoscopeResult | null };
+      function HookTest() {
+        resultRef.current = useSonoscope({ buffer });
+        return null;
+      }
+
+      await act(async () => {
+        root.render(React.createElement(HookTest));
+      });
+
+      expect(resultRef.current?.loading).toBe(false);
+      expect(resultRef.current?.error).toBeNull();
+      expect(resultRef.current?.scope).toBeInstanceOf(Sonoscope);
+      expect(resultRef.current?.scope?.getDuration()).toBe(7);
     });
   });
 

@@ -13,7 +13,13 @@ def _():
 
 @app.cell
 def _(Spectrogram):
-    Spectrogram(url="https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original", program="dither", cmap="gray_r", min_db=-100, max_db=-20)
+    Spectrogram(
+        url="https://xeno-canto.org/510976/download",
+        frequency_scale="linear",
+        min_db=-100,
+        max_db=-20,
+        cmap="jet"
+    )
     return
 
 

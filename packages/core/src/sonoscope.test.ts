@@ -1,8 +1,10 @@
 import type { AudioSource } from "./types";
 import { describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "./sonoscope";
+import { ArrayAudioSource } from "./sources/array-source";
 import * as sourceModule from "./sources/source";
 import { DecodedAudioSource } from "./sources/source";
+import { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
 
 type AudioFixture = HTMLAudioElement & {
   paused: boolean;
@@ -153,6 +155,49 @@ describe("Sonoscope", () => {
     expect(scope.getDuration()).toBe(8);
     expect(scope.getSampleRate()).toBe(22050);
     expect(scope.getViewport().endTime).toBe(4);
+  });
+
+  it("creates instance via Sonoscope.fromArray", () => {
+    const samples = new Float32Array(44100 * 2);
+    const scope = Sonoscope.fromArray(samples, 44100, {
+      startTime: 0,
+      endTime: 1,
+    });
+
+    expect(scope.source).toBeInstanceOf(ArrayAudioSource);
+    expect(scope.getDuration()).toBe(2);
+    expect(scope.getSampleRate()).toBe(44100);
+    expect(scope.getViewport().endTime).toBe(1);
+  });
+
+  it("creates instance via Sonoscope.fromBlob", async () => {
+    const wavBlob = encodeWavBlob(new Float32Array(22050), 22050);
+    const scope = await Sonoscope.fromBlob(wavBlob);
+
+    expect(scope.getSampleRate()).toBe(22050);
+    expect(scope.getDuration()).toBe(1);
+  });
+
+  it("creates instance via Sonoscope.fromBuffer", async () => {
+    const wavBuffer = encodeWavBuffer(new Float32Array(16000), 16000);
+    const scope = await Sonoscope.fromBuffer(wavBuffer);
+
+    expect(scope.getSampleRate()).toBe(16000);
+    expect(scope.getDuration()).toBe(1);
+  });
+
+  it("automatically creates and cleans up ObjectURLs for HTMLAudioElement", () => {
+    const revokeSpy = vi.fn();
+    globalThis.URL.createObjectURL = vi.fn().mockReturnValue("blob:test-audio");
+    globalThis.URL.revokeObjectURL = revokeSpy;
+
+    const audio = createMockAudio("");
+    const samples = new Float32Array(44100);
+    const scope = Sonoscope.fromArray(samples, 44100, { audio });
+
+    expect(audio.src).toBe("blob:test-audio");
+    scope.destroy();
+    expect(revokeSpy).toHaveBeenCalledWith("blob:test-audio");
   });
 
   it("creates instance via Sonoscope.fromUrl", async () => {

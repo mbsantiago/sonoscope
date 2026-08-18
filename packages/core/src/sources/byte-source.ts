@@ -106,3 +106,77 @@ export class FetchByteSource implements SeekableByteSource {
     return new Uint8Array(await response.arrayBuffer());
   }
 }
+
+export class BlobByteSource implements SeekableByteSource {
+  readonly size: number;
+
+  constructor(
+    private readonly blob: Blob,
+    options?: { size?: number },
+  ) {
+    this.size = options?.size ?? blob.size;
+  }
+
+  stream(): ReadableStream<Uint8Array> {
+    if (typeof this.blob.stream === "function") {
+      return this.blob.stream();
+    }
+    return new ReadableStream<Uint8Array>({
+      start: async (controller) => {
+        try {
+          const buffer = await this.blob.arrayBuffer();
+          controller.enqueue(new Uint8Array(buffer));
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    });
+  }
+
+  async readRange(start: number, end: number): Promise<Uint8Array> {
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 0 ||
+      end < start
+    ) {
+      throw new Error("Invalid byte range");
+    }
+    const sliced = this.blob.slice(start, end);
+    return new Uint8Array(await sliced.arrayBuffer());
+  }
+}
+
+export class BufferByteSource implements SeekableByteSource {
+  readonly size: number;
+  private readonly uint8Array: Uint8Array;
+
+  constructor(buffer: ArrayBuffer | Uint8Array, options?: { size?: number }) {
+    this.uint8Array =
+      buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+    this.size = options?.size ?? this.uint8Array.byteLength;
+  }
+
+  stream(): ReadableStream<Uint8Array> {
+    return new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        controller.enqueue(this.uint8Array);
+        controller.close();
+      },
+    });
+  }
+
+  async readRange(start: number, end: number): Promise<Uint8Array> {
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 0 ||
+      end < start ||
+      end > this.size
+    ) {
+      throw new Error("Invalid byte range");
+    }
+    return this.uint8Array.subarray(start, end);
+  }
+}

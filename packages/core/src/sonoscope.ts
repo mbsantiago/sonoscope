@@ -12,7 +12,14 @@ import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
 import { TypedEventEmitter } from "./events";
-import { createAudioSourceFromUrl, DecodedAudioSource } from "./sources/source";
+import { ArrayAudioSource } from "./sources/array-source";
+import {
+  createAudioSourceFromBlob,
+  createAudioSourceFromBuffer,
+  createAudioSourceFromUrl,
+  DecodedAudioSource,
+} from "./sources/source";
+import { encodeWavBlob } from "./sources/wav-encoder";
 import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
@@ -172,6 +179,116 @@ export class Sonoscope implements ISonoscope {
   ): Sonoscope {
     const source = new DecodedAudioSource(buffer);
     return new Sonoscope({ ...options, source });
+  }
+
+  static async fromBlob(
+    blob: Blob,
+    options?: Omit<SonoscopeOptions, "source">,
+  ): Promise<Sonoscope> {
+    const sourceOptions =
+      options?.preferStreaming !== undefined ||
+      options?.preferDecoded !== undefined ||
+      options?.sampleRate !== undefined
+        ? {
+            preferStreaming: options.preferStreaming,
+            preferDecoded: options.preferDecoded,
+            sampleRate: options.sampleRate,
+          }
+        : undefined;
+    const source = sourceOptions
+      ? await createAudioSourceFromBlob(blob, sourceOptions)
+      : await createAudioSourceFromBlob(blob);
+
+    let createdUrl: string | undefined;
+    const audio = options?.audio;
+    if (
+      audio &&
+      !audio.src &&
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      createdUrl = URL.createObjectURL(blob);
+      audio.src = createdUrl;
+    }
+
+    const scope = new Sonoscope({ ...options, source, audio });
+    if (createdUrl) {
+      scope.audioCleanup.push(() => {
+        URL.revokeObjectURL(createdUrl!);
+      });
+    }
+    return scope;
+  }
+
+  static async fromBuffer(
+    buffer: ArrayBuffer | Uint8Array,
+    options?: Omit<SonoscopeOptions, "source">,
+  ): Promise<Sonoscope> {
+    const sourceOptions =
+      options?.preferStreaming !== undefined ||
+      options?.preferDecoded !== undefined ||
+      options?.sampleRate !== undefined
+        ? {
+            preferStreaming: options.preferStreaming,
+            preferDecoded: options.preferDecoded,
+            sampleRate: options.sampleRate,
+          }
+        : undefined;
+    const source = sourceOptions
+      ? await createAudioSourceFromBuffer(buffer, sourceOptions)
+      : await createAudioSourceFromBuffer(buffer);
+
+    let createdUrl: string | undefined;
+    const audio = options?.audio;
+    if (
+      audio &&
+      !audio.src &&
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      const uint8 =
+        buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+      const blob = new Blob([uint8 as unknown as BlobPart]);
+      createdUrl = URL.createObjectURL(blob);
+      audio.src = createdUrl;
+    }
+
+    const scope = new Sonoscope({ ...options, source, audio });
+    if (createdUrl) {
+      scope.audioCleanup.push(() => {
+        URL.revokeObjectURL(createdUrl!);
+      });
+    }
+    return scope;
+  }
+
+  static fromArray(
+    data: Float32Array | Float32Array[] | number[] | number[][],
+    sampleRate: number,
+    options?: Omit<SonoscopeOptions, "source">,
+  ): Sonoscope {
+    const source = new ArrayAudioSource(data, sampleRate);
+    let createdUrl: string | undefined;
+    const audio = options?.audio;
+
+    if (
+      audio &&
+      !audio.src &&
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      const wavBlob = encodeWavBlob(data, sampleRate);
+      createdUrl = URL.createObjectURL(wavBlob);
+      audio.src = createdUrl;
+    }
+
+    const scope = new Sonoscope({ ...options, source, audio });
+    if (createdUrl) {
+      scope.audioCleanup.push(() => {
+        URL.revokeObjectURL(createdUrl!);
+      });
+    }
+    return scope;
   }
 
   getViewport(): ViewportState {

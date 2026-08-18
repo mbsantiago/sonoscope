@@ -1,9 +1,25 @@
 import type { AudioSource } from "../types";
-import { FetchByteSource, readPrefix } from "./byte-source";
+import {
+  BlobByteSource,
+  BufferByteSource,
+  FetchByteSource,
+  readPrefix,
+  type SeekableByteSource,
+} from "./byte-source";
 import { isMp3Bytes, parseMp3Info } from "./mp3";
 import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
 import { isWavBytes } from "./wav";
+
+export type AudioSourceOptions =
+  | AudioContextLike
+  | {
+      audioContext?: AudioContextLike | undefined;
+      sampleRate?: number | undefined;
+      preferStreaming?: boolean | undefined;
+      preferDecoded?: boolean | undefined;
+    }
+  | undefined;
 
 export class DecodedAudioSource implements AudioSource {
   readonly sampleRate: number;
@@ -33,11 +49,45 @@ export class DecodedAudioSource implements AudioSource {
     if (!response.ok)
       throw new Error(`Failed to fetch audio source: ${response.status}`);
     const data = await response.arrayBuffer();
-    const audioContext = resolveAudioContext(data, options);
-    return new DecodedAudioSource(
-      await audioContext.decodeAudioData(data),
-      url,
-    );
+    return DecodedAudioSource.fromBuffer(data, options, url);
+  }
+
+  static async fromBlob(
+    blob: Blob,
+    options?:
+      | AudioContextLike
+      | {
+          audioContext?: AudioContextLike | undefined;
+          sampleRate?: number | undefined;
+        }
+      | undefined,
+    id?: string,
+  ): Promise<DecodedAudioSource> {
+    const data = await blob.arrayBuffer();
+    return DecodedAudioSource.fromBuffer(data, options, id);
+  }
+
+  static async fromBuffer(
+    buffer: ArrayBuffer | Uint8Array,
+    options?:
+      | AudioContextLike
+      | {
+          audioContext?: AudioContextLike | undefined;
+          sampleRate?: number | undefined;
+        }
+      | undefined,
+    id?: string,
+  ): Promise<DecodedAudioSource> {
+    const arrayBuffer: ArrayBuffer =
+      buffer instanceof ArrayBuffer
+        ? buffer
+        : (buffer.buffer.slice(
+            buffer.byteOffset,
+            buffer.byteOffset + buffer.byteLength,
+          ) as ArrayBuffer);
+    const audioContext = resolveAudioContext(arrayBuffer, options);
+    const decoded = await audioContext.decodeAudioData(arrayBuffer);
+    return new DecodedAudioSource(decoded, id);
   }
 
   read(options: {
@@ -56,28 +106,11 @@ export class DecodedAudioSource implements AudioSource {
   }
 }
 
-/**
- * Creates an AudioSource from an audio URL.
- *
- * Defaults to streaming sources (`StreamingWavSource`, `StreamingMp3Source`) for instant first-tile rendering.
- * Falls back to `DecodedAudioSource` (native `AudioContext.decodeAudioData`) if streaming is unavailable
- * or when `preferDecoded: true` / `preferStreaming: false` is specified.
- *
- * @note **MP3 Caution:** Long MP3 files (e.g. >30 minutes) may exhibit slight playhead/spectrogram timing
- * drift during streaming playback due to MP3 bit-reservoir and browser WebCodecs demuxing limitations.
- * For sample-exact playhead alignment across multi-hour audio, uncompressed WAV or `preferDecoded: true` is recommended.
- */
-export async function createAudioSourceFromUrl(
-  url: string,
-  options?:
-    | AudioContextLike
-    | {
-        audioContext?: AudioContextLike | undefined;
-        sampleRate?: number | undefined;
-        preferStreaming?: boolean | undefined;
-        preferDecoded?: boolean | undefined;
-      }
-    | undefined,
+async function createAudioSourceFromByteSource(
+  byteSource: SeekableByteSource,
+  options: AudioSourceOptions,
+  sourceId?: string,
+  fallbackDecode?: () => Promise<AudioSource>,
 ): Promise<AudioSource> {
   const isDecodedPreferred =
     Boolean(options && "preferDecoded" in options && options.preferDecoded) ||
@@ -87,33 +120,89 @@ export async function createAudioSourceFromUrl(
         options.preferStreaming === false,
     );
 
-  if (isDecodedPreferred) {
-    return DecodedAudioSource.fromUrl(url, options);
+  if (isDecodedPreferred && fallbackDecode) {
+    return fallbackDecode();
   }
 
-  const byteSource = FetchByteSource.fromUrl(url);
   const prefix = await readPrefix(byteSource, 64);
 
   if (isWavBytes(prefix)) {
     try {
-      return await StreamingWavSource.fromByteSource(byteSource, { id: url });
+      const wavOpts = sourceId !== undefined ? { id: sourceId } : undefined;
+      return await StreamingWavSource.fromByteSource(byteSource, wavOpts);
     } catch {
-      return DecodedAudioSource.fromUrl(url, options);
+      if (fallbackDecode) return fallbackDecode();
     }
   }
 
   if (isMp3Bytes(prefix)) {
     if (await StreamingMp3Source.isSupported()) {
       try {
-        return await StreamingMp3Source.fromByteSource(byteSource, { id: url });
+        const mp3Opts = sourceId !== undefined ? { id: sourceId } : undefined;
+        return await StreamingMp3Source.fromByteSource(byteSource, mp3Opts);
       } catch {
-        return DecodedAudioSource.fromUrl(url, options);
+        if (fallbackDecode) return fallbackDecode();
       }
     }
-    return DecodedAudioSource.fromUrl(url, options);
+    if (fallbackDecode) return fallbackDecode();
   }
 
-  return DecodedAudioSource.fromUrl(url, options);
+  if (fallbackDecode) {
+    return fallbackDecode();
+  }
+
+  throw new Error("Unsupported audio byte source and no fallback provided");
+}
+
+/**
+ * Creates an AudioSource from an audio URL.
+ *
+ * Defaults to streaming sources (`StreamingWavSource`, `StreamingMp3Source`) for instant first-tile rendering.
+ * Falls back to `DecodedAudioSource` (native `AudioContext.decodeAudioData`) if streaming is unavailable
+ * or when `preferDecoded: true` / `preferStreaming: false` is specified.
+ */
+export async function createAudioSourceFromUrl(
+  url: string,
+  options?: AudioSourceOptions,
+): Promise<AudioSource> {
+  const byteSource = FetchByteSource.fromUrl(url);
+  return createAudioSourceFromByteSource(byteSource, options, url, () =>
+    DecodedAudioSource.fromUrl(url, options),
+  );
+}
+
+/**
+ * Creates an AudioSource from a Blob or File.
+ *
+ * Defaults to streaming sources for instant first-tile rendering.
+ * Falls back to `DecodedAudioSource` if streaming is unavailable.
+ */
+export async function createAudioSourceFromBlob(
+  blob: Blob,
+  options?: AudioSourceOptions,
+  id?: string,
+): Promise<AudioSource> {
+  const byteSource = new BlobByteSource(blob);
+  return createAudioSourceFromByteSource(byteSource, options, id, () =>
+    DecodedAudioSource.fromBlob(blob, options, id),
+  );
+}
+
+/**
+ * Creates an AudioSource from an ArrayBuffer or Uint8Array.
+ *
+ * Defaults to streaming sources for instant first-tile rendering.
+ * Falls back to `DecodedAudioSource` if streaming is unavailable.
+ */
+export async function createAudioSourceFromBuffer(
+  buffer: ArrayBuffer | Uint8Array,
+  options?: AudioSourceOptions,
+  id?: string,
+): Promise<AudioSource> {
+  const byteSource = new BufferByteSource(buffer);
+  return createAudioSourceFromByteSource(byteSource, options, id, () =>
+    DecodedAudioSource.fromBuffer(buffer, options, id),
+  );
 }
 
 export type AudioContextLike = {
