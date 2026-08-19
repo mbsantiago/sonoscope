@@ -1,3 +1,7 @@
+:root {
+  --sl-content-width: 68rem;
+}
+
 /* Reduce excessive hero padding on splash landing page */
 [data-has-hero] .hero {
   padding-block: clamp(1.5rem, calc(1rem + 3vmin), 3rem) !important;

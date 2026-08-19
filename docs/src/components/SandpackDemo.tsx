@@ -1,5 +1,8 @@
 import {
-  Sandpack,
+  SandpackCodeEditor,
+  SandpackLayout,
+  SandpackPreview,
+  SandpackProvider,
   type SandpackFiles,
   type SandpackTheme,
 } from "@codesandbox/sandpack-react";
@@ -89,20 +92,24 @@ const presets: Record<
       "/index.ts": {
         code: `import { Sonoscope } from "@sonoscope/core";
 
-const canvas = document.getElementById("spectrogram") as HTMLCanvasElement;
-const audioUrl = "${DEFAULT_AUDIO_URL}";
+async function main() {
+  const canvas = document.getElementById("spectrogram") as HTMLCanvasElement;
+  const audioUrl = "${DEFAULT_AUDIO_URL}";
 
-const scope = await Sonoscope.fromUrl(audioUrl, {
-  frequencyScale: "mel",
-});
+  const scope = await Sonoscope.fromUrl(audioUrl, {
+    frequencyScale: "mel",
+  });
 
-const spec = scope.createSpectrogram(canvas, {
-  colorMap: "inferno",
-  minValue: -80,
-  maxValue: 0,
-});
+  const spec = scope.createSpectrogram(canvas, {
+    colorMap: "inferno",
+    minValue: -80,
+    maxValue: 0,
+  });
 
-scope.attachNavigation(canvas);
+  scope.attachNavigation(canvas);
+}
+
+main();
 `,
         active: true,
       },
@@ -161,15 +168,19 @@ html, body {
       "/index.ts": {
         code: `import { Sonoscope } from "@sonoscope/core";
 
-const canvas = document.getElementById("waveform") as HTMLCanvasElement;
-const audioUrl = "${DEFAULT_AUDIO_URL}";
+async function main() {
+  const canvas = document.getElementById("waveform") as HTMLCanvasElement;
+  const audioUrl = "${DEFAULT_AUDIO_URL}";
 
-const scope = await Sonoscope.fromUrl(audioUrl);
-const wave = scope.createWaveform(canvas, {
-  colorMap: "inferno",
-});
+  const scope = await Sonoscope.fromUrl(audioUrl);
+  const wave = scope.createWaveform(canvas, {
+    colorMap: "inferno",
+  });
 
-scope.attachNavigation(canvas, { axis: "time" });
+  scope.attachNavigation(canvas, { axis: "time" });
+}
+
+main();
 `,
         active: true,
       },
@@ -228,22 +239,28 @@ html, body {
       "/index.ts": {
         code: `import { Sonoscope } from "@sonoscope/core";
 
-const audioUrl = "${DEFAULT_AUDIO_URL}";
+async function main() {
+  const audioUrl = "${DEFAULT_AUDIO_URL}";
 
-const scope = await Sonoscope.fromUrl(audioUrl, {
-  frequencyScale: "mel",
-});
+  const scope = await Sonoscope.fromUrl(audioUrl, {
+    frequencyScale: "mel",
+  });
 
-const timeCanvas = document.getElementById("time-ruler") as HTMLCanvasElement;
-scope.createTimeRuler(timeCanvas, { tickPosition: "bottom" });
+  const timeCanvas = document.getElementById("time-ruler") as HTMLCanvasElement;
+  scope.createTimeRuler(timeCanvas, { tickPosition: "bottom" });
 
-const freqCanvas = document.getElementById("freq-ruler") as HTMLCanvasElement;
-scope.createFrequencyRuler(freqCanvas, { tickPosition: "right" });
+  const freqCanvas = document.getElementById("freq-ruler") as HTMLCanvasElement;
+  scope.createFrequencyRuler(freqCanvas, { tickPosition: "right" });
 
-const specCanvas = document.getElementById("spectrogram") as HTMLCanvasElement;
-scope.createSpectrogram(specCanvas, { colorMap: "viridis" });
+  const specCanvas = document.getElementById("spectrogram") as HTMLCanvasElement;
+  scope.createSpectrogram(specCanvas, { colorMap: "viridis" });
 
-scope.attachNavigation(specCanvas, { axis: "both" });
+  scope.attachNavigation(specCanvas, { axis: "both" });
+  scope.attachNavigation(timeCanvas, { axis: "time" });
+  scope.attachNavigation(freqCanvas, { axis: "frequency" });
+}
+
+main();
 `,
         active: true,
       },
@@ -386,6 +403,8 @@ export interface SandpackDemoProps {
   activeFile?: string;
   visibleFiles?: string[];
   editorHeight?: number;
+  previewHeight?: number;
+  layout?: "stacked" | "side-by-side";
 }
 
 export default function SandpackDemo({
@@ -394,13 +413,16 @@ export default function SandpackDemo({
   files,
   activeFile,
   visibleFiles,
-  editorHeight = 360,
+  editorHeight = 280,
+  previewHeight = 320,
+  layout = "stacked",
 }: SandpackDemoProps) {
   const preset = type ? presets[type] : null;
 
   const resolvedTemplate = template || preset?.template || "vanilla-ts";
   const resolvedActiveFile = activeFile || preset?.activeFile || "/index.ts";
-  const resolvedVisibleFiles = visibleFiles || preset?.visibleFiles || [resolvedActiveFile, "/index.html"];
+  const resolvedVisibleFiles =
+    visibleFiles || preset?.visibleFiles || [resolvedActiveFile, "/index.html"];
 
   const baseInternalFiles =
     resolvedTemplate === "react" || resolvedTemplate === "react-ts"
@@ -413,27 +435,51 @@ export default function SandpackDemo({
     ...(files || {}),
   };
 
+  const isStacked = layout === "stacked";
+
   return (
     <div className="not-content my-6 overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[#100f0f]">
-      <Sandpack
+      <SandpackProvider
         template={resolvedTemplate}
         theme={flexokiTheme}
         files={mergedFiles}
         options={{
           activeFile: resolvedActiveFile,
           visibleFiles: resolvedVisibleFiles,
-          showTabs: true,
-          showLineNumbers: true,
-          showInlineErrors: true,
-          wrapContent: true,
-          editorHeight,
-          showConsole: false,
-          showConsoleButton: false,
-          showRefreshButton: true,
-          closableTabs: false,
+          autorun: true,
           autoReload: true,
         }}
-      />
+      >
+        <SandpackLayout
+          style={{
+            flexDirection: isStacked ? "column" : "row",
+          }}
+        >
+          <SandpackCodeEditor
+            showTabs={true}
+            showLineNumbers={true}
+            showInlineErrors={true}
+            wrapContent={true}
+            closableTabs={false}
+            style={{
+              height: editorHeight,
+              borderBottom: isStacked
+                ? "1px solid var(--sl-color-hairline, rgba(128, 128, 128, 0.2))"
+                : "none",
+              borderRight: !isStacked
+                ? "1px solid var(--sl-color-hairline, rgba(128, 128, 128, 0.2))"
+                : "none",
+            }}
+          />
+          <SandpackPreview
+            showRefreshButton={true}
+            showOpenInCodeSandbox={false}
+            style={{
+              height: previewHeight,
+            }}
+          />
+        </SandpackLayout>
+      </SandpackProvider>
     </div>
   );
 }
