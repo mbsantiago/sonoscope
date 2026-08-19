@@ -1,5 +1,13 @@
 # Sonoscope 🎵
 
+[![CI](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml)
+[![Documentation](https://github.com/mbsantiago/sonoscope/actions/workflows/deploy-pages.yml/badge.svg)](https://mbsantiago.github.io/sonoscope/)
+[![Release & Publish](https://github.com/mbsantiago/sonoscope/actions/workflows/release.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/release.yml)
+[![npm @sonoscope/core](https://img.shields.io/npm/v/@sonoscope/core?label=@sonoscope/core&logo=npm&color=3aa99f)](https://www.npmjs.com/package/@sonoscope/core)
+[![npm @sonoscope/react](https://img.shields.io/npm/v/@sonoscope/react?label=@sonoscope/react&logo=npm&color=3aa99f)](https://www.npmjs.com/package/@sonoscope/react)
+[![PyPI - sonoscope](https://img.shields.io/pypi/v/sonoscope?label=sonoscope&logo=pypi&color=d0a215)](https://pypi.org/project/sonoscope/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 High-performance WebGL2 and WASM-accelerated audio visualization ecosystem for the web.
 
 Sonoscope is structured as a modern monorepo featuring a unified audio & viewport coordinator, high-performance rendering engines, and declarative React bindings:

@@ -1,5 +1,9 @@
 # @sonoscope/react
 
+[![npm version](https://img.shields.io/npm/v/@sonoscope/react?logo=npm&color=3aa99f)](https://www.npmjs.com/package/@sonoscope/react)
+[![CI](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 React hooks and declarative components for [Sonoscope](https://github.com/mbsantiago/spectrogram-js) audio visualization.
 
 ## Installation

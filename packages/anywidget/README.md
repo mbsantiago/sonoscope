@@ -1,6 +1,10 @@
 # sonoscope
 
-## Installation
+[![PyPI version](https://img.shields.io/pypi/v/sonoscope?logo=pypi&color=d0a215)](https://pypi.org/project/sonoscope/)
+[![CI](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+Interactive WebGL2 & WASM audio visualization widget for JupyterLab, VS Code, Google Colab, and Marimo.
 
 ```sh
 pip install sonoscope

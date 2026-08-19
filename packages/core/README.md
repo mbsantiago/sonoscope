@@ -1,5 +1,9 @@
 # @sonoscope/core
 
+[![npm version](https://img.shields.io/npm/v/@sonoscope/core?logo=npm&color=3aa99f)](https://www.npmjs.com/package/@sonoscope/core)
+[![CI](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 High-performance WebGL2 and WASM-accelerated audio visualization engine for the web.
 
 ## Installation
