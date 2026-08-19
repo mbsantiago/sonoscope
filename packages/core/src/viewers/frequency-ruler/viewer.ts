@@ -10,6 +10,7 @@ import type {
   ResolvedFrequencyRulerConfig,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
+import { attachAutoResize } from "../../auto-resize";
 import { hzToScale, scaleToHz } from "../spectrogram/frequency-scale";
 import { BoxesFrequencyRulerProgram } from "./programs/boxes-program";
 import { TicksFrequencyRulerProgram } from "./programs/ticks-program";
@@ -68,6 +69,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private config: ResolvedFrequencyRulerConfig;
   private programInstance: FrequencyRulerProgram;
   private scopeCleanup: Array<() => void> = [];
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -109,6 +111,12 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     }
 
     this.bindScope();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
 
     if (this.config.autoRender) {
       this.requestRender();
@@ -295,5 +303,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
   }
 }

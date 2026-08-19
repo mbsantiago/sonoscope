@@ -242,6 +242,10 @@ export type SpectrogramConfig = {
   maxCachedTiles?: number;
   prefetchTiles?: number;
 
+  // Sizing
+  autoResize?: boolean;
+  devicePixelRatio?: boolean | number;
+
   // Modular
   colorMap?: ColorMapConfig;
   transforms?: SpectrogramTransform[];

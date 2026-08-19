@@ -17,6 +17,7 @@ import type {
   ValueMode,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
+import { attachAutoResize } from "../../auto-resize";
 import {
   createSpectrogramBackend,
   isSpectrogramComputeBackend,
@@ -37,6 +38,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private renderer: SpectrogramRenderer;
   private scopeCleanup: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -104,6 +106,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
     this.bindScope();
     this.attachSourceRangeSync();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
     if (this.config.autoRender) {
       this.requestRender();
     }
@@ -490,6 +498,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.scopeCleanup = [];
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
     this.cache.clear();
     this.pendingTiles.clear();
     this.backend.destroy?.();

@@ -10,6 +10,7 @@ import type {
   TimeRulerViewport,
 } from "./types";
 import { TypedEventEmitter } from "../../events";
+import { attachAutoResize } from "../../auto-resize";
 import { clampViewportTimes } from "../../viewport-math";
 import { BoxesTimeRulerProgram } from "./programs/boxes-program";
 import { TicksTimeRulerProgram } from "./programs/ticks-program";
@@ -79,6 +80,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private config: ResolvedTimeRulerConfig;
   private programInstance: TimeRulerProgram;
   private scopeCleanup: Array<() => void> = [];
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -96,6 +98,12 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.programInstance = resolveTimeRulerProgram(this.config.program);
 
     this.bindScope();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
 
     if (this.config.autoRender) {
       this.requestRender();
@@ -258,5 +266,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
   }
 }

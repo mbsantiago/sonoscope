@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
+import { attachAutoResize } from "../../auto-resize";
 import { clampViewportTimes } from "../../viewport-math";
 import { WaveformPeakPyramid } from "./peaks";
 import { CanvasWaveformRenderer } from "./renderers/canvas";
@@ -91,6 +92,7 @@ export class WaveformViewer implements IWaveformViewer {
   private pyramid: WaveformPeakPyramid;
   private renderer: WaveformRenderer;
   private scopeCleanup: Array<() => void> = [];
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -137,6 +139,12 @@ export class WaveformViewer implements IWaveformViewer {
       resolvedConfig.channel,
     );
     this.bindScope();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
     if (this.config.autoRender) {
       this.requestRender();
     }
@@ -312,6 +320,8 @@ export class WaveformViewer implements IWaveformViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
     this.pyramid.clear();
     this.renderer.destroy?.();
   }

@@ -48,6 +48,8 @@ export type TimeRulerConfig = {
   timeFormat?: TimeFormatMode | undefined;
   minMajorPixelSpacing?: number | undefined;
   program?: TimeRulerProgramName | TimeRulerProgram | undefined;
+  autoResize?: boolean | undefined;
+  devicePixelRatio?: boolean | number | undefined;
 };
 
 export type TimeRulerOptions = TimeRulerConfig;

@@ -13,7 +13,12 @@ import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
 import { TypedEventEmitter } from "./events";
-import { attachNavigation } from "./navigation";
+import { attachAutoResize, type AutoResizeOptions } from "./auto-resize";
+import {
+  attachDragNavigation,
+  attachNavigation,
+  attachWheelNavigation,
+} from "./navigation";
 import { ArrayAudioSource } from "./sources/array-source";
 import {
   createAudioSourceFromBlob,
@@ -813,6 +818,13 @@ export class Sonoscope implements ISonoscope {
     throw new Error(
       "Invalid navigation target: expected DOM container element",
     );
+  }
+
+  attachAutoResize(
+    canvas: HTMLCanvasElement,
+    options?: AutoResizeOptions,
+  ): () => void {
+    return attachAutoResize(canvas, options);
   }
 
   on<K extends keyof SonoscopeEvents>(

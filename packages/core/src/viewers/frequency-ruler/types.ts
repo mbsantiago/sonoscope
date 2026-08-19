@@ -47,6 +47,8 @@ export type FrequencyRulerConfig = {
   frequencyFormat?: FrequencyFormatMode | undefined;
   minMajorPixelSpacing?: number | undefined;
   program?: FrequencyRulerProgramName | FrequencyRulerProgram | undefined;
+  autoResize?: boolean | undefined;
+  devicePixelRatio?: boolean | number | undefined;
 };
 
 export type FrequencyRulerOptions = FrequencyRulerConfig;
