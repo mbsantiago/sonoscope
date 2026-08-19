@@ -6,16 +6,16 @@ interface Props {
 }
 ---
 
-<div class="not-content live-code-card" style="margin: 1.5rem 0;">
-  <div class="live-code-preview" style="margin-bottom: 0.75rem;">
+<div class="not-content live-code-card my-6">
+  <div class="live-code-preview mb-3">
     <slot name="example" />
   </div>
 
-  <details style="border: 1px solid rgba(128, 128, 128, 0.25); border-radius: 6px; padding: 10px 14px; background: rgba(128, 128, 128, 0.04);">
-    <summary style="cursor: pointer; font-size: 13px; font-weight: 500; user-select: none; opacity: 0.9;">
+  <details open class="group rounded-md border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.04))] px-3.5 py-2.5 transition-colors">
+    <summary class="cursor-pointer select-none text-xs font-medium opacity-90 text-[var(--sl-color-gray-2)] hover:text-[var(--sl-color-text-accent)] transition-colors">
       View Source Code
     </summary>
-    <div style="margin-top: 10px;">
+    <div class="mt-2.5">
       <slot name="code" />
     </div>
   </details>

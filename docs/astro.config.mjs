@@ -9,6 +9,7 @@ import liveCodeRemark from 'astro-live-code/remark';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightThemeFlexoki from 'starlight-theme-flexoki';
 import { createStarlightTypeDocPlugin } from 'starlight-typedoc';
+import tailwindcss from '@tailwindcss/vite';
 
 const [coreTypeDoc, coreSidebarGroup] = createStarlightTypeDocPlugin();
 const [reactTypeDoc, reactSidebarGroup] = createStarlightTypeDocPlugin();
@@ -60,7 +61,7 @@ export default defineConfig({
 					},
 				}),
 			],
-			customCss: ['./src/styles/custom.css'],
+			customCss: ['./src/styles/global.css', './src/styles/custom.css'],
 			social: [
 				{
 					icon: 'github',
@@ -102,4 +103,7 @@ export default defineConfig({
 		}),
 		react(),
 	],
+	vite: {
+		plugins: [tailwindcss()],
+	},
 });

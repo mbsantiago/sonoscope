@@ -21,51 +21,18 @@ export default function ReactSpectrogramViewer() {
     "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
 
   return (
-    <div
-      style={{
-        border: "1px solid rgba(128, 128, 128, 0.25)",
-        borderRadius: "8px",
-        padding: "16px",
-        background: "rgba(0, 0, 0, 0.03)",
-      }}
-    >
+    <div className="not-content my-3 rounded-lg border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))] p-4 font-sans">
       <SonoscopeProvider
         url={audioUrl}
         frequencyScale="mel"
         followPlayback="page"
         audio={audioRef.current || undefined}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "56px 1fr",
-            border: "1px solid rgba(128, 128, 128, 0.25)",
-            borderRadius: "4px",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              height: "24px",
-              borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-              borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-              fontSize: "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: 0.6,
-              fontFamily: "monospace",
-            }}
-          >
+        <div className="grid grid-cols-[56px_1fr] overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))]">
+          <div className="flex h-6 items-center justify-center border-r border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))] font-mono text-[10px] opacity-60">
             Hz \ s
           </div>
-          <div
-            style={{
-              position: "relative",
-              height: "24px",
-              borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-            }}
-          >
+          <div className="relative h-6 border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
             <TimeRuler
               height={24}
               tickPosition="top"
@@ -74,14 +41,7 @@ export default function ReactSpectrogramViewer() {
             />
           </div>
 
-          <div
-            style={{
-              position: "relative",
-              width: "56px",
-              height: "260px",
-              borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-            }}
-          >
+          <div className="relative h-[260px] w-14 border-r border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
             <FrequencyRuler
               width={56}
               tickPosition="right"
@@ -89,7 +49,7 @@ export default function ReactSpectrogramViewer() {
               tickColor="rgba(128, 128, 128, 0.35)"
             />
           </div>
-          <div style={{ position: "relative", height: "260px" }}>
+          <div className="relative h-[260px]">
             <Spectrogram
               height={260}
               colorMap="plasma"
@@ -98,28 +58,10 @@ export default function ReactSpectrogramViewer() {
             />
           </div>
 
-          <div
-            style={{
-              height: "65px",
-              borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-              borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-              fontSize: "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: 0.6,
-              fontFamily: "monospace",
-            }}
-          >
+          <div className="flex h-[65px] items-center justify-center border-r border-t border-[var(--sl-color-hairline,rgba(128,128,128,0.2))] font-mono text-[10px] opacity-60">
             WAV
           </div>
-          <div
-            style={{
-              position: "relative",
-              height: "65px",
-              borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-            }}
-          >
+          <div className="relative h-[65px] border-t border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
             <Waveform height={65} colorMap="plasma" />
           </div>
         </div>
@@ -130,12 +72,7 @@ export default function ReactSpectrogramViewer() {
         src={audioUrl}
         crossOrigin="anonymous"
         controls
-        style={{
-          width: "100%",
-          height: "36px",
-          marginTop: "12px",
-          outline: "none",
-        }}
+        className="mt-3 h-9 w-full outline-none"
       />
     </div>
   );

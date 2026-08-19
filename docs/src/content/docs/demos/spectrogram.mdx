@@ -6,8 +6,8 @@ description: Minimal standalone HTML & JavaScript spectrogram viewer.
 Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`.
 
 ```astro live
-<div id="spectrogram-container">
-  <canvas id="spectrogram-canvas" ></canvas>
+<div class="overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))]">
+  <canvas id="spectrogram-canvas" class="block h-[280px] w-full"></canvas>
 </div>
 
 <script>
@@ -28,19 +28,4 @@ Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@son
 
   scope.attachNavigation(canvas);
 </script>
-
-<style>
-  #spectrogram-container {
-    border: 1px solid rgba(128, 128, 128, 0.25);
-    overflow: hidden;
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  #spectrogram-canvas {
-    width: 100%;
-    height: 280px;
-    display: block;
-  }
-</style>
-
 ```

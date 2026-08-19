@@ -247,281 +247,110 @@ export default function InteractiveSpectrogram({
   }, [scale]);
 
   return (
-    <div
-      className="not-content"
-      style={{
-        border: "1px solid rgba(128, 128, 128, 0.25)",
-        borderRadius: "8px",
-        padding: "16px",
-        background: "rgba(0, 0, 0, 0.03)",
-        margin: "0.75rem 0 2rem 0",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "12px",
-          marginBottom: "20px",
-          fontSize: "13px",
-          lineHeight: 1,
-          margin: "0 0 20px 0",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "16px",
-            alignItems: "center",
-            margin: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              margin: 0,
-            }}
-          >
-            <span style={{ fontWeight: 500, opacity: 0.85, fontSize: "12px" }}>
-              Colormap:
-            </span>
+    <div className="not-content my-3 mb-8 rounded-lg border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))] p-4 font-sans">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 text-xs leading-none">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="inline-flex items-center gap-2">
+            <span className="text-xs font-medium opacity-85">Colormap:</span>
             <select
               value={typeof cmap === "string" ? cmap : "viridis"}
               onChange={(e) => setCmap(e.target.value as any)}
-              style={{
-                height: "28px",
-                padding: "2px 24px 2px 8px",
-                borderRadius: "4px",
-                border: "1px solid rgba(128, 128, 128, 0.3)",
-                background: "rgba(128, 128, 128, 0.08)",
-                color: "inherit",
-                fontSize: "12px",
-                fontWeight: 500,
-                outline: "none",
-                cursor: "pointer",
-                appearance: "none",
-                WebkitAppearance: "none",
-                backgroundImage:
-                  "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 6px center",
-                backgroundSize: "12px",
-              }}
+              className="h-7 cursor-pointer appearance-none rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.3))] bg-[var(--sl-color-gray-6,rgba(128,128,128,0.08))] pl-2 pr-6 py-0.5 text-xs font-medium text-inherit outline-none bg-no-repeat bg-[right_6px_center] bg-[length:12px] bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27currentColor%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3e%3cpolyline%20points=%276%209%2012%2015%2018%209%27%3e%3c/polyline%3e%3c/svg%3e')]"
             >
-              <option value="viridis" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="viridis" className="bg-zinc-900 text-white">
                 Viridis
               </option>
-              <option value="plasma" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="plasma" className="bg-zinc-900 text-white">
                 Plasma
               </option>
-              <option value="inferno" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="inferno" className="bg-zinc-900 text-white">
                 Inferno
               </option>
-              <option value="magma" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="magma" className="bg-zinc-900 text-white">
                 Magma
               </option>
-              <option value="turbo" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="turbo" className="bg-zinc-900 text-white">
                 Turbo
               </option>
-              <option value="cividis" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="cividis" className="bg-zinc-900 text-white">
                 Cividis
               </option>
-              <option value="gray" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="gray" className="bg-zinc-900 text-white">
                 Gray
               </option>
             </select>
           </div>
 
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              margin: 0,
-            }}
-          >
-            <span style={{ fontWeight: 500, opacity: 0.85, fontSize: "12px" }}>
-              Scale:
-            </span>
+          <div className="inline-flex items-center gap-2">
+            <span className="text-xs font-medium opacity-85">Scale:</span>
             <select
               value={scale}
               onChange={(e) => setScale(e.target.value as any)}
-              style={{
-                height: "28px",
-                padding: "2px 24px 2px 8px",
-                borderRadius: "4px",
-                border: "1px solid rgba(128, 128, 128, 0.3)",
-                background: "rgba(128, 128, 128, 0.08)",
-                color: "inherit",
-                fontSize: "12px",
-                fontWeight: 500,
-                outline: "none",
-                cursor: "pointer",
-                appearance: "none",
-                WebkitAppearance: "none",
-                backgroundImage:
-                  "url(\"data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 6px center",
-                backgroundSize: "12px",
-              }}
+              className="h-7 cursor-pointer appearance-none rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.3))] bg-[var(--sl-color-gray-6,rgba(128,128,128,0.08))] pl-2 pr-6 py-0.5 text-xs font-medium text-inherit outline-none bg-no-repeat bg-[right_6px_center] bg-[length:12px] bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27currentColor%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3e%3cpolyline%20points=%276%209%2012%2015%2018%209%27%3e%3c/polyline%3e%3c/svg%3e')]"
             >
-              <option value="mel" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="mel" className="bg-zinc-900 text-white">
                 Mel (Perceptual)
               </option>
-              <option value="log" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="log" className="bg-zinc-900 text-white">
                 Logarithmic
               </option>
-              <option value="linear" style={{ background: "#18181b", color: "#fff" }}>
+              <option value="linear" className="bg-zinc-900 text-white">
                 Linear
               </option>
             </select>
           </div>
         </div>
 
-        <div
-          style={{
-            fontSize: "12px",
-            opacity: 0.7,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
+        <div className="inline-flex items-center gap-1 text-xs opacity-70">
           🎵 Marico Sunbird (<em>Nectarinia mariquensis</em>)
         </div>
       </div>
 
       {error ? (
-        <div
-          style={{
-            padding: "1rem",
-            color: "#ef4444",
-            background: "rgba(239, 68, 68, 0.1)",
-            borderRadius: "4px",
-            fontSize: "14px",
-          }}
-        >
+        <div className="rounded p-4 text-sm text-red-500 bg-red-500/10">
           Error loading audio: {error}
         </div>
       ) : (
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           {loading && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(0, 0, 0, 0.2)",
-                backdropFilter: "blur(2px)",
-                zIndex: 20,
-                borderRadius: "4px",
-                fontSize: "14px",
-                fontWeight: 500,
-              }}
-            >
+            <div className="absolute inset-0 z-20 flex items-center justify-center rounded bg-black/20 text-sm font-medium backdrop-blur-xs">
               Loading & decoding audio...
             </div>
           )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "56px 1fr",
-              border: "1px solid rgba(128, 128, 128, 0.25)",
-              borderRadius: "4px",
-              overflow: "hidden",
-              background: "transparent",
-            }}
-          >
-            <div
-              style={{
-                height: "24px",
-                borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-                borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-                fontSize: "10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: 0.6,
-                fontFamily: "monospace",
-              }}
-            >
+          <div className="grid grid-cols-[56px_1fr] overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-transparent">
+            <div className="flex h-6 items-center justify-center border-r border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))] font-mono text-[10px] opacity-60">
               Hz \ s
             </div>
-            <div
-              style={{
-                position: "relative",
-                height: "24px",
-                borderBottom: "1px solid rgba(128, 128, 128, 0.2)",
-                cursor: "pointer",
-              }}
-            >
+            <div className="relative h-6 cursor-pointer border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
               <canvas
                 ref={timeCanvasRef}
-                style={{ width: "100%", height: "100%", display: "block" }}
+                className="block h-full w-full"
               />
             </div>
 
-            <div
-              style={{
-                position: "relative",
-                width: "56px",
-                height: "280px",
-                borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-              }}
-            >
+            <div className="relative h-[280px] w-14 border-r border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
               <canvas
                 ref={freqCanvasRef}
-                style={{ width: "100%", height: "100%", display: "block" }}
+                className="block h-full w-full"
               />
             </div>
-            <div style={{ position: "relative", height: "280px" }}>
+            <div className="relative h-[280px]">
               <canvas
                 ref={specCanvasRef}
-                style={{ width: "100%", height: "100%", display: "block" }}
+                className="block h-full w-full"
               />
             </div>
 
             {showWaveform && (
               <>
-                <div
-                  style={{
-                    height: "70px",
-                    borderRight: "1px solid rgba(128, 128, 128, 0.2)",
-                    borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-                    fontSize: "10px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: 0.6,
-                    fontFamily: "monospace",
-                  }}
-                >
+                <div className="flex h-[70px] items-center justify-center border-t border-r border-[var(--sl-color-hairline,rgba(128,128,128,0.2))] font-mono text-[10px] opacity-60">
                   WAV
                 </div>
-                <div
-                  style={{
-                    position: "relative",
-                    height: "70px",
-                    borderTop: "1px solid rgba(128, 128, 128, 0.2)",
-                    cursor: "pointer",
-                  }}
-                >
+                <div className="relative h-[70px] cursor-pointer border-t border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
                   <canvas
                     ref={waveCanvasRef}
-                    style={{ width: "100%", height: "100%", display: "block" }}
+                    className="block h-full w-full"
                   />
                 </div>
               </>
@@ -531,12 +360,7 @@ export default function InteractiveSpectrogram({
           <audio
             ref={audioRef}
             controls
-            style={{
-              width: "100%",
-              height: "36px",
-              marginTop: "12px",
-              outline: "none",
-            }}
+            className="mt-3 h-9 w-full outline-none"
           />
         </div>
       )}

@@ -4,8 +4,8 @@ description: Audio waveform visualization.
 ---
 
 ```astro live
-<div id="waveform-container">
-  <canvas id="waveform-canvas" ></canvas>
+<div class="overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))]">
+  <canvas id="waveform-canvas" class="block h-[280px] w-full"></canvas>
 </div>
 
 <script>
@@ -18,18 +18,4 @@ description: Audio waveform visualization.
   const wave = scope.createWaveform(canvas);
   scope.attachNavigation(canvas);
 </script>
-
-<style>
-  #waveform-container {
-    border: 1px solid rgba(128, 128, 128, 0.25);
-    overflow: hidden;
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  #waveform-canvas {
-    width: 100%;
-    height: 280px;
-    display: block;
-  }
-</style>
 ```
