@@ -52,8 +52,8 @@ jobs:
 
       - name: Publish NPM Packages
         run: |
-          npm publish --workspace=@sonoscope/core --access public --provenance
-          npm publish --workspace=@sonoscope/react --access public --provenance
+          npm publish --workspace=@sonoscope/core --access public
+          npm publish --workspace=@sonoscope/react --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
