@@ -55,19 +55,8 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
     }
 
     const gl = this.gl;
-    const rect = canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(1, Math.floor((rect.width || canvas.width) * dpr));
-    const height = Math.max(
-      1,
-      Math.floor((rect.height || canvas.height) * dpr),
-    );
-
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-    }
+    const width = Math.max(1, canvas.width || 1);
+    const height = Math.max(1, canvas.height || 1);
 
     gl.viewport(0, 0, width, height);
 
@@ -131,7 +120,7 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       const vertexCount = len * 2;
       const positions = new Float32Array(vertexCount * 2);
       const xNorms = new Float32Array(vertexCount);
-      const halfThick = (isLineMode ? 1.25 : 0) * dpr;
+      const halfThick = isLineMode ? 1.25 : 0;
 
       for (let i = 0; i < len; i++) {
         const norm = i / Math.max(1, len - 1);
@@ -147,8 +136,8 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
         } else {
           topY = centerY - peaks.max[i]! * halfH;
           bottomY = centerY - peaks.min[i]! * halfH;
-          if (bottomY - topY < 1 * dpr) {
-            bottomY = topY + 1 * dpr;
+          if (bottomY - topY < 1) {
+            bottomY = topY + 1;
           }
         }
 

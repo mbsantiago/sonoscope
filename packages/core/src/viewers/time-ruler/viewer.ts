@@ -166,8 +166,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   canvasToTime(x: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || this.canvas.width || 1;
+    const width = this.canvas.width || 1;
     const norm = Math.max(0, Math.min(1, x / width));
     return (
       this.config.startTime +
@@ -176,8 +175,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   timeToCanvas(time: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || this.canvas.width || 1;
+    const width = this.canvas.width || 1;
     const duration = Math.max(
       0.000001,
       this.config.endTime - this.config.startTime,
@@ -199,23 +197,8 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       return;
     }
 
-    const rect = this.canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(
-      1,
-      Math.floor((rect.width || this.canvas.width) * dpr),
-    );
-    const height = Math.max(
-      1,
-      Math.floor((rect.height || this.canvas.height) * dpr),
-    );
-
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-    }
-
+    const width = Math.max(1, this.canvas.width || 1);
+    const height = Math.max(1, this.canvas.height || 1);
     const vp = this.getViewport();
 
     this.programInstance.draw(
@@ -234,7 +217,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
         timeFormat: this.config.timeFormat,
         minMajorPixelSpacing: this.config.minMajorPixelSpacing,
       },
-      { width, height, dpr },
+      { width, height, dpr: 1 },
     );
 
     this.status = { state: "ready" };

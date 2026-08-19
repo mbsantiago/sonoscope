@@ -60,10 +60,8 @@ describe("renderer helpers", () => {
     expect(pickNearestBin(Float32Array.from([100, 200, 300]), 260)).toBe(2);
   });
 
-  it("renders the spectrogram raster in device pixels on high-DPR canvases", () => {
-    globalThis.devicePixelRatio = 2;
+  it("renders the spectrogram raster to canvas dimensions without mutating canvas size", () => {
     const context = {
-      setTransform: vi.fn(),
       clearRect: vi.fn(),
       createImageData: vi.fn((w: number, h: number) => ({
         width: w,
@@ -98,10 +96,9 @@ describe("renderer helpers", () => {
       playheadTime: 5,
     });
 
-    expect(target.width).toBe(300);
-    expect(target.height).toBe(160);
-    expect(context.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
-    expect(context.createImageData).toHaveBeenCalledWith(300, 160);
+    expect(target.width).toBe(150);
+    expect(target.height).toBe(80);
+    expect(context.createImageData).toHaveBeenCalledWith(150, 80);
   });
 
   it("records paint timing when a profiler is provided", () => {

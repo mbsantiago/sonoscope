@@ -15,19 +15,8 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(1, Math.floor((rect.width || canvas.width) * dpr));
-    const height = Math.max(
-      1,
-      Math.floor((rect.height || canvas.height) * dpr),
-    );
-
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-    }
+    const width = Math.max(1, canvas.width || 1);
+    const height = Math.max(1, canvas.height || 1);
 
     ctx.save();
     ctx.clearRect(0, 0, width, height);
@@ -43,7 +32,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
 
     // Draw center zero-axis baseline
     ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-    ctx.lineWidth = 1 * dpr;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY);
     ctx.lineTo(width, centerY);
@@ -68,7 +57,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
           else ctx.lineTo(x, y);
         }
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2 * dpr;
+        ctx.lineWidth = 2;
         ctx.stroke();
       } else {
         ctx.beginPath();

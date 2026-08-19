@@ -151,8 +151,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   private paint(input: RenderInput, program: WebGL2RenderProgram): void {
     const frame = canvasSize(input.canvas);
-    input.canvas.width = frame.deviceWidth;
-    input.canvas.height = frame.deviceHeight;
 
     this.updateColorMap(input.colorMap);
     this.gl.viewport(0, 0, frame.deviceWidth, frame.deviceHeight);
@@ -280,16 +278,14 @@ function isUsableWebGL2Context(context: WebGL2RenderingContext): boolean {
 }
 
 function canvasSize(canvas: HTMLCanvasElement): WebGL2Frame {
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width || canvas.width || 1));
-  const height = Math.max(1, Math.round(rect.height || canvas.height || 1));
-  const dpr = globalThis.devicePixelRatio || 1;
+  const width = Math.max(1, canvas.width || 1);
+  const height = Math.max(1, canvas.height || 1);
   return {
     width,
     height,
-    dpr,
-    deviceWidth: Math.max(1, Math.round(width * dpr)),
-    deviceHeight: Math.max(1, Math.round(height * dpr)),
+    dpr: 1,
+    deviceWidth: width,
+    deviceHeight: height,
   };
 }
 

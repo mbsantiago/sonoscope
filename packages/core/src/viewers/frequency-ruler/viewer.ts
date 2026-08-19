@@ -198,8 +198,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   canvasToFrequency(y: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const height = rect.height || this.canvas.height || 1;
+    const height = this.canvas.height || 1;
     const scale = this.config.frequencyScale;
     const minScaled = hzToScale(
       Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
@@ -211,8 +210,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   frequencyToCanvas(freq: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const height = rect.height || this.canvas.height || 1;
+    const height = this.canvas.height || 1;
     const scale = this.config.frequencyScale;
     const minScaled = hzToScale(
       Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
@@ -237,22 +235,8 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
       return;
     }
 
-    const rect = this.canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(
-      1,
-      Math.floor((rect.width || this.canvas.width) * dpr),
-    );
-    const height = Math.max(
-      1,
-      Math.floor((rect.height || this.canvas.height) * dpr),
-    );
-
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-    }
+    const width = Math.max(1, this.canvas.width || 1);
+    const height = Math.max(1, this.canvas.height || 1);
 
     this.programInstance.draw(
       ctx,
@@ -270,7 +254,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
         frequencyFormat: this.config.frequencyFormat,
         minMajorPixelSpacing: this.config.minMajorPixelSpacing,
       },
-      { width, height, dpr },
+      { width, height, dpr: 1 },
     );
 
     this.status = { state: "ready" };
