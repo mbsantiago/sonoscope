@@ -247,7 +247,7 @@ export default function InteractiveSpectrogram({
   }, [scale]);
 
   return (
-    <div className="not-content my-3 mb-8 rounded-lg border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))] p-4 font-sans">
+    <div className="not-content my-4 font-sans">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 text-xs leading-none">
         <div className="flex flex-wrap items-center gap-4">
           <div className="inline-flex items-center gap-2">
