@@ -199,33 +199,17 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       return;
     }
 
-    const parent = this.canvas.parentElement;
-    const parentRect = parent?.getBoundingClientRect();
     const rect = this.canvas.getBoundingClientRect();
     const dpr =
       typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const logicalWidth = Math.max(
+    const width = Math.max(
       1,
-      Math.round(
-        (parent && parentRect && parentRect.width > 0 ? parentRect.width : 0) ||
-          this.canvas.clientWidth ||
-          rect.width ||
-          this.canvas.width / dpr ||
-          1,
-      ),
+      Math.floor((rect.width || this.canvas.width) * dpr),
     );
-    const logicalHeight = Math.max(
+    const height = Math.max(
       1,
-      Math.round(
-        (parent && parentRect && parentRect.height > 0 ? parentRect.height : 0) ||
-          this.canvas.clientHeight ||
-          rect.height ||
-          this.canvas.height / dpr ||
-          1,
-      ),
+      Math.floor((rect.height || this.canvas.height) * dpr),
     );
-    const width = Math.max(1, Math.round(logicalWidth * dpr));
-    const height = Math.max(1, Math.round(logicalHeight * dpr));
 
     if (this.canvas.width !== width || this.canvas.height !== height) {
       this.canvas.width = width;

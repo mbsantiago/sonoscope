@@ -15,33 +15,14 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const parent = canvas.parentElement;
-    const parentRect = parent?.getBoundingClientRect();
     const rect = canvas.getBoundingClientRect();
     const dpr =
       typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const logicalWidth = Math.max(
+    const width = Math.max(1, Math.floor((rect.width || canvas.width) * dpr));
+    const height = Math.max(
       1,
-      Math.round(
-        (parent && parentRect && parentRect.width > 0 ? parentRect.width : 0) ||
-          canvas.clientWidth ||
-          rect.width ||
-          canvas.width / dpr ||
-          1,
-      ),
+      Math.floor((rect.height || canvas.height) * dpr),
     );
-    const logicalHeight = Math.max(
-      1,
-      Math.round(
-        (parent && parentRect && parentRect.height > 0 ? parentRect.height : 0) ||
-          canvas.clientHeight ||
-          rect.height ||
-          canvas.height / dpr ||
-          1,
-      ),
-    );
-    const width = Math.max(1, Math.round(logicalWidth * dpr));
-    const height = Math.max(1, Math.round(logicalHeight * dpr));
 
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
