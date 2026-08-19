@@ -8,9 +8,7 @@ import {
 } from "@codesandbox/sandpack-react";
 import coreBundle from "../../../packages/core/dist/index.js?raw";
 import reactBundle from "../../../packages/react/dist/index.js?raw";
-
-export const DEFAULT_AUDIO_URL =
-  "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+import { getDemoFiles } from "../utils/demos";
 
 const flexokiTheme: SandpackTheme = {
   colors: {
@@ -86,76 +84,10 @@ const internalReactFiles: SandpackFiles = {
   },
 };
 
-const defaultCss = `* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-html, body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  background: #100f0f;
-  overflow: hidden;
-}
-#container {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-}
-canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-  touch-action: none;
-}
-`;
-
-function wrapHtml(htmlContent: string, customCss?: string): string {
-  if (htmlContent.includes("<html") || htmlContent.includes("<!DOCTYPE")) {
-    return htmlContent;
-  }
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Sonoscope Demo</title>
-    <style>
-${customCss || defaultCss}
-    </style>
-    <script>
-      (function() {
-        function preventBrowserZoom(e) {
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-          }
-        }
-        window.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
-        document.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
-        document.addEventListener("gesturestart", function(e) { e.preventDefault(); }, { passive: false });
-        document.addEventListener("gesturechange", function(e) { e.preventDefault(); }, { passive: false });
-        document.addEventListener("gestureend", function(e) { e.preventDefault(); }, { passive: false });
-      })();
-    </script>
-  </head>
-  <body>
-    ${htmlContent.trim()}
-  </body>
-</html>
-`;
-}
-
 export interface SandpackPlaygroundProps {
-  template?: "vanilla-ts" | "react-ts" | "vanilla" | "react";
-  code?: string;
-  ts?: string;
-  tsx?: string;
-  html?: string;
-  css?: string;
+  demo?: string;
   files?: Record<string, string | { code: string; active?: boolean; hidden?: boolean }>;
+  template?: "vanilla-ts" | "react-ts" | "vanilla" | "react";
   activeFile?: string;
   visibleFiles?: string[];
   editorHeight?: number;
@@ -164,117 +96,56 @@ export interface SandpackPlaygroundProps {
 }
 
 export default function SandpackPlayground({
-  template,
-  code,
-  ts,
-  tsx,
-  html,
-  css,
+  demo,
   files = {},
+  template,
   activeFile,
   visibleFiles,
   editorHeight = 280,
   previewHeight = 320,
   layout = "stacked",
 }: SandpackPlaygroundProps) {
-  const isReact = Boolean(tsx || template === "react-ts" || template === "react");
+  const loadedFiles = demo ? getDemoFiles(demo) : {};
+  const allUserFiles = { ...loadedFiles, ...files };
+
+  const isReact =
+    template === "react-ts" ||
+    template === "react" ||
+    Boolean(allUserFiles["/App.tsx"] || allUserFiles["/App.jsx"]);
+
   const resolvedTemplate = template || (isReact ? "react-ts" : "vanilla-ts");
   const baseFiles = isReact ? internalReactFiles : internalCoreFiles;
 
-  const resolvedActiveFile = activeFile || (isReact ? "/App.tsx" : "/index.ts");
-  const dynamicFiles: SandpackFiles = {};
-
-  if (isReact) {
-    dynamicFiles["/App.tsx"] = {
-      code: tsx || code || "",
-      active: resolvedActiveFile === "/App.tsx",
-    };
-    dynamicFiles["/index.tsx"] = {
-      code: `import React, { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App";
-
-const rootElement = document.getElementById("root");
-const root = createRoot(rootElement!);
-
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
-`,
-      hidden: true,
-    };
-    dynamicFiles["/index.html"] = {
-      code: html
-        ? wrapHtml(html, css)
-        : `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>React Demo</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body, #root { height: 100%; background: #100f0f; overflow: hidden; touch-action: none; -webkit-text-size-adjust: 100%; }
-    </style>
-    <script>
-      (function() {
-        function preventBrowserZoom(e) {
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-          }
-        }
-        window.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
-        document.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
-        document.addEventListener("gesturestart", function(e) { e.preventDefault(); }, { passive: false });
-        document.addEventListener("gesturechange", function(e) { e.preventDefault(); }, { passive: false });
-        document.addEventListener("gestureend", function(e) { e.preventDefault(); }, { passive: false });
-      })();
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
-`,
-    };
-  } else {
-    dynamicFiles["/index.ts"] = {
-      code: ts || code || "",
-      active: resolvedActiveFile === "/index.ts",
-    };
-    dynamicFiles["/index.html"] = {
-      code: wrapHtml(
-        html ||
-          `<div id="container">\n  <canvas id="spectrogram"></canvas>\n</div>`,
-        css
-      ),
-    };
-    dynamicFiles["/styles.css"] = {
-      code: css || defaultCss,
-      hidden: true,
-    };
-  }
-
-  // Normalize custom files
-  const normalizedCustomFiles: SandpackFiles = {};
-  for (const [path, fileContent] of Object.entries(files)) {
+  const normalizedUserFiles: SandpackFiles = {};
+  for (const [path, fileContent] of Object.entries(allUserFiles)) {
     if (typeof fileContent === "string") {
-      normalizedCustomFiles[path] = { code: fileContent };
+      normalizedUserFiles[path] = { code: fileContent };
     } else {
-      normalizedCustomFiles[path] = fileContent;
+      normalizedUserFiles[path] = fileContent;
     }
   }
 
+  // Determine active file
+  const resolvedActiveFile =
+    activeFile ||
+    (normalizedUserFiles["/App.tsx"]
+      ? "/App.tsx"
+      : normalizedUserFiles["/index.ts"]
+        ? "/index.ts"
+        : Object.keys(normalizedUserFiles)[0] || "/index.ts");
+
+  // Determine visible files (hide internal react index.tsx if App.tsx is the demo entry)
+  const defaultVisible = Object.keys(normalizedUserFiles).filter((path) => {
+    if (path === "/index.tsx" && normalizedUserFiles["/App.tsx"]) return false;
+    return true;
+  });
+
+  const resolvedVisibleFiles = visibleFiles || defaultVisible;
+
   const mergedFiles: SandpackFiles = {
     ...baseFiles,
-    ...dynamicFiles,
-    ...normalizedCustomFiles,
+    ...normalizedUserFiles,
   };
-
-  const resolvedVisibleFiles =
-    visibleFiles || [resolvedActiveFile, "/index.html"];
 
   const isStacked = layout === "stacked";
 

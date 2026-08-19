@@ -1,0 +1,60 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  background: #100f0f;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.app {
+  height: 100vh;
+  background: #100f0f;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+}
+
+.viewer-grid {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+.corner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #878580;
+  font-family: monospace;
+  border-right: 1px solid rgba(128, 128, 128, 0.2);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.time-ruler-container {
+  height: 24px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.freq-ruler-container {
+  width: 56px;
+  border-right: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.spectrogram-container {
+  position: relative;
+}
+
+.waveform-container {
+  height: 60px;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+}
