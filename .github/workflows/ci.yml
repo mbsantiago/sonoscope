@@ -131,7 +131,7 @@ jobs:
       - name: Run pytest
         working-directory: packages/anywidget
         run: |
-          uv run --python ${{ matrix.python-version }} --extra dev pytest tests
+          uv run --python ${{ matrix.python-version }} --group dev pytest tests
 
   build-verification:
     name: Monorepo Build & Package Smoke Test
