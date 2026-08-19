@@ -10,8 +10,7 @@ import {
 } from "@sonoscope/core";
 import { useEffect, useRef, useState } from "react";
 
-export const DEFAULT_AUDIO_URL =
-  "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+export const DEFAULT_AUDIO_URL = "https://xeno-canto.org/1145817/download";
 
 export interface DemoProps {
   audioUrl?: string;
@@ -228,22 +227,19 @@ export default function InteractiveSpectrogram({
     };
   }, [audioUrl, showWaveform]);
 
-  // 2. Colormap change (Instantly swaps WebGL shader texture without re-decoding or recomputing STFT)
+  // 2. Colormap change
   useEffect(() => {
     specRef.current?.updateConfig({ colorMap: cmap });
     waveformRef.current?.updateConfig({ colorMap: cmap });
   }, [cmap]);
 
-  // 3. Frequency Scale change (Instantly updates projection and rulers without re-decoding)
+  // 3. Frequency Scale change
   useEffect(() => {
     const scope = scopeRef.current;
     if (!scope) return;
     const minFreq = scale === "log" ? 20 : 0;
     const maxFreq = Math.floor(scope.getSampleRate() / 2);
-
     scope.setViewport({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
-    specRef.current?.updateConfig({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
-    freqRulerRef.current?.updateConfig({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
   }, [scale]);
 
   return (
@@ -255,7 +251,7 @@ export default function InteractiveSpectrogram({
             <select
               value={typeof cmap === "string" ? cmap : "viridis"}
               onChange={(e) => setCmap(e.target.value as any)}
-              className="h-7 cursor-pointer appearance-none rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.3))] bg-[var(--sl-color-gray-6,rgba(128,128,128,0.08))] pl-2 pr-6 py-0.5 text-xs font-medium text-inherit outline-none bg-no-repeat bg-[right_6px_center] bg-[length:12px] bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27currentColor%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3e%3cpolyline%20points=%276%209%2012%2015%2018%209%27%3e%3c/polyline%3e%3c/svg%3e')]"
+              className="h-7 cursor-pointer appearance-none rounded border py-0.5 pr-6 pl-2 text-xs font-medium text-inherit outline-none"
             >
               <option value="viridis" className="bg-zinc-900 text-white">
                 Viridis
@@ -286,10 +282,10 @@ export default function InteractiveSpectrogram({
             <select
               value={scale}
               onChange={(e) => setScale(e.target.value as any)}
-              className="h-7 cursor-pointer appearance-none rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.3))] bg-[var(--sl-color-gray-6,rgba(128,128,128,0.08))] pl-2 pr-6 py-0.5 text-xs font-medium text-inherit outline-none bg-no-repeat bg-[right_6px_center] bg-[length:12px] bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27currentColor%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3e%3cpolyline%20points=%276%209%2012%2015%2018%209%27%3e%3c/polyline%3e%3c/svg%3e')]"
+              className="h-7 cursor-pointer appearance-none rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.3))] bg-[var(--sl-color-gray-6,rgba(128,128,128,0.08))] bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27currentColor%27%20stroke-width=%272%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3e%3cpolyline%20points=%276%209%2012%2015%2018%209%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:12px] bg-[right_6px_center] bg-no-repeat py-0.5 pr-6 pl-2 text-xs font-medium text-inherit outline-none"
             >
               <option value="mel" className="bg-zinc-900 text-white">
-                Mel (Perceptual)
+                Mel
               </option>
               <option value="log" className="bg-zinc-900 text-white">
                 Logarithmic
@@ -302,12 +298,12 @@ export default function InteractiveSpectrogram({
         </div>
 
         <div className="inline-flex items-center gap-1 text-xs opacity-70">
-          🎵 Marico Sunbird (<em>Nectarinia mariquensis</em>)
+          Himalayan Rubythroat · <em>Calliope pectoralis</em> · Cedric Mroczko, XC1145817. Accessible at <a href="www.xeno-canto.org/1145817">www.xeno-canto.org/1145817</a>
         </div>
       </div>
 
       {error ? (
-        <div className="rounded p-4 text-sm text-red-500 bg-red-500/10">
+        <div className="rounded bg-red-500/10 p-4 text-sm text-red-500">
           Error loading audio: {error}
         </div>
       ) : (
@@ -318,24 +314,24 @@ export default function InteractiveSpectrogram({
             </div>
           )}
 
-          <div className="grid grid-cols-[56px_1fr] overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-transparent">
-            <div className="flex h-6 items-center justify-center border-r border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))] font-mono text-[10px] opacity-60">
+          <div className="grid grid-cols-[56px_1fr] overflow-hidden bg-transparent">
+            <div className="flex h-6 items-center justify-center font-mono text-[10px] opacity-60">
               Hz \ s
             </div>
-            <div className="relative h-6 cursor-pointer border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
+            <div className="relative h-6 cursor-pointer">
               <canvas
                 ref={timeCanvasRef}
                 className="block h-full w-full"
               />
             </div>
 
-            <div className="relative h-[280px] w-14 border-r border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
+            <div className="relative h-70">
               <canvas
                 ref={freqCanvasRef}
                 className="block h-full w-full"
               />
             </div>
-            <div className="relative h-[280px]">
+            <div className="relative h-70">
               <canvas
                 ref={specCanvasRef}
                 className="block h-full w-full"
@@ -344,10 +340,10 @@ export default function InteractiveSpectrogram({
 
             {showWaveform && (
               <>
-                <div className="flex h-[70px] items-center justify-center border-t border-r border-[var(--sl-color-hairline,rgba(128,128,128,0.2))] font-mono text-[10px] opacity-60">
+                <div className="flex h-18 items-center justify-center font-mono text-[10px] opacity-60">
                   WAV
                 </div>
-                <div className="relative h-[70px] cursor-pointer border-t border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
+                <div className="relative h-18 cursor-pointer">
                   <canvas
                     ref={waveCanvasRef}
                     className="block h-full w-full"
