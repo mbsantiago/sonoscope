@@ -215,8 +215,8 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
         className={className}
         style={{
           position: "relative",
-          width,
-          height,
+          width: width ?? "100%",
+          height: height ?? "100%",
           ...style,
         }}
       >

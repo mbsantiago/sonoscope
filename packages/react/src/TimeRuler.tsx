@@ -215,8 +215,8 @@ export const TimeRuler = forwardRef<TimeRulerHandle, TimeRulerProps>(
         className={className}
         style={{
           position: "relative",
-          width,
-          height,
+          width: width ?? "100%",
+          height: height ?? 24,
           ...style,
         }}
       >

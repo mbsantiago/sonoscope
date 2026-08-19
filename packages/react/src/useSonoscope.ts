@@ -1,6 +1,7 @@
 import {
   type AudioSource,
   type FollowPlaybackMode,
+  type FrequencyScale,
   Sonoscope,
 } from "@sonoscope/core";
 import { useEffect, useState } from "react";
@@ -15,6 +16,9 @@ export interface UseSonoscopeOptions {
   sampleRate?: number | undefined;
   startTime?: number | undefined;
   endTime?: number | undefined;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
+  frequencyScale?: FrequencyScale | undefined;
   followPlayback?: FollowPlaybackMode | undefined;
   smoothAnchor?: number | undefined;
   minDuration?: number | undefined;
@@ -40,6 +44,9 @@ export function useSonoscope(
     sampleRate,
     startTime,
     endTime,
+    minFrequency,
+    maxFrequency,
+    frequencyScale,
     followPlayback,
     smoothAnchor,
     minDuration,
@@ -72,6 +79,9 @@ export function useSonoscope(
         const sonoscopeOpts = {
           startTime,
           endTime,
+          minFrequency,
+          maxFrequency,
+          frequencyScale,
           followPlayback,
           smoothAnchor,
           minDuration,
@@ -148,6 +158,9 @@ export function useSonoscope(
     hasTarget,
     startTime,
     endTime,
+    minFrequency,
+    maxFrequency,
+    frequencyScale,
     followPlayback,
     smoothAnchor,
     minDuration,
