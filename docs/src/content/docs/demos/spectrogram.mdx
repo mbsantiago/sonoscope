@@ -3,29 +3,8 @@ title: Spectrogram
 description: Minimal standalone HTML & JavaScript spectrogram viewer.
 ---
 
-Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`.
+import SandpackDemo from '../../../components/SandpackDemo';
 
-```astro live
-<div class="overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))]">
-  <canvas id="spectrogram-canvas" class="block h-[280px] w-full"></canvas>
-</div>
+Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`. You can edit the TypeScript code in the editor below and see changes live in real-time.
 
-<script>
-  import { Sonoscope } from '@sonoscope/core';
-
-  const canvas = document.querySelector('#spectrogram-canvas');
-  const audioUrl = '/audio/marico-sunbird.ogg';
-
-  const scope = await Sonoscope.fromUrl(audioUrl, {
-    frequencyScale: 'mel',
-  });
-
-  const spec = scope.createSpectrogram(canvas, {
-    colorMap: 'inferno',
-    minValue: -80,
-    maxValue: 0,
-  });
-
-  scope.attachNavigation(canvas);
-</script>
-```
+<SandpackDemo client:only="react" type="spectrogram" />

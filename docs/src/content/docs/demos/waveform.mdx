@@ -3,19 +3,8 @@ title: Waveform
 description: Audio waveform visualization.
 ---
 
-```astro live
-<div class="overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.03))]">
-  <canvas id="waveform-canvas" class="block h-[280px] w-full"></canvas>
-</div>
+import SandpackDemo from '../../../components/SandpackDemo';
 
-<script>
-  import { Sonoscope } from '@sonoscope/core';
+Minimal standalone audio waveform visualization on a `<canvas>` element using `@sonoscope/core`.
 
-  const canvas = document.querySelector('#waveform-canvas');
-  const audioUrl = '/audio/marico-sunbird.ogg';
-
-  const scope = await Sonoscope.fromUrl(audioUrl);
-  const wave = scope.createWaveform(canvas);
-  scope.attachNavigation(canvas);
-</script>
-```
+<SandpackDemo client:only="react" type="waveform" />

@@ -3,44 +3,8 @@ title: Rulers
 description: Time & Frequency ruler visualization.
 ---
 
+import SandpackDemo from '../../../components/SandpackDemo';
 
-```astro live
-<div class="flex flex-col">
-  <div class="grid grid-cols-[64px_1fr] overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))]">
-    <div class="flex items-center justify-center font-mono text-[10px] opacity-60 border-r border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
-      Hz \ s
-    </div>
+Time and frequency ruler visualization coordinated with spectrogram viewports using `@sonoscope/core`.
 
-    <div class="relative h-7 border-b border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
-      <canvas id="canvas-top-ruler" class="block h-full w-full"></canvas>
-    </div>
-
-    <div class="relative h-[380px] w-16 border-r border-[var(--sl-color-hairline,rgba(128,128,128,0.2))]">
-      <canvas id="canvas-freq-ruler" class="block h-full w-full"></canvas>
-    </div>
-
-    <div class="relative h-[380px] w-full">
-      <canvas id="canvas-spectrogram" class="block h-full w-full"></canvas>
-    </div>
-  </div>
-</div>
-
-<script>
-  import { Sonoscope } from '@sonoscope/core';
-
-  const audioUrl = '/audio/marico-sunbird.ogg';
-
-  const scope = await Sonoscope.fromUrl(audioUrl);
-
-  const topRulerCanvas = document.querySelector('#canvas-top-ruler');
-  const time = scope.createTimeRuler(topRulerCanvas, { tickPosition: "bottom" });
-
-  const leftRulerCanvas = document.querySelector('#canvas-freq-ruler');
-  const freq = scope.createFrequencyRuler(leftRulerCanvas);
-
-  const specCanvas = document.querySelector('#canvas-spectrogram');
-  const spectrogram = scope.createSpectrogram(specCanvas);
-
-  scope.attachNavigation(specCanvas, { axis: "both" });
-</script>
-```
+<SandpackDemo client:only="react" type="rulers" editorHeight={400} />

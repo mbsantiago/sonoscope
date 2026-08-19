@@ -1,11 +1,7 @@
 // @ts-check
-import { unified } from '@astrojs/markdown-remark';
 import react from '@astrojs/react';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
-import liveCode from 'astro-live-code';
-// @ts-ignore
-import liveCodeRemark from 'astro-live-code/remark';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightThemeFlexoki from 'starlight-theme-flexoki';
 import { createStarlightTypeDocPlugin } from 'starlight-typedoc';
@@ -14,19 +10,9 @@ import tailwindcss from '@tailwindcss/vite';
 const [coreTypeDoc, coreSidebarGroup] = createStarlightTypeDocPlugin();
 const [reactTypeDoc, reactSidebarGroup] = createStarlightTypeDocPlugin();
 
-const liveCodeOptions = {
-	layout: '/src/components/LiveCodeLayout.astro',
-};
-
 // https://astro.build/config
 export default defineConfig({
-	markdown: {
-		processor: unified({
-			remarkPlugins: [[liveCodeRemark, liveCodeOptions]],
-		}),
-	},
 	integrations: [
-		liveCode(liveCodeOptions),
 		starlight({
 			title: 'Sonoscope',
 			description:
