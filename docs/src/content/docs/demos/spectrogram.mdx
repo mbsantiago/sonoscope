@@ -4,7 +4,16 @@ description: Minimal standalone HTML & JavaScript spectrogram viewer.
 ---
 
 import SandpackPlayground from '../../../components/SandpackPlayground';
+import { loadFile } from '../../../utils/loadFile';
 
 Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`. You can edit the TypeScript code in the editor below and see changes live in real-time.
 
-<SandpackPlayground client:only="react" demo="spectrogram" />
+<SandpackPlayground
+  client:only="react"
+  template="vanilla-ts"
+  files={{
+    "index.ts": loadFile("spectrogram/index.ts"),
+    "index.html": loadFile("spectrogram/index.html"),
+    "styles.css": loadFile("spectrogram/styles.css"),
+  }}
+/>

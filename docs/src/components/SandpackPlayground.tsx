@@ -8,7 +8,6 @@ import {
 } from "@codesandbox/sandpack-react";
 import coreBundle from "../../../packages/core/dist/index.js?raw";
 import reactBundle from "../../../packages/react/dist/index.js?raw";
-import { getDemoFiles } from "../utils/demos";
 
 const flexokiTheme: SandpackTheme = {
   colors: {
@@ -85,8 +84,7 @@ const internalReactFiles: SandpackFiles = {
 };
 
 export interface SandpackPlaygroundProps {
-  demo?: string;
-  files?: Record<string, string | { code: string; active?: boolean; hidden?: boolean }>;
+  files: Record<string, string | { code: string; active?: boolean; hidden?: boolean }>;
   template?: "vanilla-ts" | "react-ts" | "vanilla" | "react";
   activeFile?: string;
   visibleFiles?: string[];
@@ -96,47 +94,43 @@ export interface SandpackPlaygroundProps {
 }
 
 export default function SandpackPlayground({
-  demo,
-  files = {},
-  template,
+  files,
+  template = "vanilla-ts",
   activeFile,
   visibleFiles,
   editorHeight = 280,
   previewHeight = 320,
   layout = "stacked",
 }: SandpackPlaygroundProps) {
-  const loadedFiles = demo ? getDemoFiles(demo) : {};
-  const allUserFiles = { ...loadedFiles, ...files };
-
   const isReact =
     template === "react-ts" ||
     template === "react" ||
-    Boolean(allUserFiles["/App.tsx"] || allUserFiles["/App.jsx"]);
+    Boolean(files["/App.tsx"] || files["App.tsx"]);
 
-  const resolvedTemplate = template || (isReact ? "react-ts" : "vanilla-ts");
   const baseFiles = isReact ? internalReactFiles : internalCoreFiles;
 
-  const normalizedUserFiles: SandpackFiles = {};
-  for (const [path, fileContent] of Object.entries(allUserFiles)) {
+  const normalizedFiles: SandpackFiles = {};
+  for (const [path, fileContent] of Object.entries(files)) {
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
     if (typeof fileContent === "string") {
-      normalizedUserFiles[path] = { code: fileContent };
+      normalizedFiles[normalizedPath] = { code: fileContent };
     } else {
-      normalizedUserFiles[path] = fileContent;
+      normalizedFiles[normalizedPath] = fileContent;
     }
   }
 
-  // Determine active file
+  // Determine active file if not explicitly set
   const resolvedActiveFile =
     activeFile ||
-    (normalizedUserFiles["/App.tsx"]
+    (normalizedFiles["/App.tsx"]
       ? "/App.tsx"
-      : normalizedUserFiles["/index.ts"]
+      : normalizedFiles["/index.ts"]
         ? "/index.ts"
-        : Object.keys(normalizedUserFiles)[0] || "/index.ts");
+        : Object.keys(normalizedFiles)[0] || "/index.ts");
 
   // Determine visible files (hide internal react index.tsx if App.tsx is the demo entry)
-  const defaultVisible = Object.keys(normalizedUserFiles).filter((path) => {
-    if (path === "/index.tsx" && normalizedUserFiles["/App.tsx"]) return false;
+  const defaultVisible = Object.keys(normalizedFiles).filter((path) => {
+    if (path === "/index.tsx" && normalizedFiles["/App.tsx"]) return false;
     return true;
   });
 
@@ -144,7 +138,7 @@ export default function SandpackPlayground({
 
   const mergedFiles: SandpackFiles = {
     ...baseFiles,
-    ...normalizedUserFiles,
+    ...normalizedFiles,
   };
 
   const isStacked = layout === "stacked";
@@ -152,7 +146,7 @@ export default function SandpackPlayground({
   return (
     <div className="not-content my-6 overflow-hidden rounded border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[#100f0f]">
       <SandpackProvider
-        template={resolvedTemplate}
+        template={template}
         theme={flexokiTheme}
         files={mergedFiles}
         options={{

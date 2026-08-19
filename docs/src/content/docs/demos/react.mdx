@@ -4,12 +4,19 @@ description: Declarative audio visualization with @sonoscope/react components an
 ---
 
 import SandpackPlayground from '../../../components/SandpackPlayground';
+import { loadFile } from '../../../utils/loadFile';
 
 Declarative JSX composition using `@sonoscope/react`. Viewport synchronization, zoom/pan navigation, and audio playhead tracking are coordinated by `<SonoscopeProvider />`.
 
 <SandpackPlayground
   client:only="react"
-  demo="react"
+  template="react-ts"
   editorHeight={320}
   previewHeight={320}
+  files={{
+    "App.tsx": loadFile("react/App.tsx"),
+    "index.tsx": loadFile("react/index.tsx"),
+    "index.html": loadFile("react/index.html"),
+    "styles.css": loadFile("react/styles.css"),
+  }}
 />

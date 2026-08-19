@@ -4,12 +4,18 @@ description: Time & Frequency ruler visualization.
 ---
 
 import SandpackPlayground from '../../../components/SandpackPlayground';
+import { loadFile } from '../../../utils/loadFile';
 
 Time and frequency ruler visualization coordinated with spectrogram viewports using `@sonoscope/core`.
 
 <SandpackPlayground
   client:only="react"
-  demo="rulers"
+  template="vanilla-ts"
   editorHeight={320}
   previewHeight={320}
+  files={{
+    "index.ts": loadFile("rulers/index.ts"),
+    "index.html": loadFile("rulers/index.html"),
+    "styles.css": loadFile("rulers/styles.css"),
+  }}
 />
