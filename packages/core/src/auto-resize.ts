@@ -34,8 +34,8 @@ export function attachAutoResize(
       const rect = canvas.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         const dpr =
-          (globalThis as unknown as { devicePixelRatio?: number }).devicePixelRatio ||
-          1;
+          (globalThis as unknown as { devicePixelRatio?: number })
+            .devicePixelRatio || 1;
         canvas.width = Math.max(1, Math.round(rect.width * dpr));
         canvas.height = Math.max(1, Math.round(rect.height * dpr));
       }
