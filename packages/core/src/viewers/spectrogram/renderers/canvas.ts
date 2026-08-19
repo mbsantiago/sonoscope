@@ -44,20 +44,34 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
 
   render(input: RenderInput): void {
     const paint = () => {
+      const dpr = globalThis.devicePixelRatio || 1;
+      const parent = input.canvas.parentElement;
+      const parentRect = parent?.getBoundingClientRect();
       const rect = input.canvas.getBoundingClientRect();
       const width = Math.max(
         1,
-        Math.round(rect.width || input.canvas.width || 1),
+        Math.round(
+          (parent && parentRect && parentRect.width > 0 ? parentRect.width : 0) ||
+            input.canvas.clientWidth ||
+            rect.width ||
+            input.canvas.width / dpr ||
+            1,
+        ),
       );
       const height = Math.max(
         1,
-        Math.round(rect.height || input.canvas.height || 1),
+        Math.round(
+          (parent && parentRect && parentRect.height > 0 ? parentRect.height : 0) ||
+            input.canvas.clientHeight ||
+            rect.height ||
+            input.canvas.height / dpr ||
+            1,
+        ),
       );
-      const dpr = globalThis.devicePixelRatio || 1;
       const deviceWidth = Math.max(1, Math.round(width * dpr));
       const deviceHeight = Math.max(1, Math.round(height * dpr));
-      input.canvas.width = deviceWidth;
-      input.canvas.height = deviceHeight;
+      if (input.canvas.width !== deviceWidth) input.canvas.width = deviceWidth;
+      if (input.canvas.height !== deviceHeight) input.canvas.height = deviceHeight;
 
       const context = input.canvas.getContext("2d");
       if (!context) throw new Error("Unable to get 2D canvas context");

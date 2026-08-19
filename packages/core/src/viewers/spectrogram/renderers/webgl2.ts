@@ -280,10 +280,30 @@ function isUsableWebGL2Context(context: WebGL2RenderingContext): boolean {
 }
 
 function canvasSize(canvas: HTMLCanvasElement): WebGL2Frame {
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width || canvas.width || 1));
-  const height = Math.max(1, Math.round(rect.height || canvas.height || 1));
   const dpr = globalThis.devicePixelRatio || 1;
+  const parent = canvas.parentElement;
+  const parentRect = parent?.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(
+    1,
+    Math.round(
+      (parent && parentRect && parentRect.width > 0 ? parentRect.width : 0) ||
+        canvas.clientWidth ||
+        rect.width ||
+        canvas.width / dpr ||
+        1,
+    ),
+  );
+  const height = Math.max(
+    1,
+    Math.round(
+      (parent && parentRect && parentRect.height > 0 ? parentRect.height : 0) ||
+        canvas.clientHeight ||
+        rect.height ||
+        canvas.height / dpr ||
+        1,
+    ),
+  );
   return {
     width,
     height,
