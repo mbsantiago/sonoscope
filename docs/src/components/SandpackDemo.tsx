@@ -126,7 +126,6 @@ main();
     <div id="container">
       <canvas id="spectrogram"></canvas>
     </div>
-    <script type="module" src="/index.ts"></script>
   </body>
 </html>
 `,
@@ -197,7 +196,6 @@ main();
     <div id="container">
       <canvas id="waveform"></canvas>
     </div>
-    <script type="module" src="/index.ts"></script>
   </body>
 </html>
 `,
@@ -280,7 +278,6 @@ main();
       <canvas id="freq-ruler"></canvas>
       <canvas id="spectrogram"></canvas>
     </div>
-    <script type="module" src="/index.ts"></script>
   </body>
 </html>
 `,
@@ -374,6 +371,22 @@ export default function App() {
 `,
         active: true,
       },
+      "/index.tsx": {
+        code: `import React, { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+
+const rootElement = document.getElementById("root");
+const root = createRoot(rootElement!);
+
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+`,
+        hidden: true,
+      },
       "/index.html": {
         code: `<!DOCTYPE html>
 <html lang="en">
@@ -452,7 +465,9 @@ export default function SandpackDemo({
       >
         <SandpackLayout
           style={{
+            display: "flex",
             flexDirection: isStacked ? "column" : "row",
+            height: "auto",
           }}
         >
           <SandpackCodeEditor
@@ -463,6 +478,8 @@ export default function SandpackDemo({
             closableTabs={false}
             style={{
               height: editorHeight,
+              minHeight: editorHeight,
+              flex: isStacked ? "0 0 auto" : 1,
               borderBottom: isStacked
                 ? "1px solid var(--sl-color-hairline, rgba(128, 128, 128, 0.2))"
                 : "none",
@@ -476,6 +493,8 @@ export default function SandpackDemo({
             showOpenInCodeSandbox={false}
             style={{
               height: previewHeight,
+              minHeight: previewHeight,
+              flex: isStacked ? "0 0 auto" : 1,
             }}
           />
         </SandpackLayout>
