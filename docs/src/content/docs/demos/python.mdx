@@ -9,10 +9,10 @@ The `sonoscope` Python library embeds high-performance WebGL2 spectrograms direc
 
 <InteractiveSpectrogram client:only="react" initialCmap="magma" showWaveform={true} />
 
-<details open class="group my-4 rounded-md border border-[var(--sl-color-hairline-light,rgba(128,128,128,0.25))] bg-[var(--sl-color-gray-7,rgba(128,128,128,0.04))] px-3.5 py-2.5 transition-colors">
-<summary class="cursor-pointer select-none text-xs font-medium opacity-90 text-[var(--sl-color-gray-2)] hover:text-[var(--sl-color-text-accent)] transition-colors"><strong>View Python Implementation Code</strong></summary>
-
-<div class="mt-2.5">
+<details open class="group my-4">
+<summary class="cursor-pointer select-none text-xs font-medium text-[var(--sl-color-gray-3)] hover:text-[var(--sl-color-text-accent)] mb-2 transition-colors">
+  Python Implementation
+</summary>
 
 ```python
 from sonoscope import Sonoscope
@@ -44,5 +44,4 @@ array_widget = Sonoscope.from_array(
 array_widget
 ```
 
-</div>
 </details>
