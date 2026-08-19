@@ -23,7 +23,7 @@ function remarkDemoAutoImport() {
 
     tree.children.unshift({
       type: 'mdxjsEsm',
-      value: `import SandpackPlayground from '/src/components/SandpackPlayground.tsx';\nimport { loadFile } from '/src/utils/loadFile.ts';`,
+      value: `import SandpackPlayground from '/src/components/SandpackPlayground.astro';\nimport { loadFile } from '/src/utils/loadFile.ts';`,
       data: {
         estree: {
           type: 'Program',
@@ -39,8 +39,8 @@ function remarkDemoAutoImport() {
               ],
               source: {
                 type: 'Literal',
-                value: '/src/components/SandpackPlayground.tsx',
-                raw: "'/src/components/SandpackPlayground.tsx'",
+                value: '/src/components/SandpackPlayground.astro',
+                raw: "'/src/components/SandpackPlayground.astro'",
               },
             },
             {

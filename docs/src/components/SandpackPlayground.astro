@@ -1,0 +1,11 @@
+---
+import ReactSandpackPlayground, {
+  type SandpackPlaygroundProps,
+} from "./SandpackPlayground.tsx";
+
+interface Props extends SandpackPlaygroundProps {}
+
+const props = Astro.props;
+---
+
+<ReactSandpackPlayground client:only="react" {...props} />
