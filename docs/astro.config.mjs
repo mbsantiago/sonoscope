@@ -10,6 +10,61 @@ import tailwindcss from '@tailwindcss/vite';
 const [coreTypeDoc, coreSidebarGroup] = createStarlightTypeDocPlugin();
 const [reactTypeDoc, reactSidebarGroup] = createStarlightTypeDocPlugin();
 
+/**
+ * Remark plugin that auto-injects SandpackPlayground and loadFile
+ * strictly for MDX files inside the /demos/ directory.
+ */
+function remarkDemoAutoImport() {
+  return (tree, file) => {
+    const filePath = file.history?.[0] || file.path || '';
+    if (!filePath.includes('/demos/')) {
+      return;
+    }
+
+    tree.children.unshift({
+      type: 'mdxjsEsm',
+      value: `import SandpackPlayground from '/src/components/SandpackPlayground.tsx';\nimport { loadFile } from '/src/utils/loadFile.ts';`,
+      data: {
+        estree: {
+          type: 'Program',
+          sourceType: 'module',
+          body: [
+            {
+              type: 'ImportDeclaration',
+              specifiers: [
+                {
+                  type: 'ImportDefaultSpecifier',
+                  local: { type: 'Identifier', name: 'SandpackPlayground' },
+                },
+              ],
+              source: {
+                type: 'Literal',
+                value: '/src/components/SandpackPlayground.tsx',
+                raw: "'/src/components/SandpackPlayground.tsx'",
+              },
+            },
+            {
+              type: 'ImportDeclaration',
+              specifiers: [
+                {
+                  type: 'ImportSpecifier',
+                  imported: { type: 'Identifier', name: 'loadFile' },
+                  local: { type: 'Identifier', name: 'loadFile' },
+                },
+              ],
+              source: {
+                type: 'Literal',
+                value: '/src/utils/loadFile.ts',
+                raw: "'/src/utils/loadFile.ts'",
+              },
+            },
+          ],
+        },
+      },
+    });
+  };
+}
+
 // https://astro.build/config
 export default defineConfig({
 	integrations: [
@@ -89,6 +144,9 @@ export default defineConfig({
 		}),
 		react(),
 	],
+	markdown: {
+		remarkPlugins: [remarkDemoAutoImport],
+	},
 	vite: {
 		plugins: [tailwindcss()],
 	},
