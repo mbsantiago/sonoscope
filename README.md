@@ -4,6 +4,8 @@
 
 Hardware-accelerated audio spectrogram and waveform visualization for the web and Python notebooks, powered by WebGL2 and WebAssembly.
 
+![Sonoscope Spectrogram](docs/public/sonoscope-screenshot.png)
+
 ---
 
 ## Motivation
