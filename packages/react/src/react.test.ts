@@ -310,6 +310,28 @@ describe("React Components and Hooks", () => {
       expect(captured.current).toBe(scope);
       scope.destroy();
     });
+
+    it("creates and provides Sonoscope instance from direct options props", async () => {
+      const source = createMockAudioSource(10);
+      const captured = { current: null as Sonoscope | null };
+
+      function Consumer() {
+        captured.current = useSonoscopeContext();
+        return null;
+      }
+
+      await act(async () => {
+        root.render(
+          React.createElement(
+            SonoscopeProvider,
+            { source },
+            React.createElement(Consumer),
+          ),
+        );
+      });
+
+      expect(captured.current).toBeInstanceOf(Sonoscope);
+    });
   });
 
   describe("useSonoscope", () => {

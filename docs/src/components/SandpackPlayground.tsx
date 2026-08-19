@@ -111,7 +111,10 @@ export default function SandpackPlayground({
 
   const normalizedFiles: SandpackFiles = {};
   for (const [path, fileContent] of Object.entries(files)) {
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    let normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    if (isReact && normalizedPath === "/index.html") {
+      normalizedPath = "/public/index.html";
+    }
     if (typeof fileContent === "string") {
       normalizedFiles[normalizedPath] = { code: fileContent };
     } else {
@@ -128,9 +131,16 @@ export default function SandpackPlayground({
         ? "/index.ts"
         : Object.keys(normalizedFiles)[0] || "/index.ts");
 
-  // Determine visible files (hide internal react index.tsx if App.tsx is the demo entry)
+  // Determine visible files (hide internal react index.tsx and index.html if App.tsx is the demo entry)
   const defaultVisible = Object.keys(normalizedFiles).filter((path) => {
-    if (path === "/index.tsx" && normalizedFiles["/App.tsx"]) return false;
+    if (
+      (path === "/index.tsx" ||
+        path === "/public/index.html" ||
+        path === "/index.html") &&
+      normalizedFiles["/App.tsx"]
+    ) {
+      return false;
+    }
     return true;
   });
 
@@ -154,6 +164,7 @@ export default function SandpackPlayground({
           visibleFiles: resolvedVisibleFiles,
           autorun: true,
           autoReload: true,
+          showConsole: true,
         }}
       >
         <SandpackLayout
