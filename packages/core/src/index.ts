@@ -1,5 +1,7 @@
 // Core Coordinator
 
+// Auto-Resize Utilities
+export type { AutoResizeOptions } from "./auto-resize";
 export type {
   DragNavigationOptions,
   FrequencyBounds,
@@ -124,6 +126,7 @@ export type {
   WaveformStatus,
   WaveformViewport,
 } from "./viewers/waveform/types";
+export { attachAutoResize } from "./auto-resize";
 // Colormap Utilities
 export {
   buildColorMap,
@@ -215,8 +218,5 @@ export {
 export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";
-// Auto-Resize Utilities
-export type { AutoResizeOptions } from "./auto-resize";
-export { attachAutoResize } from "./auto-resize";
 // Viewport Utilities
 export { clampViewportTimes } from "./viewport-math";

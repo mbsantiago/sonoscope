@@ -1,4 +1,4 @@
-import type { ColorMapConfig, ViewportConfig } from "../../../types";
+import type { ColorMapConfig } from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import { buildColorMap } from "../../../colormap";
 import { valueDataForMode } from "../spectrogram-sampling";
@@ -34,17 +34,6 @@ import {
   WEBGL2_TERRAIN_VERTEX_SHADER,
 } from "./webgl2-terrain-program";
 
-type FrameState = {
-  canvas: HTMLCanvasElement;
-  width: number;
-  height: number;
-  dpr: number;
-  deviceWidth: number;
-  deviceHeight: number;
-  viewport: ViewportConfig;
-  input: RenderInput;
-};
-
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
   private readonly fallback = new CanvasSpectrogramRenderer();
@@ -56,7 +45,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
   private colorMapKey = "";
-  private frameState: FrameState | undefined;
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
@@ -116,7 +104,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   invalidate(): void {
     this.fallback.invalidate();
-    this.frameState = undefined;
     for (const entry of this.tileTextures.values())
       this.gl.deleteTexture(entry.texture);
     this.tileTextures.clear();
@@ -156,21 +143,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.gl.viewport(0, 0, frame.deviceWidth, frame.deviceHeight);
     program.paint(input, frame, this.renderResources(input));
     this.throwOnError("render");
-    const { profile: _profile, ...frameInput } = input;
-    this.frameState = {
-      canvas: input.canvas,
-      width: frame.width,
-      height: frame.height,
-      dpr: frame.dpr,
-      deviceWidth: frame.deviceWidth,
-      deviceHeight: frame.deviceHeight,
-      viewport: { ...input.viewport },
-      input: {
-        ...frameInput,
-        tiles: [...input.tiles],
-        placeholders: [...(input.placeholders ?? [])],
-      },
-    };
   }
 
   private programFor(input: RenderInput): WebGL2RenderProgram {
@@ -287,16 +259,6 @@ function canvasSize(canvas: HTMLCanvasElement): WebGL2Frame {
     deviceWidth: width,
     deviceHeight: height,
   };
-}
-
-function sameViewport(left: ViewportConfig, right: ViewportConfig): boolean {
-  return (
-    left.startTime === right.startTime &&
-    left.endTime === right.endTime &&
-    left.minFrequency === right.minFrequency &&
-    left.maxFrequency === right.maxFrequency &&
-    left.frequencyScale === right.frequencyScale
-  );
 }
 
 function compileShaderDiagnostic(

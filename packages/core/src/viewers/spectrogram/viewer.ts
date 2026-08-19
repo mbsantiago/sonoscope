@@ -16,8 +16,8 @@ import type {
   TileStateInfo,
   ValueMode,
 } from "./types";
-import { TypedEventEmitter } from "../../events";
 import { attachAutoResize } from "../../auto-resize";
+import { TypedEventEmitter } from "../../events";
 import {
   createSpectrogramBackend,
   isSpectrogramComputeBackend,

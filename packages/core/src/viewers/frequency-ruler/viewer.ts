@@ -9,8 +9,8 @@ import type {
   IFrequencyRulerViewer,
   ResolvedFrequencyRulerConfig,
 } from "./types";
-import { TypedEventEmitter } from "../../events";
 import { attachAutoResize } from "../../auto-resize";
+import { TypedEventEmitter } from "../../events";
 import { hzToScale, scaleToHz } from "../spectrogram/frequency-scale";
 import { BoxesFrequencyRulerProgram } from "./programs/boxes-program";
 import { TicksFrequencyRulerProgram } from "./programs/ticks-program";

@@ -12,13 +12,9 @@ import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
+import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
-import { attachAutoResize, type AutoResizeOptions } from "./auto-resize";
-import {
-  attachDragNavigation,
-  attachNavigation,
-  attachWheelNavigation,
-} from "./navigation";
+import { attachNavigation } from "./navigation";
 import { ArrayAudioSource } from "./sources/array-source";
 import {
   createAudioSourceFromBlob,
@@ -558,7 +554,10 @@ export class Sonoscope implements ISonoscope {
     if (!Number.isFinite(deltaHz) || deltaHz === 0) return;
     const span = this.maxFrequency - this.minFrequency;
     const nyquist = this.getNyquist();
-    const newMin = Math.max(0, Math.min(nyquist - span, this.minFrequency + deltaHz));
+    const newMin = Math.max(
+      0,
+      Math.min(nyquist - span, this.minFrequency + deltaHz),
+    );
     this.setViewport(
       { minFrequency: newMin, maxFrequency: newMin + span },
       source,

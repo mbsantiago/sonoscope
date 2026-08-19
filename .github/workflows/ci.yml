@@ -56,7 +56,7 @@ jobs:
 
   js-tests:
     name: Unit & Browser Tests
-    needs: [rust-wasm]
+    needs: [quick-checks, rust-wasm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,10 +81,10 @@ jobs:
 
   python-tests:
     name: Python Anywidget Tests (${{ matrix.python-version }})
-    needs: [rust-wasm]
+    needs: [quick-checks, rust-wasm]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
     steps:

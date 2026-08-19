@@ -8,9 +8,9 @@ import type {
   WaveformStatus,
   WaveformViewport,
 } from "./types";
+import { attachAutoResize } from "../../auto-resize";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
-import { attachAutoResize } from "../../auto-resize";
 import { clampViewportTimes } from "../../viewport-math";
 import { WaveformPeakPyramid } from "./peaks";
 import { CanvasWaveformRenderer } from "./renderers/canvas";
