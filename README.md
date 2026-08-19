@@ -146,18 +146,19 @@ widget
 
 ## How it compares
 
-Most JavaScript audio libraries focus on waveform navigation or real-time microphone visualizers. Sonoscope is built specifically for interactive, multi-resolution spectrogram and waveform analysis across both short audio clips and long soundscapes.
+Most JavaScript audio libraries focus on waveform navigation or real-time microphone visualizers.
+Sonoscope is built specifically for interactive, multi-resolution spectrogram and waveform analysis across both short audio clips and long soundscapes.
 
-| Capability | Sonoscope | wavesurfer.js (spectrogram) | peaks.js | Web Audio API (`AnalyserNode`) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Spectrogram renderer** | WebGL2 GPU shaders (60 FPS) | Canvas 2D | None (waveform only) | Canvas 2D (manual) |
-| **STFT computation** | Rust / WebAssembly worker pool | Single-thread JavaScript | None | Browser playback FFT only |
-| **Long soundscape support** | Demand-driven tiled computation | Computes full file upfront | Precomputed peak files | Live playback stream only |
-| **Live STFT adjustment** | On-the-fly window, hop, and FFT updates | Full recomputation | N/A | Fixed FFT size changes only |
-| **Data querying & coordinate API** | Full (time/frequency slices, dB) | Limited | None | Raw frequency byte array |
-| **App integration & modularity** | Decoupled coordinator & viewers | Plugin architecture | Event-based UI | Browser audio node |
-| **Scientific scales & colormaps** | Mel, Log, Linear (35+ colormaps) | Linear (basic gradient) | N/A | Linear |
-| **Python notebook support** | Interactive `anywidget` component | None | None | None |
+| Capability                         | Sonoscope                               | wavesurfer.js (spectrogram) | peaks.js               | Web Audio API (`AnalyserNode`) |
+| :--------------------------------- | :-------------------------------------- | :-------------------------- | :--------------------- | :----------------------------- |
+| **Spectrogram renderer**           | WebGL2 GPU shaders (60 FPS)             | Canvas 2D                   | None (waveform only)   | Canvas 2D (manual)             |
+| **STFT computation**               | Rust / WebAssembly worker pool          | Single-thread JavaScript    | None                   | Browser playback FFT only      |
+| **Long soundscape support**        | Demand-driven tiled computation         | Computes full file upfront  | Precomputed peak files | Live playback stream only      |
+| **Live STFT adjustment**           | On-the-fly window, hop, and FFT updates | Full recomputation          | N/A                    | Fixed FFT size changes only    |
+| **Data querying & coordinate API** | Full (time/frequency slices, dB)        | Limited                     | None                   | Raw frequency byte array       |
+| **App integration & modularity**   | Decoupled coordinator & viewers         | Plugin architecture         | Event-based UI         | Browser audio node             |
+| **Frequency scales & colormaps**   | Mel, Log, Linear (35+ colormaps)        | Linear (basic gradient)     | N/A                    | Linear                         |
+| **Python notebook support**        | Interactive `anywidget` component       | None                        | None                   | None                           |
 
 See [COMPARISON.md](file:///home/santiago/Tmp/spectrogram-js/COMPARISON.md) for an in-depth architectural and feature breakdown across all libraries.
 
@@ -182,3 +183,11 @@ npm run fixtures:generate
 # Build all packages
 npm run build
 ```
+
+---
+
+## Note on development
+
+Most of this library was written with coding agents.
+While I have steered away from pure slop, you may still encounter odd corners or quirks in the implementation.
+However, the API design, architecture, and core principles were thought through more carefully, and automated testing helps ensure consistent behavior.
