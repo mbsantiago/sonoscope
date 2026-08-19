@@ -2,6 +2,12 @@
   "name": "@sonoscope/core",
   "version": "0.1.0",
   "description": "High-performance WebGL2 and WASM-accelerated audio spectrogram engine for the web.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbsantiago/sonoscope.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://mbsantiago.github.io/sonoscope/",
   "type": "module",
   "license": "MIT",
   "author": "Santiago",
