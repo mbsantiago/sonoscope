@@ -111,7 +111,7 @@ canvas {
 }
 `;
 
-function wrapHtml(htmlContent: string): string {
+function wrapHtml(htmlContent: string, customCss?: string): string {
   if (htmlContent.includes("<html") || htmlContent.includes("<!DOCTYPE")) {
     return htmlContent;
   }
@@ -119,13 +119,24 @@ function wrapHtml(htmlContent: string): string {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Sonoscope Demo</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <style>
+${customCss || defaultCss}
+    </style>
     <script>
-      window.addEventListener("wheel", function (e) {
-        if (e.ctrlKey || e.metaKey) e.preventDefault();
-      }, { passive: false });
+      (function() {
+        function preventBrowserZoom(e) {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+          }
+        }
+        window.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
+        document.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
+        document.addEventListener("gesturestart", function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener("gesturechange", function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener("gestureend", function(e) { e.preventDefault(); }, { passive: false });
+      })();
     </script>
   </head>
   <body>
@@ -194,21 +205,30 @@ root.render(
     };
     dynamicFiles["/index.html"] = {
       code: html
-        ? wrapHtml(html)
+        ? wrapHtml(html, css)
         : `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>React Demo</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body, #root { height: 100%; background: #100f0f; overflow: hidden; }
+      html, body, #root { height: 100%; background: #100f0f; overflow: hidden; touch-action: none; -webkit-text-size-adjust: 100%; }
     </style>
     <script>
-      window.addEventListener("wheel", function (e) {
-        if (e.ctrlKey || e.metaKey) e.preventDefault();
-      }, { passive: false });
+      (function() {
+        function preventBrowserZoom(e) {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+          }
+        }
+        window.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
+        document.addEventListener("wheel", preventBrowserZoom, { passive: false, capture: true });
+        document.addEventListener("gesturestart", function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener("gesturechange", function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener("gestureend", function(e) { e.preventDefault(); }, { passive: false });
+      })();
     </script>
   </head>
   <body>
@@ -225,7 +245,8 @@ root.render(
     dynamicFiles["/index.html"] = {
       code: wrapHtml(
         html ||
-          `<div id="container">\n  <canvas id="spectrogram"></canvas>\n</div>`
+          `<div id="container">\n  <canvas id="spectrogram"></canvas>\n</div>`,
+        css
       ),
     };
     dynamicFiles["/styles.css"] = {
