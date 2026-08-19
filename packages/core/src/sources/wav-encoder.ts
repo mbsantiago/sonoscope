@@ -54,7 +54,7 @@ export function encodeWavBuffer(
         const val = chData ? (chData[i] ?? 0) : 0;
         const sample = Math.max(-1, Math.min(1, val));
         const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-        view.setInt16(offset, int16, true);
+        view.setInt16(offset, Math.round(int16), true);
         offset += 2;
       }
     }

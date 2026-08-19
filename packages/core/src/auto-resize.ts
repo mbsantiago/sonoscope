@@ -24,7 +24,22 @@ export function attachAutoResize(
     | AutoResizeOptions
     | undefined,
 ): () => void {
-  if (typeof ResizeObserver === "undefined" || !canvas) {
+  if (!canvas) {
+    return () => {};
+  }
+
+  // Best-effort one-time sizing even if ResizeObserver isn't available.
+  if (typeof ResizeObserver === "undefined") {
+    if (typeof canvas.getBoundingClientRect === "function") {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        const dpr =
+          (globalThis as unknown as { devicePixelRatio?: number }).devicePixelRatio ||
+          1;
+        canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      }
+    }
     return () => {};
   }
 

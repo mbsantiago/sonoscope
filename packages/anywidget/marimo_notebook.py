@@ -56,13 +56,12 @@ def _(Sonoscope, sample_rate, signal):
 
 @app.cell
 def _(Sonoscope, sf):
-    audio, sr = sf.read("/home/santiago/Datasets/mexico/audio/57843f7f016e730f14d3f614.WAV")
+    audio, sr = sf.read("my_audio.wav")
 
     Sonoscope.from_array(
         audio=audio,
-        sample_rate=sr / 15,
+        sample_rate=sr,
         frequency_scale="mel",
-        window_size=512,
         hop_size=128,
         min_db=-80,
         max_db=-20,
