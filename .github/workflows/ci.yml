@@ -81,6 +81,7 @@ jobs:
 
   python-tests:
     name: Python Anywidget Tests (${{ matrix.python-version }})
+    needs: [rust-wasm]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -89,16 +90,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
-      - name: Install JS dependencies & build widget assets
+      - name: Install JS dependencies & build packages
         run: |
           npm ci
-          npm run --workspace=@sonoscope/anywidget build
+          npm run build
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
