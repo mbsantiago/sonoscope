@@ -3,8 +3,49 @@ title: React Components
 description: Declarative audio visualization with @sonoscope/react components and hooks.
 ---
 
-import SandpackDemo from '../../../components/SandpackDemo';
+import SandpackPlayground from '../../../components/SandpackPlayground';
 
 Declarative JSX composition using `@sonoscope/react`. Viewport synchronization, zoom/pan navigation, and audio playhead tracking are coordinated by `<SonoscopeProvider />`.
 
-<SandpackDemo client:only="react" type="react" editorHeight={420} />
+<SandpackPlayground
+  client:only="react"
+  editorHeight={320}
+  previewHeight={320}
+  tsx={`import {
+  FrequencyRuler,
+  SonoscopeProvider,
+  Spectrogram,
+  TimeRuler,
+  Waveform,
+} from "@sonoscope/react";
+
+const audioUrl =
+  "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+
+export default function App() {
+  return (
+    <div style={{ height: "100vh", background: "#100f0f", display: "flex", flexDirection: "column", fontFamily: "system-ui, sans-serif" }}>
+      <SonoscopeProvider url={audioUrl} frequencyScale="mel" followPlayback="page">
+        <div style={{ display: "grid", gridTemplateColumns: "56px 1fr", flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#878580", fontFamily: "monospace", borderRight: "1px solid rgba(128, 128, 128, 0.2)", borderBottom: "1px solid rgba(128, 128, 128, 0.2)" }}>
+            Hz \\ s
+          </div>
+          <div style={{ height: "24px", borderBottom: "1px solid rgba(128, 128, 128, 0.2)" }}>
+            <TimeRuler height={24} tickPosition="top" color="rgba(128, 128, 128, 0.75)" tickColor="rgba(128, 128, 128, 0.35)" />
+          </div>
+          <div style={{ width: "56px", borderRight: "1px solid rgba(128, 128, 128, 0.2)" }}>
+            <FrequencyRuler width={56} tickPosition="right" color="rgba(128, 128, 128, 0.75)" tickColor="rgba(128, 128, 128, 0.35)" />
+          </div>
+          <div style={{ position: "relative" }}>
+            <Spectrogram colorMap="plasma" minValue={-80} maxValue={0} />
+          </div>
+        </div>
+        <div style={{ height: "60px", borderTop: "1px solid rgba(128, 128, 128, 0.2)" }}>
+          <Waveform height={60} colorMap="plasma" />
+        </div>
+      </SonoscopeProvider>
+    </div>
+  );
+}
+`}
+/>

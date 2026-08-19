@@ -3,8 +3,84 @@ title: Rulers
 description: Time & Frequency ruler visualization.
 ---
 
-import SandpackDemo from '../../../components/SandpackDemo';
+import SandpackPlayground from '../../../components/SandpackPlayground';
 
 Time and frequency ruler visualization coordinated with spectrogram viewports using `@sonoscope/core`.
 
-<SandpackDemo client:only="react" type="rulers" editorHeight={400} />
+<SandpackPlayground
+  client:only="react"
+  editorHeight={300}
+  previewHeight={320}
+  ts={`import { Sonoscope } from "@sonoscope/core";
+
+async function main() {
+  const audioUrl =
+    "https://upload.wikimedia.org/wikipedia/commons/c/c5/Marico_Sunbird_%28Nectarinia_mariquensis%29_%28W1CDR0000941_BD17%29.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
+
+  const scope = await Sonoscope.fromUrl(audioUrl, {
+    frequencyScale: "mel",
+  });
+
+  const timeCanvas = document.getElementById("time-ruler") as HTMLCanvasElement;
+  scope.createTimeRuler(timeCanvas, { tickPosition: "bottom" });
+
+  const freqCanvas = document.getElementById("freq-ruler") as HTMLCanvasElement;
+  scope.createFrequencyRuler(freqCanvas, { tickPosition: "right" });
+
+  const specCanvas = document.getElementById("spectrogram") as HTMLCanvasElement;
+  scope.createSpectrogram(specCanvas, { colorMap: "viridis" });
+
+  scope.attachNavigation(specCanvas, { axis: "both" });
+  scope.attachNavigation(timeCanvas, { axis: "time" });
+  scope.attachNavigation(freqCanvas, { axis: "frequency" });
+}
+
+main();
+`}
+  html={`<div class="grid">
+  <div class="corner">Hz \\ s</div>
+  <canvas id="time-ruler"></canvas>
+  <canvas id="freq-ruler"></canvas>
+  <canvas id="spectrogram"></canvas>
+</div>`}
+  css={`* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html, body {
+  height: 100%;
+  background: #100f0f;
+  overflow: hidden;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  grid-template-rows: 24px 1fr;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.corner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 10px;
+  color: #878580;
+  border-right: 1px solid rgba(128, 128, 128, 0.2);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#time-ruler {
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+#freq-ruler {
+  border-right: 1px solid rgba(128, 128, 128, 0.2);
+}
+`}
+/>
