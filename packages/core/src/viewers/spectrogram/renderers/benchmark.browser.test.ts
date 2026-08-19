@@ -5,10 +5,7 @@ import { computeWasmStftMatrix } from "../backends/wasm-stft";
 import { CanvasSpectrogramRenderer } from "./canvas";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
 
-function formatStats(
-  name: string,
-  durations: number[],
-): {
+interface BenchmarkStats {
   name: string;
   count: number;
   mean: number;
@@ -17,26 +14,40 @@ function formatStats(
   min: number;
   max: number;
   p95: number;
-} {
+}
+
+function formatStats(name: string, durations: number[]): BenchmarkStats {
   const sorted = [...durations].sort((a, b) => a - b);
   const count = sorted.length;
+  if (count === 0) {
+    return {
+      name,
+      count: 0,
+      mean: 0,
+      median: 0,
+      std: 0,
+      min: 0,
+      max: 0,
+      p95: 0,
+    };
+  }
   const sum = sorted.reduce((a, b) => a + b, 0);
   const mean = sum / count;
   const median =
     count % 2 === 0
-      ? (sorted[count / 2 - 1] + sorted[count / 2]) / 2
-      : sorted[Math.floor(count / 2)];
+      ? ((sorted[count / 2 - 1] ?? 0) + (sorted[count / 2] ?? 0)) / 2
+      : (sorted[Math.floor(count / 2)] ?? 0);
   const variance = sorted.reduce((acc, v) => acc + (v - mean) ** 2, 0) / count;
   const std = Math.sqrt(variance);
-  const p95 = sorted[Math.floor(count * 0.95)];
+  const p95 = sorted[Math.floor(count * 0.95)] ?? 0;
   return {
     name,
     count,
     mean,
     median,
     std,
-    min: sorted[0],
-    max: sorted[count - 1],
+    min: sorted[0] ?? 0,
+    max: sorted[count - 1] ?? 0,
     p95,
   };
 }
@@ -44,7 +55,7 @@ function formatStats(
 describe("Comprehensive Performance Benchmark (Browser / Chromium)", () => {
   it("benchmarks WASM SIMD STFT vs Pure JS STFT across FFT sizes", async () => {
     const sampleRate = 48_000;
-    const duration = 2.0; // 2 seconds of audio
+    const duration = 2.0;
     const samples = Float32Array.from(
       { length: sampleRate * duration },
       (_, index) => {
@@ -64,7 +75,12 @@ describe("Comprehensive Performance Benchmark (Browser / Chromium)", () => {
     ];
 
     const iterations = 30;
-    const results: any[] = [];
+    const results: Array<{
+      config: (typeof configs)[number];
+      js: BenchmarkStats;
+      wasm: BenchmarkStats;
+      speedup: number;
+    }> = [];
 
     for (const config of configs) {
       const stftConfig = { ...config, window: "hann" as const };
@@ -171,7 +187,12 @@ describe("Comprehensive Performance Benchmark (Browser / Chromium)", () => {
     ];
 
     const iterations = 50;
-    const renderResults: any[] = [];
+    const renderResults: Array<{
+      res: string;
+      c2d: BenchmarkStats;
+      gl: BenchmarkStats;
+      speedup: number;
+    }> = [];
 
     for (const res of resolutions) {
       // Setup Canvas 2D
