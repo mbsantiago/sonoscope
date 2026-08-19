@@ -45,6 +45,13 @@ const flexokiTheme: SandpackTheme = {
 };
 
 const internalCoreFiles: SandpackFiles = {
+  "/sandbox.config.json": {
+    code: JSON.stringify({
+      infiniteLoopProtection: false,
+      hardReloadOnChange: false,
+    }),
+    hidden: true,
+  },
   "/node_modules/@sonoscope/core/package.json": {
     code: JSON.stringify({
       name: "@sonoscope/core",
@@ -78,6 +85,16 @@ const internalReactFiles: SandpackFiles = {
     hidden: true,
   },
 };
+
+const WHEEL_GUARD_SCRIPT = `
+    <script>
+      window.addEventListener("wheel", function (e) {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    </script>
+`;
 
 const presets: Record<
   "spectrogram" | "waveform" | "rulers" | "react",
@@ -124,8 +141,7 @@ main();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Spectrogram Demo</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
+    <link rel="stylesheet" href="/styles.css" />${WHEEL_GUARD_SCRIPT}  </head>
   <body>
     <div id="container">
       <canvas id="spectrogram"></canvas>
@@ -156,6 +172,7 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 `,
         hidden: true,
@@ -194,8 +211,7 @@ main();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Waveform Demo</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
+    <link rel="stylesheet" href="/styles.css" />${WHEEL_GUARD_SCRIPT}  </head>
   <body>
     <div id="container">
       <canvas id="waveform"></canvas>
@@ -226,6 +242,7 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 `,
         hidden: true,
@@ -273,8 +290,7 @@ main();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rulers Demo</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
+    <link rel="stylesheet" href="/styles.css" />${WHEEL_GUARD_SCRIPT}  </head>
   <body>
     <div class="grid">
       <div class="corner">Hz \\ s</div>
@@ -303,6 +319,7 @@ html, body {
   grid-template-rows: 24px 1fr;
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 .corner {
   display: flex;
@@ -401,8 +418,7 @@ root.render(
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body, #root { height: 100%; background: #100f0f; overflow: hidden; }
-    </style>
-  </head>
+    </style>${WHEEL_GUARD_SCRIPT}  </head>
   <body>
     <div id="root"></div>
   </body>
