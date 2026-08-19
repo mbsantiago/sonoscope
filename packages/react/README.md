@@ -12,9 +12,9 @@ React hooks and declarative components for [Sonoscope](https://github.com/mbsant
 npm install @sonoscope/react @sonoscope/core
 ```
 
-## Quick Start
+## Quick start
 
-### Synchronized Multi-Viewer (`<Waveform />` + `<Spectrogram />`)
+### Synchronized multi-viewer (`<Waveform />` + `<Spectrogram />`)
 
 ```tsx
 import {
@@ -49,7 +49,7 @@ export function AudioViewer({ url }: { url: string }) {
 }
 ```
 
-### Standalone Declarative Component
+### Standalone declarative component
 
 ```tsx
 import { Spectrogram } from "@sonoscope/react";
@@ -68,10 +68,10 @@ export function SingleSpectrogram() {
 }
 ```
 
-### Custom Hooks
+### Custom hooks
 
 ```tsx
-import { useSonoscope, useSpectrogram } from "@sonoscope/react";
+import { useSpectrogram } from "@sonoscope/react";
 
 export function CustomViewer() {
   const { canvasRef, audioRef, status, duration } = useSpectrogram({

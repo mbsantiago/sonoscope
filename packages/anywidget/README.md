@@ -4,7 +4,7 @@
 [![CI](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Interactive WebGL2 & WASM audio visualization widget for JupyterLab, VS Code, Google Colab, and Marimo.
+Interactive WebGL2 and WebAssembly audio visualization widget for JupyterLab, VS Code, Google Colab, and Marimo.
 
 ```sh
 pip install sonoscope
@@ -23,7 +23,7 @@ import numpy as np
 from sonoscope import Sonoscope
 
 # 1. From local file path (no HTTP server required, syncs via binary traitlets)
-widget = Sonoscope.from_file("my_audio.wav")
+widget = Sonoscope.from_file("soundscape.wav")
 
 # 2. From NumPy array and sample rate
 sr = 22050
@@ -31,14 +31,13 @@ y = np.sin(2 * np.pi * 440 * np.linspace(0, 5, sr * 5, endpoint=False))
 widget = Sonoscope.from_array(y, sample_rate=sr, cmap="plasma", frequency_scale="mel")
 
 # 3. From remote URL
-widget = Sonoscope.from_url("https://example.com/sample.mp3")
+widget = Sonoscope.from_url("https://example.com/soundscape.mp3")
 
 # Display in notebook
 widget
 ```
 
 ## Development
-
 
 We recommend using [uv](https://github.com/astral-sh/uv) for development.
 It will automatically manage virtual environments and dependencies for you.
@@ -56,7 +55,7 @@ pip install -e ".[dev]"
 jupyter lab example.ipynb
 ```
 
-The widget front-end code bundles it's JavaScript dependencies. After setting up Python,
+The widget front-end code bundles its JavaScript dependencies. After setting up Python,
 make sure to install these dependencies locally:
 
 ```sh

@@ -4,7 +4,7 @@
 [![CI](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml/badge.svg)](https://github.com/mbsantiago/sonoscope/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-High-performance WebGL2 and WASM-accelerated audio visualization engine for the web.
+WebGL2 and WebAssembly audio visualization engine for the web.
 
 ## Installation
 
@@ -12,16 +12,16 @@ High-performance WebGL2 and WASM-accelerated audio visualization engine for the 
 npm install @sonoscope/core
 ```
 
-## Quick Start
+## Quick start
 
-### Unified Coordinator Pattern (Recommended)
+### Unified coordinator pattern
 
 ```typescript
 import { Sonoscope } from "@sonoscope/core";
 
 const audio = document.querySelector("audio")!;
-const waveCanvas = document.querySelector("#wave-canvas")!;
-const specCanvas = document.querySelector("#spec-canvas")!;
+const waveCanvas = document.querySelector<HTMLCanvasElement>("#wave-canvas")!;
+const specCanvas = document.querySelector<HTMLCanvasElement>("#spec-canvas")!;
 
 // 1. Initialize coordinator from audio element
 const scope = await Sonoscope.fromAudio(audio, {
@@ -41,7 +41,7 @@ const spectrogram = scope.createSpectrogram(specCanvas, {
 });
 ```
 
-### Standalone Visualizer (from URL)
+### Standalone visualizer (from URL)
 
 ```typescript
 import { Sonoscope } from "@sonoscope/core";
@@ -49,7 +49,7 @@ import { Sonoscope } from "@sonoscope/core";
 // Initialize purely from URL without an <audio> element
 const scope = await Sonoscope.fromUrl("https://example.com/audio.wav");
 
-const viewer = scope.createSpectrogram(document.querySelector("canvas")!, {
+const viewer = scope.createSpectrogram(document.querySelector<HTMLCanvasElement>("canvas")!, {
   colorMap: "magma",
   frequencyScale: "mel",
   valueMode: "db",
@@ -58,9 +58,9 @@ const viewer = scope.createSpectrogram(document.querySelector("canvas")!, {
 
 ## Features
 
-- 🎯 **Unified Viewport Coordinator (`Sonoscope`)**: Central coordinator for time bounds, playback clock, follow modes (`page`, `smooth`, `off`), and multi-canvas synchronization.
-- ⚡ **WASM STFT Acceleration**: Rust WebAssembly STFT compute backend with multi-worker pool and pure JavaScript FFT fallback.
-- 🎨 **WebGL2 Custom Shaders & 35+ Colormaps**: Hardware-accelerated tile rasterization (normal, dither, sobel, 3D terrain) and 35+ Matplotlib colormaps (Viridis, Magma, Inferno, Turbo, Cividis, etc.).
-- 📊 **Multi-Scale Waveform Peak Decimation**: Multi-resolution pyramid peak decimation for instant waveform envelope rendering.
-- 🌊 **Adaptive Streaming Decoders**: On-demand HTTP range-request WAV decoders and WebCodecs `AudioDecoder` streaming MP3 pipelines.
-- 🖱️ **Canvas Navigation**: Built-in wheel zoom (cursor-centered) and pointer drag panning utilities.
+- **Unified viewport coordinator (`Sonoscope`).** Single source of truth for time bounds, playback position, follow modes (`page`, `smooth`, `off`), and multi-canvas synchronization.
+- **WASM STFT acceleration.** Rust WebAssembly STFT compute backend with multi-worker pool and pure TypeScript fallback.
+- **WebGL2 shaders and 35+ colormaps.** Hardware-accelerated tile rasterization (normal, dither, Sobel, 3D terrain) and 35+ Matplotlib colormaps (Viridis, Magma, Inferno, Turbo, Cividis, and more).
+- **Multi-scale waveform peak decimation.** Multi-resolution pyramid peak decimation for instant waveform envelope rendering.
+- **Adaptive streaming decoders.** On-demand HTTP range-request WAV decoders and WebCodecs streaming MP3 pipelines.
+- **Canvas navigation.** Built-in cursor-centered wheel zoom and drag panning utilities.
