@@ -67,6 +67,8 @@ function remarkDemoAutoImport() {
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://mbsantiago.github.io',
+	base: '/sonoscope',
 	integrations: [
 		starlight({
 			title: 'Sonoscope',
