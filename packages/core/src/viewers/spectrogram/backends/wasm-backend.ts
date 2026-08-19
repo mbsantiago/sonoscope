@@ -156,9 +156,9 @@ export function createDefaultWasmWorker(
     const blobUrl = URL.createObjectURL(blob);
     return new Worker(blobUrl);
   }
-  return new Worker(new URL("./wasm-worker.ts", import.meta.url), {
-    type: "module",
-  });
+  throw new Error(
+    "Web Workers with Blob URLs are not supported in this environment",
+  );
 }
 
 export class WasmComputeBackend implements SpectrogramComputeBackend {

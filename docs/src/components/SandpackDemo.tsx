@@ -48,6 +48,8 @@ const internalCoreFiles: SandpackFiles = {
   "/node_modules/@sonoscope/core/package.json": {
     code: JSON.stringify({
       name: "@sonoscope/core",
+      version: "0.1.0",
+      type: "module",
       main: "./index.js",
       module: "./index.js",
     }),
@@ -64,6 +66,8 @@ const internalReactFiles: SandpackFiles = {
   "/node_modules/@sonoscope/react/package.json": {
     code: JSON.stringify({
       name: "@sonoscope/react",
+      version: "0.1.0",
+      type: "module",
       main: "./index.js",
       module: "./index.js",
     }),

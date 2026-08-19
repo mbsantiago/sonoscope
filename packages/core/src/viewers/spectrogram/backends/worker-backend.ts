@@ -192,9 +192,9 @@ export function createDefaultWorker(
     const blobUrl = URL.createObjectURL(blob);
     return new Worker(blobUrl);
   }
-  return new Worker(new URL("./stft-worker.ts", import.meta.url), {
-    type: "module",
-  });
+  throw new Error(
+    "Web Workers with Blob URLs are not supported in this environment",
+  );
 }
 
 function defaultWorkerCount(): number {
