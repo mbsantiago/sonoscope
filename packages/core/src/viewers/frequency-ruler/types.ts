@@ -47,6 +47,8 @@ export type FrequencyRulerConfig = {
   frequencyFormat?: FrequencyFormatMode | undefined;
   minMajorPixelSpacing?: number | undefined;
   program?: FrequencyRulerProgramName | FrequencyRulerProgram | undefined;
+  autoResize?: boolean | undefined;
+  devicePixelRatio?: boolean | number | undefined;
 };
 
 export type FrequencyRulerOptions = FrequencyRulerConfig;
@@ -94,8 +96,6 @@ export interface IFrequencyRulerViewer {
 
   getScope(): ISonoscope;
   getViewport(): FrequencyRulerViewport;
-  updateViewport(viewport: Partial<FrequencyRulerViewport>): void;
-  setViewport(viewport: Partial<FrequencyRulerViewport>): void;
 
   getConfig(): ResolvedFrequencyRulerConfig;
   updateConfig(input: Partial<FrequencyRulerOptions>): void;

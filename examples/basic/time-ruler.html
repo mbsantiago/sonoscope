@@ -257,7 +257,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
@@ -344,7 +343,7 @@
         playheadBottom = attachPlayheadOverlay(canvasRulerBottom.parentElement, scope);
 
         // Attach drag navigation to spectrogram
-        cleanupNav = attachCanvasNavigation(spectrogramViewer, canvasSpectrogram);
+        cleanupNav = scope.attachNavigation(canvasSpectrogram);
       }
 
       presetSelect.addEventListener("change", () => loadTrack(presetSelect.value));

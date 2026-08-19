@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAudioSourceFromUrl, DecodedAudioSource } from "./source";
+import {
+  createAudioSourceFromBlob,
+  createAudioSourceFromBuffer,
+  createAudioSourceFromUrl,
+  DecodedAudioSource,
+} from "./source";
 import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
 
@@ -259,5 +264,52 @@ describe("createAudioSourceFromUrl", () => {
 
     expect(source.id).toBe("decoded-after-streaming-failure");
     expect(decoded).toHaveBeenCalledWith("unsupported.wav", options);
+  });
+});
+
+describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {
+  it("creates a StreamingWavSource from a WAV Blob", async () => {
+    const streaming = vi
+      .spyOn(StreamingWavSource, "fromByteSource")
+      .mockResolvedValue({
+        id: "streaming-wav-blob",
+        sampleRate: 44100,
+        duration: 1,
+        channelCount: 1,
+        read: () => new Float32Array(0),
+      } as unknown as StreamingWavSource);
+
+    const blob = new Blob([wavHeader(44100)]);
+    const source = await createAudioSourceFromBlob(blob);
+    expect(source.id).toBe("streaming-wav-blob");
+    expect(streaming).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a StreamingWavSource from a WAV ArrayBuffer", async () => {
+    const streaming = vi
+      .spyOn(StreamingWavSource, "fromByteSource")
+      .mockResolvedValue({
+        id: "streaming-wav-buffer",
+        sampleRate: 22050,
+        duration: 1,
+        channelCount: 1,
+        read: () => new Float32Array(0),
+      } as unknown as StreamingWavSource);
+
+    const buffer = wavHeader(22050);
+    const source = await createAudioSourceFromBuffer(buffer);
+    expect(source.id).toBe("streaming-wav-buffer");
+    expect(streaming).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to DecodedAudioSource for non-WAV non-MP3 Blobs", async () => {
+    const decoded = vi
+      .spyOn(DecodedAudioSource, "fromBuffer")
+      .mockResolvedValue(new DecodedAudioSource(makeBuffer(), "decoded-blob"));
+
+    const blob = new Blob([new Uint8Array([1, 2, 3, 4])]);
+    const source = await createAudioSourceFromBlob(blob);
+    expect(source.id).toBe("decoded-blob");
+    expect(decoded).toHaveBeenCalledTimes(1);
   });
 });

@@ -177,8 +177,8 @@ export const FrequencyRuler = forwardRef<
       className={className}
       style={{
         position: "relative",
-        width,
-        height,
+        width: width ?? 50,
+        height: height ?? "100%",
         ...style,
       }}
     >

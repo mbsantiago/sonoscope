@@ -52,11 +52,11 @@ export class TicksTimeRulerProgram implements TimeRulerProgram {
     ctx.lineWidth = 1 * dpr;
     ctx.beginPath();
     if (tickPosition === "top") {
-      ctx.moveTo(0, height - 0.5 * dpr);
-      ctx.lineTo(width, height - 0.5 * dpr);
-    } else {
       ctx.moveTo(0, 0.5 * dpr);
       ctx.lineTo(width, 0.5 * dpr);
+    } else {
+      ctx.moveTo(0, height - 0.5 * dpr);
+      ctx.lineTo(width, height - 0.5 * dpr);
     }
     ctx.stroke();
 

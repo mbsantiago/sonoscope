@@ -12,7 +12,29 @@ or with [uv](https://github.com/astral-sh/uv):
 uv add sonoscope
 ```
 
+## Usage
+ 
+```python
+import numpy as np
+from sonoscope import Sonoscope
+
+# 1. From local file path (no HTTP server required, syncs via binary traitlets)
+widget = Sonoscope.from_file("my_audio.wav")
+
+# 2. From NumPy array and sample rate
+sr = 22050
+y = np.sin(2 * np.pi * 440 * np.linspace(0, 5, sr * 5, endpoint=False))
+widget = Sonoscope.from_array(y, sample_rate=sr, cmap="plasma", frequency_scale="mel")
+
+# 3. From remote URL
+widget = Sonoscope.from_url("https://example.com/sample.mp3")
+
+# Display in notebook
+widget
+```
+
 ## Development
+
 
 We recommend using [uv](https://github.com/astral-sh/uv) for development.
 It will automatically manage virtual environments and dependencies for you.

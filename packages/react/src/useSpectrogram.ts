@@ -1,7 +1,6 @@
 import {
   type AudioSource,
-  attachCanvasNavigation,
-  type CanvasNavigationOptions,
+  type NavigationOptions,
   Sonoscope,
   type SpectrogramConfig,
   type SpectrogramStatus,
@@ -23,7 +22,7 @@ export type UseSpectrogramOptions = SpectrogramConfig & {
   source?: AudioSource | undefined;
   url?: string | undefined;
   audio?: HTMLAudioElement | undefined;
-  navigation?: boolean | CanvasNavigationOptions | undefined;
+  navigation?: boolean | NavigationOptions | undefined;
   onViewportChange?: ((viewport: ViewportConfig) => void) | undefined;
   onReady?: ((info: SpectrogramReadyInfo) => void) | undefined;
 };
@@ -175,7 +174,7 @@ export function useSpectrogram(
 
         if (navigation !== false) {
           const navOpts = typeof navigation === "object" ? navigation : {};
-          cleanupNav = attachCanvasNavigation(viewer, canvas, navOpts);
+          cleanupNav = effectiveScope.attachNavigation(canvas, navOpts);
         }
 
         await viewer.render();

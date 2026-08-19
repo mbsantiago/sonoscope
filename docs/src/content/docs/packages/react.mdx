@@ -1,0 +1,61 @@
+---
+title: "@sonoscope/react"
+description: Declarative React components and hooks for Sonoscope.
+---
+
+`@sonoscope/react` provides React 18+ and React 19 compatible components and hooks for building custom audio interfaces.
+
+## Components
+
+### `<SonoscopeProvider />`
+Provides the shared Sonoscope instance and coordinated viewport context to child components.
+
+```tsx
+import { SonoscopeProvider } from "@sonoscope/react";
+
+<SonoscopeProvider url="/audio/birdsong.wav" frequencyScale="mel">
+  {/* Nested viewers and rulers */}
+</SonoscopeProvider>
+```
+
+### `<Spectrogram />`
+Renders an interactive spectrogram canvas synchronized with the provider's scope.
+
+```tsx
+import { Spectrogram } from "@sonoscope/react";
+
+<Spectrogram
+  height={320}
+  colorMap="plasma"
+  minValue={-80}
+  maxValue={0}
+  showAudioControls
+/>
+```
+
+### `<Waveform />`
+Renders peak-pyramid accelerated audio waveforms.
+
+```tsx
+import { Waveform } from "@sonoscope/react";
+
+<Waveform height={80} colorMap="plasma" />
+```
+
+### `<TimeRuler />` and `<FrequencyRuler />`
+Renders aligned time and frequency axes with automatic unit scaling.
+
+```tsx
+import { TimeRuler, FrequencyRuler } from "@sonoscope/react";
+
+<TimeRuler height={24} tickPosition="top" />
+<FrequencyRuler width={56} tickPosition="right" />
+```
+
+## Custom Hooks
+
+- `useSonoscope(options)`: Manage the lifecycle of an independent or shared Sonoscope instance.
+- `useSpectrogram(options)`: Direct low-level canvas binding to a SpectrogramViewer.
+- `useWaveform(options)`: Direct low-level canvas binding to a WaveformViewer.
+- `useTimeRuler(options)`: Low-level canvas binding for time rulers.
+- `useFrequencyRuler(options)`: Low-level canvas binding for frequency rulers.

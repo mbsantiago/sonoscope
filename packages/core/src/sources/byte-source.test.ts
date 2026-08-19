@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  BlobByteSource,
+  BufferByteSource,
   concatChunks,
   FetchByteSource,
   isSeekableByteSource,
@@ -72,5 +74,34 @@ describe("FetchByteSource", () => {
     await expect(
       FetchByteSource.fromUrl("missing.wav").stream().getReader().read(),
     ).rejects.toThrow(/Failed to fetch byte stream: 404/);
+  });
+});
+
+describe("BlobByteSource", () => {
+  it("streams and reads ranges from a Blob", async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const blob = new Blob([bytes]);
+    const source = new BlobByteSource(blob);
+    expect(source.size).toBe(8);
+
+    const range = await source.readRange(2, 6);
+    expect(Array.from(range)).toEqual([3, 4, 5, 6]);
+
+    const prefix = await readPrefix(source, 4);
+    expect(Array.from(prefix)).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe("BufferByteSource", () => {
+  it("streams and reads ranges from ArrayBuffer / Uint8Array", async () => {
+    const bytes = new Uint8Array([10, 20, 30, 40, 50]);
+    const source = new BufferByteSource(bytes);
+    expect(source.size).toBe(5);
+
+    const range = await source.readRange(1, 4);
+    expect(Array.from(range)).toEqual([20, 30, 40]);
+
+    const prefix = await readPrefix(source, 3);
+    expect(Array.from(prefix)).toEqual([10, 20, 30]);
   });
 });

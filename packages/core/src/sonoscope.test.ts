@@ -1,8 +1,10 @@
 import type { AudioSource } from "./types";
 import { describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "./sonoscope";
+import { ArrayAudioSource } from "./sources/array-source";
 import * as sourceModule from "./sources/source";
 import { DecodedAudioSource } from "./sources/source";
+import { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
 
 type AudioFixture = HTMLAudioElement & {
   paused: boolean;
@@ -25,11 +27,36 @@ function createMockAudio(src = "fixture.wav"): AudioFixture {
   } as unknown as AudioFixture;
 }
 
-function createMockCanvas(): HTMLCanvasElement {
+type MockCanvasFixture = HTMLCanvasElement & {
+  listeners: Map<string, Array<EventListener>>;
+};
+
+function createMockCanvas(): MockCanvasFixture {
+  const listeners = new Map<string, Array<EventListener>>();
   return {
     width: 100,
     height: 100,
-    getBoundingClientRect: () => ({ width: 100, height: 100 }),
+    style: { cursor: "" },
+    listeners,
+    addEventListener: vi.fn((name: string, fn: EventListener) => {
+      if (!listeners.has(name)) listeners.set(name, []);
+      listeners.get(name)!.push(fn);
+    }),
+    removeEventListener: vi.fn((name: string, fn: EventListener) => {
+      const list = listeners.get(name);
+      if (list) {
+        const idx = list.indexOf(fn);
+        if (idx !== -1) list.splice(idx, 1);
+      }
+    }),
+    setPointerCapture: vi.fn(),
+    releasePointerCapture: vi.fn(),
+    getBoundingClientRect: () => ({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+    }),
     getContext: () => ({
       setTransform: vi.fn(),
       clearRect: vi.fn(),
@@ -48,7 +75,7 @@ function createMockCanvas(): HTMLCanvasElement {
       lineTo: vi.fn(),
       stroke: vi.fn(),
     }),
-  } as unknown as HTMLCanvasElement;
+  } as unknown as MockCanvasFixture;
 }
 
 function createMockBuffer(
@@ -153,6 +180,49 @@ describe("Sonoscope", () => {
     expect(scope.getDuration()).toBe(8);
     expect(scope.getSampleRate()).toBe(22050);
     expect(scope.getViewport().endTime).toBe(4);
+  });
+
+  it("creates instance via Sonoscope.fromArray", () => {
+    const samples = new Float32Array(44100 * 2);
+    const scope = Sonoscope.fromArray(samples, 44100, {
+      startTime: 0,
+      endTime: 1,
+    });
+
+    expect(scope.source).toBeInstanceOf(ArrayAudioSource);
+    expect(scope.getDuration()).toBe(2);
+    expect(scope.getSampleRate()).toBe(44100);
+    expect(scope.getViewport().endTime).toBe(1);
+  });
+
+  it("creates instance via Sonoscope.fromBlob", async () => {
+    const wavBlob = encodeWavBlob(new Float32Array(22050), 22050);
+    const scope = await Sonoscope.fromBlob(wavBlob);
+
+    expect(scope.getSampleRate()).toBe(22050);
+    expect(scope.getDuration()).toBe(1);
+  });
+
+  it("creates instance via Sonoscope.fromBuffer", async () => {
+    const wavBuffer = encodeWavBuffer(new Float32Array(16000), 16000);
+    const scope = await Sonoscope.fromBuffer(wavBuffer);
+
+    expect(scope.getSampleRate()).toBe(16000);
+    expect(scope.getDuration()).toBe(1);
+  });
+
+  it("automatically creates and cleans up ObjectURLs for HTMLAudioElement", () => {
+    const revokeSpy = vi.fn();
+    globalThis.URL.createObjectURL = vi.fn().mockReturnValue("blob:test-audio");
+    globalThis.URL.revokeObjectURL = revokeSpy;
+
+    const audio = createMockAudio("");
+    const samples = new Float32Array(44100);
+    const scope = Sonoscope.fromArray(samples, 44100, { audio });
+
+    expect(audio.src).toBe("blob:test-audio");
+    scope.destroy();
+    expect(revokeSpy).toHaveBeenCalledWith("blob:test-audio");
   });
 
   it("creates instance via Sonoscope.fromUrl", async () => {
@@ -265,6 +335,54 @@ describe("Sonoscope", () => {
       scope.panTo(5);
       expect(scope.getViewport().startTime).toBeCloseTo(5);
       expect(scope.getViewport().endTime).toBeCloseTo(10);
+    });
+
+    it("zooms in frequency and allows zooming back out to Nyquist", () => {
+      const source = createMockSource(30, 48000);
+      const scope = new Sonoscope({
+        source,
+        minFrequency: 0,
+        maxFrequency: 24000,
+      });
+
+      expect(scope.getNyquist()).toBe(24000);
+      expect(scope.getViewport().minFrequency).toBe(0);
+      expect(scope.getViewport().maxFrequency).toBe(24000);
+
+      // Zoom in frequency 2x centered at 12000
+      scope.zoomFrequency(0.5, 12000);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(6000);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(18000);
+
+      // Zoom back out 2x centered at 12000
+      scope.zoomFrequency(2.0, 12000);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(0);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(24000);
+    });
+
+    it("zooms both time and frequency and allows zooming back out", () => {
+      const source = createMockSource(30, 48000);
+      const scope = new Sonoscope({
+        source,
+        startTime: 0,
+        endTime: 20,
+        minFrequency: 0,
+        maxFrequency: 24000,
+      });
+
+      // Zoom in both 2x
+      scope.zoomBoth(0.5, { time: 10, frequency: 12000 });
+      expect(scope.getViewport().startTime).toBeCloseTo(5);
+      expect(scope.getViewport().endTime).toBeCloseTo(15);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(6000);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(18000);
+
+      // Zoom back out 2x
+      scope.zoomBoth(2.0, { time: 10, frequency: 12000 });
+      expect(scope.getViewport().startTime).toBeCloseTo(0);
+      expect(scope.getViewport().endTime).toBeCloseTo(20);
+      expect(scope.getViewport().minFrequency).toBeCloseTo(0);
+      expect(scope.getViewport().maxFrequency).toBeCloseTo(24000);
     });
 
     it("changes followPlayback mode and emits playbackchange event", () => {
@@ -441,6 +559,99 @@ describe("Sonoscope", () => {
       expect(typeof viewer.render).toBe("function");
       expect(typeof viewer.destroy).toBe("function");
       viewer.destroy();
+    });
+  });
+
+  describe("attachNavigation", () => {
+    it("attaches navigation directly to a canvas using scope.attachNavigation(canvas)", () => {
+      const scope = new Sonoscope({
+        source: createMockSource(20),
+        startTime: 2,
+        endTime: 8,
+      });
+      const canvas = createMockCanvas();
+
+      const detach = scope.attachNavigation(canvas);
+      expect(typeof detach).toBe("function");
+
+      expect(canvas.addEventListener).toHaveBeenCalledWith(
+        "wheel",
+        expect.any(Function),
+        { passive: false },
+      );
+
+      const hasPointerEvents =
+        typeof window !== "undefined" && "PointerEvent" in window;
+      const downEvent = hasPointerEvents ? "pointerdown" : "mousedown";
+      const moveEvent = hasPointerEvents ? "pointermove" : "mousemove";
+
+      const down = canvas.listeners.get(downEvent)![0]!;
+      const move = canvas.listeners.get(moveEvent)![0]!;
+
+      // Drag left 25px on 100px width canvas with 6s duration -> delta = +1.5s
+      down({
+        button: 0,
+        clientX: 50,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      move({
+        button: 0,
+        clientX: 25,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      expect(scope.getViewport().startTime).toBeCloseTo(3.5);
+      expect(scope.getViewport().endTime).toBeCloseTo(9.5);
+
+      detach();
+    });
+
+    it("attaches navigation to a container wrapper div using scope.attachNavigation(container)", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      const containerDiv = createMockCanvas();
+
+      const detach = scope.attachNavigation(containerDiv, { axis: "time" });
+      expect(typeof detach).toBe("function");
+      expect(containerDiv.addEventListener).toHaveBeenCalledWith(
+        "wheel",
+        expect.any(Function),
+        { passive: false },
+      );
+
+      detach();
+    });
+
+    it("supports manual detach and unbinds listeners", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      const canvas = createMockCanvas();
+
+      const detach = scope.attachNavigation(canvas);
+      expect(canvas.addEventListener).toHaveBeenCalled();
+
+      detach();
+      expect(canvas.removeEventListener).toHaveBeenCalled();
+    });
+
+    it("automatically cleans up scope navigations when scope.destroy() is called", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      const canvas1 = createMockCanvas();
+      const canvas2 = createMockCanvas();
+
+      scope.attachNavigation(canvas1);
+      scope.attachNavigation(canvas2);
+
+      scope.destroy();
+      expect(canvas1.removeEventListener).toHaveBeenCalled();
+      expect(canvas2.removeEventListener).toHaveBeenCalled();
+    });
+
+    it("throws when target is invalid", () => {
+      const scope = new Sonoscope(createMockSource(20));
+      expect(() => scope.attachNavigation(null as any)).toThrow();
+      expect(() => scope.attachNavigation({} as any)).toThrow();
     });
   });
 

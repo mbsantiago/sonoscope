@@ -1,13 +1,16 @@
 // Core Coordinator
 
-// Navigation Types
+// Auto-Resize Utilities
+export type { AutoResizeOptions } from "./auto-resize";
 export type {
-  CanvasDragNavigationOptions,
-  CanvasNavigationOptions,
-  CanvasWheelNavigationOptions,
+  DragNavigationOptions,
   FrequencyBounds,
+  ModifierKey,
   NavigableViewer,
+  NavigationAxis,
+  NavigationOptions,
   TimeBounds,
+  WheelNavigationOptions,
 } from "./navigation";
 // Performance Types
 export type {
@@ -123,6 +126,7 @@ export type {
   WaveformStatus,
   WaveformViewport,
 } from "./viewers/waveform/types";
+export { attachAutoResize } from "./auto-resize";
 // Colormap Utilities
 export {
   buildColorMap,
@@ -131,9 +135,9 @@ export {
 } from "./colormap";
 // Navigation & Coordinate Helpers
 export {
-  attachCanvasDragNavigation,
-  attachCanvasNavigation,
-  attachCanvasWheelNavigation,
+  attachDragNavigation,
+  attachNavigation,
+  attachWheelNavigation,
   panViewportFrequency,
   panViewportTime,
   setViewerViewport,
@@ -148,13 +152,24 @@ export {
 } from "./performance";
 export { attachPlayheadOverlay, PlayheadOverlay } from "./playhead";
 export { isSonoscope, Sonoscope } from "./sonoscope";
-// Audio Sources
+// Audio Sources & Byte Sources
+export { ArrayAudioSource } from "./sources/array-source";
 export {
+  BlobByteSource,
+  BufferByteSource,
+  FetchByteSource,
+  isSeekableByteSource,
+  readPrefix,
+} from "./sources/byte-source";
+export {
+  createAudioSourceFromBlob,
+  createAudioSourceFromBuffer,
   createAudioSourceFromUrl,
   DecodedAudioSource,
 } from "./sources/source";
 export { StreamingMp3Source } from "./sources/streaming-mp3-source";
 export { StreamingWavSource } from "./sources/streaming-wav-source";
+export { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
 export {
   BoxesFrequencyRulerProgram,
   computeFrequencyTicks,

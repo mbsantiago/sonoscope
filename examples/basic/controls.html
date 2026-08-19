@@ -211,7 +211,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
@@ -360,10 +359,7 @@
           });
           source = scope.source;
           status.textContent = statusText();
-          cleanupNavigation = attachCanvasNavigation(viewer, canvas, {
-            enableWheel: true,
-            enableDrag: true,
-          });
+          cleanupNavigation = scope.attachNavigation(canvas);
           cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
         } catch (error) {
           status.textContent =

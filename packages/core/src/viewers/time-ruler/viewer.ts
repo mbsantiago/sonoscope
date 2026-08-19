@@ -9,6 +9,7 @@ import type {
   TimeRulerStatus,
   TimeRulerViewport,
 } from "./types";
+import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
 import { clampViewportTimes } from "../../viewport-math";
 import { BoxesTimeRulerProgram } from "./programs/boxes-program";
@@ -79,12 +80,12 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private config: ResolvedTimeRulerConfig;
   private programInstance: TimeRulerProgram;
   private scopeCleanup: Array<() => void> = [];
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
   private requestCounter = 0;
   private status: TimeRulerStatus = { state: "idle" };
-  private isSelfUpdating = false;
 
   constructor(
     scope: ISonoscope,
@@ -97,6 +98,12 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.programInstance = resolveTimeRulerProgram(this.config.program);
 
     this.bindScope();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
 
     if (this.config.autoRender) {
       this.requestRender();
@@ -119,9 +126,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       this.config.startTime = e.viewport.startTime;
       this.config.endTime = e.viewport.endTime;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
-      if (!this.isSelfUpdating) {
-        this.requestRender();
-      }
+      this.requestRender();
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {
@@ -140,7 +145,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   getStatus(): TimeRulerStatus {
-    return this.status;
+    return { ...this.status };
   }
 
   getViewport(): TimeRulerViewport {
@@ -148,35 +153,6 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       startTime: this.config.startTime,
       endTime: this.config.endTime,
     };
-  }
-
-  updateViewport(viewport: Partial<TimeRulerViewport>): void {
-    const current = this.getViewport();
-    const duration = this.scope.getDuration();
-    const clamped = clampViewportTimes(
-      viewport.startTime ?? current.startTime,
-      viewport.endTime ?? current.endTime,
-      duration,
-      this.config.minViewportDuration,
-      this.config.maxViewportDuration,
-    );
-
-    this.config.startTime = clamped.startTime;
-    this.config.endTime = clamped.endTime;
-
-    this.isSelfUpdating = true;
-    try {
-      this.scope.setViewport(clamped, "user");
-    } finally {
-      this.isSelfUpdating = false;
-    }
-
-    this.events.emit("viewportchange", { viewport: this.getViewport() });
-    this.requestRender();
-  }
-
-  setViewport(viewport: Partial<TimeRulerViewport>): void {
-    this.updateViewport(viewport);
   }
 
   getConfig(): ResolvedTimeRulerConfig {
@@ -198,8 +174,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   canvasToTime(x: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || this.canvas.width || 1;
+    const width = this.canvas.width || 1;
     const norm = Math.max(0, Math.min(1, x / width));
     return (
       this.config.startTime +
@@ -208,8 +183,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   timeToCanvas(time: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || this.canvas.width || 1;
+    const width = this.canvas.width || 1;
     const duration = Math.max(
       0.000001,
       this.config.endTime - this.config.startTime,
@@ -231,23 +205,8 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       return;
     }
 
-    const rect = this.canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(
-      1,
-      Math.floor((rect.width || this.canvas.width) * dpr),
-    );
-    const height = Math.max(
-      1,
-      Math.floor((rect.height || this.canvas.height) * dpr),
-    );
-
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-    }
-
+    const width = Math.max(1, this.canvas.width || 1);
+    const height = Math.max(1, this.canvas.height || 1);
     const vp = this.getViewport();
 
     this.programInstance.draw(
@@ -266,7 +225,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
         timeFormat: this.config.timeFormat,
         minMajorPixelSpacing: this.config.minMajorPixelSpacing,
       },
-      { width, height, dpr },
+      { width, height, dpr: 1 },
     );
 
     this.status = { state: "ready" };
@@ -307,5 +266,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
   }
 }

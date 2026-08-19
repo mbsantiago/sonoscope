@@ -9,6 +9,7 @@ import type {
   IFrequencyRulerViewer,
   ResolvedFrequencyRulerConfig,
 } from "./types";
+import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
 import { hzToScale, scaleToHz } from "../spectrogram/frequency-scale";
 import { BoxesFrequencyRulerProgram } from "./programs/boxes-program";
@@ -68,7 +69,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private config: ResolvedFrequencyRulerConfig;
   private programInstance: FrequencyRulerProgram;
   private scopeCleanup: Array<() => void> = [];
-  private isSelfUpdating = false;
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -110,6 +111,12 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     }
 
     this.bindScope();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
 
     if (this.config.autoRender) {
       this.requestRender();
@@ -146,9 +153,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
       if (!changed) return;
 
       this.events.emit("viewportchange", { viewport: this.getViewport() });
-      if (!this.isSelfUpdating) {
-        this.requestRender();
-      }
+      this.requestRender();
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {
@@ -182,53 +187,6 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     };
   }
 
-  updateViewport(viewport: Partial<FrequencyRulerViewport>): void {
-    let changed = false;
-    if (
-      viewport.minFrequency !== undefined &&
-      Math.abs(this.config.minFrequency - viewport.minFrequency) >= 1e-6
-    ) {
-      this.config.minFrequency = viewport.minFrequency;
-      changed = true;
-    }
-    if (
-      viewport.maxFrequency !== undefined &&
-      Math.abs(this.config.maxFrequency - viewport.maxFrequency) >= 1e-6
-    ) {
-      this.config.maxFrequency = viewport.maxFrequency;
-      changed = true;
-    }
-    if (
-      viewport.frequencyScale !== undefined &&
-      this.config.frequencyScale !== viewport.frequencyScale
-    ) {
-      this.config.frequencyScale = viewport.frequencyScale;
-      changed = true;
-    }
-
-    if (changed) {
-      this.isSelfUpdating = true;
-      try {
-        this.scope.setViewport(
-          {
-            minFrequency: this.config.minFrequency,
-            maxFrequency: this.config.maxFrequency,
-            frequencyScale: this.config.frequencyScale,
-          },
-          "frequency-ruler",
-        );
-      } finally {
-        this.isSelfUpdating = false;
-      }
-      this.events.emit("viewportchange", { viewport: this.getViewport() });
-      this.requestRender();
-    }
-  }
-
-  setViewport(viewport: Partial<FrequencyRulerViewport>): void {
-    this.updateViewport(viewport);
-  }
-
   getConfig(): ResolvedFrequencyRulerConfig {
     return { ...this.config };
   }
@@ -239,22 +197,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     this.config = resolveFrequencyRulerConfig(baseConfig, sampleRate);
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
 
-    this.isSelfUpdating = true;
-    try {
-      this.scope.setViewport(
-        {
-          minFrequency: this.config.minFrequency,
-          maxFrequency: this.config.maxFrequency,
-          frequencyScale: this.config.frequencyScale,
-        },
-        "frequency-ruler",
-      );
-    } finally {
-      this.isSelfUpdating = false;
-    }
-
     this.events.emit("configchange", { config: this.getConfig() });
-    this.events.emit("viewportchange", { viewport: this.getViewport() });
     this.requestRender();
   }
 
@@ -263,8 +206,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   canvasToFrequency(y: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const height = rect.height || this.canvas.height || 1;
+    const height = this.canvas.height || 1;
     const scale = this.config.frequencyScale;
     const minScaled = hzToScale(
       Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
@@ -276,8 +218,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   frequencyToCanvas(freq: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const height = rect.height || this.canvas.height || 1;
+    const height = this.canvas.height || 1;
     const scale = this.config.frequencyScale;
     const minScaled = hzToScale(
       Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
@@ -302,22 +243,8 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
       return;
     }
 
-    const rect = this.canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const width = Math.max(
-      1,
-      Math.floor((rect.width || this.canvas.width) * dpr),
-    );
-    const height = Math.max(
-      1,
-      Math.floor((rect.height || this.canvas.height) * dpr),
-    );
-
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-    }
+    const width = Math.max(1, this.canvas.width || 1);
+    const height = Math.max(1, this.canvas.height || 1);
 
     this.programInstance.draw(
       ctx,
@@ -335,7 +262,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
         frequencyFormat: this.config.frequencyFormat,
         minMajorPixelSpacing: this.config.minMajorPixelSpacing,
       },
-      { width, height, dpr },
+      { width, height, dpr: 1 },
     );
 
     this.status = { state: "ready" };
@@ -376,5 +303,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     this.events.clear();
     for (const cleanup of this.scopeCleanup) cleanup();
     this.scopeCleanup = [];
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
   }
 }

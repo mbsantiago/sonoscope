@@ -74,7 +74,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
@@ -111,7 +110,7 @@
           renderOnSeek: true,
         });
 
-        cleanupNavigation = attachCanvasNavigation(spectrogram, canvas);
+        cleanupNavigation = scope.attachNavigation(canvas);
         cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
       }
 

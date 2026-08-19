@@ -184,7 +184,7 @@
               viewer.clearCache();
               // Pan through different audio positions to simulate viewing new frames
               const panTime = (viewportStart + (iter * 2)) % (source.duration - 8);
-              viewer.updateViewport({ startTime: panTime, endTime: panTime + 8 });
+              scope.setViewport({ startTime: panTime, endTime: panTime + 8 });
             } else {
               // In warm mode, ensure cache is populated
               if (iter === 1) await viewer.render();
@@ -331,7 +331,7 @@
       document.querySelector('#pan').addEventListener('click', () => {
         if (!viewer) return;
         viewportStart = (viewportStart + 2) % 40;
-        viewer.updateViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
+        scope.setViewport({ startTime: viewportStart, endTime: viewportStart + 8 });
       });
 
       // Initial run

@@ -1,3 +1,4 @@
+import type { NavigableViewer, NavigationOptions } from "./navigation";
 import type {
   AudioSource,
   FollowPlaybackMode,
@@ -11,8 +12,17 @@ import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
+import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
-import { createAudioSourceFromUrl, DecodedAudioSource } from "./sources/source";
+import { attachNavigation } from "./navigation";
+import { ArrayAudioSource } from "./sources/array-source";
+import {
+  createAudioSourceFromBlob,
+  createAudioSourceFromBuffer,
+  createAudioSourceFromUrl,
+  DecodedAudioSource,
+} from "./sources/source";
+import { encodeWavBlob } from "./sources/wav-encoder";
 import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
@@ -50,6 +60,7 @@ export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
+  private navigationCleanups: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
   private animationFrame: number | undefined;
 
@@ -174,6 +185,116 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  static async fromBlob(
+    blob: Blob,
+    options?: Omit<SonoscopeOptions, "source">,
+  ): Promise<Sonoscope> {
+    const sourceOptions =
+      options?.preferStreaming !== undefined ||
+      options?.preferDecoded !== undefined ||
+      options?.sampleRate !== undefined
+        ? {
+            preferStreaming: options.preferStreaming,
+            preferDecoded: options.preferDecoded,
+            sampleRate: options.sampleRate,
+          }
+        : undefined;
+    const source = sourceOptions
+      ? await createAudioSourceFromBlob(blob, sourceOptions)
+      : await createAudioSourceFromBlob(blob);
+
+    let createdUrl: string | undefined;
+    const audio = options?.audio;
+    if (
+      audio &&
+      !audio.src &&
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      createdUrl = URL.createObjectURL(blob);
+      audio.src = createdUrl;
+    }
+
+    const scope = new Sonoscope({ ...options, source, audio });
+    if (createdUrl) {
+      scope.audioCleanup.push(() => {
+        URL.revokeObjectURL(createdUrl!);
+      });
+    }
+    return scope;
+  }
+
+  static async fromBuffer(
+    buffer: ArrayBuffer | Uint8Array,
+    options?: Omit<SonoscopeOptions, "source">,
+  ): Promise<Sonoscope> {
+    const sourceOptions =
+      options?.preferStreaming !== undefined ||
+      options?.preferDecoded !== undefined ||
+      options?.sampleRate !== undefined
+        ? {
+            preferStreaming: options.preferStreaming,
+            preferDecoded: options.preferDecoded,
+            sampleRate: options.sampleRate,
+          }
+        : undefined;
+    const source = sourceOptions
+      ? await createAudioSourceFromBuffer(buffer, sourceOptions)
+      : await createAudioSourceFromBuffer(buffer);
+
+    let createdUrl: string | undefined;
+    const audio = options?.audio;
+    if (
+      audio &&
+      !audio.src &&
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      const uint8 =
+        buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+      const blob = new Blob([uint8 as unknown as BlobPart]);
+      createdUrl = URL.createObjectURL(blob);
+      audio.src = createdUrl;
+    }
+
+    const scope = new Sonoscope({ ...options, source, audio });
+    if (createdUrl) {
+      scope.audioCleanup.push(() => {
+        URL.revokeObjectURL(createdUrl!);
+      });
+    }
+    return scope;
+  }
+
+  static fromArray(
+    data: Float32Array | Float32Array[] | number[] | number[][],
+    sampleRate: number,
+    options?: Omit<SonoscopeOptions, "source">,
+  ): Sonoscope {
+    const source = new ArrayAudioSource(data, sampleRate);
+    let createdUrl: string | undefined;
+    const audio = options?.audio;
+
+    if (
+      audio &&
+      !audio.src &&
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      const wavBlob = encodeWavBlob(data, sampleRate);
+      createdUrl = URL.createObjectURL(wavBlob);
+      audio.src = createdUrl;
+    }
+
+    const scope = new Sonoscope({ ...options, source, audio });
+    if (createdUrl) {
+      scope.audioCleanup.push(() => {
+        URL.revokeObjectURL(createdUrl!);
+      });
+    }
+    return scope;
+  }
+
   getViewport(): ViewportState {
     return {
       startTime: this.startTime,
@@ -296,6 +417,10 @@ export class Sonoscope implements ISonoscope {
     );
   }
 
+  zoomTime(factor: number, centerTime?: number, source?: string): void {
+    this.zoom(factor, centerTime, source);
+  }
+
   pan(deltaSeconds: number, source?: string): void {
     if (!Number.isFinite(deltaSeconds)) return;
     const duration = this.endTime - this.startTime;
@@ -329,8 +454,9 @@ export class Sonoscope implements ISonoscope {
   ): void {
     if (!Number.isFinite(factor) || factor <= 0) return;
     const currentSpan = this.maxFrequency - this.minFrequency;
+    const nyquist = this.getNyquist();
     const minSpan = 10;
-    const maxSpan = 48000;
+    const maxSpan = nyquist;
     const targetSpan = Math.max(
       minSpan,
       Math.min(maxSpan, currentSpan * factor),
@@ -342,16 +468,96 @@ export class Sonoscope implements ISonoscope {
       : (this.minFrequency + this.maxFrequency) / 2;
     const ratio =
       currentSpan <= 0 ? 0.5 : (center - this.minFrequency) / currentSpan;
-    const newMin = Math.max(0, center - targetSpan * ratio);
+    const newMin = Math.max(
+      0,
+      Math.min(nyquist - targetSpan, center - targetSpan * ratio),
+    );
     const newMax = newMin + targetSpan;
 
     this.setViewport({ minFrequency: newMin, maxFrequency: newMax }, source);
   }
 
+  zoomFreq(factor: number, centerFrequency?: number, source?: string): void {
+    this.zoomFrequency(factor, centerFrequency, source);
+  }
+
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
+    source?: string,
+  ): void {
+    const timeFactor = typeof factor === "number" ? factor : factor.time;
+    const freqFactor = typeof factor === "number" ? factor : factor.frequency;
+
+    let nextStartTime = this.startTime;
+    let nextEndTime = this.endTime;
+    let nextMinFreq = this.minFrequency;
+    let nextMaxFreq = this.maxFrequency;
+
+    if (Number.isFinite(timeFactor) && timeFactor > 0) {
+      const duration = this.endTime - this.startTime;
+      const cTime = Number.isFinite(center?.time)
+        ? (center!.time as number)
+        : (this.startTime + this.endTime) / 2;
+      const targetDuration = Math.max(
+        this.minDuration,
+        Math.min(this.maxDuration, this.totalDuration, duration * timeFactor),
+      );
+      if (Math.abs(targetDuration - duration) >= 1e-9) {
+        const ratio = (cTime - this.startTime) / (duration || 1);
+        nextStartTime = Math.max(
+          0,
+          Math.min(
+            this.totalDuration - targetDuration,
+            cTime - targetDuration * ratio,
+          ),
+        );
+        nextEndTime = nextStartTime + targetDuration;
+      }
+    }
+
+    if (Number.isFinite(freqFactor) && freqFactor > 0) {
+      const currentSpan = this.maxFrequency - this.minFrequency;
+      const nyquist = this.getNyquist();
+      const minSpan = 10;
+      const maxSpan = nyquist;
+      const targetSpan = Math.max(
+        minSpan,
+        Math.min(maxSpan, currentSpan * freqFactor),
+      );
+      if (Math.abs(targetSpan - currentSpan) >= 1e-9) {
+        const cFreq = Number.isFinite(center?.frequency)
+          ? (center!.frequency as number)
+          : (this.minFrequency + this.maxFrequency) / 2;
+        const ratio =
+          currentSpan <= 0 ? 0.5 : (cFreq - this.minFrequency) / currentSpan;
+        nextMinFreq = Math.max(
+          0,
+          Math.min(nyquist - targetSpan, cFreq - targetSpan * ratio),
+        );
+        nextMaxFreq = nextMinFreq + targetSpan;
+      }
+    }
+
+    this.setViewport(
+      {
+        startTime: nextStartTime,
+        endTime: nextEndTime,
+        minFrequency: nextMinFreq,
+        maxFrequency: nextMaxFreq,
+      },
+      source,
+    );
+  }
+
   panFrequency(deltaHz: number, source?: string): void {
     if (!Number.isFinite(deltaHz) || deltaHz === 0) return;
     const span = this.maxFrequency - this.minFrequency;
-    const newMin = Math.max(0, this.minFrequency + deltaHz);
+    const nyquist = this.getNyquist();
+    const newMin = Math.max(
+      0,
+      Math.min(nyquist - span, this.minFrequency + deltaHz),
+    );
     this.setViewport(
       { minFrequency: newMin, maxFrequency: newMin + span },
       source,
@@ -364,6 +570,10 @@ export class Sonoscope implements ISonoscope {
 
   getSampleRate(): number {
     return this._source.sampleRate;
+  }
+
+  getNyquist(): number {
+    return Math.floor(this._source.sampleRate / 2);
   }
 
   getFollowPlayback(): FollowPlaybackMode {
@@ -547,6 +757,75 @@ export class Sonoscope implements ISonoscope {
     return new FrequencyRulerViewer(this, canvas, options);
   }
 
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void {
+    if (
+      (typeof HTMLElement !== "undefined" &&
+        container instanceof HTMLElement) ||
+      (typeof container === "object" &&
+        container !== null &&
+        "addEventListener" in container)
+    ) {
+      const scopeAdapter: NavigableViewer = {
+        getViewport: () => {
+          const vp = this.getViewport();
+          return {
+            startTime: vp.startTime,
+            endTime: vp.endTime,
+            minFrequency: vp.minFrequency,
+            maxFrequency: vp.maxFrequency,
+            frequencyScale: vp.frequencyScale,
+          };
+        },
+        setViewport: (vp) => {
+          this.setViewport(vp, "navigation");
+        },
+        requestRender: () => {},
+        getCanvas: () => container,
+        getScope: () => this,
+        getConfig: () => ({
+          canvas: container,
+          minViewportDuration: this.minDuration,
+          maxViewportDuration: this.maxDuration,
+          minFrequency: 0,
+          maxFrequency: this.getNyquist(),
+        }),
+        getTimeBounds: () => ({
+          startTime: 0,
+          endTime: this.totalDuration,
+          minDurationSeconds: this.minDuration,
+          maxDurationSeconds: this.maxDuration,
+        }),
+        getFrequencyBounds: () => ({
+          minFrequency: 0,
+          maxFrequency: this.getNyquist(),
+          minSpanHz: 20,
+        }),
+      };
+
+      const cleanup = attachNavigation(scopeAdapter, container, options);
+      this.navigationCleanups.push(cleanup);
+      return () => {
+        const idx = this.navigationCleanups.indexOf(cleanup);
+        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+        cleanup();
+      };
+    }
+
+    throw new Error(
+      "Invalid navigation target: expected DOM container element",
+    );
+  }
+
+  attachAutoResize(
+    canvas: HTMLCanvasElement,
+    options?: AutoResizeOptions,
+  ): () => void {
+    return attachAutoResize(canvas, options);
+  }
+
   on<K extends keyof SonoscopeEvents>(
     event: K,
     handler: (e: SonoscopeEvents[K]) => void,
@@ -556,6 +835,10 @@ export class Sonoscope implements ISonoscope {
 
   destroy(): void {
     this.detachAudio();
+    for (const cleanup of this.navigationCleanups) {
+      cleanup();
+    }
+    this.navigationCleanups = [];
     this.events.emit("destroy", undefined);
     this.events.clear();
   }

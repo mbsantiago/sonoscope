@@ -239,7 +239,6 @@
 
     <script type="module">
       import {
-        attachCanvasNavigation,
         attachPlayheadOverlay,
         Sonoscope,
       } from '@sonoscope/core';
@@ -315,8 +314,8 @@
           });
 
           // 5. Attach canvas navigation and decoupled hardware-accelerated playhead overlays
-          cleanupSpecNav = attachCanvasNavigation(specViewer, specCanvas);
-          cleanupWaveNav = attachCanvasNavigation(waveViewer, waveCanvas);
+          cleanupSpecNav = scope.attachNavigation(specCanvas);
+          cleanupWaveNav = scope.attachNavigation(waveCanvas, { axis: 'time' });
           cleanupSpecPlayhead = attachPlayheadOverlay(specCanvas.parentElement, scope);
           cleanupWavePlayhead = attachPlayheadOverlay(waveCanvas.parentElement, scope);
 

@@ -1,15 +1,16 @@
 import type { ViewportConfig } from "./types";
-import type { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  attachCanvasDragNavigation,
-  attachCanvasNavigation,
-  attachCanvasWheelNavigation,
+  attachDragNavigation,
+  attachNavigation,
+  attachWheelNavigation,
+  type NavigableViewer,
   panViewportFrequency,
   panViewportTime,
   zoomViewportFrequency,
   zoomViewportTime,
 } from "./navigation";
+import { Sonoscope } from "./sonoscope";
 
 const viewport: ViewportConfig = {
   startTime: 4,
@@ -104,6 +105,21 @@ describe("navigation utilities", () => {
     expect(ratioAfter).toBeCloseTo(ratioBefore, 12);
   });
 
+  it("zooms out frequency back to full bounds", () => {
+    const zoomedInViewport: ViewportConfig = {
+      ...viewport,
+      minFrequency: 250,
+      maxFrequency: 750,
+    };
+    const next = zoomViewportFrequency(
+      zoomedInViewport,
+      { minFrequency: 0, maxFrequency: 1000 },
+      500,
+      2.0,
+    );
+    expect(next).toMatchObject({ minFrequency: 0, maxFrequency: 1000 });
+  });
+
   it("does not shift sideways when zooming out at maximum duration", () => {
     const fullViewport: ViewportConfig = {
       ...viewport,
@@ -139,7 +155,7 @@ describe("navigation utilities", () => {
   });
 });
 
-describe("attachCanvasWheelNavigation", () => {
+describe("attachWheelNavigation", () => {
   it("coalesces wheel navigation to one viewport update per animation frame", () => {
     let frame: FrameRequestCallback | undefined;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -176,8 +192,8 @@ describe("attachCanvasWheelNavigation", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
-    attachCanvasWheelNavigation(viewer, canvas);
+    } as unknown as NavigableViewer;
+    attachWheelNavigation(viewer, canvas);
     const wheel = listeners.get("wheel")!;
 
     wheel({
@@ -325,10 +341,10 @@ describe("attachCanvasWheelNavigation", () => {
       }),
       setViewport,
       requestRender: vi.fn(),
-      canvasToFrequency: (y: number) => 10000,
+      canvasToFrequency: (_y: number) => 10000,
     } as unknown as any;
 
-    attachCanvasWheelNavigation(freqViewer, canvas);
+    attachWheelNavigation(freqViewer, canvas);
     const wheel = listeners.get("wheel")!;
 
     wheel({
@@ -346,7 +362,7 @@ describe("attachCanvasWheelNavigation", () => {
   });
 });
 
-describe("attachCanvasDragNavigation", () => {
+describe("attachDragNavigation", () => {
   it("pans time when dragging beyond threshold", () => {
     const { listeners, setViewport, canvas } = setupDragNavigation();
 
@@ -522,10 +538,10 @@ describe("attachCanvasDragNavigation", () => {
       }),
       setViewport,
       requestRender: vi.fn(),
-      canvasToFrequency: (y: number) => 10000,
+      canvasToFrequency: (_y: number) => 10000,
     } as unknown as any;
 
-    attachCanvasDragNavigation(freqViewer, canvas);
+    attachDragNavigation(freqViewer, canvas);
 
     const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
     const move = listeners.get("pointermove") || listeners.get("mousemove")!;
@@ -575,9 +591,9 @@ describe("attachCanvasDragNavigation", () => {
       setViewport: vi.fn(),
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
-    const cleanup = attachCanvasDragNavigation(viewer, canvas);
+    const cleanup = attachDragNavigation(viewer, canvas);
     expect(canvas.style.cursor).toBe("grab");
 
     cleanup();
@@ -586,7 +602,7 @@ describe("attachCanvasDragNavigation", () => {
   });
 });
 
-describe("attachCanvasNavigation composite", () => {
+describe("attachNavigation composite", () => {
   it("attaches both wheel and drag navigation by default", () => {
     const listeners = new Map<string, EventListener>();
     const canvas = {
@@ -615,9 +631,9 @@ describe("attachCanvasNavigation composite", () => {
       setViewport: vi.fn(),
       requestRender: vi.fn(),
       canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-    } as unknown as SpectrogramViewer;
+    } as unknown as NavigableViewer;
 
-    const cleanup = attachCanvasNavigation(viewer, canvas);
+    const cleanup = attachNavigation(viewer, canvas);
     expect(listeners.has("wheel")).toBe(true);
     expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
       true,
@@ -625,6 +641,253 @@ describe("attachCanvasNavigation composite", () => {
 
     cleanup();
     expect(canvas.removeEventListener).toHaveBeenCalled();
+  });
+});
+
+describe("NavigationOptions nested config and modifier keys", () => {
+  it("supports nested wheel: { zoomModifier: 'alt' } and drag: false", () => {
+    let frame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const listeners = new Map<string, EventListener>();
+    const canvas = {
+      style: { cursor: "" },
+      addEventListener: vi.fn((name: string, listener: EventListener) =>
+        listeners.set(name, listener),
+      ),
+      removeEventListener: vi.fn(),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 100,
+        height: 100,
+      }),
+    } as unknown as HTMLCanvasElement;
+
+    let current = { ...viewport };
+    const setViewport = vi.fn((update: Partial<ViewportConfig>) => {
+      current = { ...current, ...update };
+    });
+    const viewer = {
+      getConfig: () => ({ canvas, source: { duration: 20 } }),
+      getTimeBounds: () => ({
+        startTime: 0,
+        endTime: 20,
+        minDurationSeconds: 0.05,
+        maxDurationSeconds: 20,
+      }),
+      getViewport: () => current,
+      setViewport,
+      requestRender: vi.fn(),
+      canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+    } as unknown as NavigableViewer;
+
+    attachNavigation(viewer, canvas, {
+      wheel: { zoomModifier: "alt" },
+      drag: false,
+    });
+
+    expect(listeners.has("wheel")).toBe(true);
+    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
+      false,
+    );
+
+    const wheel = listeners.get("wheel")!;
+
+    // Wheel with altKey: true should zoom
+    wheel({
+      preventDefault: vi.fn(),
+      deltaY: -120,
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: true,
+      metaKey: false,
+      clientX: 10,
+      clientY: 10,
+    } as unknown as WheelEvent);
+    frame?.(0);
+
+    expect(setViewport).toHaveBeenCalled();
+    const updated = setViewport.mock.calls[0]![0]!;
+    expect(updated.startTime).toBeCloseTo(4.107029704093033, 12);
+  });
+
+  it("supports wheel: false and drag: { button: 0, modifier: 'none' }", () => {
+    const listeners = new Map<string, EventListener>();
+    const canvas = {
+      style: { cursor: "" },
+      addEventListener: vi.fn((name: string, listener: EventListener) =>
+        listeners.set(name, listener),
+      ),
+      removeEventListener: vi.fn(),
+      setPointerCapture: vi.fn(),
+      releasePointerCapture: vi.fn(),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 100,
+        height: 100,
+      }),
+    } as unknown as HTMLCanvasElement;
+
+    let current = { ...viewport };
+    const setViewport = vi.fn((update: Partial<ViewportConfig>) => {
+      current = { ...current, ...update };
+    });
+    const viewer = {
+      getConfig: () => ({ canvas, source: { duration: 20 } }),
+      getTimeBounds: () => ({
+        startTime: 0,
+        endTime: 20,
+        minDurationSeconds: 0.05,
+        maxDurationSeconds: 20,
+      }),
+      getViewport: () => current,
+      setViewport,
+      requestRender: vi.fn(),
+      canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+    } as unknown as NavigableViewer;
+
+    attachNavigation(viewer, canvas, {
+      wheel: false,
+      drag: { button: 0, modifier: "none" },
+    });
+
+    expect(listeners.has("wheel")).toBe(false);
+    expect(listeners.has("pointerdown") || listeners.has("mousedown")).toBe(
+      true,
+    );
+
+    const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
+    const move = listeners.get("pointermove") || listeners.get("mousemove")!;
+
+    // Drag without any modifier key pressed
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      pointerId: 1,
+    } as PointerEvent);
+
+    move({
+      button: 0,
+      clientX: 25,
+      clientY: 50,
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      pointerId: 1,
+    } as PointerEvent);
+
+    expect(setViewport).toHaveBeenCalled();
+    expect(setViewport.mock.calls[0]![0]).toMatchObject({
+      startTime: 5,
+      endTime: 9,
+    });
+  });
+
+  it("supports modifier: 'none' on attachDragNavigation directly", () => {
+    const { listeners, setViewport } = setupDragNavigation({
+      button: 0,
+      modifier: "none",
+    });
+
+    const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
+    const move = listeners.get("pointermove") || listeners.get("mousemove")!;
+
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      pointerId: 1,
+    } as PointerEvent);
+
+    move({
+      button: 0,
+      clientX: 25,
+      clientY: 50,
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      pointerId: 1,
+    } as PointerEvent);
+
+    expect(setViewport).toHaveBeenCalled();
+    expect(setViewport.mock.calls[0]![0]).toMatchObject({
+      startTime: 5,
+      endTime: 9,
+    });
+  });
+
+  it("merges root axis and onNavigate when wheel and drag are nested objects", () => {
+    const onNavigate = vi.fn();
+    const listeners = new Map<string, EventListener>();
+    const canvas = {
+      style: { cursor: "" },
+      addEventListener: vi.fn((name: string, listener: EventListener) =>
+        listeners.set(name, listener),
+      ),
+      removeEventListener: vi.fn(),
+      setPointerCapture: vi.fn(),
+      releasePointerCapture: vi.fn(),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 100,
+        height: 100,
+      }),
+    } as unknown as HTMLCanvasElement;
+
+    let current = { ...viewport };
+    const setViewport = vi.fn((update: Partial<ViewportConfig>) => {
+      current = { ...current, ...update };
+    });
+    const viewer = {
+      getConfig: () => ({ canvas, source: { duration: 20 } }),
+      getTimeBounds: () => ({
+        startTime: 0,
+        endTime: 20,
+        minDurationSeconds: 0.05,
+        maxDurationSeconds: 20,
+      }),
+      getViewport: () => current,
+      setViewport,
+      requestRender: vi.fn(),
+      canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
+    } as unknown as NavigableViewer;
+
+    attachNavigation(viewer, canvas, {
+      axis: "time",
+      onNavigate,
+      wheel: { zoomModifier: "ctrl" },
+      drag: { button: 0 },
+    });
+
+    const down = listeners.get("pointerdown") || listeners.get("mousedown")!;
+    const move = listeners.get("pointermove") || listeners.get("mousemove")!;
+
+    down({ button: 0, clientX: 50, clientY: 50, pointerId: 1 } as PointerEvent);
+    move({ button: 0, clientX: 25, clientY: 50, pointerId: 1 } as PointerEvent);
+
+    expect(onNavigate).toHaveBeenCalled();
+    expect(onNavigate.mock.calls[0]![0]).toMatchObject({
+      startTime: 5,
+      endTime: 9,
+    });
   });
 });
 
@@ -659,8 +922,8 @@ function setupWheelNavigation() {
     setViewport,
     requestRender: vi.fn(),
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-  } as unknown as SpectrogramViewer;
-  attachCanvasWheelNavigation(viewer, canvas);
+  } as unknown as NavigableViewer;
+  attachWheelNavigation(viewer, canvas);
 
   return {
     runFrame: () => frame?.(0),
@@ -697,9 +960,9 @@ function setupDragNavigation(options = {}) {
     setViewport,
     requestRender: vi.fn(),
     canvasToTimeFrequency: () => ({ time: 6, frequency: 100 }),
-  } as unknown as SpectrogramViewer;
+  } as unknown as NavigableViewer;
 
-  const cleanup = attachCanvasDragNavigation(viewer, canvas, options);
+  const cleanup = attachDragNavigation(viewer, canvas, options);
 
   return {
     listeners,
@@ -708,3 +971,225 @@ function setupDragNavigation(options = {}) {
     cleanup,
   };
 }
+
+describe("viewer attachNavigation with auto-cleanup", () => {
+  const dummySource = {
+    id: "test",
+    sampleRate: 48000,
+    duration: 20,
+    channelCount: 1,
+    read: () => new Float32Array(48000),
+  };
+
+  const downEvent =
+    typeof window !== "undefined" && "PointerEvent" in window
+      ? "pointerdown"
+      : "mousedown";
+
+  function createTestCanvas() {
+    const listeners = new Map<string, Array<EventListener>>();
+    return {
+      width: 400,
+      height: 200,
+      clientWidth: 400,
+      clientHeight: 200,
+      style: { cursor: "" },
+      addEventListener: vi.fn((name: string, fn: EventListener) => {
+        const arr = listeners.get(name) ?? [];
+        arr.push(fn);
+        listeners.set(name, arr);
+      }),
+      removeEventListener: vi.fn((name: string, fn: EventListener) => {
+        const arr = listeners.get(name) ?? [];
+        listeners.set(
+          name,
+          arr.filter((f) => f !== fn),
+        );
+      }),
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        width: 400,
+        height: 200,
+        right: 400,
+        bottom: 200,
+      }),
+      getContext: () => null,
+      listeners,
+    } as unknown as HTMLCanvasElement & {
+      listeners: Map<string, Array<EventListener>>;
+    };
+  }
+
+  it("attaches navigation via scope.attachNavigation(canvas) and automatically cleans up on scope.destroy()", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const canvas = createTestCanvas();
+
+    const detach = scope.attachNavigation(canvas);
+    expect(typeof detach).toBe("function");
+
+    // Wheel and drag down listeners should be attached
+    expect(canvas.addEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+      { passive: false },
+    );
+    expect(canvas.addEventListener).toHaveBeenCalledWith(
+      downEvent,
+      expect.any(Function),
+    );
+
+    // Destroying scope cleans up all attached navigation listeners
+    scope.destroy();
+    expect(canvas.removeEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+    );
+    expect(canvas.removeEventListener).toHaveBeenCalledWith(
+      downEvent,
+      expect.any(Function),
+    );
+  });
+
+  it("attaches navigation to a wrapper div container via scope.attachNavigation(containerDiv)", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const containerDiv = createTestCanvas();
+
+    const detach = scope.attachNavigation(containerDiv);
+    expect(typeof detach).toBe("function");
+
+    expect(containerDiv.addEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+      { passive: false },
+    );
+
+    scope.destroy();
+    expect(containerDiv.removeEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+    );
+  });
+
+  it("allows manual detach before scope destroy", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const canvas = createTestCanvas();
+
+    const detach = scope.attachNavigation(canvas);
+    detach();
+
+    expect(canvas.removeEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+    );
+    expect(canvas.removeEventListener).toHaveBeenCalledWith(
+      downEvent,
+      expect.any(Function),
+    );
+
+    // Destroying after manual detach should not error
+    expect(() => scope.destroy()).not.toThrow();
+  });
+
+  it("handles multiple attachNavigation calls and independent detach", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const canvas = createTestCanvas();
+
+    const detach1 = scope.attachNavigation(canvas, {
+      wheel: true,
+      drag: false,
+    });
+    const detach2 = scope.attachNavigation(canvas, {
+      wheel: false,
+      drag: true,
+    });
+
+    // Detach first
+    detach1();
+    // Second should still be active or clean up gracefully on destroy
+    expect(() => detach2()).not.toThrow();
+    expect(() => scope.destroy()).not.toThrow();
+  });
+
+  it("attaches navigation for time-only axis and cleans up on destroy", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const canvas = createTestCanvas();
+
+    const detach = scope.attachNavigation(canvas, {
+      axis: "time",
+    });
+    expect(typeof detach).toBe("function");
+    expect(canvas.addEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+      { passive: false },
+    );
+
+    scope.destroy();
+    expect(canvas.removeEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+    );
+  });
+
+  it("attaches navigation for frequency-only axis and cleans up on destroy", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const canvas = createTestCanvas();
+
+    const detach = scope.attachNavigation(canvas, {
+      axis: "frequency",
+    });
+    expect(typeof detach).toBe("function");
+    expect(canvas.addEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+      { passive: false },
+    );
+
+    scope.destroy();
+    expect(canvas.removeEventListener).toHaveBeenCalledWith(
+      "wheel",
+      expect.any(Function),
+    );
+  });
+
+  it("navigates via drag and triggers onNavigate on scope.attachNavigation(canvas)", () => {
+    const onNavigate = vi.fn();
+    const scope = new Sonoscope({
+      source: dummySource,
+      startTime: 4,
+      endTime: 8,
+    });
+    const canvas = createTestCanvas();
+
+    scope.attachNavigation(canvas, {
+      axis: "time",
+      onNavigate,
+    });
+
+    const listeners = canvas.listeners;
+    const down = listeners.get(downEvent)![0]!;
+    const moveEvent =
+      typeof window !== "undefined" && "PointerEvent" in window
+        ? "pointermove"
+        : "mousemove";
+    const move = listeners.get(moveEvent)![0]!;
+
+    down({
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      pointerId: 1,
+    } as unknown as PointerEvent);
+    move({
+      button: 0,
+      clientX: 25,
+      clientY: 50,
+      pointerId: 1,
+    } as unknown as PointerEvent);
+
+    expect(onNavigate).toHaveBeenCalled();
+    expect(scope.getViewport().startTime).toBeGreaterThan(4);
+    scope.destroy();
+  });
+});

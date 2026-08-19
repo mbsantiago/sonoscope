@@ -1,0 +1,44 @@
+---
+title: Sonoscope
+description: High-performance WebGL2 & WASM audio spectrogram visualization ecosystem.
+template: splash
+hero:
+  tagline: High-performance, GPU-accelerated audio visualization for Web, React, and Jupyter.
+  actions:
+    - text: Quick Start
+      link: /guides/quick-start/
+      icon: right-arrow
+      variant: primary
+    - text: Interactive Demos
+      link: /demos/spectrogram/
+      icon: open-book
+      variant: secondary
+    - text: GitHub Repository
+      link: https://github.com/mbsantiago/sonoscope
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import InteractiveSpectrogram from '../../components/InteractiveSpectrogram';
+
+## Live Preview
+
+<InteractiveSpectrogram client:only="react" initialCmap="viridis" showWaveform={true} />
+
+## Ecosystem Architecture
+
+<CardGrid>
+	<Card title="@sonoscope/core" icon="puzzle">
+		Zero-dependency WebGL2 & WASM-accelerated rendering engine with decoupled time/frequency navigation, rulers, colormaps, and audio synchronization.
+	</Card>
+	<Card title="@sonoscope/react" icon="seti:react">
+		Declarative React components (`<Spectrogram />`, `<Waveform />`, `<TimeRuler />`) and high-performance synchronized audio hooks.
+	</Card>
+	<Card title="sonoscope (Python / AnyWidget)" icon="seti:python">
+		Interactive audio widgets for Jupyter Lab, Jupyter Notebook, VS Code, and Marimo with seamless NumPy array and audio file support.
+	</Card>
+	<Card title="WASM & WebGL2 Acceleration" icon="rocket">
+		SIMD-optimized STFT analysis in Rust compiled to WebAssembly with high-framerate GPU shader colormap rendering.
+	</Card>
+</CardGrid>

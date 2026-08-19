@@ -1,8 +1,7 @@
 import {
   type AudioSource,
-  attachCanvasNavigation,
   attachPlayheadOverlay,
-  type CanvasNavigationOptions,
+  type NavigationOptions,
   Sonoscope,
   type TimeRulerConfig,
   type TimeRulerStatus,
@@ -35,7 +34,7 @@ export interface TimeRulerProps extends TimeRulerConfig {
   className?: string | undefined;
   style?: CSSProperties | undefined;
   canvasProps?: HTMLAttributes<HTMLCanvasElement> | undefined;
-  navigation?: boolean | CanvasNavigationOptions | undefined;
+  navigation?: boolean | NavigationOptions | undefined;
   showPlayhead?: boolean | undefined;
   playheadClassName?: string | undefined;
   playheadStyle?: CSSProperties | undefined;
@@ -152,7 +151,10 @@ export const TimeRuler = forwardRef<TimeRulerHandle, TimeRulerProps>(
 
           if (navigation !== false && navigation !== undefined) {
             const navOpts = typeof navigation === "object" ? navigation : {};
-            cleanupNav = attachCanvasNavigation(viewer, canvas, navOpts);
+            cleanupNav = effectiveScope.attachNavigation(canvas, {
+              axis: "time",
+              ...navOpts,
+            });
           }
 
           await viewer.render();
@@ -213,8 +215,8 @@ export const TimeRuler = forwardRef<TimeRulerHandle, TimeRulerProps>(
         className={className}
         style={{
           position: "relative",
-          width,
-          height,
+          width: width ?? "100%",
+          height: height ?? 24,
           ...style,
         }}
       >

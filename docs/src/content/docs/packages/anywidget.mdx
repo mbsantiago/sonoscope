@@ -1,0 +1,45 @@
+---
+title: "sonoscope (Python & Jupyter)"
+description: Interactive audio widget for Jupyter Lab, Notebook, VS Code, and Marimo.
+---
+
+The `sonoscope` Python package provides a standard AnyWidget for interactive audio exploration directly within notebooks.
+
+## Installation
+
+```bash
+pip install sonoscope
+# or with uv
+uv add sonoscope
+```
+
+## Usage
+
+```python
+from sonoscope import Sonoscope
+import numpy as np
+
+# Load audio from file
+widget = Sonoscope.from_file("speech.wav", cmap="magma", frequency_scale="mel")
+widget
+```
+
+### Initializing from NumPy Arrays
+
+```python
+import numpy as np
+from sonoscope import Sonoscope
+
+sample_rate = 22050
+t = np.linspace(0, 2.0, sample_rate * 2, endpoint=False)
+chirp = np.sin(2 * np.pi * (100 + 1000 * t) * t)
+
+Sonoscope.from_array(chirp, sample_rate=sample_rate, cmap="viridis")
+```
+
+### Supported Environments
+
+- **JupyterLab** & **Jupyter Notebook** (v7+)
+- **VS Code** Interactive Python & Notebooks
+- **Marimo** Reactive Notebooks
+- **Google Colab**

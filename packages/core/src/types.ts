@@ -1,3 +1,5 @@
+import type { NavigationOptions } from "./navigation";
+
 export type Rgba = [number, number, number, number];
 
 export type BuiltInColorMap =
@@ -177,6 +179,7 @@ export interface ISonoscope {
     source?: string | undefined,
   ): void;
   zoom(factor: number, centerTime?: number, source?: string): void;
+  zoomTime(factor: number, centerTime?: number, source?: string): void;
   pan(deltaSeconds: number, source?: string): void;
   panTo(startTime: number, source?: string): void;
   zoomFrequency(
@@ -184,9 +187,16 @@ export interface ISonoscope {
     centerFrequency?: number,
     source?: string,
   ): void;
+  zoomFreq(factor: number, centerFrequency?: number, source?: string): void;
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
+    source?: string,
+  ): void;
   panFrequency(deltaHz: number, source?: string): void;
   getDuration(): number;
   getSampleRate(): number;
+  getNyquist(): number;
   getFollowPlayback(): FollowPlaybackMode;
   setFollowPlayback(mode: FollowPlaybackMode): void;
 
@@ -198,9 +208,25 @@ export interface ISonoscope {
   detachAudio(): void;
   setSource(source: AudioSource): void;
 
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void;
+
   on<K extends keyof SonoscopeEvents>(
     event: K,
     handler: (e: SonoscopeEvents[K]) => void,
   ): () => void;
   destroy(): void;
 }
+
+export type {
+  DragNavigationOptions,
+  FrequencyBounds,
+  ModifierKey,
+  NavigableViewer,
+  NavigationAxis,
+  NavigationOptions,
+  TimeBounds,
+  WheelNavigationOptions,
+} from "./navigation";

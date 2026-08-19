@@ -380,11 +380,11 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getNyquist()).toBe(source.sampleRate / 2);
   });
 
-  it("updates viewport and schedules a render", async () => {
+  it("updates viewport when scope updates and schedules a render", async () => {
     const viewer = createViewer({ canvas: canvas(), source });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.updateViewport({ startTime: 0.1, endTime: 0.6 });
+    viewer.getScope().setViewport({ startTime: 0.1, endTime: 0.6 });
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.1,
@@ -446,7 +446,7 @@ describe("SpectrogramViewer", () => {
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.zoomFreq(0.5, 200);
+    viewer.getScope().zoomFreq(0.5, 200);
 
     expect(viewer.getViewport()).toMatchObject({
       minFrequency: 100,
@@ -466,7 +466,7 @@ describe("SpectrogramViewer", () => {
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.zoomBoth(0.5, { time: 0.5, frequency: 200 });
+    viewer.getScope().zoomBoth(0.5, { time: 0.5, frequency: 200 });
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.25,
@@ -487,10 +487,9 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 400,
     });
 
-    viewer.zoomBoth(
-      { time: 0.5, frequency: 0.25 },
-      { time: 0.5, frequency: 200 },
-    );
+    viewer
+      .getScope()
+      .zoomBoth({ time: 0.5, frequency: 0.25 }, { time: 0.5, frequency: 200 });
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.25,
@@ -700,7 +699,7 @@ describe("SpectrogramViewer", () => {
     viewer.on("rendercomplete", (event) => completed.push(event.requestId));
 
     const first = viewer.render();
-    viewer.setViewport({ startTime: 1, endTime: 2 });
+    viewer.getScope().setViewport({ startTime: 1, endTime: 2 });
     await viewer.render();
     resolveFirst?.(matrix(0, 1));
     await first;
@@ -1196,7 +1195,7 @@ describe("SpectrogramViewer", () => {
     await viewer.render();
     const before = viewer.getCacheStats().tiles;
 
-    viewer.setViewport({
+    viewer.getScope().setViewport({
       startTime: 0.05,
       endTime: 0.95,
       frequencyScale: "mel",
@@ -1413,11 +1412,13 @@ describe("SpectrogramViewer", () => {
       expect(requestRender).toHaveBeenCalledTimes(1);
     });
 
-    it("updates scope when viewer.updateViewport() modifies time bounds", () => {
+    it("updates viewer viewport and emits viewportchange when scope.setViewport() is called", () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
       const viewer = new SpectrogramViewer(scope, canvas());
+      const onViewportChange = vi.fn();
+      viewer.on("viewportchange", onViewportChange);
 
-      viewer.updateViewport({
+      scope.setViewport({
         startTime: 0.2,
         endTime: 0.7,
         minFrequency: 100,
@@ -1430,6 +1431,7 @@ describe("SpectrogramViewer", () => {
         endTime: 0.7,
         minFrequency: 100,
       });
+      expect(onViewportChange).toHaveBeenCalled();
     });
 
     it("unbinds from scope on destroy() without destroying externally owned scope", () => {

@@ -44,34 +44,21 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
 
   render(input: RenderInput): void {
     const paint = () => {
-      const rect = input.canvas.getBoundingClientRect();
-      const width = Math.max(
-        1,
-        Math.round(rect.width || input.canvas.width || 1),
-      );
-      const height = Math.max(
-        1,
-        Math.round(rect.height || input.canvas.height || 1),
-      );
-      const dpr = globalThis.devicePixelRatio || 1;
-      const deviceWidth = Math.max(1, Math.round(width * dpr));
-      const deviceHeight = Math.max(1, Math.round(height * dpr));
-      input.canvas.width = deviceWidth;
-      input.canvas.height = deviceHeight;
+      const width = Math.max(1, input.canvas.width || 1);
+      const height = Math.max(1, input.canvas.height || 1);
 
       const context = input.canvas.getContext("2d");
       if (!context) throw new Error("Unable to get 2D canvas context");
 
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
       context.clearRect(0, 0, width, height);
 
       const colors = buildColorMap(input.colorMap);
-      const image = context.createImageData(deviceWidth, deviceHeight);
+      const image = context.createImageData(width, height);
       for (const placeholder of input.placeholders ?? [])
         this.paintPlaceholder(
           image,
-          deviceWidth,
-          deviceHeight,
+          width,
+          height,
           input.viewport,
           placeholder.timeStart,
           placeholder.timeEnd,
@@ -79,8 +66,8 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
       for (const tile of input.tiles)
         this.paintTile(
           image,
-          deviceWidth,
-          deviceHeight,
+          width,
+          height,
           tile,
           input.viewport,
           input.valueScale,

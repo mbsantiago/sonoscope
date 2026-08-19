@@ -1,6 +1,5 @@
 import type { AudioSource } from "./types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { attachCanvasNavigation } from "./navigation";
 import { Sonoscope } from "./sonoscope";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
@@ -322,7 +321,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
   });
 
   describe("Cross-Viewer Updates", () => {
-    it("updates SpectrogramViewer when WaveformViewer modifies viewport", () => {
+    it("updates viewers when scope modifies viewport", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 0, endTime: 10 });
 
@@ -330,8 +329,9 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const waveform = new WaveformViewer(scope, createMockCanvas());
 
       const specRenderSpy = vi.spyOn(spectrogram, "requestRender");
+      const waveRenderSpy = vi.spyOn(waveform, "requestRender");
 
-      waveform.updateViewport({ startTime: 1, endTime: 3 });
+      scope.setViewport({ startTime: 1, endTime: 3 });
 
       expect(scope.getViewport().startTime).toBeCloseTo(1);
       expect(scope.getViewport().endTime).toBeCloseTo(3);
@@ -340,25 +340,6 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       expect(spectrogram.getViewport().startTime).toBeCloseTo(1);
       expect(spectrogram.getViewport().endTime).toBeCloseTo(3);
       expect(specRenderSpy).toHaveBeenCalled();
-    });
-
-    it("updates WaveformViewer when SpectrogramViewer modifies viewport", () => {
-      const source = createMockSource(20);
-      const scope = new Sonoscope({ source, startTime: 0, endTime: 10 });
-
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
-
-      const waveRenderSpy = vi.spyOn(waveform, "requestRender");
-
-      spectrogram.updateViewport({ startTime: 4, endTime: 9 });
-
-      expect(scope.getViewport().startTime).toBeCloseTo(4);
-      expect(scope.getViewport().endTime).toBeCloseTo(9);
-      expect(spectrogram.getViewport().startTime).toBeCloseTo(4);
-      expect(spectrogram.getViewport().endTime).toBeCloseTo(9);
-      expect(waveform.getViewport().startTime).toBeCloseTo(4);
-      expect(waveform.getViewport().endTime).toBeCloseTo(9);
       expect(waveRenderSpy).toHaveBeenCalled();
     });
 
@@ -402,7 +383,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = new SpectrogramViewer(scope, specCanvas);
       const waveform = new WaveformViewer(scope, waveCanvas);
 
-      const cleanup = attachCanvasNavigation(spectrogram, specCanvas);
+      const cleanup = scope.attachNavigation(specCanvas);
 
       // Trigger wheel event on spectrogram canvas (pan right)
       specCanvas.emit("wheel", {
@@ -442,7 +423,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = new SpectrogramViewer(scope, specCanvas);
       const waveform = new WaveformViewer(scope, waveCanvas);
 
-      const cleanup = attachCanvasNavigation(waveform, waveCanvas);
+      const cleanup = scope.attachNavigation(waveCanvas);
 
       // Drag on waveform canvas to the left (dx = -100px on 400px width canvas => pans forward in time by (100/400)*4 = 1s)
       waveCanvas.emit("mousedown", {
@@ -483,7 +464,7 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = new SpectrogramViewer(scope, specCanvas);
       const waveform = new WaveformViewer(scope, waveCanvas);
 
-      const cleanup = attachCanvasNavigation(spectrogram, specCanvas);
+      const cleanup = scope.attachNavigation(specCanvas);
 
       // Drag on spectrogram canvas to the right (dx = +100px => pans back in time by 1s)
       specCanvas.emit("mousedown", {
@@ -614,8 +595,8 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const waveViewportSpy = vi.fn();
       waveform.on("viewportchange", waveViewportSpy);
 
-      // Update frequency range on spectrogram
-      spectrogram.updateViewport({
+      // Update frequency range on scope
+      scope.setViewport({
         minFrequency: 500,
         maxFrequency: 8000,
         frequencyScale: "mel",
@@ -645,8 +626,8 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       // Waveform viewportchange event not fired for frequency-only change
       expect(waveViewportSpy).not.toHaveBeenCalled();
 
-      // Zoom frequency on spectrogram
-      spectrogram.zoomFreq(0.5, 4000);
+      // Zoom frequency on scope
+      scope.zoomFreq(0.5, 4000);
       expect(spectrogram.getViewport().minFrequency).toBeCloseTo(2250);
       expect(spectrogram.getViewport().maxFrequency).toBeCloseTo(6000);
       expect(waveform.getViewport().startTime).toBe(3);

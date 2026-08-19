@@ -44,6 +44,8 @@ export type WaveformConfig = {
   amplitudeScale?: number | undefined;
   colorMap?: ColorMapConfig | undefined;
   renderer?: "canvas2d" | "webgl2" | WaveformRenderer | undefined;
+  autoResize?: boolean | undefined;
+  devicePixelRatio?: boolean | number | undefined;
 };
 
 export type WaveformOptions = WaveformConfig;
@@ -87,11 +89,9 @@ export interface IWaveformViewer {
   getStatus(): WaveformStatus;
   getCanvas(): HTMLCanvasElement;
 
-  // Viewport & Navigation
+  // Viewport
   getScope(): ISonoscope;
   getViewport(): WaveformViewport;
-  updateViewport(viewport: Partial<WaveformViewport>): void;
-  setViewport(viewport: Partial<WaveformViewport>): void;
 
   // Configuration
   getConfig(): ResolvedWaveformConfig;

@@ -1,7 +1,6 @@
 import type { RenderProps } from "@anywidget/types";
 import "./widget.css";
 import {
-  attachCanvasNavigation,
   attachPlayheadOverlay,
   type FollowPlaybackMode,
   type FrequencyRulerProgramName,
@@ -12,6 +11,8 @@ import {
 
 interface WidgetModel {
   url: string;
+  audio_bytes?: unknown;
+  mime_type?: string;
   width: number;
   height: number;
   program: "dither" | "normal" | "sobel" | "terrain";
@@ -41,6 +42,58 @@ interface WidgetModel {
   show_waveform: boolean;
   waveform_height: number;
   follow_playback: FollowPlaybackMode;
+}
+
+function toUint8Array(input: unknown): Uint8Array | null {
+  if (!input) return null;
+  if (input instanceof Uint8Array) {
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+  }
+  if (input instanceof ArrayBuffer) {
+    return new Uint8Array(input);
+  }
+  if (input instanceof DataView) {
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+  }
+  if (Array.isArray(input)) {
+    return new Uint8Array(input);
+  }
+  if (typeof input === "string") {
+    const raw = input.includes(",") ? input.split(",")[1] || "" : input;
+    try {
+      const binaryString = atob(raw);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    } catch {
+      const bytes = new Uint8Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        bytes[i] = input.charCodeAt(i) & 0xff;
+      }
+      return bytes;
+    }
+  }
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "buffer" in input &&
+    (input as { buffer: unknown }).buffer instanceof ArrayBuffer
+  ) {
+    const obj = input as {
+      buffer: ArrayBuffer;
+      byteOffset?: number;
+      byteLength?: number;
+    };
+    return new Uint8Array(
+      obj.buffer,
+      obj.byteOffset || 0,
+      obj.byteLength || obj.buffer.byteLength,
+    );
+  }
+  return null;
 }
 
 async function render({
@@ -77,7 +130,7 @@ async function render({
 
   const root = document.createElement("div");
   root.className = "sonoscope-widget";
-  root.style.width = `${width + freqRulerWidth + 22}px`;
+  root.style.width = `${width + freqRulerWidth + 2}px`;
   root.style.maxWidth = "100%";
   el.appendChild(root);
 
@@ -156,15 +209,43 @@ async function render({
 
   const audio = document.createElement("audio");
   audio.className = "sonoscope-audio";
-  audio.src = url;
   audio.controls = true;
   audio.crossOrigin = "anonymous";
   root.appendChild(audio);
 
-  const scope = await Sonoscope.fromAudio(audio, {
-    followPlayback,
-    frequencyScale,
-  });
+  const rawAudioBytes = model.get("audio_bytes");
+  const mimeType = model.get("mime_type") || "audio/wav";
+  const uint8 = toUint8Array(rawAudioBytes);
+
+  let scope: Sonoscope;
+  if (uint8 && uint8.length > 0) {
+    const blob = new Blob([uint8 as unknown as BlobPart], { type: mimeType });
+    scope = await Sonoscope.fromBlob(blob, {
+      followPlayback,
+      frequencyScale,
+      audio,
+    });
+  } else if (url) {
+    audio.src = url;
+    scope = await Sonoscope.fromAudio(audio, {
+      followPlayback,
+      frequencyScale,
+    });
+  } else {
+    // Empty initial placeholder or error
+    scope = new Sonoscope({
+      source: {
+        id: "empty",
+        duration: 0.1,
+        sampleRate: 44100,
+        channelCount: 1,
+        read: () => new Float32Array(0),
+      },
+      followPlayback,
+      frequencyScale,
+      audio,
+    });
+  }
 
   const minFreq = frequencyScale === "log" ? 20 : 0;
   const maxFreq = Math.floor(scope.getSampleRate() / 2);
@@ -177,10 +258,10 @@ async function render({
     timeRuler = scope.createTimeRuler(timeRulerCanvas, {
       program: timeRulerProg,
       tickPosition: "top",
-      color: "#cbd5e1",
-      tickColor: "#475569",
+      color: "rgba(128, 128, 128, 0.75)",
+      tickColor: "rgba(128, 128, 128, 0.35)",
     });
-    navCleanups.push(attachCanvasNavigation(timeRuler, timeRulerCanvas));
+    navCleanups.push(scope.attachNavigation(timeRulerCanvas, { axis: "time" }));
     playheadOverlays.push(attachPlayheadOverlay(timeRulerContainer, scope));
 
     const onTimeRulerClick = (e: MouseEvent) => {
@@ -201,11 +282,13 @@ async function render({
       frequencyScale,
       minFrequency: minFreq,
       maxFrequency: maxFreq,
-      color: "#cbd5e1",
-      tickColor: "#334155",
+      color: "rgba(128, 128, 128, 0.75)",
+      tickColor: "rgba(128, 128, 128, 0.35)",
       tickPosition: "right",
     });
-    navCleanups.push(attachCanvasNavigation(freqRuler, freqRulerCanvas));
+    navCleanups.push(
+      scope.attachNavigation(freqRulerCanvas, { axis: "frequency" }),
+    );
   }
 
   const spec = scope.createSpectrogram(specCanvas, {
@@ -219,7 +302,7 @@ async function render({
     renderer: { type: "webgl", program },
     colorMap: cmap,
   });
-  navCleanups.push(attachCanvasNavigation(spec, specCanvas));
+  navCleanups.push(scope.attachNavigation(specCanvas));
   playheadOverlays.push(attachPlayheadOverlay(specContainer, scope));
 
   specCanvas.addEventListener("dblclick", (e) => {
@@ -235,7 +318,7 @@ async function render({
     waveform = scope.createWaveform(waveformCanvas, {
       colorMap: cmap,
     });
-    navCleanups.push(attachCanvasNavigation(waveform, waveformCanvas));
+    navCleanups.push(scope.attachNavigation(waveformCanvas, { axis: "time" }));
     playheadOverlays.push(attachPlayheadOverlay(waveformContainer, scope));
 
     waveformCanvas.addEventListener("dblclick", (e) => {

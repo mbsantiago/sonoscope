@@ -48,6 +48,8 @@ export type TimeRulerConfig = {
   timeFormat?: TimeFormatMode | undefined;
   minMajorPixelSpacing?: number | undefined;
   program?: TimeRulerProgramName | TimeRulerProgram | undefined;
+  autoResize?: boolean | undefined;
+  devicePixelRatio?: boolean | number | undefined;
 };
 
 export type TimeRulerOptions = TimeRulerConfig;
@@ -95,8 +97,6 @@ export interface ITimeRulerViewer {
 
   getScope(): ISonoscope;
   getViewport(): TimeRulerViewport;
-  updateViewport(viewport: Partial<TimeRulerViewport>): void;
-  setViewport(viewport: Partial<TimeRulerViewport>): void;
 
   getConfig(): ResolvedTimeRulerConfig;
   updateConfig(input: Partial<TimeRulerOptions>): void;

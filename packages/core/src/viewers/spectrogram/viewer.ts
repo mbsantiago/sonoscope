@@ -16,8 +16,8 @@ import type {
   TileStateInfo,
   ValueMode,
 } from "./types";
+import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
-import { zoomViewportFrequency, zoomViewportTime } from "../../navigation";
 import {
   createSpectrogramBackend,
   isSpectrogramComputeBackend,
@@ -38,6 +38,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private renderer: SpectrogramRenderer;
   private scopeCleanup: Array<() => void> = [];
   private sourceRangeCleanup: (() => void) | undefined;
+  private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
@@ -45,7 +46,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private requestCounter = 0;
   private renderGeneration = 0;
   private status: SpectrogramStatus = { state: "idle" };
-  private isSelfUpdating = false;
   private scope: ISonoscope;
   private readonly canvas: HTMLCanvasElement;
   private config: ResolvedSpectrogramConfig;
@@ -106,6 +106,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
     this.bindScope();
     this.attachSourceRangeSync();
+    if (options?.autoResize !== false) {
+      this.resizeCleanup = attachAutoResize(this.canvas, {
+        devicePixelRatio: options?.devicePixelRatio,
+        onResize: () => this.requestRender(),
+      });
+    }
     if (this.config.autoRender) {
       this.requestRender();
     }
@@ -185,63 +191,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     };
   }
 
-  setViewport(viewport: Partial<ViewportConfig>): void {
-    const prev = this.getViewport();
-    let timeChanged = false;
-    let freqChanged = false;
-
-    const nextMinFreq = viewport.minFrequency ?? this.config.minFrequency;
-    const nextMaxFreq = viewport.maxFrequency ?? this.config.maxFrequency;
-    const nextScale = viewport.frequencyScale ?? this.config.frequencyScale;
-
-    if (
-      Math.abs(prev.minFrequency - nextMinFreq) >= 1e-6 ||
-      Math.abs(prev.maxFrequency - nextMaxFreq) >= 1e-6 ||
-      prev.frequencyScale !== nextScale
-    ) {
-      freqChanged = true;
-      this.config.minFrequency = nextMinFreq;
-      this.config.maxFrequency = nextMaxFreq;
-      this.config.frequencyScale = nextScale;
-    }
-
-    const nextStart = viewport.startTime ?? prev.startTime;
-    const nextEnd = viewport.endTime ?? prev.endTime;
-    if (
-      Math.abs(prev.startTime - nextStart) >= 1e-6 ||
-      Math.abs(prev.endTime - nextEnd) >= 1e-6
-    ) {
-      timeChanged = true;
-      this.config.startTime = nextStart;
-      this.config.endTime = nextEnd;
-    }
-
-    if (timeChanged || freqChanged) {
-      this.isSelfUpdating = true;
-      try {
-        this.scope.setViewport(
-          {
-            startTime: this.config.startTime,
-            endTime: this.config.endTime,
-            minFrequency: this.config.minFrequency,
-            maxFrequency: this.config.maxFrequency,
-            frequencyScale: this.config.frequencyScale,
-          },
-          "spectrogram",
-        );
-      } finally {
-        this.isSelfUpdating = false;
-      }
-      this.renderGeneration += 1;
-      this.events.emit("viewportchange", { viewport: this.getViewport() });
-    }
-  }
-
-  updateViewport(viewport: Partial<ViewportConfig>): void {
-    this.setViewport(viewport);
-    this.requestRender();
-  }
-
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;
@@ -250,65 +199,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       minFrequency: 0,
       maxFrequency: this.getNyquist(),
     };
-  }
-
-  zoomFreq(
-    factor: number,
-    centerFrequency = (this.config.minFrequency + this.config.maxFrequency) / 2,
-  ): void {
-    const currentViewport = this.getViewport();
-    const next = zoomViewportFrequency(
-      currentViewport,
-      this.getFrequencyBounds(),
-      centerFrequency,
-      factor,
-    );
-    if (
-      Math.abs(next.minFrequency - currentViewport.minFrequency) < 1e-6 &&
-      Math.abs(next.maxFrequency - currentViewport.maxFrequency) < 1e-6
-    )
-      return;
-    this.updateViewport(next);
-  }
-
-  zoomBoth(
-    factor: number | { time: number; frequency: number },
-    center?: { time?: number; frequency?: number },
-  ): void {
-    const timeFactor = typeof factor === "number" ? factor : factor.time;
-    const freqFactor = typeof factor === "number" ? factor : factor.frequency;
-    const currentViewport = this.getViewport();
-    const timeCenter =
-      center?.time ?? (currentViewport.startTime + currentViewport.endTime) / 2;
-    const freqCenter =
-      center?.frequency ??
-      (currentViewport.minFrequency + currentViewport.maxFrequency) / 2;
-
-    const timeBounds = {
-      startTime: 0,
-      endTime: this.scope.getDuration(),
-      minDurationSeconds: this.config.minViewportDuration,
-      maxDurationSeconds: this.config.maxViewportDuration,
-    };
-    const nextTime = zoomViewportTime(
-      currentViewport,
-      timeBounds,
-      timeCenter,
-      timeFactor,
-    );
-    const nextFreq = zoomViewportFrequency(
-      currentViewport,
-      this.getFrequencyBounds(),
-      freqCenter,
-      freqFactor,
-    );
-
-    this.updateViewport({
-      startTime: nextTime.startTime,
-      endTime: nextTime.endTime,
-      minFrequency: nextFreq.minFrequency,
-      maxFrequency: nextFreq.maxFrequency,
-    });
   }
 
   getStatus(): SpectrogramStatus {
@@ -608,6 +498,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.scopeCleanup = [];
     this.sourceRangeCleanup?.();
     this.sourceRangeCleanup = undefined;
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
     this.cache.clear();
     this.pendingTiles.clear();
     this.backend.destroy?.();
@@ -655,20 +547,15 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
       this.renderGeneration += 1;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
-      if (!this.isSelfUpdating) {
-        this.requestRender();
-      }
+      this.requestRender();
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {
       this.renderGeneration += 1;
-      this.updateViewport({
-        minFrequency: this.config.minFrequency,
-        maxFrequency: Math.min(
-          this.config.maxFrequency,
-          this.getFrequencyBounds().maxFrequency,
-        ),
-      });
+      const maxAllowed = this.getFrequencyBounds().maxFrequency;
+      if (this.config.maxFrequency > maxAllowed) {
+        this.config.maxFrequency = maxAllowed;
+      }
       this.requestRender();
     });
 
