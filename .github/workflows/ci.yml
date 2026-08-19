@@ -73,8 +73,8 @@ jobs:
       - name: Run Unit Tests
         run: npm test
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+      - name: Install playwright browsers
+        run: npx playwright install --with-deps
 
       - name: Run Browser / WebGL Tests
         run: npm run test:browser
