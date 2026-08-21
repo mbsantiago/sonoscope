@@ -11,7 +11,7 @@ import type {
 import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
 import type { TimeRulerOptions } from "./viewers/time-ruler/types";
-import type { WaveformOptions } from "./viewers/waveform/types";
+import type { WaveformConfig } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
 import { attachNavigation } from "./navigation";
@@ -738,7 +738,7 @@ export class Sonoscope implements ISonoscope {
 
   createWaveform(
     canvas: HTMLCanvasElement,
-    options?: Partial<WaveformOptions>,
+    options?: Partial<WaveformConfig>,
   ): WaveformViewer {
     return new WaveformViewer(this, canvas, options);
   }

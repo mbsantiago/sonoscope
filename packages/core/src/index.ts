@@ -114,17 +114,23 @@ export type {
   TimeTicksResult,
 } from "./viewers/time-ruler";
 // Waveform Types
+export type { BarsWaveformRendererOptions } from "./viewers/waveform/renderers/bars";
 export type {
+  BarPeakBlock,
+  BarsWaveformRendererConfig,
+  Canvas2DWaveformRendererConfig,
   IWaveformViewer,
   PeakBlock,
   ResolvedWaveformConfig,
   WaveformConfig,
   WaveformEvents,
-  WaveformOptions,
   WaveformRenderer,
+  WaveformRendererKind,
+  WaveformRendererMode,
   WaveformRenderInput,
   WaveformStatus,
   WaveformViewport,
+  WebGL2WaveformRendererConfig,
 } from "./viewers/waveform/types";
 export { attachAutoResize } from "./auto-resize";
 // Colormap Utilities
@@ -215,7 +221,9 @@ export {
   TicksTimeRulerProgram,
   TimeRulerViewer,
 } from "./viewers/time-ruler";
+export { BarsWaveformRenderer } from "./viewers/waveform/renderers/bars";
 export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
+export { createWaveformRenderer } from "./viewers/waveform/renderers/renderer-factory";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";
 // Viewport Utilities

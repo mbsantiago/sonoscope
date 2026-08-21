@@ -135,15 +135,15 @@ describe("WaveformViewer", () => {
     });
     const viewer = new WaveformViewer(scope, canvas);
 
+    expect(viewer.getConfig().color).toBe("#38bdf8");
     expect(scope.getAudio()).toBe(audio);
-    expect(viewer.getConfig().cursorColor).toBe("#ffffff");
 
     scope.detachAudio();
     expect(scope.getAudio()).toBeUndefined();
     expect(audio.removeEventListener).toHaveBeenCalled();
   });
 
-  it("derives waveform colors from colorMap", async () => {
+  it("derives waveform color from colorMap", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({ source: dummySource });
     const viewer = new WaveformViewer(scope, canvas, {
@@ -152,8 +152,6 @@ describe("WaveformViewer", () => {
 
     const config = viewer.getConfig();
     expect(config.color).toContain("rgb(");
-    expect(config.progressColor).toContain("rgb(");
-    expect(config.color).not.toBe(config.progressColor);
 
     viewer.updateConfig({ colorMap: "viridis" });
     const nextConfig = viewer.getConfig();
@@ -168,11 +166,52 @@ describe("WaveformViewer", () => {
     });
 
     expect(viewer.getConfig().renderer).toBe("webgl2");
+    expect(viewer.getRendererKind()).toBe("webgl2");
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
 
     viewer.updateConfig({ renderer: "canvas2d" });
     expect(viewer.getConfig().renderer).toBe("canvas2d");
+    expect(viewer.getRendererKind()).toBe("canvas2d");
+  });
+
+  it("supports bars and segmented-bars renderer option with customization", async () => {
+    const canvas = createMockCanvas();
+    const scope = new Sonoscope({ source: dummySource });
+    const viewer = new WaveformViewer(scope, canvas, {
+      renderer: {
+        type: "bars",
+        barWidth: 4,
+        barGap: 3,
+        barAlign: "bottom",
+      },
+    });
+
+    expect(viewer.getConfig().renderer).toEqual({
+      type: "bars",
+      barWidth: 4,
+      barGap: 3,
+      barAlign: "bottom",
+    });
+    expect(viewer.getRendererKind()).toBe("bars");
+
+    await viewer.render();
+    expect(viewer.getStatus().state).toBe("ready");
+
+    viewer.updateConfig({
+      renderer: {
+        type: "segmented-bars",
+        barWidth: 6,
+      },
+    });
+    expect(viewer.getConfig().renderer).toEqual({
+      type: "segmented-bars",
+      barWidth: 6,
+    });
+    expect(viewer.getRendererKind()).toBe("bars");
+
+    await viewer.render();
+    expect(viewer.getStatus().state).toBe("ready");
   });
 
   describe("Sonoscope Integration", () => {

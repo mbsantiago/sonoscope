@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Waveform Renderers Demo</title>
+    <style>
+      :root {
+        --bg-main: #0b0f19;
+        --bg-card: #131b2e;
+        --border: rgba(255, 255, 255, 0.12);
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent-orange: #f97316;
+        --accent-blue: #38bdf8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg-main);
+        color: var(--text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.5;
+      }
+      a {
+        color: var(--accent-blue);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .container {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+      header {
+        margin-bottom: 1.5rem;
+      }
+      h1 {
+        margin: 0.5rem 0;
+        font-size: 1.6rem;
+        font-weight: 600;
+      }
+      p.subtitle {
+        color: var(--text-muted);
+        margin: 0 0 1rem 0;
+      }
+
+      .section-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.2rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .control-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.85rem;
+        align-items: center;
+      }
+
+      .ctrl-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      label {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .val-badge {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        color: var(--accent-blue);
+        font-size: 0.8rem;
+      }
+
+      input[type="text"],
+      input[type="url"],
+      select,
+      button {
+        padding: 0.5rem 0.75rem;
+        background: #1e293b;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.88rem;
+      }
+
+      button {
+        cursor: pointer;
+        transition: background 0.15s ease;
+        font-weight: 500;
+      }
+      button:hover {
+        background: #334155;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent-orange);
+      }
+
+      input[type="color"] {
+        height: 36px;
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: #1e293b;
+        cursor: pointer;
+        padding: 2px;
+      }
+
+      .audio-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      .audio-row select {
+        flex: 1;
+        min-width: 200px;
+      }
+      .audio-row input[type="url"] {
+        flex: 2;
+        min-width: 240px;
+      }
+
+      audio {
+        width: 100%;
+        margin-bottom: 1.25rem;
+        border-radius: 6px;
+      }
+
+      .stage-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .stage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .canvas-wrap {
+        position: relative;
+        width: 100%;
+        height: 180px;
+        background: #060913;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      canvas.wave-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+      }
+      canvas.wave-canvas:active {
+        cursor: grabbing;
+      }
+
+      .ruler-wrap {
+        position: relative;
+        width: 100%;
+        height: 28px;
+      }
+
+      canvas.ruler-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .comparison-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      .cmp-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+      }
+
+      .cmp-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+      }
+
+      .cmp-wrap {
+        position: relative;
+        width: 100%;
+        height: 100px;
+        background: #060913;
+        border-radius: 6px;
+      }
+
+      .cmp-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .stats-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.75rem;
+        background: #080d1a;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        font-size: 0.82rem;
+      }
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+      }
+      .stat-label {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+      }
+      .stat-val {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        color: var(--accent-orange);
+        font-weight: 600;
+      }
+
+      .hint-text {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <p><a href="./index.html">← Back to demos</a></p>
+        <h1>Waveform Renderers</h1>
+        <p class="subtitle">
+          Manual test suite for waveform visualization backends: Segmented Vertical Bars (Canvas 2D), Continuous Envelope (Canvas 2D), and WebGL2 GPU Shaders.
+        </p>
+      </header>
+
+      <!-- Audio Source Selection -->
+      <div class="section-card">
+        <div class="audio-row">
+          <select id="source-preset">
+            <option value="speech-envelope" selected>Preset: Speech Envelope & Vowels</option>
+            <option value="drum-beats">Preset: Rhythmic Beats & Transients</option>
+            <option value="chirp-sweep">Preset: Chirp Frequency Sweep</option>
+            <option value="harmonic-chords">Preset: Harmonic Chords</option>
+            <option value="fade-silence">Preset: Silence & Tapered Bursts</option>
+            <option value="custom-url">Custom Audio URL</option>
+          </select>
+          <input
+            id="audio-url-input"
+            type="url"
+            placeholder="Enter audio URL (.wav, .mp3, .ogg)"
+            style="display: none;"
+          />
+          <button id="load-btn" type="button" style="display: none;">Load URL</button>
+        </div>
+        <audio controls crossorigin="anonymous"></audio>
+      </div>
+
+      <!-- Main Stage -->
+      <div class="stage-panel">
+        <div class="stage-header">
+          <span id="active-renderer-title">Waveform (Segmented Bars)</span>
+          <span id="wave-status" class="val-badge">Ready</span>
+        </div>
+
+        <div class="canvas-wrap" id="main-wave-wrap">
+          <canvas class="wave-canvas" id="main-wave-canvas"></canvas>
+        </div>
+
+        <div class="ruler-wrap">
+          <canvas class="ruler-canvas" id="main-ruler-canvas"></canvas>
+        </div>
+
+        <div class="stats-panel">
+          <div class="stat-item">
+            <span class="stat-label">Active Renderer</span>
+            <span class="stat-val" id="stat-renderer">bars</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Viewport</span>
+            <span class="stat-val" id="stat-viewport">0.00s - 8.00s</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Duration</span>
+            <span class="stat-val" id="stat-duration">8.00s</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Bar Count</span>
+            <span class="stat-val" id="stat-bars">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Render Time</span>
+            <span class="stat-val" id="stat-rendertime">0.0 ms</span>
+          </div>
+        </div>
+
+        <div class="hint-text">
+          Drag horizontally on waveform to pan time. Scroll mouse wheel over waveform to zoom. Click anywhere to seek playback.
+        </div>
+      </div>
+
+      <!-- Controls Panel -->
+      <div class="section-card">
+        <div class="control-grid">
+          <!-- Renderer Selection -->
+          <div class="ctrl-item">
+            <label for="renderer-select">Renderer Kind</label>
+            <select id="renderer-select">
+              <option value="bars" selected>Segmented Bars (Canvas 2D)</option>
+              <option value="canvas2d">Continuous Envelope (Canvas 2D)</option>
+              <option value="webgl2">GPU Shaders (WebGL2)</option>
+            </select>
+          </div>
+
+          <!-- Gain / Amplitude -->
+          <div class="ctrl-item">
+            <label for="gain-slider">
+              Gain / Amp Scale
+              <span class="val-badge" id="gain-val">1.0x</span>
+            </label>
+            <input id="gain-slider" type="range" min="0.1" max="4.0" step="0.1" value="1.0" />
+          </div>
+
+          <!-- Bar Width -->
+          <div class="ctrl-item bars-ctrl">
+            <label for="bar-width-slider">
+              Bar Width
+              <span class="val-badge" id="bar-width-val">3 px</span>
+            </label>
+            <input id="bar-width-slider" type="range" min="1" max="16" step="1" value="3" />
+          </div>
+
+          <!-- Bar Gap -->
+          <div class="ctrl-item bars-ctrl">
+            <label for="bar-gap-slider">
+              Bar Gap
+              <span class="val-badge" id="bar-gap-val">2 px</span>
+            </label>
+            <input id="bar-gap-slider" type="range" min="0" max="16" step="1" value="2" />
+          </div>
+
+          <!-- Bar Rounding -->
+          <div class="ctrl-item bars-ctrl">
+            <label for="bar-style-select">Bar Shape</label>
+            <select id="bar-style-select">
+              <option value="pill" selected>Pill / Capsule (Rounded Ends)</option>
+              <option value="flat">Flat Rectangle (Square Ends)</option>
+            </select>
+          </div>
+
+          <!-- Bar Alignment -->
+          <div class="ctrl-item bars-ctrl">
+            <label for="bar-align-select">Bar Alignment</label>
+            <select id="bar-align-select">
+              <option value="center" selected>Center (Mirrored)</option>
+              <option value="bottom">Bottom Up</option>
+              <option value="top">Top Down</option>
+            </select>
+          </div>
+
+          <!-- Waveform Color -->
+          <div class="ctrl-item">
+            <label for="color-picker">Wave Color</label>
+            <input id="color-picker" type="color" value="#f97316" />
+          </div>
+
+          <!-- Follow Playback -->
+          <div class="ctrl-item">
+            <label for="follow-select">Follow Playback</label>
+            <select id="follow-select">
+              <option value="page" selected>Page Follow</option>
+              <option value="smooth">Smooth Center</option>
+              <option value="off">Off (Free Pan)</option>
+            </select>
+          </div>
+
+          <!-- Color Preset -->
+          <div class="ctrl-item">
+            <label for="color-preset-select">Color Theme</label>
+            <select id="color-preset-select">
+              <option value="orange" selected>Vibrant Orange (Attachment style)</option>
+              <option value="blue">Cyan Blue</option>
+              <option value="emerald">Emerald Green</option>
+              <option value="purple">Neon Purple</option>
+              <option value="rose">Hot Rose</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Comparison of All 3 Renderers -->
+      <div class="section-card">
+        <label style="font-size: 0.95rem; font-weight: 600; color: var(--text); cursor: pointer;">
+          <input id="toggle-comparison" type="checkbox" style="margin-right: 0.5rem;" />
+          Show Side-by-Side Comparison of All 3 Renderers
+        </label>
+
+        <div class="comparison-container" id="cmp-container" style="display: none;">
+          <!-- 1. Segmented Bars -->
+          <div class="cmp-card">
+            <div class="cmp-title">1. Segmented Bars (Canvas 2D)</div>
+            <div class="cmp-wrap" id="cmp-wrap-bars">
+              <canvas class="cmp-canvas" id="cmp-canvas-bars"></canvas>
+            </div>
+          </div>
+
+          <!-- 2. Continuous Canvas 2D -->
+          <div class="cmp-card">
+            <div class="cmp-title">2. Continuous Envelope (Canvas 2D)</div>
+            <div class="cmp-wrap" id="cmp-wrap-canvas">
+              <canvas class="cmp-canvas" id="cmp-canvas-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- 3. WebGL2 GPU -->
+          <div class="cmp-card">
+            <div class="cmp-title">3. Hardware-Accelerated Shaders (WebGL2)</div>
+            <div class="cmp-wrap" id="cmp-wrap-webgl">
+              <canvas class="cmp-canvas" id="cmp-canvas-webgl"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        attachPlayheadOverlay,
+        Sonoscope,
+      } from "@sonoscope/core";
+
+      // DOM Elements
+      const sourcePresetSelect = document.getElementById("source-preset");
+      const audioUrlInput = document.getElementById("audio-url-input");
+      const loadBtn = document.getElementById("load-btn");
+      const audio = document.querySelector("audio");
+
+      const mainWaveCanvas = document.getElementById("main-wave-canvas");
+      const mainRulerCanvas = document.getElementById("main-ruler-canvas");
+      const mainWaveWrap = document.getElementById("main-wave-wrap");
+      const waveStatusEl = document.getElementById("wave-status");
+      const activeRendererTitle = document.getElementById("active-renderer-title");
+
+      const rendererSelect = document.getElementById("renderer-select");
+      const gainSlider = document.getElementById("gain-slider");
+      const gainVal = document.getElementById("gain-val");
+      const barWidthSlider = document.getElementById("bar-width-slider");
+      const barWidthVal = document.getElementById("bar-width-val");
+      const barGapSlider = document.getElementById("bar-gap-slider");
+      const barGapVal = document.getElementById("bar-gap-val");
+      const barStyleSelect = document.getElementById("bar-style-select");
+      const barAlignSelect = document.getElementById("bar-align-select");
+      const colorPicker = document.getElementById("color-picker");
+      const followSelect = document.getElementById("follow-select");
+      const colorPresetSelect = document.getElementById("color-preset-select");
+      const toggleComparison = document.getElementById("toggle-comparison");
+      const cmpContainer = document.getElementById("cmp-container");
+
+      const statRenderer = document.getElementById("stat-renderer");
+      const statViewport = document.getElementById("stat-viewport");
+      const statDuration = document.getElementById("stat-duration");
+      const statBars = document.getElementById("stat-bars");
+      const statRenderTime = document.getElementById("stat-rendertime");
+
+      // State
+      let scope = null;
+      let waveViewer = null;
+      let rulerViewer = null;
+      let playheadOverlay = null;
+      let cleanupNav = null;
+
+      // Comparison viewers
+      let cmpWaveBars = null;
+      let cmpWaveCanvas = null;
+      let cmpWaveWebgl = null;
+      let cmpPlayheadBars = null;
+      let cmpPlayheadCanvas = null;
+      let cmpPlayheadWebgl = null;
+
+      // Synthetic Audio Generator
+      function createSyntheticSource(preset) {
+        const sampleRate = 48000;
+        const duration = 10;
+        const totalSamples = sampleRate * duration;
+        const data = new Float32Array(totalSamples);
+
+        for (let i = 0; i < totalSamples; i++) {
+          const t = i / sampleRate;
+
+          if (preset === "speech-envelope") {
+            // Speech-like bursts with silence pauses and formant harmonics
+            const envelope =
+              0.5 * (1 + Math.sin(2 * Math.PI * 1.5 * t)) *
+              Math.pow(Math.abs(Math.sin(2 * Math.PI * 0.4 * t)), 1.5);
+            const fundamental = Math.sin(2 * Math.PI * 140 * t);
+            const formant1 = 0.6 * Math.sin(2 * Math.PI * 750 * t);
+            const formant2 = 0.4 * Math.sin(2 * Math.PI * 1800 * t);
+            const noise = (Math.random() - 0.5) * 0.05;
+            data[i] = envelope * (fundamental + formant1 + formant2 + noise);
+          } else if (preset === "drum-beats") {
+            // Kick, snare, and hi-hat pulses
+            const beatTime = t % 0.5;
+            const kickEnv = Math.exp(-beatTime * 18);
+            const kick = Math.sin(2 * Math.PI * (120 - 80 * (beatTime / 0.5)) * beatTime) * kickEnv;
+            const snareTime = (t + 0.25) % 0.5;
+            const snareEnv = Math.exp(-snareTime * 22);
+            const snare = (Math.random() - 0.5) * snareEnv;
+            data[i] = 0.8 * kick + 0.5 * snare;
+          } else if (preset === "chirp-sweep") {
+            // Frequency sweep with crescendo
+            const freq = 100 + 3000 * Math.pow(t / duration, 2);
+            const amp = 0.1 + 0.8 * (t / duration);
+            data[i] = amp * Math.sin(2 * Math.PI * freq * t);
+          } else if (preset === "harmonic-chords") {
+            // Arpeggiated chord harmonics
+            const chord = Math.floor(t * 2) % 4;
+            const baseFreq = [220, 277.18, 329.63, 440][chord];
+            const val =
+              0.5 * Math.sin(2 * Math.PI * baseFreq * t) +
+              0.3 * Math.sin(2 * Math.PI * baseFreq * 2 * t) +
+              0.2 * Math.sin(2 * Math.PI * baseFreq * 3 * t);
+            data[i] = val;
+          } else {
+            // Silence & Tapered bursts
+            const taper = Math.sin((Math.PI * t) / duration);
+            const burst = Math.sin(2 * Math.PI * 400 * t) * Math.sin(2 * Math.PI * 3 * t);
+            data[i] = taper * burst;
+          }
+        }
+
+        return Sonoscope.fromArray(data, sampleRate, {
+          audio,
+          startTime: 0,
+          endTime: Math.min(8, duration),
+          followPlayback: followSelect.value,
+        });
+      }
+
+      function updateStats() {
+        if (!scope || !waveViewer) return;
+        const vp = scope.getViewport();
+        const duration = vp.endTime - vp.startTime;
+        statRenderer.textContent = waveViewer.getRendererKind();
+        statViewport.textContent = `${vp.startTime.toFixed(2)}s - ${vp.endTime.toFixed(2)}s`;
+        statDuration.textContent = `${duration.toFixed(2)}s`;
+
+        const rect = mainWaveCanvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const bw = parseFloat(barWidthSlider.value) * dpr;
+        const bg = parseFloat(barGapSlider.value) * dpr;
+        const step = bw + bg;
+        const canvasW = Math.round(rect.width * dpr);
+        const count = step > 0 ? Math.floor((canvasW + bg) / step) : 0;
+        statBars.textContent = waveViewer.getRendererKind() === "bars" ? `${count} bars` : "N/A (Envelope)";
+      }
+
+      function getWaveConfig() {
+        const isRounded = barStyleSelect.value === "pill";
+        const rType = rendererSelect.value;
+        const renderer =
+          rType === "bars"
+            ? {
+                type: "bars",
+                barWidth: parseFloat(barWidthSlider.value),
+                barGap: parseFloat(barGapSlider.value),
+                barAlign: barAlignSelect.value,
+                rounded: isRounded,
+              }
+            : rType;
+
+        return {
+          renderer,
+          color: colorPicker.value,
+          amplitudeScale: parseFloat(gainSlider.value),
+        };
+      }
+
+      async function initializeViewers() {
+        cleanupNav?.();
+        playheadOverlay?.destroy();
+        rulerViewer?.destroy();
+        waveViewer?.destroy();
+        destroyComparison();
+
+        const config = getWaveConfig();
+        waveViewer = scope.createWaveform(mainWaveCanvas, config);
+        rulerViewer = scope.createTimeRuler(mainRulerCanvas, {
+          color: "#94a3b8",
+          font: "11px system-ui",
+        });
+
+        playheadOverlay = attachPlayheadOverlay(mainWaveWrap, scope);
+        cleanupNav = scope.attachNavigation(mainWaveCanvas, { axis: "time" });
+
+        waveViewer.on("renderstart", () => {
+          waveStatusEl.textContent = "Rendering...";
+        });
+
+        waveViewer.on("rendercomplete", () => {
+          waveStatusEl.textContent = "Ready";
+          updateStats();
+        });
+
+        waveViewer.on("error", (e) => {
+          waveStatusEl.textContent = `Error: ${e.error.message}`;
+        });
+
+        scope.on("viewportchange", () => {
+          updateStats();
+        });
+
+        if (toggleComparison.checked) {
+          initComparison();
+        }
+
+        updateStats();
+      }
+
+      function initComparison() {
+        if (!scope) return;
+        destroyComparison();
+
+        const canvasBars = document.getElementById("cmp-canvas-bars");
+        const canvasCanvas = document.getElementById("cmp-canvas-canvas");
+        const canvasWebgl = document.getElementById("cmp-canvas-webgl");
+
+        cmpWaveBars = scope.createWaveform(canvasBars, {
+          renderer: {
+            type: "bars",
+            barWidth: parseFloat(barWidthSlider.value),
+            barGap: parseFloat(barGapSlider.value),
+            barAlign: barAlignSelect.value,
+            rounded: barStyleSelect.value === "pill",
+          },
+          color: colorPicker.value,
+          amplitudeScale: parseFloat(gainSlider.value),
+        });
+
+        cmpWaveCanvas = scope.createWaveform(canvasCanvas, {
+          renderer: "canvas2d",
+          color: colorPicker.value,
+          amplitudeScale: parseFloat(gainSlider.value),
+        });
+
+        cmpWaveWebgl = scope.createWaveform(canvasWebgl, {
+          renderer: "webgl2",
+          color: colorPicker.value,
+          amplitudeScale: parseFloat(gainSlider.value),
+        });
+
+        cmpPlayheadBars = attachPlayheadOverlay(document.getElementById("cmp-wrap-bars"), scope);
+        cmpPlayheadCanvas = attachPlayheadOverlay(document.getElementById("cmp-wrap-canvas"), scope);
+        cmpPlayheadWebgl = attachPlayheadOverlay(document.getElementById("cmp-wrap-webgl"), scope);
+      }
+
+      function destroyComparison() {
+        cmpPlayheadBars?.destroy();
+        cmpPlayheadCanvas?.destroy();
+        cmpPlayheadWebgl?.destroy();
+        cmpWaveBars?.destroy();
+        cmpWaveCanvas?.destroy();
+        cmpWaveWebgl?.destroy();
+        cmpPlayheadBars = null;
+        cmpPlayheadCanvas = null;
+        cmpPlayheadWebgl = null;
+        cmpWaveBars = null;
+        cmpWaveCanvas = null;
+        cmpWaveWebgl = null;
+      }
+
+      async function loadSelectedSource() {
+        waveStatusEl.textContent = "Loading audio...";
+        scope?.destroy();
+
+        const preset = sourcePresetSelect.value;
+        if (preset === "custom-url") {
+          const url = audioUrlInput.value.trim();
+          if (!url) return;
+          audio.src = url;
+          scope = await Sonoscope.fromAudio(audio, {
+            startTime: 0,
+            endTime: 8,
+            followPlayback: followSelect.value,
+          });
+        } else {
+          scope = createSyntheticSource(preset);
+        }
+
+        await initializeViewers();
+      }
+
+      // Waveform click-to-seek
+      mainWaveCanvas.addEventListener("click", (e) => {
+        if (!waveViewer || !scope) return;
+        const rect = mainWaveCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const targetTime = waveViewer.canvasToTime(clickX);
+        scope.seek(targetTime);
+      });
+
+      function updateBarsRenderer() {
+        const isRounded = barStyleSelect.value === "pill";
+        const barsConfig = {
+          type: "bars",
+          barWidth: parseFloat(barWidthSlider.value),
+          barGap: parseFloat(barGapSlider.value),
+          barAlign: barAlignSelect.value,
+          rounded: isRounded,
+        };
+        if (rendererSelect.value === "bars") {
+          waveViewer?.updateConfig({ renderer: barsConfig });
+        }
+        cmpWaveBars?.updateConfig({ renderer: barsConfig });
+        updateStats();
+      }
+
+      // UI Controls listeners
+      rendererSelect.addEventListener("change", () => {
+        const val = rendererSelect.value;
+        activeRendererTitle.textContent =
+          val === "bars"
+            ? "Waveform (Segmented Bars)"
+            : val === "canvas2d"
+              ? "Waveform (Continuous 2D Envelope)"
+              : "Waveform (Hardware WebGL2 Shaders)";
+        if (val === "bars") {
+          updateBarsRenderer();
+        } else {
+          waveViewer?.updateConfig({ renderer: val });
+        }
+        updateStats();
+      });
+
+      gainSlider.addEventListener("input", () => {
+        const val = parseFloat(gainSlider.value);
+        gainVal.textContent = `${val.toFixed(1)}x`;
+        waveViewer?.updateConfig({ amplitudeScale: val });
+        cmpWaveBars?.updateConfig({ amplitudeScale: val });
+        cmpWaveCanvas?.updateConfig({ amplitudeScale: val });
+        cmpWaveWebgl?.updateConfig({ amplitudeScale: val });
+      });
+
+      barWidthSlider.addEventListener("input", () => {
+        const val = parseFloat(barWidthSlider.value);
+        barWidthVal.textContent = `${val} px`;
+        updateBarsRenderer();
+      });
+
+      barGapSlider.addEventListener("input", () => {
+        const val = parseFloat(barGapSlider.value);
+        barGapVal.textContent = `${val} px`;
+        updateBarsRenderer();
+      });
+
+      barStyleSelect.addEventListener("change", () => {
+        updateBarsRenderer();
+      });
+
+      barAlignSelect.addEventListener("change", () => {
+        updateBarsRenderer();
+      });
+
+      colorPicker.addEventListener("input", () => {
+        const color = colorPicker.value;
+        waveViewer?.updateConfig({ color });
+        cmpWaveBars?.updateConfig({ color });
+        cmpWaveCanvas?.updateConfig({ color });
+        cmpWaveWebgl?.updateConfig({ color });
+      });
+
+      followSelect.addEventListener("change", () => {
+        scope?.setFollowPlayback(followSelect.value);
+      });
+
+      colorPresetSelect.addEventListener("change", () => {
+        const theme = colorPresetSelect.value;
+        const themes = {
+          orange: "#f97316",
+          blue: "#38bdf8",
+          emerald: "#34d399",
+          purple: "#c084fc",
+          rose: "#fb7185",
+        };
+        const selected = themes[theme] || themes.orange;
+        colorPicker.value = selected;
+        waveViewer?.updateConfig({ color: selected });
+        cmpWaveBars?.updateConfig({ color: selected });
+        cmpWaveCanvas?.updateConfig({ color: selected });
+        cmpWaveWebgl?.updateConfig({ color: selected });
+      });
+
+      sourcePresetSelect.addEventListener("change", () => {
+        const isCustom = sourcePresetSelect.value === "custom-url";
+        audioUrlInput.style.display = isCustom ? "block" : "none";
+        loadBtn.style.display = isCustom ? "block" : "none";
+        if (!isCustom) {
+          void loadSelectedSource();
+        }
+      });
+
+      loadBtn.addEventListener("click", () => void loadSelectedSource());
+
+      toggleComparison.addEventListener("change", () => {
+        cmpContainer.style.display = toggleComparison.checked ? "flex" : "none";
+        if (toggleComparison.checked) {
+          initComparison();
+        } else {
+          destroyComparison();
+        }
+      });
+
+      // Initial boot
+      await loadSelectedSource();
+    </script>
+  </body>
+</html>

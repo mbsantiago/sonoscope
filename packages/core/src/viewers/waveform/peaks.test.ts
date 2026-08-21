@@ -104,4 +104,33 @@ describe("WaveformPeakPyramid", () => {
       expect(p2.min[i]).toBeCloseTo(p1.min[i + shiftPixels]!, 5);
     }
   });
+
+  it("produces identical absolute bar peaks regardless of viewport panning", async () => {
+    const pyramid = new WaveformPeakPyramid(dummySource, 0);
+    const barDuration = 0.05; // 50ms per bar
+
+    // Viewport 1: [1.0s, 3.0s]
+    const b1 = await pyramid.getBarPeaks(1.0, 3.0, barDuration);
+    // Viewport 2: Panned by arbitrary non-aligned 0.037s -> [1.037s, 3.037s]
+    const b2 = await pyramid.getBarPeaks(1.037, 3.037, barDuration);
+
+    expect(b1.barDuration).toBe(barDuration);
+    expect(b2.barDuration).toBe(barDuration);
+
+    // Overlapping absolute bar indices k between b1 and b2
+    const overlapStart = Math.max(b1.kStart, b2.kStart);
+    const overlapEnd = Math.min(b1.kEnd, b2.kEnd);
+    expect(overlapEnd).toBeGreaterThan(overlapStart);
+
+    for (let k = overlapStart; k <= overlapEnd; k++) {
+      const val1Max = b1.max[k - b1.kStart];
+      const val2Max = b2.max[k - b2.kStart];
+      const val1Min = b1.min[k - b1.kStart];
+      const val2Min = b2.min[k - b2.kStart];
+
+      // Exact bit-for-bit invariance: absolute bar k has identical audio samples
+      expect(val2Max).toBe(val1Max);
+      expect(val2Min).toBe(val1Min);
+    }
+  });
 });
