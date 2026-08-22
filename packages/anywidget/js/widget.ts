@@ -222,14 +222,12 @@ async function render({
     const blob = new Blob([uint8 as unknown as BlobPart], { type: mimeType });
     scope = await Sonoscope.fromBlob(blob, {
       followPlayback,
-      frequencyScale,
       audio,
     });
   } else if (url) {
     audio.src = url;
     scope = await Sonoscope.fromAudio(audio, {
       followPlayback,
-      frequencyScale,
     });
   } else {
     // Empty initial placeholder or error
@@ -242,7 +240,6 @@ async function render({
         read: () => new Float32Array(0),
       },
       followPlayback,
-      frequencyScale,
       audio,
     });
   }
@@ -352,7 +349,7 @@ async function render({
   const onScaleChange = () => {
     const nextScale = model.get("frequency_scale");
     const nextMinFreq = nextScale === "log" ? 20 : 0;
-    scope.setViewport({ frequencyScale: nextScale, minFrequency: nextMinFreq });
+    scope.setViewport({ minFrequency: nextMinFreq });
     spec.updateConfig({ frequencyScale: nextScale });
     freqRuler?.updateConfig({
       frequencyScale: nextScale,
