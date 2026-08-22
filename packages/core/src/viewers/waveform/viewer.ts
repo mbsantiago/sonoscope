@@ -6,8 +6,8 @@ import type {
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
-  WaveformConfig,
   WaveformEvents,
+  WaveformOptions,
   WaveformRenderer,
   WaveformStatus,
   WaveformViewport,
@@ -15,55 +15,13 @@ import type {
 import { attachAutoResize } from "../../auto-resize";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
-import { clampViewportTimes } from "../../viewport-math";
 import { createWaveformRenderer } from "./renderers/renderer-factory";
 
 function resolveWaveformConfig(
   source: AudioSource,
-  input: Partial<WaveformConfig> = {},
+  input: Partial<WaveformOptions> = {},
 ): ResolvedWaveformConfig {
   if (!source) throw new Error("WaveformViewer requires a source");
-
-  const duration = Math.max(0.001, source.duration);
-
-  if (
-    input.minViewportDuration !== undefined &&
-    input.minViewportDuration <= 0
-  ) {
-    throw new Error("minViewportDuration must be greater than zero");
-  }
-
-  if (
-    input.maxViewportDuration !== undefined &&
-    input.minViewportDuration !== undefined &&
-    input.maxViewportDuration < input.minViewportDuration
-  ) {
-    throw new Error(
-      "maxViewportDuration must be greater than or equal to minViewportDuration",
-    );
-  }
-
-  const minViewportDuration = Math.min(
-    input.minViewportDuration ?? 0.05,
-    duration,
-  );
-  const maxViewportDuration = Math.max(
-    minViewportDuration,
-    input.maxViewportDuration !== undefined
-      ? input.maxViewportDuration
-      : Math.min(30, duration),
-  );
-
-  const initialStart = input.startTime ?? 0;
-  const initialEnd = input.endTime ?? duration;
-
-  const clamped = clampViewportTimes(
-    initialStart,
-    initialEnd,
-    duration,
-    minViewportDuration,
-    maxViewportDuration,
-  );
 
   let color = input.color ?? "#000000";
   if (input.colorMap) {
@@ -73,10 +31,6 @@ function resolveWaveformConfig(
   return {
     autoRender: input.autoRender ?? true,
     channel: input.channel ?? 0,
-    startTime: clamped.startTime,
-    endTime: clamped.endTime,
-    minViewportDuration,
-    maxViewportDuration,
     color,
     backgroundColor: input.backgroundColor ?? "transparent",
     amplitudeScale: input.amplitudeScale ?? 1,
@@ -99,12 +53,14 @@ export class WaveformViewer implements IWaveformViewer {
   private viewport: IViewportController;
   private readonly canvas: HTMLCanvasElement;
   private config: ResolvedWaveformConfig;
+  private lastViewportStartTime: number;
+  private lastViewportEndTime: number;
 
   constructor(
     canvas: HTMLCanvasElement,
     viewport: IViewportController,
     source: AudioSource,
-    options?: Partial<WaveformConfig>,
+    options?: Partial<WaveformOptions>,
   ) {
     if (!canvas) {
       throw new Error("WaveformViewer requires a canvas");
@@ -116,17 +72,15 @@ export class WaveformViewer implements IWaveformViewer {
       throw new Error("WaveformViewer requires an AudioSource");
     }
 
-    const vp = viewport.getViewport();
-    const resolvedConfig = resolveWaveformConfig(source, {
-      ...options,
-      startTime: vp.startTime,
-      endTime: vp.endTime,
-    });
+    const resolvedConfig = resolveWaveformConfig(source, options);
 
     this.source = source;
     this.viewport = viewport;
     this.canvas = canvas;
     this.config = resolvedConfig;
+    const initialViewport = viewport.getViewport();
+    this.lastViewportStartTime = initialViewport.startTime;
+    this.lastViewportEndTime = initialViewport.endTime;
     this.renderer = createWaveformRenderer(resolvedConfig.renderer);
     this.bindViewport();
     if (options?.autoResize !== false) {
@@ -168,7 +122,7 @@ export class WaveformViewer implements IWaveformViewer {
     return this.config;
   }
 
-  setConfig(input: Partial<WaveformConfig>): void {
+  setConfig(input: Partial<WaveformOptions>): void {
     const cleanInput = Object.fromEntries(
       Object.entries(input).filter(([_, v]) => v !== undefined),
     );
@@ -193,7 +147,7 @@ export class WaveformViewer implements IWaveformViewer {
     this.events.emit("configchange", { config: this.config });
   }
 
-  updateConfig(input: Partial<WaveformConfig>): void {
+  updateConfig(input: Partial<WaveformOptions>): void {
     this.setConfig(input);
     this.requestRender();
   }
@@ -291,9 +245,6 @@ export class WaveformViewer implements IWaveformViewer {
   setSource(source: AudioSource): void {
     if (this.source === source) return;
     this.source = source;
-    const vp = this.viewport.getViewport();
-    this.config.startTime = vp.startTime;
-    this.config.endTime = vp.endTime;
     this.requestRender();
   }
 
@@ -312,17 +263,15 @@ export class WaveformViewer implements IWaveformViewer {
     this.viewportCleanup = [];
 
     const unlistenViewport = this.viewport.on("viewportchange", (e) => {
-      const currentStart = this.config.startTime;
-      const currentEnd = this.config.endTime;
       if (
-        Math.abs(currentStart - e.viewport.startTime) < 1e-6 &&
-        Math.abs(currentEnd - e.viewport.endTime) < 1e-6
+        e.viewport.startTime === this.lastViewportStartTime &&
+        e.viewport.endTime === this.lastViewportEndTime
       ) {
         return;
       }
-      this.config.startTime = e.viewport.startTime;
-      this.config.endTime = e.viewport.endTime;
-      this.events.emit("viewportchange", { viewport: this.getViewport() });
+      this.lastViewportStartTime = e.viewport.startTime;
+      this.lastViewportEndTime = e.viewport.endTime;
+      this.events.emit("viewportchange", { viewport: e.viewport });
       this.requestRender();
     });
 

@@ -48,6 +48,8 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     url: currentRecording.url,
     startTime: 0,
     endTime: 12,
+    minDuration: 0.08,
+    maxDuration: 20,
     followPlayback: "page",
   });
 

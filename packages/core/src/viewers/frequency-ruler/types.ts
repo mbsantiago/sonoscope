@@ -41,18 +41,6 @@ export type FrequencyRulerConfig = {
   autoRender?: boolean | undefined;
 
   /**
-   * Minimum visible frequency in Hertz.
-   * @default 0 (or 20 for log scale)
-   */
-  minFrequency?: number | undefined;
-
-  /**
-   * Maximum visible frequency in Hertz.
-   * @default Nyquist frequency (sampleRate / 2)
-   */
-  maxFrequency?: number | undefined;
-
-  /**
    * Frequency scale mapping: linear, mel, or logarithmic.
    * @default inherits from Sonoscope viewport scale
    */
@@ -133,8 +121,6 @@ export type FrequencyRulerOptions = FrequencyRulerConfig;
 
 export type ResolvedFrequencyRulerConfig = {
   autoRender: boolean;
-  minFrequency: number;
-  maxFrequency: number;
   frequencyScale: FrequencyScale;
   color: string;
   backgroundColor: string;

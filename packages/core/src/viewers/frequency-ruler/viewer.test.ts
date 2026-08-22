@@ -52,11 +52,13 @@ describe("FrequencyRulerViewer", () => {
   });
 
   it("converts between canvas coordinates and frequency", () => {
-    const scope = new Sonoscope({ source: dummySource });
+    const scope = new Sonoscope({
+      source: dummySource,
+      minFrequency: 0,
+      maxFrequency: 20_000,
+    });
     const canvas = createMockCanvas();
     const viewer = scope.createFrequencyRuler(canvas, {
-      minFrequency: 0,
-      maxFrequency: 20000,
       frequencyScale: "linear",
     });
 
@@ -75,8 +77,6 @@ describe("FrequencyRulerViewer", () => {
 
     viewer.updateConfig({
       frequencyScale: "log",
-      minFrequency: 20,
-      maxFrequency: 20000,
     });
     expect(viewer.getConfig().frequencyScale).toBe("log");
     expect(viewer.getViewport().frequencyScale).toBe("log");
@@ -86,12 +86,13 @@ describe("FrequencyRulerViewer", () => {
   });
 
   it("synchronizes viewport with Sonoscope global scope", () => {
-    const scope = new Sonoscope({ source: dummySource });
-    const canvas = createMockCanvas();
-    const viewer = scope.createFrequencyRuler(canvas, {
+    const scope = new Sonoscope({
+      source: dummySource,
       minFrequency: 0,
-      maxFrequency: 20000,
+      maxFrequency: 20_000,
     });
+    const canvas = createMockCanvas();
+    const viewer = scope.createFrequencyRuler(canvas);
 
     // Scope updating viewport updates viewer
     scope.setViewport({ minFrequency: 200, maxFrequency: 5000 });
@@ -137,5 +138,27 @@ describe("FrequencyRulerViewer", () => {
     expect(ruler2.getViewport().minFrequency).toBe(
       scope.getViewport().minFrequency,
     );
+  });
+
+  it("keeps frequency bounds outside the ruler configuration", () => {
+    const scope = new Sonoscope({
+      source: dummySource,
+      minFrequency: 100,
+      maxFrequency: 12_000,
+    });
+    const viewer = scope.createFrequencyRuler(createMockCanvas(), {
+      frequencyScale: "mel",
+    });
+
+    expect(viewer.getConfig()).not.toHaveProperty("minFrequency");
+    expect(viewer.getConfig()).not.toHaveProperty("maxFrequency");
+
+    viewer.updateConfig({ frequencyScale: "log" });
+
+    expect(viewer.getViewport()).toEqual({
+      minFrequency: 100,
+      maxFrequency: 12_000,
+      frequencyScale: "log",
+    });
   });
 });

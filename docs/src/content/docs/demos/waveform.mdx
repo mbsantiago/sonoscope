@@ -26,6 +26,17 @@ const waveform = scope.createWaveform(waveformCanvas);
 scope.attachNavigation(waveformCanvas, { axis: "time" });
 ```
 
+Set the initial time range and zoom limits on `Sonoscope`, not on the waveform:
+
+```ts
+const scope = await Sonoscope.fromUrl("/audio/sample.wav", {
+  startTime: 5,
+  endTime: 15,
+  minDuration: 0.05,
+  maxDuration: 30,
+});
+```
+
 ---
 
 ## Example configurations

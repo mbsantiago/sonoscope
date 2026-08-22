@@ -222,14 +222,12 @@ async function render({
     const blob = new Blob([uint8 as unknown as BlobPart], { type: mimeType });
     scope = await Sonoscope.fromBlob(blob, {
       followPlayback,
-      frequencyScale,
       audio,
     });
   } else if (url) {
     audio.src = url;
     scope = await Sonoscope.fromAudio(audio, {
       followPlayback,
-      frequencyScale,
     });
   } else {
     // Empty initial placeholder or error
@@ -242,13 +240,13 @@ async function render({
         read: () => new Float32Array(0),
       },
       followPlayback,
-      frequencyScale,
       audio,
     });
   }
 
   const minFreq = frequencyScale === "log" ? 20 : 0;
   const maxFreq = Math.floor(scope.getSampleRate() / 2);
+  scope.setViewport({ minFrequency: minFreq, maxFrequency: maxFreq });
 
   const navCleanups: Array<() => void> = [];
   const playheadOverlays: Array<{ destroy: () => void }> = [];
@@ -280,8 +278,6 @@ async function render({
     freqRuler = scope.createFrequencyRuler(freqRulerCanvas, {
       program: freqRulerProg,
       frequencyScale,
-      minFrequency: minFreq,
-      maxFrequency: maxFreq,
       color: "rgba(128, 128, 128, 0.75)",
       tickColor: "rgba(128, 128, 128, 0.35)",
       tickPosition: "right",
@@ -297,8 +293,6 @@ async function render({
     windowSize,
     hopSize,
     frequencyScale,
-    minFrequency: minFreq,
-    maxFrequency: maxFreq,
     renderer: { type: "webgl", program },
     colorMap: cmap,
   });
@@ -355,11 +349,10 @@ async function render({
   const onScaleChange = () => {
     const nextScale = model.get("frequency_scale");
     const nextMinFreq = nextScale === "log" ? 20 : 0;
-    scope.setViewport({ frequencyScale: nextScale, minFrequency: nextMinFreq });
-    spec.updateConfig({ frequencyScale: nextScale, minFrequency: nextMinFreq });
+    scope.setViewport({ minFrequency: nextMinFreq });
+    spec.updateConfig({ frequencyScale: nextScale });
     freqRuler?.updateConfig({
       frequencyScale: nextScale,
-      minFrequency: nextMinFreq,
     });
   };
   model.on("change:frequency_scale", onScaleChange);

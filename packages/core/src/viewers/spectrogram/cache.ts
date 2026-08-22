@@ -21,7 +21,10 @@ export function createTileKey(parts: TileKeyParts): string {
 }
 
 export class SpectrogramCache {
-  private readonly tiles = new Map<string, SpectrogramMatrix>();
+  private readonly tiles = new Map<
+    string,
+    { matrix: SpectrogramMatrix; tileTime: number }
+  >();
   private bytes = 0;
   private peakTiles = 0;
   private peakBytes = 0;
@@ -29,11 +32,11 @@ export class SpectrogramCache {
   constructor(private readonly options: { maxCachedTiles: number }) {}
 
   get(key: string): SpectrogramMatrix | undefined {
-    const value = this.tiles.get(key);
-    if (!value) return undefined;
+    const entry = this.tiles.get(key);
+    if (!entry) return undefined;
     this.tiles.delete(key);
-    this.tiles.set(key, value);
-    return value;
+    this.tiles.set(key, entry);
+    return entry.matrix;
   }
 
   has(key: string): boolean {
@@ -53,17 +56,35 @@ export class SpectrogramCache {
     };
   }
 
-  set(key: string, matrix: SpectrogramMatrix): void {
+  set(
+    key: string,
+    matrix: SpectrogramMatrix,
+    tileTime: number,
+    viewportTime?: number,
+  ): void {
     const existing = this.tiles.get(key);
-    if (existing) this.bytes -= matrixBytes(existing);
-    this.tiles.set(key, matrix);
+    if (existing) {
+      this.bytes -= matrixBytes(existing.matrix);
+      this.tiles.delete(key);
+    }
+    this.tiles.set(key, { matrix, tileTime });
     this.bytes += matrixBytes(matrix);
     while (this.tiles.size > this.options.maxCachedTiles) {
-      const oldest = this.tiles.keys().next().value as string | undefined;
-      if (!oldest) break;
-      const removed = this.tiles.get(oldest);
-      if (removed) this.bytes -= matrixBytes(removed);
-      this.tiles.delete(oldest);
+      let keyToRemove = this.tiles.keys().next().value as string | undefined;
+      if (viewportTime !== undefined) {
+        let greatestDistance = -Infinity;
+        for (const [candidateKey, entry] of this.tiles) {
+          const distance = Math.abs(entry.tileTime - viewportTime);
+          if (distance > greatestDistance) {
+            greatestDistance = distance;
+            keyToRemove = candidateKey;
+          }
+        }
+      }
+      if (!keyToRemove) break;
+      const removed = this.tiles.get(keyToRemove);
+      if (removed) this.bytes -= matrixBytes(removed.matrix);
+      this.tiles.delete(keyToRemove);
     }
     this.peakTiles = Math.max(this.peakTiles, this.tiles.size);
     this.peakBytes = Math.max(this.peakBytes, this.bytes);

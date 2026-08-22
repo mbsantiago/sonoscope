@@ -5,7 +5,6 @@ import type {
   ValueMode,
   WindowName,
 } from "./types";
-import { clampViewportTimes } from "../../viewport-math";
 
 const DEFAULT_CONFIG: ResolvedSpectrogramConfig = {
   autoRender: true,
@@ -16,13 +15,7 @@ const DEFAULT_CONFIG: ResolvedSpectrogramConfig = {
   fftSize: 1024,
   hopSize: 256,
   window: "hann",
-  startTime: 0,
-  endTime: 0,
-  minFrequency: 0,
-  maxFrequency: 0,
   frequencyScale: "linear",
-  minViewportDuration: 0.05,
-  maxViewportDuration: 60,
   valueMode: "db",
   minDb: -100,
   maxDb: 0,
@@ -60,55 +53,8 @@ export function resolveConfig(
   if (windowSize <= 0) throw new Error("windowSize must be greater than zero");
   if (hopSize <= 0) throw new Error("hopSize must be greater than zero");
 
-  const sourceDuration = Math.max(0.001, source.duration);
-
-  if (
-    input.minViewportDuration !== undefined &&
-    input.minViewportDuration <= 0
-  ) {
-    throw new Error("minViewportDuration must be greater than zero");
-  }
-
-  if (
-    input.maxViewportDuration !== undefined &&
-    input.minViewportDuration !== undefined &&
-    input.maxViewportDuration < input.minViewportDuration
-  ) {
-    throw new Error(
-      "maxViewportDuration must be greater than or equal to minViewportDuration",
-    );
-  }
-
-  const minViewportDuration = Math.min(
-    input.minViewportDuration ?? DEFAULT_CONFIG.minViewportDuration,
-    sourceDuration,
-  );
-  const maxViewportDuration = Math.max(
-    minViewportDuration,
-    input.maxViewportDuration !== undefined
-      ? input.maxViewportDuration
-      : Math.min(DEFAULT_CONFIG.maxViewportDuration, sourceDuration),
-  );
-
-  const initialStartTime = input.startTime ?? DEFAULT_CONFIG.startTime;
-  const initialEndTime = input.endTime ?? sourceDuration;
-  const minFrequency = input.minFrequency ?? DEFAULT_CONFIG.minFrequency;
-  const maxFrequency = input.maxFrequency ?? source.sampleRate / 2;
   const frequencyScale: FrequencyScale =
     input.frequencyScale ?? DEFAULT_CONFIG.frequencyScale;
-
-  const clampedTimes = clampViewportTimes(
-    initialStartTime,
-    initialEndTime,
-    sourceDuration,
-    minViewportDuration,
-    maxViewportDuration,
-  );
-
-  if (clampedTimes.endTime <= clampedTimes.startTime)
-    throw new Error("endTime must be greater than startTime");
-  if (maxFrequency <= minFrequency)
-    throw new Error("maxFrequency must be greater than minFrequency");
 
   const channel = input.channel ?? DEFAULT_CONFIG.channel;
   if (!Number.isInteger(channel) || channel < 0)
@@ -128,23 +74,11 @@ export function resolveConfig(
   if (!Number.isFinite(tileMaxCells) || tileMaxCells <= 0)
     throw new Error("tileMaxCells must be a finite number greater than zero");
 
-  const binCount = Math.max(1, Math.floor(fftSize / 2));
-  const framesPerTile = Math.max(1, Math.floor(tileMaxCells / binCount));
-  const tileDuration =
-    (framesPerTile * hopSize) / Math.max(1, source.sampleRate);
-
-  const minimumTilesForMaxViewport =
-    Math.ceil(maxViewportDuration / Math.max(0.0001, tileDuration)) + 2;
-  const prefetchTiles =
-    input.prefetchTiles ??
-    Math.max(DEFAULT_CONFIG.prefetchTiles, minimumTilesForMaxViewport);
+  const prefetchTiles = input.prefetchTiles ?? DEFAULT_CONFIG.prefetchTiles;
   if (prefetchTiles < 0)
     throw new Error("prefetchTiles must be greater than or equal to zero");
 
-  const maxCachedTiles = Math.max(
-    input.maxCachedTiles ?? DEFAULT_CONFIG.maxCachedTiles,
-    minimumTilesForMaxViewport + prefetchTiles * 2,
-  );
+  const maxCachedTiles = input.maxCachedTiles ?? DEFAULT_CONFIG.maxCachedTiles;
 
   return {
     autoRender: input.autoRender ?? DEFAULT_CONFIG.autoRender,
@@ -158,14 +92,7 @@ export function resolveConfig(
     hopSize,
     window,
 
-    // Viewport & Constraints
-    startTime: clampedTimes.startTime,
-    endTime: clampedTimes.endTime,
-    minFrequency,
-    maxFrequency,
     frequencyScale,
-    minViewportDuration,
-    maxViewportDuration,
 
     // Value Scale
     valueMode,

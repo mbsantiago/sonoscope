@@ -78,30 +78,6 @@ export type WaveformConfig = {
   channel?: number | undefined;
 
   /**
-   * Viewport start time in seconds.
-   * @default 0
-   */
-  startTime?: number | undefined;
-
-  /**
-   * Viewport end time in seconds.
-   * @default audio duration
-   */
-  endTime?: number | undefined;
-
-  /**
-   * Minimum viewport duration in seconds to prevent zooming in too far.
-   * @default 0.001
-   */
-  minViewportDuration?: number | undefined;
-
-  /**
-   * Maximum viewport duration in seconds to prevent zooming out past bounds.
-   * @default audio duration
-   */
-  maxViewportDuration?: number | undefined;
-
-  /**
    * Primary color for the waveform line or bars.
    * @default "#38bdf8"
    */
@@ -153,16 +129,14 @@ export type WaveformConfig = {
 export type ResolvedWaveformConfig = {
   autoRender: boolean;
   channel: number;
-  startTime: number;
-  endTime: number;
-  minViewportDuration: number;
-  maxViewportDuration: number;
   color: string;
   backgroundColor: string;
   amplitudeScale: number;
   colorMap?: ColorMapConfig | undefined;
   renderer: WaveformRendererMode;
 };
+
+export type WaveformOptions = WaveformConfig;
 
 export type WaveformStatus =
   | {
@@ -206,9 +180,9 @@ export interface IWaveformViewer {
   /** Returns the resolved waveform configuration options. */
   getConfig(): ResolvedWaveformConfig;
   /** Updates configuration options and triggers a re-render. */
-  updateConfig(input: Partial<WaveformConfig>): void;
+  updateConfig(input: Partial<WaveformOptions>): void;
   /** Alias for `updateConfig`. */
-  setConfig(input: Partial<WaveformConfig>): void;
+  setConfig(input: Partial<WaveformOptions>): void;
   /** Updates the audio source. */
   setSource(source: AudioSource): void;
 

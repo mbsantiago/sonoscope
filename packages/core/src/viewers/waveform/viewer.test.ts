@@ -158,6 +158,31 @@ describe("WaveformViewer", () => {
     expect(nextConfig.color).not.toBe(config.color);
   });
 
+  it("keeps viewport state outside the waveform configuration", () => {
+    const scope = new Sonoscope({
+      source: dummySource,
+      startTime: 2,
+      endTime: 6,
+      minDuration: 0.5,
+      maxDuration: 8,
+    });
+    const viewer = new WaveformViewer(
+      createMockCanvas(),
+      scope.viewport,
+      scope.source,
+      { color: "#ff0000" },
+    );
+
+    expect(viewer.getConfig()).not.toHaveProperty("startTime");
+    expect(viewer.getConfig()).not.toHaveProperty("endTime");
+    expect(viewer.getConfig()).not.toHaveProperty("minViewportDuration");
+    expect(viewer.getConfig()).not.toHaveProperty("maxViewportDuration");
+
+    viewer.updateConfig({ color: "#00ff00" });
+
+    expect(viewer.getViewport()).toEqual({ startTime: 2, endTime: 6 });
+  });
+
   it("supports webgl2 renderer option and dynamic renderer switching", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({ source: dummySource });

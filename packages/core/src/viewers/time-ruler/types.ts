@@ -41,30 +41,6 @@ export type TimeRulerConfig = {
   autoRender?: boolean | undefined;
 
   /**
-   * Viewport start time in seconds.
-   * @default 0
-   */
-  startTime?: number | undefined;
-
-  /**
-   * Viewport end time in seconds.
-   * @default audio duration
-   */
-  endTime?: number | undefined;
-
-  /**
-   * Minimum viewport duration in seconds to prevent zooming in too far.
-   * @default 0.001
-   */
-  minViewportDuration?: number | undefined;
-
-  /**
-   * Maximum viewport duration in seconds to prevent zooming out past bounds.
-   * @default audio duration
-   */
-  maxViewportDuration?: number | undefined;
-
-  /**
    * Primary color for axis lines, tick marks, and text labels.
    * @default "#a0a0a0"
    */
@@ -140,10 +116,6 @@ export type TimeRulerOptions = TimeRulerConfig;
 
 export type ResolvedTimeRulerConfig = {
   autoRender: boolean;
-  startTime: number;
-  endTime: number;
-  minViewportDuration: number;
-  maxViewportDuration: number;
   color: string;
   backgroundColor: string;
   tickColor: string;

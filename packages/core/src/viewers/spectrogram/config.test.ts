@@ -22,14 +22,7 @@ describe("resolveConfig", () => {
     expect(config.hopSize).toBe(256);
     expect(config.window).toBe("hann");
 
-    // Flat Viewport
-    expect(config.startTime).toBe(0);
-    expect(config.endTime).toBe(10);
-    expect(config.minFrequency).toBe(0);
-    expect(config.maxFrequency).toBe(24000);
     expect(config.frequencyScale).toBe("linear");
-    expect(config.minViewportDuration).toBe(0.05);
-    expect(config.maxViewportDuration).toBe(10);
 
     // Flat Value Scale
     expect(config.valueMode).toBe("db");
@@ -54,8 +47,6 @@ describe("resolveConfig", () => {
       fftSize: 512,
       hopSize: 128,
       window: "blackman",
-      startTime: 2,
-      endTime: 5,
       frequencyScale: "mel",
       valueMode: "magnitude",
       minDb: -80,
@@ -67,8 +58,6 @@ describe("resolveConfig", () => {
     expect(config.fftSize).toBe(512);
     expect(config.hopSize).toBe(128);
     expect(config.window).toBe("blackman");
-    expect(config.startTime).toBe(2);
-    expect(config.endTime).toBe(5);
     expect(config.frequencyScale).toBe("mel");
     expect(config.valueMode).toBe("magnitude");
     expect(config.minDb).toBe(-80);
@@ -115,46 +104,5 @@ describe("resolveConfig", () => {
         undefined as unknown as Parameters<typeof resolveConfig>[0],
       ),
     ).toThrow(/requires a source/);
-  });
-
-  it("clamps viewport duration to configured bounds", () => {
-    const config = resolveConfig(source, {
-      startTime: 1,
-      endTime: 9,
-      minViewportDuration: 1,
-      maxViewportDuration: 3,
-    });
-
-    expect(config.startTime).toBe(1);
-    expect(config.endTime).toBe(4);
-    expect(config.minViewportDuration).toBe(1);
-    expect(config.maxViewportDuration).toBe(3);
-  });
-
-  it("safely handles short duration audio sources shorter than default minViewportDuration", () => {
-    const shortSource: AudioSource = {
-      id: "short-source",
-      sampleRate: 44100,
-      duration: 0.02,
-      channelCount: 1,
-      read: () => new Float32Array(0),
-    };
-
-    const config = resolveConfig(shortSource);
-    expect(config.minViewportDuration).toBe(0.02);
-    expect(config.maxViewportDuration).toBe(0.02);
-    expect(config.startTime).toBe(0);
-    expect(config.endTime).toBe(0.02);
-  });
-
-  it("throws when maxViewportDuration is explicitly smaller than minViewportDuration", () => {
-    expect(() =>
-      resolveConfig(source, {
-        minViewportDuration: 5,
-        maxViewportDuration: 2,
-      }),
-    ).toThrow(
-      /maxViewportDuration must be greater than or equal to minViewportDuration/,
-    );
   });
 });

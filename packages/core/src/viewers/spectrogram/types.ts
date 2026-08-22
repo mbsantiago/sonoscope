@@ -299,49 +299,11 @@ export type SpectrogramConfig = {
    */
   window?: WindowName | undefined;
 
-  // Viewport & Constraints
-
-  /**
-   * Viewport start time in seconds.
-   * @default 0
-   */
-  startTime?: number | undefined;
-
-  /**
-   * Viewport end time in seconds.
-   * @default audio duration
-   */
-  endTime?: number | undefined;
-
-  /**
-   * Minimum visible frequency in Hertz.
-   * @default 0
-   */
-  minFrequency?: number | undefined;
-
-  /**
-   * Maximum visible frequency in Hertz.
-   * @default Nyquist frequency (sampleRate / 2)
-   */
-  maxFrequency?: number | undefined;
-
   /**
    * Frequency scale mapping: "linear", "mel", or "log".
    * @default "linear"
    */
   frequencyScale?: FrequencyScale | undefined;
-
-  /**
-   * Minimum viewport duration in seconds to prevent zooming in too far.
-   * @default 0.05
-   */
-  minViewportDuration?: number | undefined;
-
-  /**
-   * Maximum viewport duration in seconds to prevent zooming out past bounds.
-   * @default 30
-   */
-  maxViewportDuration?: number | undefined;
 
   // Value Scale
 
@@ -436,14 +398,7 @@ export type ResolvedSpectrogramConfig = {
   hopSize: number;
   window: WindowName;
 
-  // Viewport & Constraints
-  startTime: number;
-  endTime: number;
-  minFrequency: number;
-  maxFrequency: number;
   frequencyScale: FrequencyScale;
-  minViewportDuration: number;
-  maxViewportDuration: number;
 
   // Value Scale
   valueMode: ValueMode;

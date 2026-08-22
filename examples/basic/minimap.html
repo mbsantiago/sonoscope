@@ -144,10 +144,7 @@
     </main>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from "@sonoscope/core";
+      import { attachPlayheadOverlay, Sonoscope } from "@sonoscope/core";
 
       const DEFAULT_AUDIO_URL =
         "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
@@ -275,7 +272,7 @@
             renderer: "auto",
             renderOnSeek: true,
           });
-          cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
+          cleanupPlayhead = scope.attachPlayhead(canvas.parentElement);
         } catch (error) {
           status.textContent =
             error instanceof Error ? error.message : String(error);

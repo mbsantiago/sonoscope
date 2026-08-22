@@ -86,14 +86,13 @@ export default function InteractiveSpectrogram({
 
         const minFreq = scale === "log" ? 20 : 0;
         const maxFreq = Math.floor(scope.getSampleRate() / 2);
+        scope.setViewport({ minFrequency: minFreq, maxFrequency: maxFreq });
 
         const spec = scope.createSpectrogram(specCanvasRef.current, {
           colorMap: cmap,
           minDb: -80,
           maxDb: 0,
           frequencyScale: scale,
-          minFrequency: minFreq,
-          maxFrequency: maxFreq,
         });
         specRef.current = spec;
         cleanups.push(scope.attachNavigation(specCanvasRef.current));
@@ -131,8 +130,6 @@ export default function InteractiveSpectrogram({
           const freqRuler = scope.createFrequencyRuler(freqCanvasRef.current, {
             program: "ticks",
             frequencyScale: scale,
-            minFrequency: minFreq,
-            maxFrequency: maxFreq,
             color: "rgba(128, 128, 128, 0.75)",
             tickColor: "rgba(128, 128, 128, 0.35)",
             tickPosition: "right",
@@ -232,6 +229,9 @@ export default function InteractiveSpectrogram({
 
   // 3. Frequency Scale change
   useEffect(() => {
+    scopeRef.current?.setViewport({
+      minFrequency: scale === "log" ? 20 : 0,
+    });
     specRef.current?.updateConfig({ frequencyScale: scale });
     freqRulerRef.current?.updateConfig({ frequencyScale: scale });
   }, [scale]);
