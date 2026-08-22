@@ -67,6 +67,7 @@ export class Sonoscope implements ISonoscope {
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
+  private readonly viewers = new Set<SpectrogramViewer | WaveformViewer>();
   private animationFrame: number | undefined;
 
   private totalDuration: number;
@@ -683,14 +684,23 @@ export class Sonoscope implements ISonoscope {
     if (this._viewport instanceof ViewportController) {
       this._viewport.setTotalDuration(this.totalDuration);
       this._viewport.setBaseFrequencyBounds(0, nyquist);
+      this._viewport.setTimeBounds(0, this.totalDuration);
     }
     const vp = this._viewport.getViewport();
-    this._viewport.setViewport({
-      startTime: Math.min(vp.startTime, this.totalDuration),
-      endTime: Math.min(vp.endTime, this.totalDuration),
-      minFrequency: Math.min(vp.minFrequency, nyquist),
-      maxFrequency: Math.min(vp.maxFrequency, nyquist),
-    });
+    this._viewport.setViewport(
+      {
+        startTime: Math.min(vp.startTime, this.totalDuration),
+        endTime: Math.min(vp.endTime, this.totalDuration),
+        minFrequency: 0,
+        maxFrequency: nyquist,
+      },
+      "sourcechange",
+    );
+
+    for (const viewer of this.viewers) {
+      viewer.setSource(source);
+    }
+
     this.events.emit("sourcechange", { source });
   }
 
@@ -701,12 +711,14 @@ export class Sonoscope implements ISonoscope {
       source?: AudioSource | undefined;
     },
   ): SpectrogramViewer {
-    return new SpectrogramViewer(
+    const viewer = new SpectrogramViewer(
       canvas,
       options?.viewport ?? this._viewport,
       options?.source ?? this._source,
       options,
     );
+    this.viewers.add(viewer);
+    return viewer;
   }
 
   createWaveform(
@@ -716,12 +728,14 @@ export class Sonoscope implements ISonoscope {
       source?: AudioSource | undefined;
     },
   ): WaveformViewer {
-    return new WaveformViewer(
+    const viewer = new WaveformViewer(
       canvas,
       options?.viewport ?? this._viewport,
       options?.source ?? this._source,
       options,
     );
+    this.viewers.add(viewer);
+    return viewer;
   }
 
   createTimeRuler(

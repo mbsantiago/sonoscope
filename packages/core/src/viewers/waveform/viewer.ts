@@ -288,6 +288,15 @@ export class WaveformViewer implements IWaveformViewer {
     this.events.emit("rendercomplete", { requestId });
   }
 
+  setSource(source: AudioSource): void {
+    if (this.source === source) return;
+    this.source = source;
+    const vp = this.viewport.getViewport();
+    this.config.startTime = vp.startTime;
+    this.config.endTime = vp.endTime;
+    this.requestRender();
+  }
+
   destroy(): void {
     this.status = { state: "destroyed" };
     this.events.clear();

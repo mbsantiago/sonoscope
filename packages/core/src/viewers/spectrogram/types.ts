@@ -518,6 +518,7 @@ export interface ISpectrogramViewer {
   getConfig(): ResolvedSpectrogramConfig;
   updateConfig(input: Partial<SpectrogramOptions>): void;
   setConfig(input: Partial<SpectrogramOptions>): void;
+  setSource(source: AudioSource): void;
   getRendererKind(): "webgl2" | "canvas2d";
 
   // Coordinates (Annotations & Overlays)

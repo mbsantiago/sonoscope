@@ -197,6 +197,7 @@ export interface IWaveformViewer {
   getConfig(): ResolvedWaveformConfig;
   updateConfig(input: Partial<WaveformConfig>): void;
   setConfig(input: Partial<WaveformConfig>): void;
+  setSource(source: AudioSource): void;
 
   // Coordinates
   canvasToTime(x: number): number;

@@ -517,6 +517,21 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     });
   }
 
+  setSource(source: AudioSource): void {
+    if (this.source === source) return;
+    this.source = source;
+    const nyquist = Math.max(100, Math.floor(source.sampleRate / 2));
+    const vp = this.viewport.getViewport();
+    this.config.minFrequency = vp.minFrequency;
+    this.config.maxFrequency = Math.min(vp.maxFrequency, nyquist);
+    this.config.startTime = vp.startTime;
+    this.config.endTime = vp.endTime;
+    this.pendingTiles.clear();
+    this.attachSourceRangeSync();
+    this.renderGeneration += 1;
+    this.requestRender();
+  }
+
   destroy(): void {
     this.status = { state: "destroyed" };
     this.events.clear();
