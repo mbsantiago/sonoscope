@@ -114,9 +114,8 @@ export type FrequencyScale = "linear" | "log" | "mel";
 export type ViewportConfig = {
   startTime: number;
   endTime: number;
-  minFrequency: number;
-  maxFrequency: number;
-  frequencyScale: FrequencyScale;
+  minFrequency?: number | undefined;
+  maxFrequency?: number | undefined;
 };
 
 export type ViewportState = {
@@ -124,19 +123,63 @@ export type ViewportState = {
   endTime: number;
   duration: number;
   totalDuration: number;
+  minFrequency: number;
+  maxFrequency: number;
+};
+
+export type ViewportEvents = {
+  viewportchange: { viewport: ViewportState; source?: string | undefined };
+  destroy: undefined;
+};
+
+export type ViewportConstraints = {
+  totalDuration?: number | undefined;
+  minDuration?: number | undefined;
+  maxDuration?: number | undefined;
   minFrequency?: number | undefined;
   maxFrequency?: number | undefined;
-  frequencyScale?: FrequencyScale | undefined;
 };
+
+export type ViewportControllerOptions = Partial<ViewportConfig> &
+  ViewportConstraints;
+
+export interface IViewportController {
+  getViewport(): ViewportState;
+  setViewport(patch: Partial<ViewportConfig>, source?: string): void;
+  updateViewport(patch: Partial<ViewportConfig>, source?: string): void;
+  zoom(factor: number, centerTime?: number, source?: string): void;
+  zoomTime(factor: number, centerTime?: number, source?: string): void;
+  pan(deltaSeconds: number, source?: string): void;
+  panTo(startTime: number, source?: string): void;
+  panTime(deltaSeconds: number, source?: string): void;
+  zoomFrequency(
+    factor: number,
+    centerFrequency?: number,
+    source?: string,
+  ): void;
+  zoomFreq(factor: number, centerFrequency?: number, source?: string): void;
+  panFrequency(deltaHz: number, source?: string): void;
+  zoomBoth(
+    factor: number | { time: number; frequency: number },
+    center?: { time?: number; frequency?: number },
+    source?: string,
+  ): void;
+  reset(): void;
+  on<K extends keyof ViewportEvents>(
+    event: K,
+    handler: (e: ViewportEvents[K]) => void,
+  ): () => void;
+  destroy(): void;
+}
 
 export type SonoscopeOptions = {
   source: AudioSource;
   audio?: HTMLAudioElement | undefined;
+  viewport?: IViewportController | undefined;
   startTime?: number | undefined;
   endTime?: number | undefined;
   minFrequency?: number | undefined;
   maxFrequency?: number | undefined;
-  frequencyScale?: FrequencyScale | undefined;
   minDuration?: number | undefined;
   maxDuration?: number | undefined;
   followPlayback?: FollowPlaybackMode | undefined;
@@ -157,25 +200,13 @@ export type SonoscopeEvents = {
 
 export interface ISonoscope {
   readonly source: AudioSource;
+  readonly viewport: IViewportController;
   getViewport(): ViewportState;
-  setViewport(
-    vp: Partial<{
-      startTime: number | undefined;
-      endTime: number | undefined;
-      minFrequency: number | undefined;
-      maxFrequency: number | undefined;
-      frequencyScale: FrequencyScale | undefined;
-    }>,
-    source?: string | undefined,
-  ): void;
+  getViewportController(): IViewportController;
+  fork(options?: Partial<SonoscopeOptions>): ISonoscope;
+  setViewport(vp: Partial<ViewportConfig>, source?: string | undefined): void;
   updateViewport(
-    vp: Partial<{
-      startTime: number | undefined;
-      endTime: number | undefined;
-      minFrequency: number | undefined;
-      maxFrequency: number | undefined;
-      frequencyScale: FrequencyScale | undefined;
-    }>,
+    vp: Partial<ViewportConfig>,
     source?: string | undefined,
   ): void;
   zoom(factor: number, centerTime?: number, source?: string): void;

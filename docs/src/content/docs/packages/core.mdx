@@ -21,7 +21,6 @@ import { Sonoscope } from "@sonoscope/core";
 
 // From Audio Element
 const scope = await Sonoscope.fromAudio(audioElement, {
-  frequencyScale: "mel",
   followPlayback: "page",
 });
 
@@ -39,6 +38,7 @@ const urlScope = await Sonoscope.fromUrl("https://example.com/sound.mp3");
 ```typescript
 const spectrogram = scope.createSpectrogram(canvas, {
   colorMap: "turbo",
+  frequencyScale: "mel",
   minValue: -90,
   maxValue: 0,
   windowSize: 1024,
@@ -74,6 +74,7 @@ timeRuler.attachNavigation();
 
 const freqRuler = scope.createFrequencyRuler(freqCanvas, {
   program: "ticks",
+  frequencyScale: "mel",
   tickPosition: "right",
 });
 freqRuler.attachNavigation();
@@ -90,8 +91,8 @@ Sonoscope provides coordinated navigation via `scope.attachNavigation(container,
 You can attach interactive pan and zoom navigation directly to any `<canvas>` or wrapping container element (such as a `<div>`):
 
 ```typescript
-const scope = await Sonoscope.fromUrl(audioUrl, { frequencyScale: "mel" });
-const spec = scope.createSpectrogram(specCanvas);
+const scope = await Sonoscope.fromUrl(audioUrl);
+const spec = scope.createSpectrogram(specCanvas, { frequencyScale: "mel" });
 
 // 1. Spectrogram navigation (pans and zooms both time & frequency)
 const detachSpecNav = scope.attachNavigation(specCanvas);

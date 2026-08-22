@@ -3,10 +3,141 @@ title: Waveform
 description: Audio waveform visualization.
 ---
 
-Minimal standalone audio waveform visualization on a `<canvas>` element using `@sonoscope/core`.
+import WaveformPreview from "../../../components/WaveformPreview.astro";
+import TypeTable from "../../../components/TypeTable.astro";
+
+Waveforms visualize audio amplitude over time.
+
+When connected to navigation, dragging directly on the waveform scrubs across the recording, while scrolling or pinching zooms into sample-level detail.
+
+## The basics
+
+Waveforms attach to standard HTML `<canvas>` elements. Calling `createWaveform` without options initializes a 2D line envelope with auto-resizing:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+// Create a waveform using default options
+const waveform = scope.createWaveform(waveformCanvas);
+
+// Synchronize drag and zoom interactions
+scope.attachNavigation(waveformCanvas, { axis: "time" });
+```
+
+---
+
+## Example configurations
+
+### 1. Default waveform
+Draws a continuous line envelope with auto-resizing:
+
+```ts
+scope.createWaveform(waveformCanvas);
+```
+
+<WaveformPreview />
+
+### 2. Segmented bars
+Renders vertical bars across the audio timeline:
+
+```ts
+scope.createWaveform(waveformCanvas, {
+  renderer: "bars",
+});
+```
+
+<WaveformPreview config={{ renderer: "bars" }} />
+
+### 3. Colormapped accent color
+Samples a solid color from a colormap to visually match an adjacent spectrogram:
+
+```ts
+scope.createWaveform(waveformCanvas, {
+  colorMap: "magma",
+});
+```
+
+<WaveformPreview config={{ colorMap: "magma" }} />
+
+### 4. Custom color
+Applies a solid theme color to the waveform line:
+
+```ts
+scope.createWaveform(waveformCanvas, {
+  color: "#50c878",
+});
+```
+
+<WaveformPreview config={{ color: "#50c878" }} />
+
+### 5. Custom bar layout
+Customizes bar width, gap spacing, and rounding:
+
+```ts
+scope.createWaveform(waveformCanvas, {
+  renderer: {
+    type: "bars",
+    barWidth: 4,
+    barGap: 3,
+    rounded: true,
+  },
+});
+```
+
+<WaveformPreview config={{ renderer: { type: "bars", barWidth: 4, barGap: 3, rounded: true } }} />
+
+### 6. Amplitude scaling
+Boosts or attenuates the vertical display gain without changing the audio data:
+
+```ts
+scope.createWaveform(waveformCanvas, {
+  amplitudeScale: 2,
+});
+```
+
+<WaveformPreview config={{ amplitudeScale: 2 }} />
+
+---
+
+## Configuration options
+
+### [Waveform options](/sonoscope/reference/core/type-aliases/waveformconfig/)
+
+Options accepted by `scope.createWaveform(canvas, options)`. Full reference: [`WaveformConfig`](/sonoscope/reference/core/type-aliases/waveformconfig/).
+
+<TypeTable file="packages/core/src/viewers/waveform/types.ts" name="WaveformConfig" />
+
+### [Bar renderer options](/sonoscope/reference/core/interfaces/barswaveformrendereroptions/)
+
+Detailed layout properties when using `renderer: { type: "bars", ... }`. Full reference: [`BarsWaveformRendererOptions`](/sonoscope/reference/core/interfaces/barswaveformrendereroptions/).
+
+<TypeTable file="packages/core/src/viewers/waveform/renderers/bars.ts" name="BarsWaveformRendererOptions" />
+
+---
+
+## Navigation & interaction
+
+Use `scope.attachNavigation(canvas, options)` to link panning and zooming across waveforms, spectrograms, and rulers:
+
+* **Time axis navigation:** Restrict interactions with `{ axis: 'time' }` so horizontal dragging pans along the audio timeline.
+* **Drag & scroll:** Dragging scrubs through the recording; scrolling or pinching zooms in to inspect transient peaks or out for the full track.
+* **Synchronized views:** Navigating on any attached canvas immediately updates all connected waveforms and views.
+
+---
+
+## Try it yourself!
+
+Play around with the code in the live sandbox below:
+* **Drag** the waveform to scrub across the audio timeline.
+* **Scroll / Pinch** over the waveform to zoom in and out.
+* **Edit the options** in `index.ts` to switch between `bars`, `webgl2`, or `canvas2d` renderers and test colormaps live.
 
 <SandpackPlayground
   template="vanilla-ts"
+  editorHeight={380}
+  previewHeight={380}
   files={{
     "index.ts": loadFile("waveform/index.ts"),
     "index.html": loadFile("waveform/index.html"),

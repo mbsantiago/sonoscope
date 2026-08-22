@@ -1,4 +1,8 @@
-import type { AudioSource, ISonoscope } from "../../types";
+import type {
+  AudioSource,
+  IViewportController,
+  ViewportConfig,
+} from "../../types";
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
@@ -61,9 +65,10 @@ function resolveWaveformConfig(
     maxViewportDuration,
   );
 
-  const defaultColor = input.colorMap
-    ? colorMapToRgb(input.colorMap, 210)
-    : "#38bdf8";
+  let color = input.color ?? "#000000";
+  if (input.colorMap) {
+    color = colorMapToRgb(input.colorMap, 255);
+  }
 
   return {
     autoRender: input.autoRender ?? true,
@@ -72,9 +77,9 @@ function resolveWaveformConfig(
     endTime: clamped.endTime,
     minViewportDuration,
     maxViewportDuration,
-    color: input.color ?? defaultColor,
+    color,
     backgroundColor: input.backgroundColor ?? "transparent",
-    amplitudeScale: input.amplitudeScale ?? 1.0,
+    amplitudeScale: input.amplitudeScale ?? 1,
     colorMap: input.colorMap,
     renderer: input.renderer ?? "canvas2d",
   };
@@ -83,41 +88,47 @@ function resolveWaveformConfig(
 export class WaveformViewer implements IWaveformViewer {
   private readonly events = new TypedEventEmitter<WaveformEvents>();
   private renderer: WaveformRenderer;
-  private scopeCleanup: Array<() => void> = [];
+  private viewportCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
   private requestCounter = 0;
   private status: WaveformStatus = { state: "idle" };
-  private scope: ISonoscope;
+  private source: AudioSource;
+  private viewport: IViewportController;
   private readonly canvas: HTMLCanvasElement;
   private config: ResolvedWaveformConfig;
 
   constructor(
-    scope: ISonoscope,
     canvas: HTMLCanvasElement,
+    viewport: IViewportController,
+    source: AudioSource,
     options?: Partial<WaveformConfig>,
   ) {
-    if (!scope) {
-      throw new Error("WaveformViewer requires an ISonoscope instance");
-    }
     if (!canvas) {
       throw new Error("WaveformViewer requires a canvas");
     }
+    if (!viewport) {
+      throw new Error("WaveformViewer requires a viewport controller");
+    }
+    if (!source) {
+      throw new Error("WaveformViewer requires an AudioSource");
+    }
 
-    const scopeVp = scope.getViewport();
-    const resolvedConfig = resolveWaveformConfig(scope.source, {
+    const vp = viewport.getViewport();
+    const resolvedConfig = resolveWaveformConfig(source, {
       ...options,
-      startTime: scopeVp.startTime,
-      endTime: scopeVp.endTime,
+      startTime: vp.startTime,
+      endTime: vp.endTime,
     });
 
-    this.scope = scope;
+    this.source = source;
+    this.viewport = viewport;
     this.canvas = canvas;
     this.config = resolvedConfig;
     this.renderer = createWaveformRenderer(resolvedConfig.renderer);
-    this.bindScope();
+    this.bindViewport();
     if (options?.autoResize !== false) {
       this.resizeCleanup = attachAutoResize(this.canvas, {
         devicePixelRatio: options?.devicePixelRatio,
@@ -129,8 +140,12 @@ export class WaveformViewer implements IWaveformViewer {
     }
   }
 
-  getScope(): ISonoscope {
-    return this.scope;
+  getSource(): AudioSource {
+    return this.source;
+  }
+
+  getViewportController(): IViewportController {
+    return this.viewport;
   }
 
   getCanvas(): HTMLCanvasElement {
@@ -138,11 +153,15 @@ export class WaveformViewer implements IWaveformViewer {
   }
 
   getViewport(): WaveformViewport {
-    const scopeVp = this.scope.getViewport();
+    const vp = this.viewport.getViewport();
     return {
-      startTime: scopeVp.startTime,
-      endTime: scopeVp.endTime,
+      startTime: vp.startTime,
+      endTime: vp.endTime,
     };
+  }
+
+  setViewport(vp: Partial<ViewportConfig>): void {
+    this.viewport.setViewport(vp);
   }
 
   getConfig(): ResolvedWaveformConfig {
@@ -161,7 +180,7 @@ export class WaveformViewer implements IWaveformViewer {
       delete (baseConfig as Partial<ResolvedWaveformConfig>).color;
     }
 
-    this.config = resolveWaveformConfig(this.scope.source, {
+    this.config = resolveWaveformConfig(this.source, {
       ...baseConfig,
       ...cleanInput,
     });
@@ -184,20 +203,24 @@ export class WaveformViewer implements IWaveformViewer {
   }
 
   getRendererKind(): string {
-    return this.renderer.kind;
+    if (typeof this.config.renderer === "string") {
+      return this.config.renderer;
+    }
+    if (this.config.renderer && "type" in this.config.renderer) {
+      return this.config.renderer.type;
+    }
+    return "custom";
   }
 
   canvasToTime(x: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || this.canvas.width;
-    const ratio = Math.max(0, Math.min(1, x / (width || 1)));
+    const width = this.canvas.width;
     const vp = this.getViewport();
-    return vp.startTime + ratio * (vp.endTime - vp.startTime);
+    const span = vp.endTime - vp.startTime;
+    return vp.startTime + (x / (width || 1)) * span;
   }
 
   timeToCanvas(time: number): number {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || this.canvas.width;
+    const width = this.canvas.width;
     const vp = this.getViewport();
     const span = vp.endTime - vp.startTime;
     return ((time - vp.startTime) / (span || 1)) * width;
@@ -249,7 +272,7 @@ export class WaveformViewer implements IWaveformViewer {
 
     await this.renderer.render({
       canvas: this.canvas,
-      source: this.scope.source,
+      source: this.source,
       channel: this.config.channel,
       startTime: vp.startTime,
       endTime: vp.endTime,
@@ -268,18 +291,18 @@ export class WaveformViewer implements IWaveformViewer {
   destroy(): void {
     this.status = { state: "destroyed" };
     this.events.clear();
-    for (const cleanup of this.scopeCleanup) cleanup();
-    this.scopeCleanup = [];
+    for (const cleanup of this.viewportCleanup) cleanup();
+    this.viewportCleanup = [];
     this.resizeCleanup?.();
     this.resizeCleanup = undefined;
     this.renderer.destroy?.();
   }
 
-  private bindScope(): void {
-    for (const cleanup of this.scopeCleanup) cleanup();
-    this.scopeCleanup = [];
+  private bindViewport(): void {
+    for (const cleanup of this.viewportCleanup) cleanup();
+    this.viewportCleanup = [];
 
-    const unlistenViewport = this.scope.on("viewportchange", (e) => {
+    const unlistenViewport = this.viewport.on("viewportchange", (e) => {
       const currentStart = this.config.startTime;
       const currentEnd = this.config.endTime;
       if (
@@ -294,11 +317,6 @@ export class WaveformViewer implements IWaveformViewer {
       this.requestRender();
     });
 
-    const unlistenSource = this.scope.on("sourcechange", () => {
-      this.events.emit("configchange", { config: this.config });
-      this.requestRender();
-    });
-
-    this.scopeCleanup.push(unlistenViewport, unlistenSource);
+    this.viewportCleanup.push(unlistenViewport);
   }
 }

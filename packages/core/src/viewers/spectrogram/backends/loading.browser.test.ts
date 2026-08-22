@@ -69,14 +69,14 @@ describe("loading and profiler backends in browser", () => {
       },
     };
     const scope = new Sonoscope({ source, audio });
-    const viewer = new SpectrogramViewer(scope, canvas);
+    const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source);
 
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
 
     const programs = [
       "normal",
-      "dither",
+      "halftone",
       "sobel",
       "terrain",
       "normal",
@@ -113,7 +113,11 @@ describe("loading and profiler backends in browser", () => {
         },
       };
       const scope = Sonoscope.fromSource(source);
-      const viewer = new SpectrogramViewer(scope, canvas);
+      const viewer = new SpectrogramViewer(
+        canvas,
+        scope.viewport,
+        scope.source,
+      );
 
       void viewer.render();
       viewer.destroy();

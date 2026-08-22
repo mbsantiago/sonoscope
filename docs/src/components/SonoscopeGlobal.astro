@@ -1,0 +1,21 @@
+---
+// Automatically injected into /demos/*.mdx pages
+---
+<script>
+  import * as Core from "@sonoscope/core";
+  import { DEFAULT_AUDIO_URL } from "../constants";
+
+  declare global {
+    interface Window {
+      Sonoscope: typeof Core.Sonoscope;
+      SonoscopeCore: typeof Core;
+      DEFAULT_AUDIO_URL: string;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    window.Sonoscope = Core.Sonoscope;
+    window.SonoscopeCore = Core;
+    window.DEFAULT_AUDIO_URL = DEFAULT_AUDIO_URL;
+  }
+</script>

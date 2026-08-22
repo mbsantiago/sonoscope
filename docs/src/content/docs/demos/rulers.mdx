@@ -3,15 +3,156 @@ title: Rulers
 description: Time & Frequency ruler visualization.
 ---
 
-Time and frequency ruler visualization coordinated with spectrogram viewports using `@sonoscope/core`.
+import RulerPreview from "../../../components/RulerPreview.astro";
+import TypeTable from "../../../components/TypeTable.astro";
+
+Rulers render timeline timestamps and frequency axes that stay in sync with spectrogram and waveform viewports.
+
+Tick intervals recalculate automatically as you zoom and pan. When connected to navigation, dragging directly on a ruler scrubs across time or adjusts visible frequency bounds.
+
+## The basics
+
+Rulers attach to standard HTML `<canvas>` elements. Calling `createTimeRuler` or `createFrequencyRuler` without options applies standard tick marks, labels, and auto-resizing:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+// Create a horizontal time ruler using default options
+const timeRuler = scope.createTimeRuler(timeCanvas);
+
+// Create a vertical frequency ruler using default options
+const freqRuler = scope.createFrequencyRuler(freqCanvas);
+
+// Synchronize drag and zoom interactions
+scope.attachNavigation(timeCanvas, { axis: "time" });
+scope.attachNavigation(freqCanvas, { axis: "frequency" });
+```
+
+---
+
+## Example configurations
+
+### 1. Default time ruler
+Draws top tick marks with dynamic major and minor subdivisions:
+
+```ts
+scope.createTimeRuler(timeCanvas);
+```
+
+<RulerPreview />
+
+### 2. Colored ruler
+Applies custom theme colors:
+
+```ts
+scope.createTimeRuler(timeCanvas, {
+  color: "#38bdf8",
+});
+```
+
+<RulerPreview config={{ color: "#38bdf8" }} />
+
+### 3. Ticks on bottom
+Positions tick marks below the numeric timestamp labels:
+
+```ts
+scope.createTimeRuler(timeCanvas, {
+  tickPosition: "bottom",
+});
+```
+
+<RulerPreview config={{ tickPosition: "bottom" }} />
+
+### 4. Ticks on both sides
+Draws tick marks along both the top and bottom borders:
+
+```ts
+scope.createTimeRuler(timeCanvas, {
+  tickPosition: "both",
+});
+```
+
+<RulerPreview config={{ tickPosition: "both" }} />
+
+### 5. Segmented boxes style
+Replaces standard tick lines with segmented blocks:
+
+```ts
+scope.createTimeRuler(timeCanvas, {
+  program: "boxes",
+});
+```
+
+<RulerPreview config={{ program: "boxes" }} />
+
+### 6. Timecode formatting (`mm:ss.ms`)
+Formats timestamps in standard media timecode notation:
+
+```ts
+scope.createTimeRuler(timeCanvas, {
+  timeFormat: "timecode",
+});
+```
+
+<RulerPreview config={{ timeFormat: "timecode" }} />
+
+### 7. Frequency ruler (kHz format)
+Displays vertical frequency values formatted in kilohertz:
+
+```ts
+scope.createFrequencyRuler(freqCanvas, {
+  frequencyFormat: "khz",
+});
+```
+
+<RulerPreview orientation="frequency" config={{ frequencyFormat: "khz" }} height={120} width={56} />
+
+---
+
+## Configuration options
+
+### [Time ruler options](/sonoscope/reference/core/type-aliases/timerulerconfig/)
+
+Options accepted by `scope.createTimeRuler(canvas, options)`. Full reference: [`TimeRulerConfig`](/sonoscope/reference/core/type-aliases/timerulerconfig/).
+
+<TypeTable file="packages/core/src/viewers/time-ruler/types.ts" name="TimeRulerConfig" />
+
+### [Frequency ruler options](/sonoscope/reference/core/type-aliases/frequencyrulerconfig/)
+
+Options accepted by `scope.createFrequencyRuler(canvas, options)`. Full reference: [`FrequencyRulerConfig`](/sonoscope/reference/core/type-aliases/frequencyrulerconfig/).
+
+<TypeTable file="packages/core/src/viewers/frequency-ruler/types.ts" name="FrequencyRulerConfig" />
+
+---
+
+## Navigation & interaction
+
+Use `scope.attachNavigation(canvas, options)` to link panning and zooming between rulers and spectrograms:
+
+* **Axis constraints:** Set `{ axis: 'time' }` on horizontal rulers and `{ axis: 'frequency' }` on vertical rulers so dragging only navigates along that ruler's dimension.
+* **Drag & scroll:** Dragging scrubs the timeline or frequency range; scrolling or pinching zooms in and out.
+* **Synchronized views:** Navigating on any attached canvas immediately updates all connected rulers and spectrogram views.
+
+---
+
+## Try it yourself!
+
+Play around with the code in the live sandbox below:
+* **Drag** the spectrogram or rulers to pan around.
+* **Scroll / Pinch** over the rulers to zoom in and out.
+* **Edit the options** in `index.ts` to see how different tick styles, positions, and formats look in real time.
 
 <SandpackPlayground
   template="vanilla-ts"
-  editorHeight={320}
-  previewHeight={320}
+  editorHeight={380}
+  previewHeight={380}
   files={{
     "index.ts": loadFile("rulers/index.ts"),
     "index.html": loadFile("rulers/index.html"),
     "styles.css": loadFile("rulers/styles.css"),
   }}
 />
+
+

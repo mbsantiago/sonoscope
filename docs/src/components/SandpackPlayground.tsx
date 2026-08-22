@@ -163,8 +163,7 @@ export default function SandpackPlayground({
           activeFile: resolvedActiveFile,
           visibleFiles: resolvedVisibleFiles,
           autorun: true,
-          autoReload: true,
-          showConsole: true,
+          autoReload: false,
         }}
       >
         <SandpackLayout

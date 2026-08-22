@@ -1,5 +1,10 @@
 import type { PerformanceProfiler } from "../../../performance";
-import type { ColorMapConfig, Rgba, ViewportConfig } from "../../../types";
+import type {
+  ColorMapConfig,
+  FrequencyScale,
+  Rgba,
+  ViewportConfig,
+} from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { WebGL2RenderProgram } from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
@@ -11,9 +16,16 @@ import {
 } from "../spectrogram-sampling";
 import { normalizeValue } from "../value-scale";
 
+export type HalftoneRenderOptions = {
+  dotFrequency?: number | undefined;
+  minEnergyThreshold?: number | undefined;
+  energyGamma?: number | undefined;
+};
+
 export type RenderInput = {
   canvas: HTMLCanvasElement;
   viewport: ViewportConfig;
+  frequencyScale?: FrequencyScale;
   valueScale: Required<ValueScaleConfig>;
   colorMap: ColorMapConfig;
   tiles: SpectrogramMatrix[];
@@ -21,10 +33,11 @@ export type RenderInput = {
   playheadTime?: number;
   webglProgram?:
     | "normal"
-    | "dither"
+    | "halftone"
     | "sobel"
     | "terrain"
     | WebGL2RenderProgram;
+  halftone?: HalftoneRenderOptions | undefined;
   profile?: PerformanceProfiler;
 };
 

@@ -57,7 +57,7 @@ describe("WaveformViewer", () => {
       startTime: 0,
       endTime: 5,
     });
-    const viewer = new WaveformViewer(scope, canvas);
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source);
 
     expect(viewer.getViewport()).toMatchObject({ startTime: 0, endTime: 5 });
     expect(scope.getDuration()).toBe(10);
@@ -74,7 +74,7 @@ describe("WaveformViewer", () => {
       startTime: 0,
       endTime: 5,
     });
-    const viewer = new WaveformViewer(scope, canvas);
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source);
 
     const onViewportChange = vi.fn();
     viewer.on("viewportchange", onViewportChange);
@@ -92,7 +92,7 @@ describe("WaveformViewer", () => {
       startTime: 0,
       endTime: 2,
     });
-    const viewer = new WaveformViewer(scope, canvas);
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source);
 
     scope.zoom(0.5, 1.0);
 
@@ -109,7 +109,7 @@ describe("WaveformViewer", () => {
       startTime: 2,
       endTime: 6,
     });
-    const viewer = new WaveformViewer(scope, canvas);
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source);
 
     expect(viewer.canvasToTime(0)).toBe(2);
     expect(viewer.canvasToTime(200)).toBe(6);
@@ -133,9 +133,9 @@ describe("WaveformViewer", () => {
       source: dummySource,
       audio,
     });
-    const viewer = new WaveformViewer(scope, canvas);
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source);
 
-    expect(viewer.getConfig().color).toBe("#38bdf8");
+    expect(viewer.getConfig().color).toBe("#000000");
     expect(scope.getAudio()).toBe(audio);
 
     scope.detachAudio();
@@ -146,7 +146,7 @@ describe("WaveformViewer", () => {
   it("derives waveform color from colorMap", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({ source: dummySource });
-    const viewer = new WaveformViewer(scope, canvas, {
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source, {
       colorMap: "magma",
     });
 
@@ -161,7 +161,7 @@ describe("WaveformViewer", () => {
   it("supports webgl2 renderer option and dynamic renderer switching", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({ source: dummySource });
-    const viewer = new WaveformViewer(scope, canvas, {
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source, {
       renderer: "webgl2",
     });
 
@@ -178,7 +178,7 @@ describe("WaveformViewer", () => {
   it("supports bars renderer option with customization", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({ source: dummySource });
-    const viewer = new WaveformViewer(scope, canvas, {
+    const viewer = new WaveformViewer(canvas, scope.viewport, scope.source, {
       renderer: {
         type: "bars",
         barWidth: 4,
@@ -215,31 +215,33 @@ describe("WaveformViewer", () => {
   });
 
   describe("Sonoscope Integration", () => {
-    it("creates viewer with new WaveformViewer(scope, canvas)", () => {
+    it("creates viewer with new WaveformViewer(canvas, viewport, source)", () => {
       const scope = new Sonoscope({
         source: dummySource,
         startTime: 1,
         endTime: 6,
       });
       const target = createMockCanvas();
-      const viewer = new WaveformViewer(scope, target);
+      const viewer = new WaveformViewer(target, scope.viewport, scope.source);
 
-      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(dummySource);
+      expect(viewer.getViewportController()).toBe(scope.viewport);
       expect(viewer.getViewport()).toMatchObject({ startTime: 1, endTime: 6 });
       expect(viewer.getCanvas()).toBe(target);
       expect("canvas" in viewer.getConfig()).toBe(false);
       expect("source" in viewer.getConfig()).toBe(false);
     });
 
-    it("creates viewer with new WaveformViewer(scope, canvas, options)", () => {
+    it("creates viewer with new WaveformViewer(canvas, viewport, source, options)", () => {
       const scope = new Sonoscope({ source: dummySource });
       const target = createMockCanvas();
-      const viewer = new WaveformViewer(scope, target, {
+      const viewer = new WaveformViewer(target, scope.viewport, scope.source, {
         color: "#ff0000",
         amplitudeScale: 2.0,
       });
 
-      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(dummySource);
+      expect(viewer.getViewportController()).toBe(scope.viewport);
       expect(viewer.getConfig().color).toBe("#ff0000");
       expect(viewer.getConfig().amplitudeScale).toBe(2.0);
       expect(viewer.getCanvas()).toBe(target);
@@ -256,7 +258,8 @@ describe("WaveformViewer", () => {
       const target = createMockCanvas();
       const viewer = scope.createWaveform(target, { colorMap: "inferno" });
 
-      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(dummySource);
+      expect(viewer.getViewportController()).toBe(scope.viewport);
       expect(viewer.getConfig().colorMap).toBe("inferno");
       expect(viewer.getViewport().startTime).toBeCloseTo(2);
       expect(viewer.getViewport().endTime).toBeCloseTo(8);
@@ -268,7 +271,11 @@ describe("WaveformViewer", () => {
         startTime: 1,
         endTime: 5,
       });
-      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       scope.pan(2);
@@ -284,7 +291,11 @@ describe("WaveformViewer", () => {
         startTime: 2,
         endTime: 8,
       });
-      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       scope.zoom(0.5, 5);
@@ -300,7 +311,11 @@ describe("WaveformViewer", () => {
         startTime: 0,
         endTime: 10,
       });
-      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       scope.setViewport({ startTime: 3, endTime: 9 });
@@ -316,7 +331,11 @@ describe("WaveformViewer", () => {
         startTime: 0,
         endTime: 10,
       });
-      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
       const onViewportChange = vi.fn();
       viewer.on("viewportchange", onViewportChange);
 
@@ -341,7 +360,11 @@ describe("WaveformViewer", () => {
         endTime: 10,
       });
       const scopeDestroySpy = vi.spyOn(scope, "destroy");
-      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       viewer.destroy();
@@ -359,7 +382,11 @@ describe("WaveformViewer", () => {
         startTime: 0,
         endTime: 10,
       });
-      const viewer = new WaveformViewer(scope, createMockCanvas());
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
       expect(viewer.getConfig().autoRender).toBe(true);
 
       // Wait for microtask
@@ -373,9 +400,14 @@ describe("WaveformViewer", () => {
         startTime: 0,
         endTime: 10,
       });
-      const viewer = new WaveformViewer(scope, createMockCanvas(), {
-        autoRender: false,
-      });
+      const viewer = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+        {
+          autoRender: false,
+        },
+      );
       expect(viewer.getConfig().autoRender).toBe(false);
 
       // Wait for microtask

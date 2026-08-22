@@ -198,7 +198,11 @@ describe("backend-factory", () => {
         read: () => new Float32Array(1000),
       };
       const scope = Sonoscope.fromSource(source);
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       expect(viewer.getConfig().backend).toBe("auto");
     });
 
@@ -230,9 +234,14 @@ describe("backend-factory", () => {
       };
 
       const scope = Sonoscope.fromSource(source);
-      const viewer = new SpectrogramViewer(scope, canvas(), {
-        backend: customBackend,
-      });
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+        {
+          backend: customBackend,
+        },
+      );
 
       await viewer.render();
       expect(customComputed).toBe(true);

@@ -33,10 +33,14 @@ export type {
   FollowPlaybackMode,
   FrequencyScale,
   ISonoscope,
+  IViewportController,
   Rgba,
   SonoscopeEvents,
   SonoscopeOptions,
   ViewportConfig,
+  ViewportConstraints,
+  ViewportControllerOptions,
+  ViewportEvents,
   ViewportState,
 } from "./types";
 // FrequencyRuler Types
@@ -71,8 +75,12 @@ export type {
 } from "./viewers/spectrogram/renderers/webgl2-program";
 // Spectrogram Types
 export type {
+  AutoRendererConfig,
   BackendMode,
   CacheStats,
+  Canvas2DRendererConfig,
+  HalftoneOptions,
+  HalftoneRendererConfig,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -83,6 +91,7 @@ export type {
   SpectrogramProfileEvent,
   SpectrogramProfilerOptions,
   SpectrogramProfileStats,
+  SpectrogramRendererConfig,
   SpectrogramStatus,
   SpectrogramTransform,
   SpectrumPoint,
@@ -95,6 +104,7 @@ export type {
   ValueScaleConfig,
   WebGLRendererConfig,
   WebGLRendererProgram,
+  WebGLRendererProgramName,
   WindowName,
 } from "./viewers/spectrogram/types";
 // TimeRuler Types
@@ -207,7 +217,7 @@ export {
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
 export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";
-export { DitherSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-dither-program";
+export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-halftone-program";
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
 export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
 export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-sobel-program";
@@ -226,5 +236,6 @@ export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { createWaveformRenderer } from "./viewers/waveform/renderers/renderer-factory";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";
-// Viewport Utilities
+// Viewport
+export { ViewportController } from "./viewport";
 export { clampViewportTimes } from "./viewport-math";

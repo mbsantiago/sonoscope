@@ -120,8 +120,9 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
           }
 
           const viewer = new WaveformViewer(
-            effectiveScope,
             canvas,
+            effectiveScope.viewport,
+            effectiveScope.source,
             memoizedConfig,
           );
 

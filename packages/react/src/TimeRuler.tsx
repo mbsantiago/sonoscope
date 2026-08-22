@@ -120,8 +120,8 @@ export const TimeRuler = forwardRef<TimeRulerHandle, TimeRulerProps>(
           }
 
           const viewer = new TimeRulerViewer(
-            effectiveScope,
             canvas,
+            effectiveScope.viewport,
             memoizedConfig,
           );
 

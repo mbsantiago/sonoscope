@@ -1,4 +1,8 @@
-import type { FrequencyScale, ISonoscope } from "../../types";
+import type {
+  FrequencyScale,
+  IViewportController,
+  ViewportConfig,
+} from "../../types";
 import type {
   FrequencyRulerEvents,
   FrequencyRulerOptions,
@@ -65,10 +69,10 @@ function resolveFrequencyRulerConfig(
 export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private readonly events = new TypedEventEmitter<FrequencyRulerEvents>();
   private readonly canvas: HTMLCanvasElement;
-  private readonly scope: ISonoscope;
+  private readonly viewport: IViewportController;
   private config: ResolvedFrequencyRulerConfig;
   private programInstance: FrequencyRulerProgram;
-  private scopeCleanup: Array<() => void> = [];
+  private viewportCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
@@ -77,40 +81,45 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private status: FrequencyRulerStatus = { state: "idle" };
 
   constructor(
-    scope: ISonoscope,
     canvas: HTMLCanvasElement,
+    viewport: IViewportController,
     options?: Partial<FrequencyRulerOptions>,
   ) {
-    this.scope = scope;
+    if (!canvas) {
+      throw new Error("FrequencyRulerViewer requires a canvas");
+    }
+    if (!viewport) {
+      throw new Error("FrequencyRulerViewer requires a viewport controller");
+    }
+
+    this.viewport = viewport;
     this.canvas = canvas;
-    const scopeVp = scope.getViewport();
+    const vp = viewport.getViewport();
     this.config = resolveFrequencyRulerConfig(
       {
-        minFrequency: scopeVp.minFrequency,
-        maxFrequency: scopeVp.maxFrequency,
-        frequencyScale: scopeVp.frequencyScale,
+        minFrequency: vp.minFrequency,
+        maxFrequency: vp.maxFrequency,
+        frequencyScale: options?.frequencyScale ?? "linear",
         ...options,
       },
-      scope.getSampleRate(),
+      vp.maxFrequency * 2,
     );
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
 
     if (
       options?.minFrequency !== undefined ||
-      options?.maxFrequency !== undefined ||
-      options?.frequencyScale !== undefined
+      options?.maxFrequency !== undefined
     ) {
-      scope.setViewport(
+      viewport.setViewport(
         {
           minFrequency: this.config.minFrequency,
           maxFrequency: this.config.maxFrequency,
-          frequencyScale: this.config.frequencyScale,
         },
         "frequency-ruler",
       );
     }
 
-    this.bindScope();
+    this.bindViewport();
     if (options?.autoResize !== false) {
       this.resizeCleanup = attachAutoResize(this.canvas, {
         devicePixelRatio: options?.devicePixelRatio,
@@ -123,11 +132,11 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     }
   }
 
-  private bindScope(): void {
-    for (const cleanup of this.scopeCleanup) cleanup();
-    this.scopeCleanup = [];
+  private bindViewport(): void {
+    for (const cleanup of this.viewportCleanup) cleanup();
+    this.viewportCleanup = [];
 
-    const unlistenViewport = this.scope.on("viewportchange", (e) => {
+    const unlistenViewport = this.viewport.on("viewportchange", (e) => {
       let changed = false;
       if (
         e.viewport.minFrequency !== undefined &&
@@ -143,32 +152,17 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
         this.config.maxFrequency = e.viewport.maxFrequency;
         changed = true;
       }
-      if (
-        e.viewport.frequencyScale !== undefined &&
-        this.config.frequencyScale !== e.viewport.frequencyScale
-      ) {
-        this.config.frequencyScale = e.viewport.frequencyScale;
-        changed = true;
-      }
       if (!changed) return;
 
       this.events.emit("viewportchange", { viewport: this.getViewport() });
       this.requestRender();
     });
 
-    const unlistenSource = this.scope.on("sourcechange", () => {
-      const nyquist = Math.floor(this.scope.getSampleRate() / 2);
-      if (this.config.maxFrequency > nyquist) {
-        this.config.maxFrequency = nyquist;
-      }
-      this.requestRender();
-    });
-
-    this.scopeCleanup.push(unlistenViewport, unlistenSource);
+    this.viewportCleanup.push(unlistenViewport);
   }
 
-  getScope(): ISonoscope {
-    return this.scope;
+  getViewportController(): IViewportController {
+    return this.viewport;
   }
 
   getCanvas(): HTMLCanvasElement {
@@ -187,12 +181,25 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     };
   }
 
+  setViewport(vp: Partial<ViewportConfig>): void {
+    this.viewport.setViewport(vp);
+  }
+
+  destroy(): void {
+    this.status = { state: "destroyed" };
+    this.events.clear();
+    for (const cleanup of this.viewportCleanup) cleanup();
+    this.viewportCleanup = [];
+    this.resizeCleanup?.();
+    this.resizeCleanup = undefined;
+  }
+
   getConfig(): ResolvedFrequencyRulerConfig {
     return { ...this.config };
   }
 
   updateConfig(input: Partial<FrequencyRulerOptions>): void {
-    const sampleRate = this.scope.getSampleRate();
+    const sampleRate = (this.viewport.getViewport().maxFrequency || 24000) * 2;
     const baseConfig = { ...this.config, ...input };
     this.config = resolveFrequencyRulerConfig(baseConfig, sampleRate);
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
@@ -296,14 +303,5 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     handler: (event: FrequencyRulerEvents[Name]) => void,
   ): () => void {
     return this.events.on(name, handler);
-  }
-
-  destroy(): void {
-    this.status = { state: "destroyed" };
-    this.events.clear();
-    for (const cleanup of this.scopeCleanup) cleanup();
-    this.scopeCleanup = [];
-    this.resizeCleanup?.();
-    this.resizeCleanup = undefined;
   }
 }

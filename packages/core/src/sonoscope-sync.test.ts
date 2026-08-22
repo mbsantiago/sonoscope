@@ -170,15 +170,25 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const specCanvas = createMockCanvas(400, 200);
       const waveCanvas = createMockCanvas(400, 100);
 
-      const spectrogram = new SpectrogramViewer(scope, specCanvas, {
-        colorMap: "magma",
-      });
-      const waveform = new WaveformViewer(scope, waveCanvas, {
-        color: "#38bdf8",
-      });
+      const spectrogram = new SpectrogramViewer(
+        specCanvas,
+        scope.viewport,
+        scope.source,
+        {
+          colorMap: "magma",
+        },
+      );
+      const waveform = new WaveformViewer(
+        waveCanvas,
+        scope.viewport,
+        scope.source,
+        {
+          color: "#38bdf8",
+        },
+      );
 
-      expect(spectrogram.getScope()).toBe(scope);
-      expect(waveform.getScope()).toBe(scope);
+      expect(spectrogram.getSource()).toBe(source);
+      expect(waveform.getSource()).toBe(source);
       expect(scope.source).toBe(source);
       expect(scope.getDuration()).toBe(30);
       expect(scope.getSampleRate()).toBe(48000);
@@ -212,8 +222,8 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const spectrogram = scope.createSpectrogram(specCanvas);
       const waveform = scope.createWaveform(waveCanvas);
 
-      expect(spectrogram.getScope()).toBe(scope);
-      expect(waveform.getScope()).toBe(scope);
+      expect(spectrogram.getSource()).toBe(source);
+      expect(waveform.getSource()).toBe(source);
       expect(spectrogram.getViewport().startTime).toBeCloseTo(1);
       expect(spectrogram.getViewport().endTime).toBeCloseTo(7);
       expect(waveform.getViewport().startTime).toBeCloseTo(1);
@@ -226,8 +236,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 0, endTime: 5 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       const specEvents: Array<{ startTime: number; endTime: number }> = [];
       const waveEvents: Array<{ startTime: number; endTime: number }> = [];
@@ -278,8 +296,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 2, endTime: 8 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       scope.pan(3);
       expect(scope.getViewport().startTime).toBeCloseTo(5);
@@ -302,8 +328,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(30);
       const scope = new Sonoscope({ source, startTime: 10, endTime: 20 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       // Zoom in 2x (factor 0.5) centered at 15
       scope.zoom(0.5, 15);
@@ -325,8 +359,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 0, endTime: 10 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       const specRenderSpy = vi.spyOn(spectrogram, "requestRender");
       const waveRenderSpy = vi.spyOn(waveform, "requestRender");
@@ -347,8 +389,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 2, endTime: 10 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       // Zoom time via scope (duration 8 -> 4, center 6)
       scope.zoom(0.5, 6);
@@ -380,8 +430,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const specCanvas = createMockCanvas(400, 200);
       const waveCanvas = createMockCanvas(400, 100);
 
-      const spectrogram = new SpectrogramViewer(scope, specCanvas);
-      const waveform = new WaveformViewer(scope, waveCanvas);
+      const spectrogram = new SpectrogramViewer(
+        specCanvas,
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        waveCanvas,
+        scope.viewport,
+        scope.source,
+      );
 
       const cleanup = scope.attachNavigation(specCanvas);
 
@@ -420,8 +478,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const specCanvas = createMockCanvas(400, 200);
       const waveCanvas = createMockCanvas(400, 100);
 
-      const spectrogram = new SpectrogramViewer(scope, specCanvas);
-      const waveform = new WaveformViewer(scope, waveCanvas);
+      const spectrogram = new SpectrogramViewer(
+        specCanvas,
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        waveCanvas,
+        scope.viewport,
+        scope.source,
+      );
 
       const cleanup = scope.attachNavigation(waveCanvas);
 
@@ -461,8 +527,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const specCanvas = createMockCanvas(400, 200);
       const waveCanvas = createMockCanvas(400, 100);
 
-      const spectrogram = new SpectrogramViewer(scope, specCanvas);
-      const waveform = new WaveformViewer(scope, waveCanvas);
+      const spectrogram = new SpectrogramViewer(
+        specCanvas,
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        waveCanvas,
+        scope.viewport,
+        scope.source,
+      );
 
       const cleanup = scope.attachNavigation(specCanvas);
 
@@ -502,14 +576,20 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 10 });
       const audio = createMockAudio("audio.wav", 20);
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       scope.attachAudio(audio);
 
       expect(scope.getAudio()).toBe(audio);
-      expect(spectrogram.getScope().getAudio()).toBe(audio);
-      expect(waveform.getScope().getAudio()).toBe(audio);
 
       const specRenderSpy = vi.spyOn(spectrogram, "requestRender");
       const waveRenderSpy = vi.spyOn(waveform, "requestRender");
@@ -543,8 +623,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
         followPlayback: "page",
       });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       expect(scope.getViewport().startTime).toBe(0);
       expect(scope.getViewport().endTime).toBe(10);
@@ -566,18 +654,25 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const audio = createMockAudio();
       const scope = new Sonoscope({ source, audio });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       expect(scope.getAudio()).toBe(audio);
-      expect(spectrogram.getScope().getAudio()).toBe(audio);
-      expect(waveform.getScope().getAudio()).toBe(audio);
 
       scope.detachAudio();
 
       expect(scope.getAudio()).toBeUndefined();
-      expect(spectrogram.getScope().getAudio()).toBeUndefined();
-      expect(waveform.getScope().getAudio()).toBeUndefined();
+      spectrogram.destroy();
+      waveform.destroy();
+      scope.destroy();
     });
   });
 
@@ -586,11 +681,20 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(20, 48000);
       const scope = new Sonoscope({ source, startTime: 3, endTime: 9 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas(), {
-        minFrequency: 0,
-        maxFrequency: 24000,
-      });
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+        {
+          minFrequency: 0,
+          maxFrequency: 24000,
+        },
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       const waveViewportSpy = vi.fn();
       waveform.on("viewportchange", waveViewportSpy);
@@ -599,7 +703,6 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       scope.setViewport({
         minFrequency: 500,
         maxFrequency: 8000,
-        frequencyScale: "mel",
       });
 
       // Spectrogram frequency updated
@@ -608,7 +711,6 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
         endTime: 9,
         minFrequency: 500,
         maxFrequency: 8000,
-        frequencyScale: "mel",
       });
 
       // Waveform viewport time bounds completely unchanged
@@ -640,8 +742,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
       const source = createMockSource(20);
       const scope = new Sonoscope({ source, startTime: 0, endTime: 8 });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       const specRenderSpy = vi.spyOn(spectrogram, "requestRender");
       const waveRenderSpy = vi.spyOn(waveform, "requestRender");
@@ -674,8 +784,16 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
         scopeDestroyed = true;
       });
 
-      const spectrogram = new SpectrogramViewer(scope, createMockCanvas());
-      const waveform = new WaveformViewer(scope, createMockCanvas());
+      const spectrogram = new SpectrogramViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
+      const waveform = new WaveformViewer(
+        createMockCanvas(),
+        scope.viewport,
+        scope.source,
+      );
 
       scope.destroy();
 

@@ -124,8 +124,9 @@ export function useSpectrogram(
         }
 
         const viewer = new SpectrogramViewer(
-          effectiveScope,
           canvas,
+          effectiveScope.viewport,
+          effectiveScope.source,
           memoizedConfig,
         );
 

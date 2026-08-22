@@ -5,7 +5,12 @@ import type {
   WindowName,
 } from "@sonoscope/core";
 
-export type ShaderProgram = "auto" | "normal" | "dither" | "sobel" | "terrain";
+export type ShaderProgram =
+  | "auto"
+  | "normal"
+  | "halftone"
+  | "sobel"
+  | "terrain";
 
 export type SpectrogramSettings = {
   recordingIndex: number;

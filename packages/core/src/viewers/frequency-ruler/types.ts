@@ -1,4 +1,4 @@
-import type { FrequencyScale, ISonoscope } from "../../types";
+import type { FrequencyScale, IViewportController } from "../../types";
 import type { FrequencyFormatMode } from "./ticks";
 
 export type FrequencyRulerProgramName = "ticks" | "boxes";
@@ -34,20 +34,98 @@ export interface FrequencyRulerProgram {
 }
 
 export type FrequencyRulerConfig = {
+  /**
+   * Whether to automatically re-render when viewport or configuration changes.
+   * @default true
+   */
   autoRender?: boolean | undefined;
+
+  /**
+   * Minimum visible frequency in Hertz.
+   * @default 0 (or 20 for log scale)
+   */
   minFrequency?: number | undefined;
+
+  /**
+   * Maximum visible frequency in Hertz.
+   * @default Nyquist frequency (sampleRate / 2)
+   */
   maxFrequency?: number | undefined;
+
+  /**
+   * Frequency scale mapping: linear, mel, or logarithmic.
+   * @default inherits from Sonoscope viewport scale
+   */
   frequencyScale?: FrequencyScale | undefined;
+
+  /**
+   * Primary color for axis lines, tick marks, and text labels.
+   * @default "#a0a0a0"
+   */
   color?: string | undefined;
+
+  /**
+   * Canvas background fill color.
+   * @default "transparent"
+   */
   backgroundColor?: string | undefined;
+
+  /**
+   * Specific color override for tick lines.
+   * @default color
+   */
   tickColor?: string | undefined;
+
+  /**
+   * Specific color override for text labels.
+   * @default color
+   */
   labelColor?: string | undefined;
+
+  /**
+   * CSS font specification for frequency labels.
+   * @default "10px monospace"
+   */
   font?: string | undefined;
+
+  /**
+   * Tick mark position relative to the vertical ruler axis.
+   * @default "left"
+   */
   tickPosition?: "left" | "right" | "both" | "inside" | undefined;
+
+  /**
+   * Frequency label formatting mode.
+   * - "auto": Switches between Hz and kHz depending on magnitude.
+   * - "hz": Always formats in Hertz (e.g. `2000 Hz`).
+   * - "khz": Always formats in kilohertz (e.g. `2.0 kHz`).
+   * - Custom function `(hz: number) => string`.
+   * @default "auto"
+   */
   frequencyFormat?: FrequencyFormatMode | undefined;
+
+  /**
+   * Minimum pixel spacing between adjacent major frequency labels.
+   * @default 45
+   */
   minMajorPixelSpacing?: number | undefined;
+
+  /**
+   * Visual renderer program: standard tick lines or segmented boxes.
+   * @default "ticks"
+   */
   program?: FrequencyRulerProgramName | FrequencyRulerProgram | undefined;
+
+  /**
+   * Whether to automatically resize canvas pixel resolution when container dimensions change.
+   * @default true
+   */
   autoResize?: boolean | undefined;
+
+  /**
+   * Device pixel ratio scaling factor for HiDPI/Retina displays.
+   * @default window.devicePixelRatio
+   */
   devicePixelRatio?: boolean | number | undefined;
 };
 
@@ -94,7 +172,7 @@ export interface IFrequencyRulerViewer {
   getStatus(): FrequencyRulerStatus;
   getCanvas(): HTMLCanvasElement;
 
-  getScope(): ISonoscope;
+  getViewportController(): IViewportController;
   getViewport(): FrequencyRulerViewport;
 
   getConfig(): ResolvedFrequencyRulerConfig;

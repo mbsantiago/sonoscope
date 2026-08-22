@@ -40,7 +40,11 @@ export function useTimeRuler(
       return;
     }
 
-    const instance = new TimeRulerViewer(scope, canvas, memoizedConfig);
+    const instance = new TimeRulerViewer(
+      canvas,
+      scope.viewport,
+      memoizedConfig,
+    );
     viewerRef.current = instance;
     setViewer(instance);
     setStatus(instance.getStatus());

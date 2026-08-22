@@ -107,9 +107,11 @@ export function panViewportFrequency(
   bounds: FrequencyBounds,
   deltaHz: number,
 ): ViewportConfig {
-  const span = viewport.maxFrequency - viewport.minFrequency;
+  const currentMin = viewport.minFrequency ?? bounds.minFrequency;
+  const currentMax = viewport.maxFrequency ?? bounds.maxFrequency;
+  const span = currentMax - currentMin;
   const minFrequency = clamp(
-    viewport.minFrequency + deltaHz,
+    currentMin + deltaHz,
     bounds.minFrequency,
     Math.max(bounds.minFrequency, bounds.maxFrequency - span),
   );
@@ -148,15 +150,15 @@ export function zoomViewportFrequency(
   centerFrequency: number,
   factor: number,
 ): ViewportConfig {
-  const currentSpan = viewport.maxFrequency - viewport.minFrequency;
+  const currentMin = viewport.minFrequency ?? bounds.minFrequency;
+  const currentMax = viewport.maxFrequency ?? bounds.maxFrequency;
+  const currentSpan = currentMax - currentMin;
   const maxSpan = bounds.maxFrequency - bounds.minFrequency;
   const minSpan = Math.min(bounds.minSpanHz ?? 10, maxSpan);
   const span = clamp(currentSpan * factor, minSpan, maxSpan);
   if (Math.abs(span - currentSpan) < 1e-9) return viewport;
   const ratio =
-    currentSpan <= 0
-      ? 0.5
-      : (centerFrequency - viewport.minFrequency) / currentSpan;
+    currentSpan <= 0 ? 0.5 : (centerFrequency - currentMin) / currentSpan;
   const minFrequency = clamp(
     centerFrequency - span * ratio,
     bounds.minFrequency,
@@ -318,10 +320,11 @@ export function attachWheelNavigation(
                     const height =
                       rect.height || targetCanvas.clientHeight || 1;
                     const ratio = 1 - (wheel.clientY - rect.top) / height;
-                    return (
-                      viewport.minFrequency +
-                      ratio * (viewport.maxFrequency - viewport.minFrequency)
-                    );
+                    const minF =
+                      viewport.minFrequency ?? freqBounds.minFrequency;
+                    const maxF =
+                      viewport.maxFrequency ?? freqBounds.maxFrequency;
+                    return minF + ratio * (maxF - minF);
                   })();
 
           apply(
@@ -336,9 +339,9 @@ export function attachWheelNavigation(
         }
 
         // Panning frequency
-        const deltaHz =
-          -(wheel.deltaY / freqPanSensitivity) *
-          (viewport.maxFrequency - viewport.minFrequency);
+        const minF = viewport.minFrequency ?? freqBounds.minFrequency;
+        const maxF = viewport.maxFrequency ?? freqBounds.maxFrequency;
+        const deltaHz = -(wheel.deltaY / freqPanSensitivity) * (maxF - minF);
         apply(panViewportFrequency(viewport, freqBounds, deltaHz));
         return;
       }
@@ -468,9 +471,11 @@ export function attachDragNavigation(
     if (isFreqDrag) {
       const rect = targetCanvas.getBoundingClientRect?.() ?? { height: 0 };
       const canvasHeight = rect.height || targetCanvas.clientHeight || 1;
-      const span = startViewport.maxFrequency - startViewport.minFrequency;
-      const deltaHz = (dy / canvasHeight) * span;
       const freqBounds = resolveViewerFrequencyBounds(viewer);
+      const minF = startViewport.minFrequency ?? freqBounds.minFrequency;
+      const maxF = startViewport.maxFrequency ?? freqBounds.maxFrequency;
+      const span = maxF - minF;
+      const deltaHz = (dy / canvasHeight) * span;
       apply(panViewportFrequency(startViewport, freqBounds, deltaHz));
       return;
     }
