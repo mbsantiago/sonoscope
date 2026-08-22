@@ -82,6 +82,22 @@ export class Sonoscope implements ISonoscope {
   /**
    * Creates a new Sonoscope coordinator instance.
    * @param options Configuration options or an existing AudioSource.
+   * @param options.source Audio source for decoding and STFT computation.
+   * @param options.audio Optional HTML audio element to synchronize playback with.
+   * @param options.clipStart Clip start boundary in seconds.
+   * @param options.clipEnd Clip end boundary in seconds.
+   * @param options.startTime Initial viewport start time in seconds.
+   * @param options.endTime Initial viewport end time in seconds.
+   * @param options.minFrequency Initial minimum frequency in Hz.
+   * @param options.maxFrequency Initial maximum frequency in Hz.
+   * @param options.followPlayback Viewport follow mode during audio playback (`page`, `smooth`, or `off`).
+   * @param options.smoothAnchor Screen anchor ratio (0 to 1) for smooth playback follow.
+   * @param options.minDuration Minimum zoom duration in seconds.
+   * @param options.maxDuration Maximum zoom duration in seconds.
+   * @param options.sampleRate Target audio sample rate in Hz.
+   * @param options.preferStreaming Prefer streaming audio source when loading from URL.
+   * @param options.preferDecoded Prefer full decoded AudioBuffer over streaming.
+   * @param options.viewport Custom viewport controller to share coordinates across instances.
    */
   constructor(options: SonoscopeOptions | AudioSource) {
     const isSource =

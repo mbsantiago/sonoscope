@@ -13,9 +13,10 @@ const [reactTypeDoc, reactSidebarGroup] = createStarlightTypeDocPlugin();
 /**
  * Remark plugin that auto-injects SandpackPlayground, SonoscopeGlobal, and loadFile
  * strictly for MDX files inside the /demos/ directory.
+ * @returns {(tree: any, file: any) => void}
  */
 function remarkDemoAutoImport() {
-  return (tree, file) => {
+  return (/** @type {any} */ tree, /** @type {any} */ file) => {
     const filePath = file.history?.[0] || file.path || '';
     if (!filePath.includes('/demos/')) {
       return;
@@ -87,6 +88,33 @@ function remarkDemoAutoImport() {
   };
 }
 
+/** @type {import('starlight-typedoc').StarlightTypeDocOptions['typeDoc']} */
+const commonTypeDocOptions = {
+	readme: 'none',
+	excludeInternal: true,
+	excludePrivate: true,
+	excludeProtected: true,
+	disableSources: true,
+	indexFormat: 'table',
+	parametersFormat: 'table',
+	interfacePropertiesFormat: 'table',
+	classPropertiesFormat: 'table',
+	typeAliasPropertiesFormat: 'table',
+	enumMembersFormat: 'table',
+	useCodeBlocks: true,
+	expandParameters: true,
+	typeDeclarationVisibility: 'compact',
+	pageTitleTemplates: {
+		index: '{projectName}',
+		member: '{name}',
+		module: '{name}',
+	},
+	membersWithOwnFile: ['Class', 'Interface', 'TypeAlias', 'Function', 'Variable'],
+	tableColumnSettings: {
+		leftAlignHeaders: true,
+	},
+};
+
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://mbsantiago.github.io',
@@ -108,12 +136,9 @@ export default defineConfig({
 					output: 'reference/core',
 					sidebar: {
 						label: '@sonoscope/core',
+						collapsed: true,
 					},
-					typeDoc: {
-						readme: 'none',
-						excludeInternal: true,
-						excludePrivate: true,
-					},
+					typeDoc: commonTypeDocOptions,
 				}),
 				reactTypeDoc({
 					entryPoints: ['../packages/react/src/index.ts'],
@@ -121,12 +146,9 @@ export default defineConfig({
 					output: 'reference/react',
 					sidebar: {
 						label: '@sonoscope/react',
+						collapsed: true,
 					},
-					typeDoc: {
-						readme: 'none',
-						excludeInternal: true,
-						excludePrivate: true,
-					},
+					typeDoc: commonTypeDocOptions,
 				}),
 			],
 			customCss: ['./src/styles/global.css', './src/styles/custom.css'],
