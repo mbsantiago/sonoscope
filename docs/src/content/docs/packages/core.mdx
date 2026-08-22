@@ -12,9 +12,11 @@ description: Architecture and API reference for the core Sonoscope visualization
 - **WebGL2 Tile Rendering**: GPU shader-driven spectrogram tile computation with built-in colormaps (`viridis`, `plasma`, `inferno`, `magma`, `cividis`, `turbo`, `gray`).
 - **Flexible Frequency Scales**: Support for `linear`, `log`, and `mel` perceptual frequency scales.
 - **Decoupled Playhead & Rulers**: Customizable time and frequency rulers with responsive ticks.
-- **Native Navigation**: First-class pan and zoom navigation on viewers and the central Sonoscope instance with automatic lifecycle cleanup.
+- **Native Navigation**: First-class pan and zoom navigation on viewers and the central [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/) instance with automatic lifecycle cleanup.
 
 ## Creating a Sonoscope Instance
+
+The [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/) class is the central coordinator for audio playback, viewport state, and viewer creation.
 
 ```typescript
 import { Sonoscope } from "@sonoscope/core";
@@ -31,9 +33,13 @@ const fileScope = await Sonoscope.fromBlob(audioBlob);
 const urlScope = await Sonoscope.fromUrl("https://example.com/sound.mp3");
 ```
 
+Full reference: [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/), [`ISonoscope`](/sonoscope/reference/core/interfaces/isonoscope/), [`SonoscopeOptions`](/sonoscope/reference/core/type-aliases/sonoscopeoptions/).
+
 ## Viewers
 
 ### Spectrogram Viewer
+
+Creates a [`SpectrogramViewer`](/sonoscope/reference/core/classes/spectrogramviewer/) instance attached to a canvas.
 
 ```typescript
 const spectrogram = scope.createSpectrogram(canvas, {
@@ -46,10 +52,14 @@ const spectrogram = scope.createSpectrogram(canvas, {
 });
 
 // Attach 2D navigation (defaults to both time and frequency axes)
-spectrogram.attachNavigation();
+scope.attachNavigation(canvas);
 ```
 
+Full reference: [`SpectrogramViewer`](/sonoscope/reference/core/classes/spectrogramviewer/), [`ISpectrogramViewer`](/sonoscope/reference/core/interfaces/ispectrogramviewer/), [`SpectrogramConfig`](/sonoscope/reference/core/type-aliases/spectrogramconfig/).
+
 ### Waveform Viewer
+
+Creates a [`WaveformViewer`](/sonoscope/reference/core/classes/waveformviewer/) instance attached to a canvas.
 
 ```typescript
 const waveform = scope.createWaveform(canvas, {
@@ -58,10 +68,14 @@ const waveform = scope.createWaveform(canvas, {
 });
 
 // Attach 1D temporal navigation (defaults to time axis)
-waveform.attachNavigation();
+scope.attachNavigation(canvas, { axis: "time" });
 ```
 
+Full reference: [`WaveformViewer`](/sonoscope/reference/core/classes/waveformviewer/), [`IWaveformViewer`](/sonoscope/reference/core/interfaces/iwaveformviewer/), [`WaveformConfig`](/sonoscope/reference/core/type-aliases/waveformconfig/).
+
 ### Rulers & Playheads
+
+Creates a [`TimeRulerViewer`](/sonoscope/reference/core/classes/timerulerviewer/) or [`FrequencyRulerViewer`](/sonoscope/reference/core/classes/frequencyrulerviewer/), and attaches playhead overlays via [`attachPlayheadOverlay`](/sonoscope/reference/core/functions/attachplayheadoverlay/).
 
 ```typescript
 import { attachPlayheadOverlay } from "@sonoscope/core";
@@ -70,21 +84,23 @@ const timeRuler = scope.createTimeRuler(timeCanvas, {
   program: "ticks",
   tickPosition: "top",
 });
-timeRuler.attachNavigation();
+scope.attachNavigation(timeCanvas, { axis: "time" });
 
 const freqRuler = scope.createFrequencyRuler(freqCanvas, {
   program: "ticks",
   frequencyScale: "mel",
   tickPosition: "right",
 });
-freqRuler.attachNavigation();
+scope.attachNavigation(freqCanvas, { axis: "frequency" });
 
 attachPlayheadOverlay(containerElement, scope);
 ```
 
+Full reference: [`TimeRulerViewer`](/sonoscope/reference/core/classes/timerulerviewer/), [`FrequencyRulerViewer`](/sonoscope/reference/core/classes/frequencyrulerviewer/), [`TimeRulerConfig`](/sonoscope/reference/core/type-aliases/timerulerconfig/), [`FrequencyRulerConfig`](/sonoscope/reference/core/type-aliases/frequencyrulerconfig/), [`attachPlayheadOverlay`](/sonoscope/reference/core/functions/attachplayheadoverlay/).
+
 ## Interactive Navigation
 
-Sonoscope provides coordinated navigation via `scope.attachNavigation(container, options?)` on the root `Sonoscope` instance.
+Sonoscope provides coordinated navigation via `scope.attachNavigation(container, options?)` on the root [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/) instance or directly via [`attachNavigation`](/sonoscope/reference/core/functions/attachnavigation/).
 
 ### Attaching Navigation
 
@@ -135,6 +151,8 @@ scope.attachNavigation(specCanvas, {
   },
 });
 ```
+
+Full reference: [`attachNavigation`](/sonoscope/reference/core/functions/attachnavigation/), [`NavigationOptions`](/sonoscope/reference/core/interfaces/navigationoptions/), [`IViewportController`](/sonoscope/reference/core/interfaces/iviewportcontroller/).
 
 ### Lifecycle & Automatic Cleanup
 

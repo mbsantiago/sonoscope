@@ -35,6 +35,8 @@ Sonoscope is available as three specialized packages across JavaScript, React, a
 
 ### 1. Vanilla TypeScript / JavaScript
 
+Use [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/) to manage audio loading and attach visualization viewers.
+
 ```typescript
 import { Sonoscope } from '@sonoscope/core';
 
@@ -63,6 +65,8 @@ scope.attachNavigation(canvas);
 ```
 
 ### 2. React
+
+Wrap viewers with [`SonoscopeProvider`](/sonoscope/reference/react/variables/sonoscopeprovider/) and compose [`TimeRuler`](/sonoscope/reference/react/variables/timeruler/), [`Spectrogram`](/sonoscope/reference/react/variables/spectrogram/), and [`Waveform`](/sonoscope/reference/react/variables/waveform/).
 
 ```tsx
 import { SonoscopeProvider, Spectrogram, Waveform, TimeRuler } from '@sonoscope/react';
