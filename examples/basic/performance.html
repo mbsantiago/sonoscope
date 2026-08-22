@@ -52,7 +52,7 @@
             <option value="auto">auto</option>
             <option value="canvas2d">canvas2d</option>
             <option value="webgl">webgl (normal)</option>
-            <option value="dither">webgl (dither)</option>
+            <option value="halftone">webgl (halftone)</option>
             <option value="sobel">webgl (sobel)</option>
             <option value="terrain">webgl (terrain)</option>
           </select>
@@ -100,6 +100,7 @@
       const source = new SyntheticSource();
       let scope;
       let viewer;
+      let playhead;
       let viewportStart = 0;
       let running = false;
 
@@ -107,7 +108,7 @@
         if (typeof val !== 'string') return val;
         if (val === 'auto' || val === 'canvas2d') return val;
         if (val === 'webgl') return { type: 'webgl', program: 'normal' };
-        if (['dither', 'sobel', 'terrain'].includes(val)) return { type: 'webgl', program: val };
+        if (['halftone', 'sobel', 'terrain'].includes(val)) return { type: 'webgl', program: val };
         return val;
       }
 
@@ -282,7 +283,7 @@
         const renderers = [
           { name: 'Canvas 2D', renderer: 'canvas2d' },
           { name: 'WebGL2 (Normal)', renderer: { type: 'webgl', program: 'normal' } },
-          { name: 'WebGL2 (Dither)', renderer: { type: 'webgl', program: 'dither' } },
+          { name: 'WebGL2 (Halftone)', renderer: { type: 'webgl', program: 'halftone' } },
           { name: 'WebGL2 (Sobel)', renderer: { type: 'webgl', program: 'sobel' } },
           { name: 'WebGL2 (Terrain 3D)', renderer: { type: 'webgl', program: 'terrain' } },
         ];
