@@ -6,16 +6,27 @@ async function main() {
   const audioUrl = "https://xeno-canto.org/1145817/download";
 
   const scope = await Sonoscope.fromUrl(audioUrl, {
+    // Frequency scale: "linear", "mel", or "log"
     frequencyScale: "mel",
   });
 
-  scope.createSpectrogram(canvas, {
+  // Initialize the spectrogram viewer
+  const viewer = scope.createSpectrogram(canvas, {
+    // Colormap palette: "viridis", "inferno", "magma", "plasma", "turbo"
     colorMap: "inferno",
+
+    // Decibel dynamic range mapping
     minValue: -80,
     maxValue: 0,
+
+    // STFT resolution parameters
+    windowSize: 1024,
+    hopSize: 256,
   });
 
+  // Enable 2D panning and zooming across time and frequency
   scope.attachNavigation(canvas);
 }
 
 main();
+

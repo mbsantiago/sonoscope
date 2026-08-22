@@ -1,0 +1,83 @@
+---
+import type { SpectrogramOptions, SonoscopeOptions } from "@sonoscope/core";
+
+export interface Props {
+  config?: SpectrogramOptions;
+  scopeOptions?: SonoscopeOptions;
+  height?: number | string;
+  width?: number | string;
+  class?: string;
+}
+
+const {
+  config = {},
+  scopeOptions = {},
+  height = 160,
+  width = "100%",
+  class: className,
+} = Astro.props;
+
+const configJson = JSON.stringify(config);
+const scopeOptionsJson = JSON.stringify(scopeOptions);
+---
+
+<spectrogram-preview
+  data-config={configJson}
+  data-scope-options={scopeOptionsJson}
+  class={className}
+  style={`display: block; width: ${typeof width === "number" ? `${width}px` : width}; height: ${typeof height === "number" ? `${height}px` : height}; margin: 8px 0;`}
+>
+  <canvas style="width: 100%; height: 100%; display: block; border-radius: 4px;"></canvas>
+</spectrogram-preview>
+
+<script>
+  import { Sonoscope } from "@sonoscope/core";
+  import { DEFAULT_AUDIO_URL } from "../constants";
+
+  const scopeCache = new Map<string, Promise<Sonoscope>>();
+
+  function getScopeForOptions(options: any): Promise<Sonoscope> {
+    const key = JSON.stringify(options);
+    if (!scopeCache.has(key)) {
+      const audio = new Audio(DEFAULT_AUDIO_URL);
+      scopeCache.set(
+        key,
+        Sonoscope.fromUrl(DEFAULT_AUDIO_URL, { audio, ...options }),
+      );
+    }
+    return scopeCache.get(key)!;
+  }
+
+  class SpectrogramPreviewElement extends HTMLElement {
+    private viewer: any = null;
+
+    async connectedCallback() {
+      const canvas = this.querySelector("canvas");
+      if (!canvas) return;
+
+      const config = this.dataset.config ? JSON.parse(this.dataset.config) : {};
+      const scopeOptions = this.dataset.scopeOptions
+        ? JSON.parse(this.dataset.scopeOptions)
+        : {};
+
+      const scope = await getScopeForOptions(scopeOptions);
+      if (!this.isConnected) return;
+
+      this.viewer = scope.createSpectrogram(canvas, {
+        autoResize: true,
+        ...config,
+      });
+
+      scope.attachNavigation(canvas);
+    }
+
+    disconnectedCallback() {
+      this.viewer?.destroy();
+      this.viewer = null;
+    }
+  }
+
+  if (!customElements.get("spectrogram-preview")) {
+    customElements.define("spectrogram-preview", SpectrogramPreviewElement);
+  }
+</script>

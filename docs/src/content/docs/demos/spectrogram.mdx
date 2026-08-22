@@ -1,12 +1,145 @@
 ---
 title: Spectrogram
-description: Minimal standalone HTML & JavaScript spectrogram viewer.
+description: Real-time time-frequency audio spectrogram visualization.
 ---
 
-Simple, zero-framework spectrogram rendering on a `<canvas>` element using `@sonoscope/core`. You can edit the TypeScript code in the editor below and see changes live in real-time.
+import SpectrogramPreview from "../../../components/SpectrogramPreview.astro";
+import TypeTable from "../../../components/TypeTable.astro";
+
+Sonoscope provides an easy way to visualize audio using fast, flexible spectrograms.
+
+When connected to navigation, dragging directly on the spectrogram pans across time and frequency, while scrolling or pinching zooms into harmonic detail.
+
+## The basics
+
+Spectrograms attach to standard HTML `<canvas>` elements. Calling `createSpectrogram` without options initializes a GPU-accelerated spectrogram with auto-resizing:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+// Create a spectrogram using default options
+const spectrogram = scope.createSpectrogram(spectrogramCanvas);
+
+// Synchronize drag and zoom interactions across time and frequency
+scope.attachNavigation(spectrogramCanvas);
+```
+
+---
+
+## Example configurations
+
+### 1. Default spectrogram
+Renders with standard linear frequency scaling and the Viridis colormap:
+
+```ts
+scope.createSpectrogram(spectrogramCanvas);
+```
+
+<SpectrogramPreview />
+
+### 2. Inferno colormap & dynamic range
+Applies the Inferno palette with adjusted decibel floors for enhanced contrast:
+
+```ts
+scope.createSpectrogram(spectrogramCanvas, {
+  colorMap: "inferno",
+  minValue: -80,
+  maxValue: 0,
+});
+```
+
+<SpectrogramPreview config={{ colorMap: "inferno", minValue: -80, maxValue: 0 }} />
+
+### 3. Mel frequency scale
+Compresses higher frequencies to match human pitch perception:
+
+```ts
+const scope = await Sonoscope.fromUrl("/audio/sample.wav", {
+  frequencyScale: "mel",
+});
+
+scope.createSpectrogram(spectrogramCanvas);
+```
+
+<SpectrogramPreview scopeOptions={{ frequencyScale: "mel" }} />
+
+### 4. Logarithmic frequency scale
+Distributes octaves equally along the vertical frequency axis:
+
+```ts
+const scope = await Sonoscope.fromUrl("/audio/sample.wav", {
+  frequencyScale: "log",
+});
+
+scope.createSpectrogram(spectrogramCanvas);
+```
+
+<SpectrogramPreview scopeOptions={{ frequencyScale: "log" }} />
+
+### 5. High time-resolution STFT
+Uses a smaller window and hop size to emphasize rapid transient events:
+
+```ts
+scope.createSpectrogram(spectrogramCanvas, {
+  windowSize: 512,
+  hopSize: 128,
+});
+```
+
+<SpectrogramPreview config={{ windowSize: 512, hopSize: 128 }} />
+
+### 6. Dither shader effect
+Renders with a retro pixel dither shader program:
+
+```ts
+scope.createSpectrogram(spectrogramCanvas, {
+  minValue: -120,
+  maxValue: -40,
+  renderer: {
+    type: "webgl",
+    program: "dither",
+  },
+});
+```
+
+<SpectrogramPreview config={{ renderer: { type: "webgl", program: "dither" }, minValue: -120, maxValue: -40 }} />
+
+---
+
+## Configuration options
+
+### [Spectrogram options](/sonoscope/reference/core/type-aliases/spectrogramconfig/)
+
+Options accepted by `scope.createSpectrogram(canvas, options)`. Full reference: [`SpectrogramConfig`](/sonoscope/reference/core/type-aliases/spectrogramconfig/).
+
+<TypeTable file="packages/core/src/viewers/spectrogram/types.ts" name="SpectrogramConfig" />
+
+---
+
+## Navigation & interaction
+
+Use `scope.attachNavigation(canvas, options)` to link panning and zooming across spectrograms, waveforms, and rulers:
+
+* **2D navigation:** By default, spectrogram navigation tracks both horizontal time and vertical frequency axes.
+* **Axis constraints:** Pass `{ axis: 'time' }` or `{ axis: 'frequency' }` to restrict navigation to a single dimension.
+* **Drag & scroll:** Dragging pans the visible window; scrolling or pinching zooms into the frequency band or time interval under the cursor.
+* **Synchronized views:** Navigating on any attached canvas immediately updates all connected spectrograms, waveforms, and rulers.
+
+---
+
+## Try it yourself!
+
+Play around with the code in the live sandbox below:
+* **Drag** the spectrogram to pan across time and frequency.
+* **Scroll / Pinch** over the canvas to zoom in and out.
+* **Edit the options** in `index.ts` to test different colormaps, frequency scales, STFT resolutions, or shader programs live.
 
 <SandpackPlayground
   template="vanilla-ts"
+  editorHeight={380}
+  previewHeight={380}
   files={{
     "index.ts": loadFile("spectrogram/index.ts"),
     "index.html": loadFile("spectrogram/index.html"),

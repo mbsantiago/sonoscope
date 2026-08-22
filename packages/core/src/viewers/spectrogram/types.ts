@@ -207,48 +207,195 @@ export interface SpectrogramProfilerOptions {
 }
 
 export type SpectrogramConfig = {
-  autoRender?: boolean;
-  renderer?: RendererMode;
-  backend?: BackendMode;
-  channel?: number;
+  /**
+   * Whether to automatically re-render when viewport or configuration changes.
+   * @default true
+   */
+  autoRender?: boolean | undefined;
+
+  /**
+   * Rendering engine:
+   * - "auto": Uses WebGL2 if supported, falling back to Canvas 2D.
+   * - "webgl" / "webgl2": Hardware-accelerated GPU shader renderer.
+   * - "canvas2d": CPU Canvas 2D fallback renderer.
+   * - Custom object with shader program (`{ type: "webgl", program: "normal" | "dither" | "sobel" | "terrain" }`).
+   * @default "auto"
+   */
+  renderer?: RendererMode | undefined;
+
+  /**
+   * STFT compute execution backend:
+   * - "auto": Prefers WebAssembly workers, falling back to main thread.
+   * - "wasm": Fast WebAssembly computation.
+   * - "worker": Web Worker background thread computation.
+   * - "main-thread": Synchronous main thread computation.
+   * @default "auto"
+   */
+  backend?: BackendMode | undefined;
+
+  /**
+   * Audio channel index to analyze (0 for left/mono, 1 for right).
+   * @default 0
+   */
+  channel?: number | undefined;
 
   // STFT
-  windowSize?: number;
-  fftSize?: number;
-  hopSize?: number;
-  window?: WindowName;
+
+  /**
+   * STFT analysis window length in audio samples.
+   * @default 1024
+   */
+  windowSize?: number | undefined;
+
+  /**
+   * FFT length in samples. Must be a power of two >= windowSize.
+   * @default 1024
+   */
+  fftSize?: number | undefined;
+
+  /**
+   * Hop size (step length) in samples between consecutive FFT frames.
+   * @default 256
+   */
+  hopSize?: number | undefined;
+
+  /**
+   * Window function applied before FFT: "hann", "hamming", "blackman", or "rectangular".
+   * @default "hann"
+   */
+  window?: WindowName | undefined;
 
   // Viewport & Constraints
+
+  /**
+   * Viewport start time in seconds.
+   * @default 0
+   */
   startTime?: number | undefined;
+
+  /**
+   * Viewport end time in seconds.
+   * @default audio duration
+   */
   endTime?: number | undefined;
+
+  /**
+   * Minimum visible frequency in Hertz.
+   * @default 0
+   */
   minFrequency?: number | undefined;
+
+  /**
+   * Maximum visible frequency in Hertz.
+   * @default Nyquist frequency (sampleRate / 2)
+   */
   maxFrequency?: number | undefined;
+
+  /**
+   * Frequency scale mapping: "linear", "mel", or "log".
+   * @default "linear"
+   */
   frequencyScale?: FrequencyScale | undefined;
+
+  /**
+   * Minimum viewport duration in seconds to prevent zooming in too far.
+   * @default 0.05
+   */
   minViewportDuration?: number | undefined;
+
+  /**
+   * Maximum viewport duration in seconds to prevent zooming out past bounds.
+   * @default 30
+   */
   maxViewportDuration?: number | undefined;
 
   // Value Scale
-  valueMode?: ValueMode;
-  minValue?: number;
-  maxValue?: number;
-  valueGamma?: number;
-  clampValues?: boolean;
+
+  /**
+   * Intensity scale representation: "db" (decibels), "magnitude", or "power".
+   * @default "db"
+   */
+  valueMode?: ValueMode | undefined;
+
+  /**
+   * Lower intensity limit mapped to the start of the colormap (in dB when valueMode is "db").
+   * @default -100
+   */
+  minValue?: number | undefined;
+
+  /**
+   * Upper intensity limit mapped to the end of the colormap (in dB when valueMode is "db").
+   * @default 0
+   */
+  maxValue?: number | undefined;
+
+  /**
+   * Power-law gamma exponent for dynamic range contrast adjustment.
+   * @default 1.0
+   */
+  valueGamma?: number | undefined;
+
+  /**
+   * Whether to clamp intensity values strictly within [minValue, maxValue].
+   * @default true
+   */
+  clampValues?: boolean | undefined;
 
   // Playback Display
-  showPlayhead?: boolean;
+
+  /**
+   * Whether to draw an animated playhead indicator overlay during playback.
+   * @default true
+   */
+  showPlayhead?: boolean | undefined;
 
   // Cache
-  tileDuration?: number;
-  maxCachedTiles?: number;
-  prefetchTiles?: number;
+
+  /**
+   * Duration in seconds of each cached STFT computation tile.
+   * @default 5
+   */
+  tileDuration?: number | undefined;
+
+  /**
+   * Maximum number of computed STFT tiles retained in memory cache.
+   * @default 64
+   */
+  maxCachedTiles?: number | undefined;
+
+  /**
+   * Number of tiles to prefetch and compute ahead of the visible viewport.
+   * @default 8
+   */
+  prefetchTiles?: number | undefined;
 
   // Sizing
-  autoResize?: boolean;
-  devicePixelRatio?: boolean | number;
+
+  /**
+   * Whether to automatically resize canvas pixel resolution when container dimensions change.
+   * @default true
+   */
+  autoResize?: boolean | undefined;
+
+  /**
+   * Device pixel ratio scaling factor for HiDPI/Retina displays.
+   * @default window.devicePixelRatio
+   */
+  devicePixelRatio?: boolean | number | undefined;
 
   // Modular
-  colorMap?: ColorMapConfig;
-  transforms?: SpectrogramTransform[];
+
+  /**
+   * Colormap palette name (such as "inferno", "viridis", "magma", "turbo") or custom palette object.
+   * @default "viridis"
+   */
+  colorMap?: ColorMapConfig | undefined;
+
+  /**
+   * Array of custom matrix transforms applied to STFT data before rendering.
+   * @default undefined
+   */
+  transforms?: SpectrogramTransform[] | undefined;
 };
 
 export type ResolvedSpectrogramConfig = {
