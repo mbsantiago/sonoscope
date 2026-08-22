@@ -58,8 +58,23 @@ export class BarPeakPyramid {
     // Cache key for this specific bar duration quantized to microsecond precision
     const cacheKey = Math.round(barDuration * 1e6);
     let level = this.cache.get(cacheKey);
-    if (!level || level.min.length < totalBars) {
-      if (this.cache.size > 20) this.cache.clear();
+
+    if (level && level.min.length >= totalBars) {
+      // LRU refresh: promote key to newest position
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, level);
+    } else {
+      // Evict least-recently-used entry if exceeding max zoom levels (16 levels)
+      const MAX_CACHED_LEVELS = 16;
+      while (this.cache.size >= MAX_CACHED_LEVELS) {
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey !== undefined) {
+          this.cache.delete(oldestKey);
+        } else {
+          break;
+        }
+      }
+
       level = {
         min: new Float32Array(totalBars),
         max: new Float32Array(totalBars),

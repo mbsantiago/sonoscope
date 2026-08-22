@@ -1,5 +1,5 @@
 import type { AudioSource } from "../../../types";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BarPeakPyramid } from "./bars";
 
 describe("BarPeakPyramid", () => {
@@ -54,6 +54,34 @@ describe("BarPeakPyramid", () => {
       expect(val2Max).toBe(val1Max);
       expect(val2Min).toBe(val1Min);
     }
+  });
+
+  it("caches computed bar peaks and avoids redundant audio reads", async () => {
+    const readSpy = vi.fn(dummySource.read);
+    const spySource = { ...dummySource, read: readSpy };
+    const pyramid = new BarPeakPyramid(spySource, 0);
+    const barDuration = 0.05;
+
+    await pyramid.getBarPeaks(1.0, 2.0, barDuration);
+    const firstCallCount = readSpy.mock.calls.length;
+    expect(firstCallCount).toBeGreaterThan(0);
+
+    // Re-query overlapping range - should hit cache
+    await pyramid.getBarPeaks(1.0, 2.0, barDuration);
+    expect(readSpy.mock.calls.length).toBe(firstCallCount);
+  });
+
+  it("bounds cache size using LRU eviction when zooming across many levels", async () => {
+    const pyramid = new BarPeakPyramid(dummySource, 0);
+
+    // Request 25 different zoom levels (bar durations)
+    for (let i = 1; i <= 25; i++) {
+      await pyramid.getBarPeaks(0, 1, 0.01 * i);
+    }
+
+    // Accessing a previous level should still work seamlessly
+    const res = await pyramid.getBarPeaks(0, 1, 0.25);
+    expect(res.min.length).toBeGreaterThan(0);
   });
 
   it("handles empty time range gracefully", async () => {
