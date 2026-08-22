@@ -19,11 +19,19 @@ import {
 } from "react";
 import { useSonoscopeContext } from "./SonoscopeContext";
 
+/**
+ * Imperative handle exposed by the TimeRuler component ref.
+ */
 export type TimeRulerHandle = {
+  /** Returns the underlying TimeRulerViewer instance. */
   getViewer: () => TimeRulerViewer | null;
+  /** Returns the canvas element. */
   getCanvas: () => HTMLCanvasElement | null;
 };
 
+/**
+ * Props for the TimeRuler component.
+ */
 export interface TimeRulerProps extends TimeRulerConfig {
   scope?: Sonoscope | null | undefined;
   source?: AudioSource | undefined;
@@ -41,6 +49,9 @@ export interface TimeRulerProps extends TimeRulerConfig {
   onReady?: ((viewer: TimeRulerViewer) => void) | undefined;
 }
 
+/**
+ * Renders an interactive time axis ruler canvas.
+ */
 export const TimeRuler = forwardRef<TimeRulerHandle, TimeRulerProps>(
   (props, ref) => {
     const contextScope = useSonoscopeContext();

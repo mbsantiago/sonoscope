@@ -19,11 +19,19 @@ import {
 } from "react";
 import { useSonoscopeContext } from "./SonoscopeContext";
 
+/**
+ * Imperative handle exposed by the Waveform component ref.
+ */
 export type WaveformHandle = {
+  /** Returns the underlying WaveformViewer instance. */
   getViewer: () => WaveformViewer | null;
+  /** Returns the canvas element. */
   getCanvas: () => HTMLCanvasElement | null;
 };
 
+/**
+ * Props for the Waveform component.
+ */
 export interface WaveformProps extends WaveformConfig {
   scope?: Sonoscope | null | undefined;
   source?: AudioSource | undefined;
@@ -41,6 +49,9 @@ export interface WaveformProps extends WaveformConfig {
   onReady?: ((viewer: WaveformViewer) => void) | undefined;
 }
 
+/**
+ * Renders an interactive audio waveform canvas.
+ */
 export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
   (props, ref) => {
     const contextScope = useSonoscopeContext();

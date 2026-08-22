@@ -10,12 +10,21 @@ import {
 import { useSonoscopeContext } from "./SonoscopeContext";
 import { type UseSpectrogramOptions, useSpectrogram } from "./useSpectrogram";
 
+/**
+ * Imperative handle exposed by the Spectrogram component ref.
+ */
 export type SpectrogramHandle = {
+  /** Returns the underlying SpectrogramViewer instance. */
   getViewer: () => SpectrogramViewer | null;
+  /** Returns the canvas element. */
   getCanvas: () => HTMLCanvasElement | null;
+  /** Returns the audio element if attached. */
   getAudio: () => HTMLAudioElement | null;
 };
 
+/**
+ * Props for the Spectrogram component.
+ */
 export type SpectrogramProps = UseSpectrogramOptions & {
   width?: number | string | undefined;
   height?: number | string | undefined;
@@ -28,6 +37,9 @@ export type SpectrogramProps = UseSpectrogramOptions & {
   playheadStyle?: CSSProperties | undefined;
 };
 
+/**
+ * Renders an interactive audio spectrogram canvas.
+ */
 export const Spectrogram = forwardRef<SpectrogramHandle, SpectrogramProps>(
   (props, ref) => {
     const contextScope = useSonoscopeContext();

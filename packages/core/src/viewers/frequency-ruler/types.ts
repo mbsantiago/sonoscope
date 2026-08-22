@@ -165,23 +165,39 @@ export type FrequencyRulerEvents = {
   error: { error: Error };
 };
 
+/**
+ * Frequency ruler viewer canvas controller and coordinate tick renderer.
+ */
 export interface IFrequencyRulerViewer {
+  /** Renders the current frequency ruler viewport asynchronously. */
   render(): Promise<void>;
+  /** Schedules a render on the next animation frame. */
   requestRender(): void;
+  /** Disposes the frequency ruler renderer and event listeners. */
   destroy(): void;
+  /** Returns the current render status. */
   getStatus(): FrequencyRulerStatus;
+  /** Returns the bound HTML canvas element. */
   getCanvas(): HTMLCanvasElement;
 
+  /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
+  /** Returns the visible frequency viewport. */
   getViewport(): FrequencyRulerViewport;
 
+  /** Returns the resolved frequency ruler configuration options. */
   getConfig(): ResolvedFrequencyRulerConfig;
+  /** Updates configuration options and triggers a re-render. */
   updateConfig(input: Partial<FrequencyRulerOptions>): void;
+  /** Alias for `updateConfig`. */
   setConfig(input: Partial<FrequencyRulerOptions>): void;
 
+  /** Converts canvas Y pixel position to frequency in Hz. */
   canvasToFrequency(y: number): number;
+  /** Converts frequency in Hz to canvas Y pixel position. */
   frequencyToCanvas(freq: number): number;
 
+  /** Subscribes to frequency ruler events. */
   on<Name extends keyof FrequencyRulerEvents>(
     name: Name,
     handler: (event: FrequencyRulerEvents[Name]) => void,

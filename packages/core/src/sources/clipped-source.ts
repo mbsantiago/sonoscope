@@ -1,8 +1,13 @@
 import type { AudioRange, AudioSource } from "../types";
 import { TypedEventEmitter } from "../events";
 
+/**
+ * Clip boundaries in seconds.
+ */
 export type ClipBounds = {
+  /** Start time of the clip in seconds. */
   clipStart?: number | undefined;
+  /** End time of the clip in seconds. */
   clipEnd?: number | undefined;
 };
 
@@ -11,6 +16,9 @@ export type ClippedSourceEvents = {
   rangeavailable: AudioRange;
 };
 
+/**
+ * Wraps an underlying AudioSource to restrict sample reads and visualization to a bounded time window.
+ */
 export class ClippedAudioSource implements AudioSource {
   readonly sampleRate: number;
   readonly channelCount: number;

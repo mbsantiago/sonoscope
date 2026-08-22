@@ -58,6 +58,9 @@ function safeCancelAnimationFrame(id: number): void {
   }
 }
 
+/**
+ * Main coordinator that binds audio playback, viewport state, and visualization viewers.
+ */
 export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private _viewport: IViewportController;
@@ -76,6 +79,10 @@ export class Sonoscope implements ISonoscope {
   private followPlayback: FollowPlaybackMode;
   private smoothAnchor: number;
 
+  /**
+   * Creates a new Sonoscope coordinator instance.
+   * @param options Configuration options or an existing AudioSource.
+   */
   constructor(options: SonoscopeOptions | AudioSource) {
     const isSource =
       typeof options === "object" &&
@@ -154,24 +161,32 @@ export class Sonoscope implements ISonoscope {
     }
   }
 
+  /** Active audio source. */
   get source(): AudioSource {
     return this._source;
   }
 
+  /** Viewport controller managing visible time and frequency coordinates. */
   get viewport(): IViewportController {
     return this._viewport;
   }
 
+  /** Returns the viewport controller instance. */
   getViewportController(): IViewportController {
     return this._viewport;
   }
 
+  /** Creates a standalone viewport controller. */
   static createViewport(
     options?: ViewportControllerOptions,
   ): IViewportController {
     return new ViewportController(options);
   }
 
+  /**
+   * Creates an independent Sonoscope coordinator sharing the same audio source.
+   * @param options Optional overrides for viewport or playback configuration.
+   */
   fork(options?: Partial<SonoscopeOptions>): Sonoscope {
     return new Sonoscope({
       source: this._source,
@@ -180,6 +195,11 @@ export class Sonoscope implements ISonoscope {
     });
   }
 
+  /**
+   * Creates a Sonoscope instance by fetching and decoding or streaming an audio URL.
+   * @param url URL of the audio file.
+   * @param options Coordinator options.
+   */
   static async fromUrl(
     url: string,
     options?: Omit<SonoscopeOptions, "source">,
@@ -203,6 +223,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  /**
+   * Creates a Sonoscope instance from an existing HTMLAudioElement.
+   * @param audio HTML audio element with a valid src.
+   * @param options Coordinator options.
+   */
   static async fromAudio(
     audio: HTMLAudioElement,
     options?: Omit<SonoscopeOptions, "source" | "audio">,
@@ -227,6 +252,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source, audio });
   }
 
+  /**
+   * Creates a Sonoscope instance from an existing AudioSource.
+   * @param source AudioSource instance.
+   * @param options Coordinator options.
+   */
   static fromSource(
     source: AudioSource,
     options?: Omit<SonoscopeOptions, "source">,
@@ -234,6 +264,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  /**
+   * Creates a Sonoscope instance from an in-memory AudioBuffer.
+   * @param buffer Web Audio API AudioBuffer.
+   * @param options Coordinator options.
+   */
   static fromAudioBuffer(
     buffer: AudioBuffer,
     options?: Omit<SonoscopeOptions, "source">,
@@ -242,6 +277,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  /**
+   * Creates a Sonoscope instance from a Blob or File object.
+   * @param blob Audio Blob or File.
+   * @param options Coordinator options.
+   */
   static async fromBlob(
     blob: Blob,
     options?: Omit<SonoscopeOptions, "source">,
@@ -704,6 +744,11 @@ export class Sonoscope implements ISonoscope {
     this.events.emit("sourcechange", { source });
   }
 
+  /**
+   * Creates and attaches a SpectrogramViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Spectrogram visual configuration.
+   */
   createSpectrogram(
     canvas: HTMLCanvasElement,
     options?: Partial<SpectrogramOptions> & {
@@ -721,6 +766,11 @@ export class Sonoscope implements ISonoscope {
     return viewer;
   }
 
+  /**
+   * Creates and attaches a WaveformViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Waveform visual configuration.
+   */
   createWaveform(
     canvas: HTMLCanvasElement,
     options?: Partial<WaveformConfig> & {
@@ -738,6 +788,11 @@ export class Sonoscope implements ISonoscope {
     return viewer;
   }
 
+  /**
+   * Creates and attaches a TimeRulerViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Ruler appearance and tick formatting options.
+   */
   createTimeRuler(
     canvas: HTMLCanvasElement,
     options?: Partial<TimeRulerOptions> & {
@@ -751,6 +806,11 @@ export class Sonoscope implements ISonoscope {
     );
   }
 
+  /**
+   * Creates and attaches a FrequencyRulerViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Frequency scale and tick formatting options.
+   */
   createFrequencyRuler(
     canvas: HTMLCanvasElement,
     options?: Partial<FrequencyRulerOptions> & {
