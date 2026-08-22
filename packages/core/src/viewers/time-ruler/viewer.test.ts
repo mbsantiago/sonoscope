@@ -55,12 +55,13 @@ describe("TimeRulerViewer", () => {
   });
 
   it("converts between canvas coordinates and time accurately", () => {
-    const scope = new Sonoscope({ source: dummySource });
-    const canvas = createMockCanvas();
-    const viewer = scope.createTimeRuler(canvas, {
+    const scope = new Sonoscope({
+      source: dummySource,
       startTime: 10,
       endTime: 20,
     });
+    const canvas = createMockCanvas();
+    const viewer = scope.createTimeRuler(canvas);
 
     expect(viewer.canvasToTime(0)).toBe(10);
     expect(viewer.canvasToTime(300)).toBe(15);
@@ -82,5 +83,27 @@ describe("TimeRulerViewer", () => {
 
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
+  });
+
+  it("keeps viewport state outside the time ruler configuration", () => {
+    const scope = new Sonoscope({
+      source: dummySource,
+      startTime: 10,
+      endTime: 20,
+      minDuration: 0.5,
+      maxDuration: 30,
+    });
+    const viewer = scope.createTimeRuler(createMockCanvas(), {
+      color: "#ffffff",
+    });
+
+    expect(viewer.getConfig()).not.toHaveProperty("startTime");
+    expect(viewer.getConfig()).not.toHaveProperty("endTime");
+    expect(viewer.getConfig()).not.toHaveProperty("minViewportDuration");
+    expect(viewer.getConfig()).not.toHaveProperty("maxViewportDuration");
+
+    viewer.updateConfig({ color: "#38bdf8" });
+
+    expect(viewer.getViewport()).toEqual({ startTime: 10, endTime: 20 });
   });
 });

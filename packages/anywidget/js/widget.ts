@@ -281,8 +281,6 @@ async function render({
     freqRuler = scope.createFrequencyRuler(freqRulerCanvas, {
       program: freqRulerProg,
       frequencyScale,
-      minFrequency: minFreq,
-      maxFrequency: maxFreq,
       color: "rgba(128, 128, 128, 0.75)",
       tickColor: "rgba(128, 128, 128, 0.35)",
       tickPosition: "right",
@@ -358,7 +356,6 @@ async function render({
     spec.updateConfig({ frequencyScale: nextScale });
     freqRuler?.updateConfig({
       frequencyScale: nextScale,
-      minFrequency: nextMinFreq,
     });
   };
   model.on("change:frequency_scale", onScaleChange);

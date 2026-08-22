@@ -134,6 +134,7 @@ export type {
   ResolvedWaveformConfig,
   WaveformConfig,
   WaveformEvents,
+  WaveformOptions,
   WaveformRenderer,
   WaveformRendererKind,
   WaveformRendererMode,

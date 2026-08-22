@@ -30,6 +30,19 @@ scope.attachNavigation(timeCanvas, { axis: "time" });
 scope.attachNavigation(freqCanvas, { axis: "frequency" });
 ```
 
+Set visible time and frequency ranges on `Sonoscope`, not on a ruler:
+
+```ts
+const scope = await Sonoscope.fromUrl("/audio/sample.wav", {
+  startTime: 5,
+  endTime: 15,
+  minDuration: 0.05,
+  maxDuration: 30,
+  minFrequency: 100,
+  maxFrequency: 12_000,
+});
+```
+
 ---
 
 ## Example configurations
@@ -154,5 +167,4 @@ Play around with the code in the live sandbox below:
     "styles.css": loadFile("rulers/styles.css"),
   }}
 />
-
 

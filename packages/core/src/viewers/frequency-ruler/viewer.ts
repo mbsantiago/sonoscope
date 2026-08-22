@@ -1,8 +1,4 @@
-import type {
-  FrequencyScale,
-  IViewportController,
-  ViewportConfig,
-} from "../../types";
+import type { IViewportController, ViewportConfig } from "../../types";
 import type {
   FrequencyRulerEvents,
   FrequencyRulerOptions,
@@ -33,25 +29,10 @@ function resolveFrequencyRulerProgram(
 
 function resolveFrequencyRulerConfig(
   input: Partial<FrequencyRulerOptions> = {},
-  sampleRate = 48000,
 ): ResolvedFrequencyRulerConfig {
-  const nyquist = Math.max(100, Math.floor(sampleRate / 2));
-  const scale: FrequencyScale = input.frequencyScale ?? "linear";
-  const defaultMin = scale === "log" ? 20 : 0;
-  const minFrequency = Math.max(
-    scale === "log" ? 1 : 0,
-    input.minFrequency ?? defaultMin,
-  );
-  const maxFrequency = Math.max(
-    minFrequency + 10,
-    input.maxFrequency ?? nyquist,
-  );
-
   return {
     autoRender: input.autoRender ?? true,
-    minFrequency,
-    maxFrequency,
-    frequencyScale: scale,
+    frequencyScale: input.frequencyScale ?? "linear",
     color: input.color ?? "#94a3b8",
     backgroundColor: input.backgroundColor ?? "transparent",
     tickColor: input.tickColor ?? input.color ?? "#94a3b8",
@@ -79,6 +60,8 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private renderAgain = false;
   private requestCounter = 0;
   private status: FrequencyRulerStatus = { state: "idle" };
+  private lastViewportMinFrequency: number;
+  private lastViewportMaxFrequency: number;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -94,30 +77,11 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
 
     this.viewport = viewport;
     this.canvas = canvas;
-    const vp = viewport.getViewport();
-    this.config = resolveFrequencyRulerConfig(
-      {
-        minFrequency: vp.minFrequency,
-        maxFrequency: vp.maxFrequency,
-        frequencyScale: options?.frequencyScale ?? "linear",
-        ...options,
-      },
-      vp.maxFrequency * 2,
-    );
+    this.config = resolveFrequencyRulerConfig(options);
+    const initialViewport = viewport.getViewport();
+    this.lastViewportMinFrequency = initialViewport.minFrequency;
+    this.lastViewportMaxFrequency = initialViewport.maxFrequency;
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
-
-    if (
-      options?.minFrequency !== undefined ||
-      options?.maxFrequency !== undefined
-    ) {
-      viewport.setViewport(
-        {
-          minFrequency: this.config.minFrequency,
-          maxFrequency: this.config.maxFrequency,
-        },
-        "frequency-ruler",
-      );
-    }
 
     this.bindViewport();
     if (options?.autoResize !== false) {
@@ -137,23 +101,14 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     this.viewportCleanup = [];
 
     const unlistenViewport = this.viewport.on("viewportchange", (e) => {
-      let changed = false;
       if (
-        e.viewport.minFrequency !== undefined &&
-        Math.abs(this.config.minFrequency - e.viewport.minFrequency) >= 1e-6
+        e.viewport.minFrequency === this.lastViewportMinFrequency &&
+        e.viewport.maxFrequency === this.lastViewportMaxFrequency
       ) {
-        this.config.minFrequency = e.viewport.minFrequency;
-        changed = true;
+        return;
       }
-      if (
-        e.viewport.maxFrequency !== undefined &&
-        Math.abs(this.config.maxFrequency - e.viewport.maxFrequency) >= 1e-6
-      ) {
-        this.config.maxFrequency = e.viewport.maxFrequency;
-        changed = true;
-      }
-      if (!changed) return;
-
+      this.lastViewportMinFrequency = e.viewport.minFrequency;
+      this.lastViewportMaxFrequency = e.viewport.maxFrequency;
       this.events.emit("viewportchange", { viewport: this.getViewport() });
       this.requestRender();
     });
@@ -174,9 +129,10 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   getViewport(): FrequencyRulerViewport {
+    const viewport = this.viewport.getViewport();
     return {
-      minFrequency: this.config.minFrequency,
-      maxFrequency: this.config.maxFrequency,
+      minFrequency: viewport.minFrequency,
+      maxFrequency: viewport.maxFrequency,
       frequencyScale: this.config.frequencyScale,
     };
   }
@@ -199,9 +155,8 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   }
 
   updateConfig(input: Partial<FrequencyRulerOptions>): void {
-    const sampleRate = (this.viewport.getViewport().maxFrequency || 24000) * 2;
     const baseConfig = { ...this.config, ...input };
-    this.config = resolveFrequencyRulerConfig(baseConfig, sampleRate);
+    this.config = resolveFrequencyRulerConfig(baseConfig);
     this.programInstance = resolveFrequencyRulerProgram(this.config.program);
 
     this.events.emit("configchange", { config: this.getConfig() });
@@ -214,24 +169,26 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
 
   canvasToFrequency(y: number): number {
     const height = this.canvas.height || 1;
-    const scale = this.config.frequencyScale;
+    const viewport = this.getViewport();
+    const scale = viewport.frequencyScale;
     const minScaled = hzToScale(
-      Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
+      Math.max(scale === "log" ? 1 : 0, viewport.minFrequency),
       scale,
     );
-    const maxScaled = hzToScale(this.config.maxFrequency, scale);
+    const maxScaled = hzToScale(viewport.maxFrequency, scale);
     const scaled = maxScaled - (y / height) * (maxScaled - minScaled);
     return scaleToHz(scaled, scale);
   }
 
   frequencyToCanvas(freq: number): number {
     const height = this.canvas.height || 1;
-    const scale = this.config.frequencyScale;
+    const viewport = this.getViewport();
+    const scale = viewport.frequencyScale;
     const minScaled = hzToScale(
-      Math.max(scale === "log" ? 1 : 0, this.config.minFrequency),
+      Math.max(scale === "log" ? 1 : 0, viewport.minFrequency),
       scale,
     );
-    const maxScaled = hzToScale(this.config.maxFrequency, scale);
+    const maxScaled = hzToScale(viewport.maxFrequency, scale);
     const scaled = hzToScale(freq, scale);
     return (1 - (scaled - minScaled) / (maxScaled - minScaled)) * height;
   }
@@ -252,14 +209,15 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
 
     const width = Math.max(1, this.canvas.width || 1);
     const height = Math.max(1, this.canvas.height || 1);
+    const viewport = this.getViewport();
 
     this.programInstance.draw(
       ctx,
       {
         canvas: this.canvas,
-        minFrequency: this.config.minFrequency,
-        maxFrequency: this.config.maxFrequency,
-        frequencyScale: this.config.frequencyScale,
+        minFrequency: viewport.minFrequency,
+        maxFrequency: viewport.maxFrequency,
+        frequencyScale: viewport.frequencyScale,
         color: this.config.color,
         backgroundColor: this.config.backgroundColor,
         tickColor: this.config.tickColor,

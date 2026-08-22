@@ -130,8 +130,6 @@ export default function InteractiveSpectrogram({
           const freqRuler = scope.createFrequencyRuler(freqCanvasRef.current, {
             program: "ticks",
             frequencyScale: scale,
-            minFrequency: minFreq,
-            maxFrequency: maxFreq,
             color: "rgba(128, 128, 128, 0.75)",
             tickColor: "rgba(128, 128, 128, 0.35)",
             tickPosition: "right",

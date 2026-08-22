@@ -3,7 +3,7 @@ import {
   attachPlayheadOverlay,
   type NavigationOptions,
   Sonoscope,
-  type WaveformConfig,
+  type WaveformOptions,
   type WaveformStatus,
   WaveformViewer,
 } from "@sonoscope/core";
@@ -32,7 +32,7 @@ export type WaveformHandle = {
 /**
  * Props for the Waveform component.
  */
-export interface WaveformProps extends WaveformConfig {
+export interface WaveformProps extends WaveformOptions {
   scope?: Sonoscope | null | undefined;
   source?: AudioSource | undefined;
   url?: string | undefined;

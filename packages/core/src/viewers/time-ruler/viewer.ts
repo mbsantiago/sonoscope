@@ -11,7 +11,6 @@ import type {
 } from "./types";
 import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
-import { clampViewportTimes } from "../../viewport-math";
 import { BoxesTimeRulerProgram } from "./programs/boxes-program";
 import { TicksTimeRulerProgram } from "./programs/ticks-program";
 
@@ -29,36 +28,9 @@ function resolveTimeRulerProgram(
 
 function resolveTimeRulerConfig(
   input: Partial<TimeRulerOptions> = {},
-  duration = 0,
 ): ResolvedTimeRulerConfig {
-  const minViewportDuration = Math.max(
-    0.001,
-    input.minViewportDuration ?? 0.05,
-  );
-  const maxViewportDuration = Math.max(
-    minViewportDuration,
-    input.maxViewportDuration !== undefined
-      ? input.maxViewportDuration
-      : Math.min(3600, duration || 3600),
-  );
-
-  const initialStart = input.startTime ?? 0;
-  const initialEnd = input.endTime ?? duration;
-
-  const clamped = clampViewportTimes(
-    initialStart,
-    initialEnd,
-    duration,
-    minViewportDuration,
-    maxViewportDuration,
-  );
-
   return {
     autoRender: input.autoRender ?? true,
-    startTime: clamped.startTime,
-    endTime: clamped.endTime,
-    minViewportDuration,
-    maxViewportDuration,
     color: input.color ?? "#94a3b8",
     backgroundColor: input.backgroundColor ?? "transparent",
     tickColor: input.tickColor ?? input.color ?? "#94a3b8",
@@ -86,6 +58,8 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private renderAgain = false;
   private requestCounter = 0;
   private status: TimeRulerStatus = { state: "idle" };
+  private lastViewportStartTime: number;
+  private lastViewportEndTime: number;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -101,15 +75,10 @@ export class TimeRulerViewer implements ITimeRulerViewer {
 
     this.viewport = viewport;
     this.canvas = canvas;
-    const vp = viewport.getViewport();
-    this.config = resolveTimeRulerConfig(
-      {
-        startTime: vp.startTime,
-        endTime: vp.endTime,
-        ...options,
-      },
-      vp.totalDuration,
-    );
+    this.config = resolveTimeRulerConfig(options);
+    const initialViewport = viewport.getViewport();
+    this.lastViewportStartTime = initialViewport.startTime;
+    this.lastViewportEndTime = initialViewport.endTime;
     this.programInstance = resolveTimeRulerProgram(this.config.program);
 
     this.bindViewport();
@@ -130,17 +99,15 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     this.viewportCleanup = [];
 
     const unlistenViewport = this.viewport.on("viewportchange", (e) => {
-      const currentStart = this.config.startTime;
-      const currentEnd = this.config.endTime;
       if (
-        Math.abs(currentStart - e.viewport.startTime) < 1e-6 &&
-        Math.abs(currentEnd - e.viewport.endTime) < 1e-6
+        e.viewport.startTime === this.lastViewportStartTime &&
+        e.viewport.endTime === this.lastViewportEndTime
       ) {
         return;
       }
-      this.config.startTime = e.viewport.startTime;
-      this.config.endTime = e.viewport.endTime;
-      this.events.emit("viewportchange", { viewport: this.getViewport() });
+      this.lastViewportStartTime = e.viewport.startTime;
+      this.lastViewportEndTime = e.viewport.endTime;
+      this.events.emit("viewportchange", { viewport: e.viewport });
       this.requestRender();
     });
 
@@ -176,9 +143,8 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   updateConfig(input: Partial<TimeRulerOptions>): void {
-    const duration = this.viewport.getViewport().totalDuration;
     const baseConfig = { ...this.config, ...input };
-    this.config = resolveTimeRulerConfig(baseConfig, duration);
+    this.config = resolveTimeRulerConfig(baseConfig);
     this.programInstance = resolveTimeRulerProgram(this.config.program);
 
     this.events.emit("configchange", { config: this.getConfig() });
@@ -192,16 +158,15 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   canvasToTime(x: number): number {
     const width = this.canvas.width || 1;
     const norm = Math.max(0, Math.min(1, x / width));
-    return (
-      this.config.startTime +
-      norm * (this.config.endTime - this.config.startTime)
-    );
+    const viewport = this.getViewport();
+    return viewport.startTime + norm * (viewport.endTime - viewport.startTime);
   }
 
   timeToCanvas(time: number): number {
-    const span = Math.max(1e-6, this.config.endTime - this.config.startTime);
+    const viewport = this.getViewport();
+    const span = Math.max(1e-6, viewport.endTime - viewport.startTime);
     const width = this.canvas.width || 1;
-    const norm = (time - this.config.startTime) / span;
+    const norm = (time - viewport.startTime) / span;
     return norm * width;
   }
 
