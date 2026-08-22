@@ -3,7 +3,7 @@ import react from '@astrojs/react';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import starlightLinksValidator from 'starlight-links-validator';
-import starlightThemeFlexoki from 'starlight-theme-flexoki';
+import starlightThemeRapide from 'starlight-theme-rapide'
 import { createStarlightTypeDocPlugin } from 'starlight-typedoc';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -128,7 +128,7 @@ export default defineConfig({
 			description:
 				'High-performance WebGL2 & WASM audio spectrogram visualization ecosystem.',
 			plugins: [
-				starlightThemeFlexoki(),
+        starlightThemeRapide(),
 				starlightLinksValidator(),
 				coreTypeDoc({
 					entryPoints: ['../packages/core/src/index.ts'],

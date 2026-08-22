@@ -162,7 +162,6 @@
       let tilesDirty = true;
       let lastTileSummary = "tiles: none yet";
       let lastPaintSummary = "paint passes: none yet";
-      let lastPlaybackSummary = "playback fps: none yet";
       let cleanupPlayhead;
       let cleanupNavigation;
       let cleanupAudioPause;
@@ -185,6 +184,8 @@
         if (!spectrogram) return;
         const viewport = spectrogram.getViewport();
         const duration = scope.getDuration();
+        const cacheStats = spectrogram.getCacheStats();
+
         if (tilesDirty) {
           const tiles = assignTileLanes(spectrogram.getTileStates());
           minimap.style.height = `${Math.max(2, tiles.laneCount * 0.85)}rem`;
@@ -198,7 +199,7 @@
         }
         viewportElement.style.left = `${(viewport.startTime / duration) * 100}%`;
         viewportElement.style.width = `${((viewport.endTime - viewport.startTime) / duration) * 100}%`;
-        status.textContent = `renderer: ${spectrogram.getRendererKind()}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\n${lastPlaybackSummary}`;
+        status.textContent = `renderer: ${spectrogram.getRendererKind()}\n${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s\n${lastTileSummary}\n${lastPaintSummary}\nbytes: ${cacheStats.bytes / 1e6} MB`;
       }
 
       function assignTileLanes(tiles) {
@@ -290,10 +291,6 @@
           scheduleMinimapUpdate();
         });
         spectrogram.on("viewportchange", scheduleMinimapUpdate);
-        spectrogram.on("playbackprofile", (stats) => {
-          lastPlaybackSummary = `playback fps: ${stats.fps.toFixed(1)} avg frame ${stats.averageFrameMs.toFixed(1)}ms max ${stats.maxFrameMs.toFixed(1)}ms avg work ${(stats.averageWorkMs ?? 0).toFixed(1)}ms max work ${(stats.maxWorkMs ?? 0).toFixed(1)}ms`;
-          if (audio.paused) scheduleMinimapUpdate();
-        });
         cleanupNavigation = scope.attachNavigation(canvas, {
           onNavigate: scheduleMinimapUpdate,
         });

@@ -17,25 +17,34 @@ import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
 import { createWaveformRenderer } from "./renderers/renderer-factory";
 
+const DEFAULT_CONFIG: ResolvedWaveformConfig = {
+  autoRender: true,
+  channel: 0,
+  color: "#000000",
+  backgroundColor: "transparent",
+  amplitudeScale: 1,
+  renderer: "canvas2d",
+};
+
 function resolveWaveformConfig(
   source: AudioSource,
   input: Partial<WaveformOptions> = {},
 ): ResolvedWaveformConfig {
   if (!source) throw new Error("WaveformViewer requires a source");
 
-  let color = input.color ?? "#000000";
+  let color = input.color ?? DEFAULT_CONFIG.color;
   if (input.colorMap) {
     color = colorMapToRgb(input.colorMap, 255);
   }
 
   return {
-    autoRender: input.autoRender ?? true,
-    channel: input.channel ?? 0,
+    autoRender: input.autoRender ?? DEFAULT_CONFIG.autoRender,
+    channel: input.channel ?? DEFAULT_CONFIG.channel,
     color,
-    backgroundColor: input.backgroundColor ?? "transparent",
-    amplitudeScale: input.amplitudeScale ?? 1,
+    backgroundColor: input.backgroundColor ?? DEFAULT_CONFIG.backgroundColor,
+    amplitudeScale: input.amplitudeScale ?? DEFAULT_CONFIG.amplitudeScale,
     colorMap: input.colorMap,
-    renderer: input.renderer ?? "canvas2d",
+    renderer: input.renderer ?? DEFAULT_CONFIG.renderer,
   };
 }
 
