@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clipped audio source demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 1.5rem;
+        background: #0b0f17;
+        color: #f1f5f9;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      a {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #38bdf8;
+      }
+      h1 {
+        margin: 0.75rem 0 0.25rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p.subtitle {
+        margin: 0 0 1.5rem;
+        color: #94a3b8;
+        font-size: 0.875rem;
+        max-width: 680px;
+        line-height: 1.5;
+      }
+      .controls {
+        background: #131b2e;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        max-width: 960px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .presets-label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #94a3b8;
+        margin-right: 0.25rem;
+      }
+      button {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      button:hover {
+        background: #334155;
+        border-color: #475569;
+      }
+      button.active {
+        background: #0284c7;
+        border-color: #38bdf8;
+        color: #ffffff;
+      }
+      .custom-bounds {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        font-size: 0.8125rem;
+        color: #cbd5e1;
+      }
+      .custom-bounds label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      input[type="number"] {
+        background: #0b0f17;
+        color: #f1f5f9;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        width: 70px;
+        font-size: 0.8125rem;
+      }
+      .stage {
+        position: relative;
+        max-width: 960px;
+        border: 1px solid #1e293b;
+        border-radius: 4px;
+        overflow: hidden;
+        background: #070a10;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 320px;
+      }
+      audio {
+        width: 100%;
+        max-width: 960px;
+        margin-top: 1rem;
+      }
+      .status-bar {
+        max-width: 960px;
+        margin-top: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #64748b;
+        font-family: ui-monospace, monospace;
+      }
+      .hint {
+        margin-top: 1.25rem;
+        font-size: 0.8125rem;
+        color: #64748b;
+        max-width: 960px;
+        line-height: 1.5;
+      }
+      .hint strong {
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="./index.html">← Back to demos</a>
+    <h1>Clipped Audio Source & Dynamic Bounds</h1>
+    <p class="subtitle">
+      Enforce audio clip limits at the source and playback level with <code>clipStart</code> and <code>clipEnd</code>.
+      Visualization and audio playback stay strictly bounded within the clip. Change clips dynamically with <code>scope.setClipBounds()</code> without reloading the source.
+    </p>
+
+    <div class="controls">
+      <div class="presets">
+        <span class="presets-label">Clip Presets:</span>
+        <button type="button" data-start="0" data-end="20" class="active">Full Recording (0s – 20s)</button>
+        <button type="button" data-start="2" data-end="6">Phrase 1 (2s – 6s)</button>
+        <button type="button" data-start="6.5" data-end="11.5">Phrase 2 (6.5s – 11.5s)</button>
+        <button type="button" data-start="12" data-end="17">Phrase 3 (12s – 17s)</button>
+      </div>
+      <div class="custom-bounds">
+        <label>
+          Start (s):
+          <input type="number" id="input-start" min="0" max="20" step="0.5" value="0" />
+        </label>
+        <label>
+          End (s):
+          <input type="number" id="input-end" min="0" max="20" step="0.5" value="20" />
+        </label>
+        <button type="button" id="apply-bounds">Apply Clip</button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <canvas id="spectrogram-canvas"></canvas>
+    </div>
+
+    <audio id="audio" controls crossorigin="anonymous"></audio>
+
+    <div class="status-bar">
+      <span id="clip-status">Clip: [0.00s, 20.00s]</span>
+      <span id="playback-status">Playhead: 0.00s</span>
+    </div>
+
+    <p class="hint">
+      <strong>Source-Level Protection:</strong> STFT computation and audio playback are restricted to the active clip.<br />
+      <strong>Playback Enforced:</strong> Audio automatically starts at <code>clipStart</code>, pauses at <code>clipEnd</code>, and seeks outside the clip are clamped.
+    </p>
+
+    <script type="module">
+      import { Sonoscope } from "@sonoscope/core";
+
+      const audioUrl = "https://xeno-canto.org/930425/download";
+      const audio = document.getElementById("audio");
+      const canvas = document.getElementById("spectrogram-canvas");
+      const clipStatusEl = document.getElementById("clip-status");
+      const playbackStatusEl = document.getElementById("playback-status");
+      const inputStart = document.getElementById("input-start");
+      const inputEnd = document.getElementById("input-end");
+      const applyBtn = document.getElementById("apply-bounds");
+      const presetButtons = document.querySelectorAll(".presets button");
+
+      audio.src = audioUrl;
+
+      // 1. Initialise Sonoscope with clipStart & clipEnd
+      const scope = await Sonoscope.fromUrl(audioUrl, {
+        audio,
+        clipStart: 0,
+        clipEnd: 20,
+      });
+
+      const spectrogram = scope.createSpectrogram(canvas, {
+        colorMap: "viridis",
+        minValue: -100,
+        maxValue: -20,
+        frequencyScale: "mel",
+      });
+
+      scope.attachNavigation(canvas);
+      spectrogram.requestRender();
+
+      function updateStatus() {
+        const bounds = scope.getClipBounds();
+        const start = bounds.clipStart?.toFixed(2) ?? "0.00";
+        const end = bounds.clipEnd?.toFixed(2) ?? scope.getDuration().toFixed(2);
+        clipStatusEl.textContent = `Clip: [${start}s, ${end}s] · Viewport: [${scope.getViewport().startTime.toFixed(2)}s, ${scope.getViewport().endTime.toFixed(2)}s]`;
+        playbackStatusEl.textContent = `Playhead: ${scope.getCurrentTime().toFixed(2)}s`;
+      }
+
+      scope.on("clipchange", updateStatus);
+      scope.on("viewportchange", updateStatus);
+      scope.on("timeupdate", (e) => {
+        playbackStatusEl.textContent = `Playhead: ${e.currentTime.toFixed(2)}s`;
+      });
+
+      function applyClip(start, end) {
+        scope.setClipBounds({ clipStart: start, clipEnd: end });
+        inputStart.value = start;
+        inputEnd.value = end;
+
+        presetButtons.forEach((btn) => {
+          const bStart = parseFloat(btn.getAttribute("data-start"));
+          const bEnd = parseFloat(btn.getAttribute("data-end"));
+          if (bStart === start && bEnd === end) {
+            btn.classList.add("active");
+          } else {
+            btn.classList.remove("active");
+          }
+        });
+      }
+
+      presetButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const start = parseFloat(btn.getAttribute("data-start"));
+          const end = parseFloat(btn.getAttribute("data-end"));
+          applyClip(start, end);
+        });
+      });
+
+      applyBtn.addEventListener("click", () => {
+        const start = parseFloat(inputStart.value) || 0;
+        const end = parseFloat(inputEnd.value) || scope.getDuration();
+        applyClip(start, end);
+      });
+
+      updateStatus();
+    </script>
+  </body>
+</html>

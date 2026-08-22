@@ -17,6 +17,7 @@ import type { WaveformConfig } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
 import { ArrayAudioSource } from "./sources/array-source";
+import { ClippedAudioSource } from "./sources/clipped-source";
 import {
   createAudioSourceFromBlob,
   createAudioSourceFromBuffer,
@@ -46,7 +47,7 @@ function safeRequestAnimationFrame(callback: () => void): number {
   if (typeof requestAnimationFrame !== "undefined") {
     return requestAnimationFrame(callback);
   }
-  return setTimeout(callback, 16) as unknown as number;
+  return setTimeout(callback, 1000 / 60) as unknown as number;
 }
 
 function safeCancelAnimationFrame(id: number): void {
@@ -60,6 +61,8 @@ function safeCancelAnimationFrame(id: number): void {
 export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private _viewport: IViewportController;
+  private _clipStart: number | undefined;
+  private _clipEnd: number | undefined;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
@@ -84,6 +87,21 @@ export class Sonoscope implements ISonoscope {
       : (options as SonoscopeOptions);
 
     this._source = opts.source;
+
+    if (opts.clipStart !== undefined || opts.clipEnd !== undefined) {
+      this._clipStart = opts.clipStart;
+      this._clipEnd = opts.clipEnd;
+      if (!(this._source instanceof ClippedAudioSource)) {
+        this._source = new ClippedAudioSource(this._source, {
+          clipStart: opts.clipStart,
+          clipEnd: opts.clipEnd,
+        });
+      }
+    } else if (this._source instanceof ClippedAudioSource) {
+      this._clipStart = this._source.clipStart;
+      this._clipEnd = this._source.clipEnd;
+    }
+
     this.totalDuration = Math.max(0.01, this._source.duration);
     this.minDuration = Math.max(0.001, opts.minDuration ?? 0.05);
     this.maxDuration = Math.max(
@@ -93,6 +111,9 @@ export class Sonoscope implements ISonoscope {
     this.followPlayback = opts.followPlayback ?? "page";
     this.smoothAnchor = Math.max(0, Math.min(1, opts.smoothAnchor ?? 0.5));
 
+    const initialClipStart = this._clipStart ?? 0;
+    const initialClipEnd = this._clipEnd ?? this.totalDuration;
+
     if (opts.viewport) {
       this._viewport = opts.viewport;
     } else {
@@ -100,14 +121,23 @@ export class Sonoscope implements ISonoscope {
       const minFrequency = opts.minFrequency ?? 0;
       const maxFrequency = opts.maxFrequency ?? nyquist;
 
+      const initialStartTime = Math.max(
+        initialClipStart,
+        opts.startTime ?? initialClipStart,
+      );
+      const initialEndTime = Math.min(
+        initialClipEnd,
+        opts.endTime ?? Math.min(initialStartTime + 10, initialClipEnd),
+      );
+
       this._viewport = new ViewportController({
         totalDuration: this.totalDuration,
         minDuration: this.minDuration,
         maxDuration: this.maxDuration,
         minFrequency,
         maxFrequency,
-        startTime: opts.startTime ?? 0,
-        endTime: opts.endTime ?? Math.min(10, this.totalDuration),
+        startTime: initialStartTime,
+        endTime: Math.max(initialStartTime + this.minDuration, initialEndTime),
       });
     }
 
@@ -398,6 +428,94 @@ export class Sonoscope implements ISonoscope {
     }
   }
 
+  getClipBounds(): {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  } {
+    return { clipStart: this._clipStart, clipEnd: this._clipEnd };
+  }
+
+  setClipBounds(bounds: {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  }): void {
+    const total = this._source.duration;
+    const newStart =
+      bounds.clipStart !== undefined
+        ? Math.max(0, bounds.clipStart)
+        : this._clipStart;
+    const newEnd =
+      bounds.clipEnd !== undefined
+        ? Math.min(total, bounds.clipEnd)
+        : this._clipEnd;
+
+    this._clipStart = newStart;
+    this._clipEnd = newEnd;
+
+    if (this._source instanceof ClippedAudioSource) {
+      this._source.setClipBounds({
+        clipStart: newStart,
+        clipEnd: newEnd,
+      });
+    }
+
+    if (newStart !== undefined || newEnd !== undefined) {
+      const clipMin = newStart ?? 0;
+      const clipMax = newEnd ?? total;
+      const currentVp = this._viewport.getViewport();
+      const clampedStart = Math.max(
+        clipMin,
+        Math.min(clipMax - currentVp.duration, currentVp.startTime),
+      );
+      const clampedEnd = Math.min(clipMax, clampedStart + currentVp.duration);
+
+      this._viewport.setViewport(
+        {
+          startTime: clampedStart,
+          endTime: clampedEnd,
+        },
+        "clipchange",
+      );
+    }
+
+    if (this.audioElement) {
+      this.enforceClipPlayback(this.audioElement.currentTime);
+    }
+
+    this.events.emit("clipchange", {
+      clipStart: this._clipStart,
+      clipEnd: this._clipEnd,
+    });
+  }
+
+  private enforceClipPlayback(currentTime: number): number {
+    let targetTime = currentTime;
+    if (this._clipStart !== undefined && targetTime < this._clipStart) {
+      targetTime = this._clipStart;
+      if (
+        this.audioElement &&
+        Math.abs(this.audioElement.currentTime - targetTime) > 0.05
+      ) {
+        this.audioElement.currentTime = targetTime;
+      }
+    }
+    if (this._clipEnd !== undefined && targetTime >= this._clipEnd) {
+      targetTime = this._clipEnd;
+      if (this.audioElement) {
+        if (Math.abs(this.audioElement.currentTime - targetTime) > 0.05) {
+          this.audioElement.currentTime = targetTime;
+        }
+        if (
+          !this.audioElement.paused &&
+          typeof this.audioElement.pause === "function"
+        ) {
+          this.audioElement.pause();
+        }
+      }
+    }
+    return targetTime;
+  }
+
   getAudio(): HTMLAudioElement | undefined {
     return this.audioElement;
   }
@@ -446,7 +564,8 @@ export class Sonoscope implements ISonoscope {
         this.stopPlaybackLoop();
         return;
       }
-      const currentTime = this.getCurrentTime();
+      const rawTime = this.getCurrentTime();
+      const currentTime = this.enforceClipPlayback(rawTime);
       this.events.emit("timeupdate", { currentTime });
       this.checkPlaybackFollow(currentTime);
       this.animationFrame = safeRequestAnimationFrame(tick);
@@ -465,16 +584,23 @@ export class Sonoscope implements ISonoscope {
     this.detachAudio();
     this.audioElement = audio;
 
+    if (this._clipStart !== undefined && audio.currentTime < this._clipStart) {
+      audio.currentTime = this._clipStart;
+    }
+
     const onTimeUpdate = () => {
-      this.events.emit("timeupdate", { currentTime: audio.currentTime });
-      this.checkPlaybackFollow(audio.currentTime);
+      const currentTime = this.enforceClipPlayback(audio.currentTime);
+      this.events.emit("timeupdate", { currentTime });
+      this.checkPlaybackFollow(currentTime);
     };
     const onPlay = () => {
+      this.enforceClipPlayback(audio.currentTime);
       this.startPlaybackLoop();
     };
     const onPause = () => {
       this.stopPlaybackLoop();
-      this.events.emit("timeupdate", { currentTime: audio.currentTime });
+      const currentTime = this.enforceClipPlayback(audio.currentTime);
+      this.events.emit("timeupdate", { currentTime });
     };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
@@ -498,8 +624,9 @@ export class Sonoscope implements ISonoscope {
     });
 
     this.events.emit("audiochange", { audio });
-    this.events.emit("timeupdate", { currentTime: audio.currentTime });
-    this.checkPlaybackFollow(audio.currentTime);
+    const initialTime = this.enforceClipPlayback(audio.currentTime);
+    this.events.emit("timeupdate", { currentTime: initialTime });
+    this.checkPlaybackFollow(initialTime);
 
     if (!audio.paused && !audio.ended) {
       this.startPlaybackLoop();
@@ -524,7 +651,9 @@ export class Sonoscope implements ISonoscope {
   }
 
   seek(time: number): void {
-    const clamped = Math.max(0, Math.min(this.getDuration(), time));
+    const minBound = this._clipStart ?? 0;
+    const maxBound = this._clipEnd ?? this.getDuration();
+    const clamped = Math.max(minBound, Math.min(maxBound, time));
     if (this.audioElement) {
       this.audioElement.currentTime = clamped;
     }

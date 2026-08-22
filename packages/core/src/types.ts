@@ -180,6 +180,8 @@ export type SonoscopeOptions = {
   source: AudioSource;
   audio?: HTMLAudioElement | undefined;
   viewport?: IViewportController | undefined;
+  clipStart?: number | undefined;
+  clipEnd?: number | undefined;
   startTime?: number | undefined;
   endTime?: number | undefined;
   minFrequency?: number | undefined;
@@ -199,6 +201,10 @@ export type SonoscopeEvents = {
   timeupdate: { currentTime: number };
   sourcechange: { source: AudioSource };
   audiochange: { audio: HTMLAudioElement | undefined };
+  clipchange: {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  };
   destroy: undefined;
 };
 
@@ -234,6 +240,15 @@ export interface ISonoscope {
   getNyquist(): number;
   getFollowPlayback(): FollowPlaybackMode;
   setFollowPlayback(mode: FollowPlaybackMode): void;
+
+  setClipBounds(bounds: {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  }): void;
+  getClipBounds(): {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  };
 
   getCurrentTime(): number;
   isPlaying(): boolean;

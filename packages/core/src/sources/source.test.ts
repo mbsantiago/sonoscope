@@ -1,3 +1,4 @@
+import type { ClippedAudioSource } from "./clipped-source";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createAudioSourceFromBlob,
@@ -311,5 +312,25 @@ describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {
     const source = await createAudioSourceFromBlob(blob);
     expect(source.id).toBe("decoded-blob");
     expect(decoded).toHaveBeenCalledTimes(1);
+  });
+
+  it("wraps created source in ClippedAudioSource when clipStart or clipEnd are provided", async () => {
+    vi.spyOn(StreamingWavSource, "fromByteSource").mockResolvedValue({
+      id: "streaming-wav-raw",
+      sampleRate: 44100,
+      duration: 30,
+      channelCount: 1,
+      read: () => new Float32Array(0),
+    } as unknown as StreamingWavSource);
+
+    const buffer = wavHeader(44100);
+    const source = (await createAudioSourceFromBuffer(buffer, {
+      clipStart: 5,
+      clipEnd: 15,
+    })) as ClippedAudioSource;
+
+    expect(source.id).toContain("clipped:streaming-wav-raw:5:15");
+    expect(source.clipStart).toBe(5);
+    expect(source.clipEnd).toBe(15);
   });
 });
