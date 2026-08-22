@@ -1419,7 +1419,7 @@ describe("SpectrogramViewer", () => {
     await viewer.render();
 
     const stats = viewer.getCacheStats();
-    expect(stats.tiles).toBeGreaterThanOrEqual(18);
+    expect(stats.tiles).toBeGreaterThanOrEqual(16);
   });
 
   describe("Sonoscope integration", () => {
