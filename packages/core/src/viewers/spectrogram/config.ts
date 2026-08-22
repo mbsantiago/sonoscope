@@ -95,14 +95,17 @@ export function resolveConfig(
   const valueGamma = input.valueGamma ?? 1;
   const clampValues = input.clampValues ?? true;
 
-  const showPlayhead = input.showPlayhead ?? true;
+  const tileMaxCells = input.tileMaxCells ?? 524_288;
+  if (tileMaxCells <= 0)
+    throw new Error("tileMaxCells must be greater than zero");
 
-  const tileDuration = input.tileDuration ?? 5;
-  if (tileDuration <= 0)
-    throw new Error("tileDuration must be greater than zero");
+  const binCount = Math.max(1, Math.floor(fftSize / 2));
+  const framesPerTile = Math.max(1, Math.floor(tileMaxCells / binCount));
+  const tileDuration =
+    (framesPerTile * hopSize) / Math.max(1, source.sampleRate);
 
   const minimumTilesForMaxViewport =
-    Math.ceil(maxViewportDuration / tileDuration) + 2;
+    Math.ceil(maxViewportDuration / Math.max(0.0001, tileDuration)) + 2;
   const prefetchTiles =
     input.prefetchTiles ?? Math.max(8, minimumTilesForMaxViewport);
   if (prefetchTiles < 0)
@@ -141,11 +144,8 @@ export function resolveConfig(
     valueGamma,
     clampValues,
 
-    // Playback Display
-    showPlayhead,
-
     // Cache
-    tileDuration,
+    tileMaxCells,
     maxCachedTiles,
     prefetchTiles,
 

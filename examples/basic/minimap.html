@@ -274,7 +274,7 @@
             followPlayback: "page",
           });
           spectrogram = scope.createSpectrogram(canvas, {
-            tileDuration: 1,
+            tileMaxCells: 131_072,
             maxCachedTiles: 96,
             prefetchTiles: 8,
             renderer: "auto",

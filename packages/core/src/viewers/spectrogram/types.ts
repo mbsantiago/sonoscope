@@ -375,21 +375,13 @@ export type SpectrogramConfig = {
    */
   clampValues?: boolean | undefined;
 
-  // Playback Display
-
-  /**
-   * Whether to draw an animated playhead indicator overlay during playback.
-   * @default true
-   */
-  showPlayhead?: boolean | undefined;
-
   // Cache
 
   /**
-   * Duration in seconds of each cached STFT computation tile.
-   * @default 5
+   * Maximum 2D STFT matrix cells (frameCount * binCount) budgeted per computation tile.
+   * @default 524_288
    */
-  tileDuration?: number | undefined;
+  tileMaxCells?: number | undefined;
 
   /**
    * Maximum number of computed STFT tiles retained in memory cache.
@@ -460,11 +452,8 @@ export type ResolvedSpectrogramConfig = {
   valueGamma: number;
   clampValues: boolean;
 
-  // Playback Display
-  showPlayhead: boolean;
-
   // Cache
-  tileDuration: number;
+  tileMaxCells: number;
   maxCachedTiles: number;
   prefetchTiles: number;
 

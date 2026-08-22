@@ -164,9 +164,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
   setPlayheadTime(time: number | undefined): void {
     this.playheadTime = time;
-    if (this.config.showPlayhead) {
-      this.requestRender();
-    }
+    this.requestRender();
   }
 
   setConfig(input: Partial<SpectrogramOptions>): void {
@@ -391,7 +389,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       colorMap: this.config.colorMap,
       tiles: matrices,
       placeholders,
-      ...(this.config.showPlayhead && this.playheadTime !== undefined
+      ...(this.playheadTime !== undefined
         ? { playheadTime: this.playheadTime }
         : {}),
       ...webglProgramRenderInput(this.config.renderer),
@@ -628,11 +626,15 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     return this.status.state === "destroyed";
   }
 
+  private get framesPerTile(): number {
+    const binCount = Math.max(1, Math.floor(this.config.fftSize / 2));
+    return Math.max(1, Math.floor(this.config.tileMaxCells / binCount));
+  }
+
   private get effectiveTileDuration(): number {
-    const maxFrames = 2048;
-    const maxDurationForSampleRate =
-      (maxFrames * this.config.hopSize) / Math.max(1, this.source.sampleRate);
-    return Math.min(this.config.tileDuration, maxDurationForSampleRate);
+    const sampleRate = this.source.sampleRate || 44100;
+    const hopSize = this.config.hopSize || 512;
+    return (this.framesPerTile * hopSize) / sampleRate;
   }
 
   private prefetchAroundViewport(
@@ -681,17 +683,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         },
       );
     }
-  }
-
-  private get framesPerTile(): number {
-    const sampleRate = this.source.sampleRate || 44100;
-    const hopSize = this.config.hopSize || 512;
-    const nominalDuration = this.effectiveTileDuration;
-    const nominalFrames = Math.max(
-      1,
-      Math.round((nominalDuration * sampleRate) / hopSize),
-    );
-    return Math.min(4096, nominalFrames);
   }
 
   private visibleTileRanges(): Array<{
@@ -907,7 +898,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       fftSize: this.config.fftSize,
       hopSize: this.config.hopSize,
       window: this.config.window,
-      tileDuration: this.effectiveTileDuration,
+      tileMaxCells: this.config.tileMaxCells,
       transforms: this.config.transforms.map((transform) => ({
         name: transform.name,
         version: transform.version,
