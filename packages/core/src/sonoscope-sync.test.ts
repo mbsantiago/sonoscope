@@ -685,10 +685,6 @@ describe("Sonoscope Multi-Viewer Synchronization", () => {
         createMockCanvas(),
         scope.viewport,
         scope.source,
-        {
-          minFrequency: 0,
-          maxFrequency: 24000,
-        },
       );
       const waveform = new WaveformViewer(
         createMockCanvas(),

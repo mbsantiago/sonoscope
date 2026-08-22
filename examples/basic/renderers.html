@@ -163,14 +163,14 @@
           scope = Sonoscope.fromSource(source, {
             startTime: 0,
             endTime: 8,
+            minFrequency: frequencyScale.value === "log" ? 20 : 0,
+            maxFrequency: 8_000,
           });
 
           viewer = scope.createSpectrogram(canvas, {
             renderer: rendererMode.value,
             backend,
             tileMaxCells: 2 ** 17,
-            minFrequency: frequencyScale.value === "log" ? 20 : 0,
-            maxFrequency: 8_000,
             frequencyScale: frequencyScale.value,
             valueMode: "magnitude",
             minDb: -80,

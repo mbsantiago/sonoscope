@@ -338,6 +338,7 @@
         const scale = scaleSelect.value;
         const minFreq = scale === "log" ? 20 : 0;
         const maxFreq = Math.floor(scope.getSampleRate() / 2);
+        scope.setViewport({ minFrequency: minFreq, maxFrequency: maxFreq });
 
         topRuler = scope.createTimeRuler(canvasTopRuler, {
           program: "ticks",
@@ -358,8 +359,6 @@
 
         spectrogram = scope.createSpectrogram(canvasSpectrogram, {
           frequencyScale: scale,
-          minFrequency: minFreq,
-          maxFrequency: maxFreq,
           valueMode: "db",
           minDb: -80,
           maxDb: -5,

@@ -75,28 +75,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       throw new Error("SpectrogramViewer requires an AudioSource");
     }
 
-    const vp = viewport.getViewport();
-    const resolvedConfig = resolveConfig(source, {
-      minFrequency: vp.minFrequency,
-      maxFrequency: vp.maxFrequency,
-      frequencyScale: options?.frequencyScale ?? "linear",
-      ...options,
-      startTime: vp.startTime,
-      endTime: vp.endTime,
-    });
-
-    if (
-      options?.minFrequency !== undefined ||
-      options?.maxFrequency !== undefined
-    ) {
-      viewport.setViewport(
-        {
-          minFrequency: resolvedConfig.minFrequency,
-          maxFrequency: resolvedConfig.maxFrequency,
-        },
-        "spectrogram",
-      );
-    }
+    const resolvedConfig = resolveConfig(source, options);
 
     const backend = isSpectrogramComputeBackend(options?.backend)
       ? options.backend
@@ -204,12 +183,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   }
 
   getViewport(): ViewportConfig {
-    const vp = this.viewport.getViewport();
+    const viewport = this.viewport.getViewport();
     return {
-      startTime: vp.startTime,
-      endTime: vp.endTime,
-      minFrequency: this.config.minFrequency,
-      maxFrequency: this.config.maxFrequency,
+      startTime: viewport.startTime,
+      endTime: viewport.endTime,
+      minFrequency: viewport.minFrequency,
+      maxFrequency: viewport.maxFrequency,
     };
   }
 
@@ -518,12 +497,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   setSource(source: AudioSource): void {
     if (this.source === source) return;
     this.source = source;
-    const nyquist = Math.max(100, Math.floor(source.sampleRate / 2));
-    const vp = this.viewport.getViewport();
-    this.config.minFrequency = vp.minFrequency;
-    this.config.maxFrequency = Math.min(vp.maxFrequency, nyquist);
-    this.config.startTime = vp.startTime;
-    this.config.endTime = vp.endTime;
     this.pendingTiles.clear();
     this.attachSourceRangeSync();
     this.renderGeneration += 1;
@@ -553,35 +526,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.viewportCleanup = [];
 
     const unlistenViewport = this.viewport.on("viewportchange", (e) => {
-      let changed = false;
-      const currentStart = this.config.startTime;
-      const currentEnd = this.config.endTime;
-      if (
-        Math.abs(currentStart - e.viewport.startTime) >= 1e-6 ||
-        Math.abs(currentEnd - e.viewport.endTime) >= 1e-6
-      ) {
-        this.config.startTime = e.viewport.startTime;
-        this.config.endTime = e.viewport.endTime;
-        changed = true;
-      }
-      if (
-        e.viewport.minFrequency !== undefined &&
-        Math.abs(this.config.minFrequency - e.viewport.minFrequency) >= 1e-6
-      ) {
-        this.config.minFrequency = e.viewport.minFrequency;
-        changed = true;
-      }
-      if (
-        e.viewport.maxFrequency !== undefined &&
-        Math.abs(this.config.maxFrequency - e.viewport.maxFrequency) >= 1e-6
-      ) {
-        this.config.maxFrequency = e.viewport.maxFrequency;
-        changed = true;
-      }
-      if (!changed) return;
-
       this.renderGeneration += 1;
-      this.events.emit("viewportchange", { viewport: this.getViewport() });
+      this.events.emit("viewportchange", { viewport: e.viewport });
       this.requestRender();
     });
 
@@ -600,7 +546,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   }
 
   private rangeIntersectsViewport(startTime: number, endTime: number): boolean {
-    return startTime < this.config.endTime && endTime > this.config.startTime;
+    const viewport = this.viewport.getViewport();
+    return startTime < viewport.endTime && endTime > viewport.startTime;
   }
 
   private async renderRequested(): Promise<void> {
@@ -642,16 +589,17 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     seconds = this.effectiveTileDuration * this.config.prefetchTiles,
   ): void {
     if (this.config.prefetchTiles <= 0) return;
+    const viewport = this.viewport.getViewport();
     const before =
       direction === "forward"
         ? []
         : this.tileRangesForTimeRange(
-            Math.max(0, this.config.startTime - seconds),
-            this.config.startTime,
+            Math.max(0, viewport.startTime - seconds),
+            viewport.startTime,
           ).reverse();
     const after = this.tileRangesForTimeRange(
-      this.config.endTime,
-      Math.min(this.source.duration, this.config.endTime + seconds),
+      viewport.endTime,
+      Math.min(this.source.duration, viewport.endTime + seconds),
     );
     const candidates =
       direction === "forward"
@@ -690,10 +638,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     timeStart: number;
     timeEnd: number;
   }> {
-    return this.tileRangesForTimeRange(
-      this.config.startTime,
-      this.config.endTime,
-    );
+    const viewport = this.viewport.getViewport();
+    return this.tileRangesForTimeRange(viewport.startTime, viewport.endTime);
   }
 
   private tileRangesForTimeRange(
@@ -835,11 +781,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
           stft,
         });
         if (this.isDestroyed()) return transformed;
+        const viewport = this.viewport.getViewport();
         this.cache.set(
           key,
           transformed,
           (timeStart + timeEnd) / 2,
-          (this.config.startTime + this.config.endTime) / 2,
+          (viewport.startTime + viewport.endTime) / 2,
         );
         const durationMs = performance.now() - tileStartTime;
         this.events.emit("tileload", {

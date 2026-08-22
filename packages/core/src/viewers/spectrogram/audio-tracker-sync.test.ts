@@ -321,12 +321,12 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       source,
       audio,
       followPlayback: "page",
+      startTime: 0,
+      endTime: 10,
     });
 
     const { canvas } = createMockCanvas(800, 200);
     const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
-      startTime: 0,
-      endTime: 10,
       autoRender: false,
     });
 

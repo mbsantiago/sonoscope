@@ -249,6 +249,7 @@ async function render({
 
   const minFreq = frequencyScale === "log" ? 20 : 0;
   const maxFreq = Math.floor(scope.getSampleRate() / 2);
+  scope.setViewport({ minFrequency: minFreq, maxFrequency: maxFreq });
 
   const navCleanups: Array<() => void> = [];
   const playheadOverlays: Array<{ destroy: () => void }> = [];
@@ -297,8 +298,6 @@ async function render({
     windowSize,
     hopSize,
     frequencyScale,
-    minFrequency: minFreq,
-    maxFrequency: maxFreq,
     renderer: { type: "webgl", program },
     colorMap: cmap,
   });
@@ -356,7 +355,7 @@ async function render({
     const nextScale = model.get("frequency_scale");
     const nextMinFreq = nextScale === "log" ? 20 : 0;
     scope.setViewport({ frequencyScale: nextScale, minFrequency: nextMinFreq });
-    spec.updateConfig({ frequencyScale: nextScale, minFrequency: nextMinFreq });
+    spec.updateConfig({ frequencyScale: nextScale });
     freqRuler?.updateConfig({
       frequencyScale: nextScale,
       minFrequency: nextMinFreq,
