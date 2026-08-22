@@ -178,6 +178,12 @@ export {
   readPrefix,
 } from "./sources/byte-source";
 export {
+  type ClipBounds,
+  ClippedAudioSource,
+  type ClippedSourceEvents,
+  clipAudioSource,
+} from "./sources/clipped-source";
+export {
   createAudioSourceFromBlob,
   createAudioSourceFromBuffer,
   createAudioSourceFromUrl,

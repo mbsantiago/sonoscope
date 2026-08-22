@@ -418,8 +418,8 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.2,
       endTime: 0.5,
-      minFrequency: 100,
-      maxFrequency: 400,
+      minFrequency: 0,
+      maxFrequency: 1000,
     });
     expect(
       viewer.getTileStates().every((tile) => tile.state === "uncomputed"),

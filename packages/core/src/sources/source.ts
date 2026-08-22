@@ -6,6 +6,7 @@ import {
   readPrefix,
   type SeekableByteSource,
 } from "./byte-source";
+import { ClippedAudioSource } from "./clipped-source";
 import { isMp3Bytes, parseMp3Info } from "./mp3";
 import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
@@ -18,6 +19,8 @@ export type AudioSourceOptions =
       sampleRate?: number | undefined;
       preferStreaming?: boolean | undefined;
       preferDecoded?: boolean | undefined;
+      clipStart?: number | undefined;
+      clipEnd?: number | undefined;
     }
   | undefined;
 
@@ -142,7 +145,8 @@ async function createAudioSourceFromByteSource(
     );
 
   if (isDecodedPreferred && fallbackDecode) {
-    return fallbackDecode();
+    const raw = await fallbackDecode();
+    return wrapClippedIfNeeded(raw, options);
   }
 
   const prefix = await readPrefix(byteSource, 64);
@@ -150,9 +154,13 @@ async function createAudioSourceFromByteSource(
   if (isWavBytes(prefix)) {
     try {
       const wavOpts = sourceId !== undefined ? { id: sourceId } : undefined;
-      return await StreamingWavSource.fromByteSource(byteSource, wavOpts);
+      const raw = await StreamingWavSource.fromByteSource(byteSource, wavOpts);
+      return wrapClippedIfNeeded(raw, options);
     } catch {
-      if (fallbackDecode) return fallbackDecode();
+      if (fallbackDecode) {
+        const raw = await fallbackDecode();
+        return wrapClippedIfNeeded(raw, options);
+      }
     }
   }
 
@@ -160,19 +168,48 @@ async function createAudioSourceFromByteSource(
     if (await StreamingMp3Source.isSupported()) {
       try {
         const mp3Opts = sourceId !== undefined ? { id: sourceId } : undefined;
-        return await StreamingMp3Source.fromByteSource(byteSource, mp3Opts);
+        const raw = await StreamingMp3Source.fromByteSource(
+          byteSource,
+          mp3Opts,
+        );
+        return wrapClippedIfNeeded(raw, options);
       } catch {
-        if (fallbackDecode) return fallbackDecode();
+        if (fallbackDecode) {
+          const raw = await fallbackDecode();
+          return wrapClippedIfNeeded(raw, options);
+        }
       }
     }
-    if (fallbackDecode) return fallbackDecode();
+    if (fallbackDecode) {
+      const raw = await fallbackDecode();
+      return wrapClippedIfNeeded(raw, options);
+    }
   }
 
   if (fallbackDecode) {
-    return fallbackDecode();
+    const raw = await fallbackDecode();
+    return wrapClippedIfNeeded(raw, options);
   }
 
   throw new Error("Unsupported audio byte source and no fallback provided");
+}
+
+export function wrapClippedIfNeeded(
+  source: AudioSource,
+  options?: AudioSourceOptions,
+): AudioSource {
+  if (
+    options &&
+    typeof options === "object" &&
+    ("clipStart" in options || "clipEnd" in options) &&
+    (options.clipStart !== undefined || options.clipEnd !== undefined)
+  ) {
+    return new ClippedAudioSource(source, {
+      clipStart: options.clipStart,
+      clipEnd: options.clipEnd,
+    });
+  }
+  return source;
 }
 
 /**

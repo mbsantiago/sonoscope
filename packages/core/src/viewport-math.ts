@@ -4,15 +4,17 @@ export function clampViewportTimes(
   sourceDuration: number,
   minDuration: number,
   maxDuration: number,
+  minTime = 0,
 ): { startTime: number; endTime: number } {
+  const span = Math.max(0.0001, sourceDuration - minTime);
   const duration = Math.min(
     Math.max(endTime - startTime, minDuration),
     maxDuration,
-    sourceDuration,
+    span,
   );
   const clampedStart = Math.min(
-    Math.max(0, startTime),
-    Math.max(0, sourceDuration - duration),
+    Math.max(minTime, startTime),
+    Math.max(minTime, sourceDuration - duration),
   );
   return { startTime: clampedStart, endTime: clampedStart + duration };
 }

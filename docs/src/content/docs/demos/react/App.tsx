@@ -14,7 +14,6 @@ export default function App() {
     <div className="app">
       <SonoscopeProvider
         url={audioUrl}
-        frequencyScale="mel"
         followPlayback="page"
       >
         <div className="viewer-grid">
@@ -30,13 +29,14 @@ export default function App() {
           <div className="freq-ruler-container">
             <FrequencyRuler
               width={56}
+              frequencyScale="mel"
               tickPosition="right"
               color="rgba(128, 128, 128, 0.75)"
               tickColor="rgba(128, 128, 128, 0.35)"
             />
           </div>
           <div className="spectrogram-container">
-            <Spectrogram colorMap="plasma" minValue={-80} maxValue={0} />
+            <Spectrogram colorMap="plasma" frequencyScale="mel" minValue={-80} maxValue={0} />
           </div>
         </div>
         <div className="waveform-container">

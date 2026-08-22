@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shared audio source with independent viewports demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 1.5rem;
+        background: #0b0f17;
+        color: #f1f5f9;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      a {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #38bdf8;
+      }
+      h1 {
+        margin: 0.75rem 0 0.25rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p.subtitle {
+        margin: 0 0 1.5rem;
+        color: #94a3b8;
+        font-size: 0.875rem;
+        max-width: 680px;
+        line-height: 1.5;
+      }
+      .track-info {
+        background: #131b2e;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+        max-width: 1200px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .track-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #e2e8f0;
+      }
+      .track-meta {
+        font-size: 0.8125rem;
+        color: #38bdf8;
+      }
+      .views-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        max-width: 1200px;
+      }
+      @media (max-width: 768px) {
+        .views-container {
+          grid-template-columns: 1fr;
+        }
+      }
+      .view-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .view-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .view-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .view-desc {
+        font-size: 0.75rem;
+        color: #94a3b8;
+      }
+      .canvas-wrap {
+        position: relative;
+        border: 1px solid #1e293b;
+        border-radius: 4px;
+        overflow: hidden;
+        background: #070a10;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 280px;
+      }
+      .view-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75rem;
+        color: #64748b;
+        min-height: 1.5rem;
+      }
+      .status-badge {
+        font-family: ui-monospace, monospace;
+        color: #94a3b8;
+      }
+      button {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      button:hover {
+        background: #334155;
+      }
+      .hint {
+        margin-top: 1.5rem;
+        font-size: 0.8125rem;
+        color: #64748b;
+        max-width: 680px;
+        line-height: 1.5;
+      }
+      .hint strong {
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="./index.html">← Back to demos</a>
+    <h1>Shared Audio Source · Independent Viewports</h1>
+    <p class="subtitle">
+      A single decoded audio file is shared across multiple viewers using <code>scope.fork()</code>.
+      Each viewer has its own independent <code>ViewportController</code>, allowing side-by-side comparison of different moments, frequency scales, and zoom levels without duplicating audio buffers or decoders.
+    </p>
+
+    <div class="track-info">
+      <span class="track-name" id="track-name">Loading audio source…</span>
+      <span class="track-meta" id="track-meta"></span>
+    </div>
+
+    <div class="views-container">
+      <!-- View 1 -->
+      <div class="view-panel">
+        <div class="view-header">
+          <span class="view-label">View 1 · Overview (Linear scale)</span>
+          <span class="view-desc">Viridis colormap</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="canvas-1"></canvas>
+        </div>
+        <div class="view-footer">
+          <span class="status-badge" id="status-1">Initialising…</span>
+          <button type="button" id="reset-1">Reset View 1</button>
+        </div>
+      </div>
+
+      <!-- View 2 -->
+      <div class="view-panel">
+        <div class="view-header">
+          <span class="view-label">View 2 · Detail Phrase (Mel scale)</span>
+          <span class="view-desc">Magma colormap · High contrast</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="canvas-2"></canvas>
+        </div>
+        <div class="view-footer">
+          <span class="status-badge" id="status-2">Initialising…</span>
+          <button type="button" id="reset-2">Reset View 2</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">
+      <strong>Drag / Scroll on View 1:</strong> Only View 1 pans and zooms.<br />
+      <strong>Drag / Scroll on View 2:</strong> Only View 2 pans and zooms.<br />
+      Both views compute STFT tiles on-demand from the single shared <code>AudioSource</code>.
+    </p>
+
+    <script type="module">
+      import { Sonoscope } from "@sonoscope/core";
+
+      const audioUrl = "https://xeno-canto.org/930425/download";
+      const audioTitle = "XC930425 · Common Whitethroat · Curruca communis";
+
+      const trackNameEl = document.getElementById("track-name");
+      const trackMetaEl = document.getElementById("track-meta");
+      const canvas1 = document.getElementById("canvas-1");
+      const canvas2 = document.getElementById("canvas-2");
+      const status1El = document.getElementById("status-1");
+      const status2El = document.getElementById("status-2");
+      const reset1Btn = document.getElementById("reset-1");
+      const reset2Btn = document.getElementById("reset-2");
+
+      try {
+        // ── 1. Load the single audio source once ──────────────────────────────
+        trackNameEl.textContent = `Downloading & decoding: ${audioTitle}…`;
+        const scope1 = await Sonoscope.fromUrl(audioUrl, {
+          startTime: 0,
+          endTime: 6,
+        });
+
+        const totalDuration = scope1.getDuration();
+        const sampleRate = scope1.getSampleRate();
+        trackNameEl.textContent = audioTitle;
+        trackMetaEl.textContent = `Single shared buffer: ${totalDuration.toFixed(2)}s · ${(sampleRate / 1000).toFixed(1)} kHz · Shared across views`;
+
+        // ── 2. Create the first spectrogram on scope1 ─────────────────────────
+        const spec1 = scope1.createSpectrogram(canvas1, {
+          colorMap: "viridis",
+          minValue: -100,
+          maxValue: -20,
+          frequencyScale: "linear",
+          windowSize: 1024,
+          hopSize: 256,
+        });
+        scope1.attachNavigation(canvas1);
+
+        function updateStatus1() {
+          const vp = scope1.getViewport();
+          status1El.textContent = `t: [${vp.startTime.toFixed(2)}s, ${vp.endTime.toFixed(2)}s] · f: [${Math.round(vp.minFrequency)}Hz, ${Math.round(vp.maxFrequency)}Hz]`;
+        }
+        scope1.on("viewportchange", updateStatus1);
+        updateStatus1();
+
+        // ── 3. Fork scope1 for independent View 2 over the same AudioSource ───
+        // fork() shares the decoded AudioSource without duplicating memory/decoders
+        const scope2 = scope1.fork({
+          startTime: Math.min(6, totalDuration * 0.4),
+          endTime: Math.min(10, totalDuration * 0.4 + 4),
+          minFrequency: 1000,
+          maxFrequency: 9000,
+        });
+
+        const spec2 = scope2.createSpectrogram(canvas2, {
+          colorMap: "magma",
+          minValue: -90,
+          maxValue: -15,
+          frequencyScale: "mel",
+          windowSize: 1024,
+          hopSize: 128,
+        });
+        scope2.attachNavigation(canvas2);
+
+        function updateStatus2() {
+          const vp = scope2.getViewport();
+          status2El.textContent = `t: [${vp.startTime.toFixed(2)}s, ${vp.endTime.toFixed(2)}s] · f: [${Math.round(vp.minFrequency)}Hz, ${Math.round(vp.maxFrequency)}Hz]`;
+        }
+        scope2.on("viewportchange", updateStatus2);
+        updateStatus2();
+
+        // Reset buttons
+        reset1Btn.addEventListener("click", () => {
+          scope1.viewport.reset();
+        });
+        reset2Btn.addEventListener("click", () => {
+          scope2.viewport.reset();
+        });
+
+        spec1.requestRender();
+        spec2.requestRender();
+      } catch (err) {
+        trackNameEl.textContent = `Failed to load: ${err instanceof Error ? err.message : String(err)}`;
+        status1El.textContent = "Error";
+        status2El.textContent = "Error";
+      }
+    </script>
+  </body>
+</html>

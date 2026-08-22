@@ -179,30 +179,45 @@ export type WaveformEvents = {
   error: { error: Error };
 };
 
+/**
+ * Waveform viewer canvas controller and peak renderer.
+ */
 export interface IWaveformViewer {
-  // Lifecycle & Render
+  /** Renders the current waveform viewport asynchronously. */
   render(): Promise<void>;
+  /** Schedules a render on the next animation frame. */
   requestRender(): void;
+  /** Disposes the renderer and event listeners. */
   destroy(): void;
+  /** Returns the current render status. */
   getStatus(): WaveformStatus;
+  /** Returns the bound HTML canvas element. */
   getCanvas(): HTMLCanvasElement;
+  /** Returns the active rendering engine (`canvas2d`, `webgl2`, or `bars`). */
   getRendererKind(): string;
 
-  // Viewport
+  /** Returns the active audio source. */
   getSource(): AudioSource;
+  /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
+  /** Returns the visible time viewport. */
   getViewport(): WaveformViewport;
 
-  // Configuration
+  /** Returns the resolved waveform configuration options. */
   getConfig(): ResolvedWaveformConfig;
+  /** Updates configuration options and triggers a re-render. */
   updateConfig(input: Partial<WaveformConfig>): void;
+  /** Alias for `updateConfig`. */
   setConfig(input: Partial<WaveformConfig>): void;
+  /** Updates the audio source. */
+  setSource(source: AudioSource): void;
 
-  // Coordinates
+  /** Converts canvas X pixel position to time in seconds. */
   canvasToTime(x: number): number;
+  /** Converts time in seconds to canvas X pixel position. */
   timeToCanvas(time: number): number;
 
-  // Events
+  /** Subscribes to waveform events. */
   on<Name extends keyof WaveformEvents>(
     name: Name,
     handler: (event: WaveformEvents[Name]) => void,

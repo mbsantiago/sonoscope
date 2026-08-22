@@ -5,30 +5,58 @@ import {
 } from "@sonoscope/core";
 import { useEffect, useState } from "react";
 
+/**
+ * Options for initializing a Sonoscope coordinator inside React.
+ */
 export interface UseSonoscopeOptions {
+  /** URL of an audio file to load. */
   url?: string | undefined;
+  /** HTML audio element to synchronize playback with. */
   audio?: HTMLAudioElement | undefined;
+  /** Pre-constructed AudioSource instance. */
   source?: AudioSource | undefined;
+  /** Audio Blob or File. */
   blob?: Blob | undefined;
+  /** Encoded audio file in an ArrayBuffer or Uint8Array. */
   buffer?: ArrayBuffer | Uint8Array | undefined;
+  /** Raw PCM samples. */
   array?: Float32Array | Float32Array[] | number[] | number[][] | undefined;
+  /** Sample rate in Hz when passing raw PCM samples. */
   sampleRate?: number | undefined;
+  /** Initial viewport start time in seconds. */
   startTime?: number | undefined;
+  /** Initial viewport end time in seconds. */
   endTime?: number | undefined;
+  /** Initial minimum frequency in Hz. */
   minFrequency?: number | undefined;
+  /** Initial maximum frequency in Hz. */
   maxFrequency?: number | undefined;
+  /** Playback follow mode (`page`, `smooth`, or `off`). */
   followPlayback?: FollowPlaybackMode | undefined;
+  /** Screen anchor ratio (0 to 1) for smooth playback follow. */
   smoothAnchor?: number | undefined;
+  /** Minimum zoom duration in seconds. */
   minDuration?: number | undefined;
+  /** Maximum zoom duration in seconds. */
   maxDuration?: number | undefined;
 }
 
+/**
+ * Result returned by the `useSonoscope` hook.
+ */
 export interface UseSonoscopeResult {
+  /** Active Sonoscope coordinator instance, or null while loading. */
   scope: Sonoscope | null;
+  /** True while the audio source is loading or decoding. */
   loading: boolean;
+  /** Error object if audio loading failed. */
   error: Error | null;
 }
 
+/**
+ * React hook that creates and manages the lifecycle of a Sonoscope coordinator instance.
+ * @param options Audio source and coordinator configuration.
+ */
 export function useSonoscope(
   options: UseSonoscopeOptions = {},
 ): UseSonoscopeResult {

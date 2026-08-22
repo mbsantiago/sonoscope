@@ -82,6 +82,8 @@ export function ReactSpectrogramDemo(): React.ReactElement {
         ...prev,
         startTime: event.viewport.startTime,
         endTime: event.viewport.endTime,
+        minFrequency: event.viewport.minFrequency ?? prev.minFrequency,
+        maxFrequency: event.viewport.maxFrequency ?? prev.maxFrequency,
       }));
     });
 
@@ -147,6 +149,8 @@ export function ReactSpectrogramDemo(): React.ReactElement {
         scope.setViewport({
           startTime: next.startTime,
           endTime: next.endTime,
+          minFrequency: next.minFrequency,
+          maxFrequency: next.maxFrequency,
         });
       }
     });
@@ -165,6 +169,8 @@ export function ReactSpectrogramDemo(): React.ReactElement {
         scope.setViewport({
           startTime: next.startTime,
           endTime: next.endTime,
+          minFrequency: next.minFrequency,
+          maxFrequency: next.maxFrequency,
         });
       }
     });

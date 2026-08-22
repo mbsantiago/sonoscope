@@ -3,8 +3,15 @@ import type React from "react";
 import { createContext, useContext } from "react";
 import { type UseSonoscopeOptions, useSonoscope } from "./useSonoscope";
 
+/**
+ * React context holding the active Sonoscope coordinator instance.
+ */
 export const SonoscopeContext = createContext<Sonoscope | null>(null);
 
+/**
+ * Props for the `SonoscopeProvider` component.
+ * Accepts either an existing `Sonoscope` instance as `value` or direct `useSonoscope` configuration options.
+ */
 export type SonoscopeProviderProps =
   | {
       value: Sonoscope | null;
@@ -15,6 +22,9 @@ export type SonoscopeProviderProps =
       children?: React.ReactNode | undefined;
     });
 
+/**
+ * Provides a Sonoscope coordinator instance to child components.
+ */
 export const SonoscopeProvider: React.FC<SonoscopeProviderProps> = (props) => {
   if ("value" in props && props.value !== undefined) {
     return (
@@ -45,6 +55,9 @@ function SonoscopeProviderWithOptions({
   );
 }
 
+/**
+ * Returns the current Sonoscope coordinator from the nearest SonoscopeProvider.
+ */
 export function useSonoscopeContext(): Sonoscope | null {
   return useContext(SonoscopeContext);
 }

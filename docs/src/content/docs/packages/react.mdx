@@ -7,7 +7,8 @@ description: Declarative React components and hooks for Sonoscope.
 
 ## Components
 
-### `<SonoscopeProvider />`
+### [`<SonoscopeProvider />`](/sonoscope/reference/react/variables/sonoscopeprovider/)
+
 Provides the shared Sonoscope instance and coordinated viewport context to child components.
 
 ```tsx
@@ -18,7 +19,10 @@ import { SonoscopeProvider } from "@sonoscope/react";
 </SonoscopeProvider>
 ```
 
-### `<Spectrogram />`
+Full reference: [`SonoscopeProvider`](/sonoscope/reference/react/variables/sonoscopeprovider/), [`SonoscopeProviderProps`](/sonoscope/reference/react/type-aliases/sonoscopeproviderprops/).
+
+### [`<Spectrogram />`](/sonoscope/reference/react/variables/spectrogram/)
+
 Renders an interactive spectrogram canvas synchronized with the provider's scope.
 
 ```tsx
@@ -34,7 +38,10 @@ import { Spectrogram } from "@sonoscope/react";
 />
 ```
 
-### `<Waveform />`
+Full reference: [`Spectrogram`](/sonoscope/reference/react/variables/spectrogram/), [`SpectrogramProps`](/sonoscope/reference/react/type-aliases/spectrogramprops/), [`SpectrogramHandle`](/sonoscope/reference/react/type-aliases/spectrogramhandle/).
+
+### [`<Waveform />`](/sonoscope/reference/react/variables/waveform/)
+
 Renders peak-pyramid accelerated audio waveforms.
 
 ```tsx
@@ -43,7 +50,10 @@ import { Waveform } from "@sonoscope/react";
 <Waveform height={80} colorMap="plasma" />
 ```
 
-### `<TimeRuler />` and `<FrequencyRuler />`
+Full reference: [`Waveform`](/sonoscope/reference/react/variables/waveform/), [`WaveformProps`](/sonoscope/reference/react/interfaces/waveformprops/), [`WaveformHandle`](/sonoscope/reference/react/type-aliases/waveformhandle/).
+
+### [`<TimeRuler />`](/sonoscope/reference/react/variables/timeruler/) and [`<FrequencyRuler />`](/sonoscope/reference/react/variables/frequencyruler/)
+
 Renders aligned time and frequency axes with automatic unit scaling.
 
 ```tsx
@@ -53,10 +63,12 @@ import { TimeRuler, FrequencyRuler } from "@sonoscope/react";
 <FrequencyRuler width={56} tickPosition="right" />
 ```
 
+Full reference: [`TimeRuler`](/sonoscope/reference/react/variables/timeruler/), [`FrequencyRuler`](/sonoscope/reference/react/variables/frequencyruler/), [`TimeRulerProps`](/sonoscope/reference/react/interfaces/timerulerprops/), [`FrequencyRulerProps`](/sonoscope/reference/react/interfaces/frequencyrulerprops/).
+
 ## Custom Hooks
 
-- `useSonoscope(options)`: Manage the lifecycle of an independent or shared Sonoscope instance.
-- `useSpectrogram(options)`: Direct low-level canvas binding to a SpectrogramViewer.
-- `useWaveform(options)`: Direct low-level canvas binding to a WaveformViewer.
-- `useTimeRuler(options)`: Low-level canvas binding for time rulers.
-- `useFrequencyRuler(options)`: Low-level canvas binding for frequency rulers.
+- [`useSonoscope(options)`](/sonoscope/reference/react/functions/usesonoscope/): Manage the lifecycle of an independent or shared Sonoscope instance.
+- [`useSonoscopeContext()`](/sonoscope/reference/react/functions/usesonoscopecontext/): Access the nearest `Sonoscope` coordinator from context.
+- [`useSpectrogram(options)`](/sonoscope/reference/react/functions/usespectrogram/): Direct canvas binding to a `SpectrogramViewer`.
+- [`useTimeRuler(options)`](/sonoscope/reference/react/functions/usetimeruler/): Canvas binding for time rulers.
+- [`useFrequencyRuler(options)`](/sonoscope/reference/react/functions/usefrequencyruler/): Canvas binding for frequency rulers.

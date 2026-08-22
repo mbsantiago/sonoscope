@@ -66,7 +66,7 @@ export default function InteractiveSpectrogram({
         } catch (err) {
           // If remote URL fails (e.g. offline/network), try local fallback
           if (audioUrl.startsWith("http")) {
-            const fallbackUrl = `${BASE_URL}audio/marico-sunbird.ogg`;
+            const fallbackUrl = `${import.meta.env.BASE_URL}audio/marico-sunbird.ogg`;
             audio.src = fallbackUrl;
             scope = await Sonoscope.fromUrl(fallbackUrl, {
               audio,

@@ -1,0 +1,309 @@
+---
+import type { SpectrogramOptions } from "@sonoscope/core";
+
+export interface Props {
+  type?: "url" | "audio" | "blob" | "array" | "clip";
+  clipStart?: number;
+  clipEnd?: number;
+  config?: SpectrogramOptions;
+  height?: number | string;
+  width?: number | string;
+  class?: string;
+}
+
+const {
+  type = "url",
+  clipStart = 1.0,
+  clipEnd = 3.5,
+  config = {},
+  height = 160,
+  width = "100%",
+  class: className,
+} = Astro.props;
+
+const configJson = JSON.stringify(config);
+---
+
+<audio-source-preview
+  data-type={type}
+  data-clip-start={clipStart}
+  data-clip-end={clipEnd}
+  data-config={configJson}
+  class={`not-content ${className || ""}`}
+  style={`display: block; width: ${typeof width === "number" ? `${width}px` : width}; margin: 12px 0;`}
+>
+  {type === "audio" && (
+    <div style="margin-bottom: 8px;">
+      <audio controls style="width: 100%; height: 36px; display: block;" preload="metadata"></audio>
+    </div>
+  )}
+
+  {type === "blob" && (
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+      <label style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; font-weight: 500; border-radius: 6px; background: var(--sl-color-accent, #2b70e2); color: white; cursor: pointer;">
+        <span>Choose Audio File</span>
+        <input type="file" accept="audio/*" style="display: none;" class="file-input" />
+      </label>
+      <span class="file-status" style="font-size: 12px; color: var(--sl-color-gray-3);">Showing sample Blob. Select a local audio file to test your own.</span>
+    </div>
+  )}
+
+  {type === "array" && (
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+      <span style="font-size: 12px; font-weight: 600; color: var(--sl-color-gray-3);">Preset:</span>
+      <button type="button" data-preset="chirp" class="preset-btn" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; border: 1px solid var(--sl-color-gray-5); background: var(--sl-color-gray-6); cursor: pointer; color: var(--sl-color-white);">Linear Chirp</button>
+      <button type="button" data-preset="fm" class="preset-btn" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; border: 1px solid var(--sl-color-gray-5); background: var(--sl-color-gray-6); cursor: pointer; color: var(--sl-color-white);">FM Modulation</button>
+      <button type="button" data-preset="chords" class="preset-btn" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; border: 1px solid var(--sl-color-gray-5); background: var(--sl-color-gray-6); cursor: pointer; color: var(--sl-color-white);">Harmonic Chords</button>
+      <span class="array-status" style="font-size: 12px; color: var(--sl-color-gray-3); margin-left: auto;">44.1 kHz • 2.5s Float32Array</span>
+    </div>
+  )}
+
+  {type === "clip" && (
+    <div style="font-size: 12px; color: var(--sl-color-gray-3); margin-bottom: 6px;">
+      Bounded Clip: <strong>{clipStart}s</strong> to <strong>{clipEnd}s</strong> (2.5s window) extracted from full source
+    </div>
+  )}
+
+  <div class="viewer-container" style={`position: relative; width: 100%; height: ${typeof height === "number" ? `${height}px` : height}; border-radius: 6px; overflow: hidden; background: #0b0f19;`}>
+    <canvas class="spec-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+    <div class="drop-overlay" style="display: none; position: absolute; inset: 0; background: rgba(43, 112, 226, 0.25); border: 2px dashed #38bdf8; border-radius: 6px; z-index: 20; align-items: center; justify-content: center; pointer-events: none; color: white; font-weight: 600; font-size: 14px; backdrop-filter: blur(2px);">
+      Drop audio file here to load
+    </div>
+  </div>
+</audio-source-preview>
+
+<script>
+  import { Sonoscope } from "@sonoscope/core";
+  import { DEFAULT_AUDIO_URL } from "../constants";
+
+  function generateSyntheticSignal(preset: string = "chirp"): { samples: Float32Array; sampleRate: number } {
+    const sampleRate = 44100;
+    const duration = 2.5;
+    const length = Math.floor(sampleRate * duration);
+    const samples = new Float32Array(length);
+
+    if (preset === "fm") {
+      // Frequency Modulation: Carrier 800Hz modulated by 12Hz with depth 400Hz
+      const carrier = 800;
+      const modFreq = 12;
+      const modDepth = 400;
+      for (let i = 0; i < length; i++) {
+        const t = i / sampleRate;
+        const mod = Math.sin(2 * Math.PI * modFreq * t);
+        const instFreq = carrier + modDepth * mod;
+        samples[i] = 0.7 * Math.sin(2 * Math.PI * instFreq * t);
+      }
+    } else if (preset === "chords") {
+      // Harmonic chords (A4 major chord with overtones: 440, 554.37, 659.25, 880, 1320)
+      const freqs = [440, 554.37, 659.25, 880, 1320];
+      for (let i = 0; i < length; i++) {
+        const t = i / sampleRate;
+        let val = 0;
+        for (let j = 0; j < freqs.length; j++) {
+          val += (1 / (j + 1)) * Math.sin(2 * Math.PI * freqs[j] * t);
+        }
+        samples[i] = 0.4 * val;
+      }
+    } else {
+      // Linear chirp from 300 Hz to 4500 Hz with harmonic overtone
+      for (let i = 0; i < length; i++) {
+        const t = i / sampleRate;
+        const f0 = 300;
+        const f1 = 4500;
+        const k = (f1 - f0) / duration;
+        const phase = 2 * Math.PI * (f0 * t + 0.5 * k * t * t);
+        samples[i] = 0.6 * Math.sin(phase) + 0.25 * Math.sin(phase * 2);
+      }
+    }
+
+    return { samples, sampleRate };
+  }
+
+  class AudioSourcePreviewElement extends HTMLElement {
+    private scope: Sonoscope | null = null;
+    private viewer: any = null;
+    private detachNav: (() => void) | null = null;
+    private detachPlayhead: (() => void) | null = null;
+
+    async connectedCallback() {
+      const type = this.dataset.type || "url";
+      const config = this.dataset.config ? JSON.parse(this.dataset.config) : {};
+      const clipStart = parseFloat(this.dataset.clipStart || "1.0");
+      const clipEnd = parseFloat(this.dataset.clipEnd || "3.5");
+
+      const canvas = this.querySelector<HTMLCanvasElement>("canvas.spec-canvas");
+      const container = this.querySelector<HTMLElement>(".viewer-container");
+      if (!canvas || !container) return;
+
+      if (type === "audio") {
+        const audio = this.querySelector<HTMLAudioElement>("audio");
+        if (audio) {
+          audio.src = DEFAULT_AUDIO_URL;
+          this.scope = await Sonoscope.fromAudio(audio, {
+            followPlayback: "page",
+          });
+          if (!this.isConnected) {
+            this.scope.destroy();
+            return;
+          }
+          this.viewer = this.scope.createSpectrogram(canvas, {
+            autoResize: true,
+            colorMap: "viridis",
+            frequencyScale: "mel",
+            ...config,
+          });
+          this.detachNav = this.scope.attachNavigation(canvas);
+          this.detachPlayhead = this.scope.attachPlayhead(container);
+        }
+      } else if (type === "blob") {
+        const fileInput = this.querySelector<HTMLInputElement>(".file-input");
+        const statusSpan = this.querySelector<HTMLElement>(".file-status");
+
+        const loadBlob = async (blob: Blob, name: string) => {
+          this.detachNav?.();
+          this.viewer?.destroy();
+          this.scope?.destroy();
+
+          this.scope = await Sonoscope.fromBlob(blob);
+          if (!this.isConnected) {
+            this.scope.destroy();
+            return;
+          }
+
+          this.viewer = this.scope.createSpectrogram(canvas, {
+            autoResize: true,
+            colorMap: "inferno",
+            frequencyScale: "mel",
+            ...config,
+          });
+          this.detachNav = this.scope.attachNavigation(canvas);
+
+          if (statusSpan) {
+            statusSpan.textContent = `Loaded "${name}" (${(blob.size / 1024).toFixed(1)} KB, ${this.scope.getDuration().toFixed(2)}s)`;
+          }
+        };
+
+        try {
+          const res = await fetch(DEFAULT_AUDIO_URL);
+          const sampleBlob = await res.blob();
+          await loadBlob(sampleBlob, "XC1145817-Himalayan_Rubythroat.wav");
+        } catch {
+          // Ignore fallback fetch error
+        }
+
+        if (fileInput) {
+          fileInput.addEventListener("change", async (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (files && files[0]) {
+              await loadBlob(files[0], files[0].name);
+            }
+          });
+        }
+
+        const dropOverlay = container.querySelector<HTMLElement>(".drop-overlay");
+
+        container.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          if (dropOverlay) dropOverlay.style.display = "flex";
+        });
+
+        container.addEventListener("dragleave", (e) => {
+          e.preventDefault();
+          if (dropOverlay) dropOverlay.style.display = "none";
+        });
+
+        container.addEventListener("drop", async (e) => {
+          e.preventDefault();
+          if (dropOverlay) dropOverlay.style.display = "none";
+          const file = e.dataTransfer?.files?.[0];
+          if (file) {
+            await loadBlob(file, file.name);
+          }
+        });
+      } else if (type === "array") {
+        const presetButtons = this.querySelectorAll<HTMLButtonElement>(".preset-btn");
+
+        const loadArray = async (preset: string) => {
+          this.detachNav?.();
+          this.viewer?.destroy();
+          this.scope?.destroy();
+
+          const { samples, sampleRate } = generateSyntheticSignal(preset);
+          this.scope = Sonoscope.fromArray(samples, sampleRate);
+          if (!this.isConnected) {
+            this.scope.destroy();
+            return;
+          }
+
+          this.viewer = this.scope.createSpectrogram(canvas, {
+            autoResize: true,
+            colorMap: "turbo",
+            frequencyScale: "linear",
+            ...config,
+          });
+          this.detachNav = this.scope.attachNavigation(canvas);
+        };
+
+        presetButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            presetButtons.forEach((b) => (b.style.background = "var(--sl-color-gray-6)"));
+            btn.style.background = "var(--sl-color-accent, #2b70e2)";
+            const preset = btn.dataset.preset || "chirp";
+            loadArray(preset);
+          });
+        });
+
+        // Set first preset active
+        if (presetButtons[0]) {
+          presetButtons[0].style.background = "var(--sl-color-accent, #2b70e2)";
+        }
+        await loadArray("chirp");
+      } else if (type === "clip") {
+        this.scope = await Sonoscope.fromUrl(DEFAULT_AUDIO_URL, {
+          clipStart,
+          clipEnd,
+        });
+        if (!this.isConnected) {
+          this.scope.destroy();
+          return;
+        }
+
+        this.viewer = this.scope.createSpectrogram(canvas, {
+          autoResize: true,
+          colorMap: "plasma",
+          frequencyScale: "mel",
+          ...config,
+        });
+        this.detachNav = this.scope.attachNavigation(canvas);
+      } else {
+        // Default URL
+        this.scope = await Sonoscope.fromUrl(DEFAULT_AUDIO_URL);
+        if (!this.isConnected) {
+          this.scope.destroy();
+          return;
+        }
+
+        this.viewer = this.scope.createSpectrogram(canvas, {
+          autoResize: true,
+          colorMap: "viridis",
+          frequencyScale: "mel",
+          ...config,
+        });
+        this.detachNav = this.scope.attachNavigation(canvas);
+      }
+    }
+
+    disconnectedCallback() {
+      this.detachPlayhead?.();
+      this.detachNav?.();
+      this.viewer?.destroy();
+      this.scope?.destroy();
+      this.viewer = null;
+      this.scope = null;
+    }
+  }
+
+  if (!customElements.get("audio-source-preview")) {
+    customElements.define("audio-source-preview", AudioSourcePreviewElement);
+  }
+</script>

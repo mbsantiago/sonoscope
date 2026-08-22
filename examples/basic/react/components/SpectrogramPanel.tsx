@@ -126,6 +126,8 @@ export function SpectrogramPanel(
           hopSize={settings.hopSize}
           window={settings.window}
           frequencyScale={settings.frequencyScale}
+          minFrequency={viewport.minFrequency}
+          maxFrequency={viewport.maxFrequency}
           renderer={rendererConfig}
           minViewportDuration={0.08}
           maxViewportDuration={20}

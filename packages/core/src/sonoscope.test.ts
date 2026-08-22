@@ -14,17 +14,25 @@ type AudioFixture = HTMLAudioElement & {
 
 function createMockAudio(src = "fixture.wav"): AudioFixture {
   const listeners = new Map<string, () => void>();
-  return {
+  const audio = {
     currentTime: 0,
     duration: 10,
     src,
     currentSrc: src,
     paused: true,
+    pause() {
+      audio.paused = true;
+    },
+    play() {
+      audio.paused = false;
+      return Promise.resolve();
+    },
     addEventListener: (name: string, fn: () => void) => listeners.set(name, fn),
     removeEventListener: (name: string) => listeners.delete(name),
     emit: (name: string) => listeners.get(name)?.(),
     listenerCount: () => listeners.size,
   } as unknown as AudioFixture;
+  return audio;
 }
 
 type MockCanvasFixture = HTMLCanvasElement & {
@@ -700,6 +708,184 @@ describe("Sonoscope", () => {
       vp.pan(3);
       expect(vp.getViewport().startTime).toBe(5);
       expect(vp.getViewport().endTime).toBe(11);
+    });
+
+    it("attaches navigation directly to standalone ViewportController", () => {
+      const vp = Sonoscope.createViewport({
+        startTime: 0,
+        endTime: 10,
+        totalDuration: 50,
+      });
+
+      const canvas = createMockCanvas();
+      const detach = vp.attachNavigation(canvas);
+      expect(typeof detach).toBe("function");
+
+      const hasPointerEvents =
+        typeof window !== "undefined" && "PointerEvent" in window;
+      const downEvent = hasPointerEvents ? "pointerdown" : "mousedown";
+      const moveEvent = hasPointerEvents ? "pointermove" : "mousemove";
+
+      const down = canvas.listeners.get(downEvent)![0]!;
+      const move = canvas.listeners.get(moveEvent)![0]!;
+
+      down({
+        button: 0,
+        clientX: 50,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      move({
+        button: 0,
+        clientX: 25,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      expect(vp.getViewport().startTime).toBeCloseTo(2.5);
+      expect(vp.getViewport().endTime).toBeCloseTo(12.5);
+
+      detach();
+      vp.destroy();
+    });
+
+    it("initializes with clipStart and clipEnd and clamps viewport", () => {
+      const source = createMockSource(50);
+      const scope = new Sonoscope({
+        source,
+        clipStart: 10,
+        clipEnd: 25,
+      });
+
+      expect(scope.getClipBounds()).toEqual({ clipStart: 10, clipEnd: 25 });
+      const vp = scope.getViewport();
+      expect(vp.startTime).toBe(10);
+      expect(vp.endTime).toBe(20); // 10s window by default starting at clipStart
+    });
+
+    it("enforces playback boundaries at clipStart and clipEnd", () => {
+      const source = createMockSource(50);
+      const audio = createMockAudio();
+      audio.currentTime = 0; // Starts before clipStart
+
+      const scope = new Sonoscope({
+        source,
+        audio,
+        clipStart: 10,
+        clipEnd: 25,
+      });
+
+      // Audio currentTime clamped to clipStart on attach
+      expect(audio.currentTime).toBe(10);
+
+      // Playhead advances past clipEnd -> should pause and clamp
+      audio.currentTime = 26;
+      audio.paused = false;
+      audio.emit("timeupdate");
+
+      expect(audio.currentTime).toBe(25);
+      expect(audio.paused).toBe(true);
+
+      // Seeking before clipStart clamps to clipStart
+      scope.seek(5);
+      expect(audio.currentTime).toBe(10);
+
+      // Seeking past clipEnd clamps to clipEnd
+      scope.seek(30);
+      expect(audio.currentTime).toBe(25);
+
+      // Pressing play when at clipEnd rewinds to clipStart and plays
+      audio.paused = false;
+      audio.emit("play");
+      expect(audio.currentTime).toBe(10);
+    });
+
+    it("pauses audio and resets playhead on setClipBounds", () => {
+      const source = createMockSource(50);
+      const audio = createMockAudio();
+      const scope = new Sonoscope({
+        source,
+        audio,
+        clipStart: 5,
+        clipEnd: 15,
+      });
+
+      audio.currentTime = 8;
+      audio.paused = false;
+
+      scope.setClipBounds({ clipStart: 20, clipEnd: 30 });
+      expect(audio.paused).toBe(true);
+      expect(audio.currentTime).toBe(20);
+    });
+
+    it("dynamically updates clip bounds via setClipBounds", () => {
+      const source = createMockSource(50);
+      const audio = createMockAudio();
+      const scope = new Sonoscope({
+        source,
+        audio,
+        clipStart: 10,
+        clipEnd: 25,
+      });
+
+      let eventData:
+        | {
+            clipStart?: number | undefined;
+            clipEnd?: number | undefined;
+          }
+        | undefined;
+      scope.on("clipchange", (e) => {
+        eventData = e;
+      });
+
+      scope.setClipBounds({ clipStart: 15, clipEnd: 30 });
+      expect(scope.getClipBounds()).toEqual({ clipStart: 15, clipEnd: 30 });
+      expect(eventData).toEqual({ clipStart: 15, clipEnd: 30 });
+
+      // Viewport clamps to new bounds
+      const vp = scope.getViewport();
+      expect(vp.startTime).toBeGreaterThanOrEqual(15);
+      expect(vp.endTime).toBeLessThanOrEqual(30);
+
+      // Panning cannot exceed clip bounds
+      scope.pan(-50);
+      expect(scope.getViewport().startTime).toBe(15);
+
+      scope.pan(50);
+      expect(scope.getViewport().endTime).toBe(30);
+    });
+
+    it("setSource preserves clip bounds and clamps audio playback currentTime", () => {
+      const sourceA = createMockSource(60);
+      const audio = createMockAudio();
+      audio.currentTime = 10;
+
+      const scope = new Sonoscope({
+        source: sourceA,
+        audio: audio as unknown as HTMLAudioElement,
+        clipStart: 10,
+        clipEnd: 30,
+        followPlayback: "off",
+      });
+
+      expect(scope.getClipBounds()).toEqual({ clipStart: 10, clipEnd: 30 });
+      expect(scope.getViewport().startTime).toBe(10);
+
+      // Simulate playback advancing to 25s
+      audio.currentTime = 25;
+
+      // Switch to a shorter source (20s)
+      const sourceB = createMockSource(20);
+      scope.setSource(sourceB);
+
+      // Clip bounds should be clamped to new source duration: [10, 20]
+      expect(scope.getClipBounds()).toEqual({ clipStart: 10, clipEnd: 20 });
+      expect(scope.getViewport().startTime).toBeGreaterThanOrEqual(10);
+      expect(scope.getViewport().endTime).toBeLessThanOrEqual(20);
+
+      // audio.currentTime (previously 25) was beyond new max (20), so it should be clamped to clipStart (10)
+      expect(audio.currentTime).toBe(10);
     });
   });
 

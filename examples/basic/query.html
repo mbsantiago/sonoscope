@@ -321,8 +321,9 @@
         const plotH = h - padTop - padBottom;
 
         const vp = viewer.getViewport();
-        const minScale = hzToScale(vp.minFrequency, vp.frequencyScale);
-        const maxScale = hzToScale(vp.maxFrequency, vp.frequencyScale);
+        const freqScale = viewer.getFrequencyScale();
+        const minScale = hzToScale(vp.minFrequency, freqScale);
+        const maxScale = hzToScale(vp.maxFrequency, freqScale);
 
         // Determine value min/max bounds based on mode
         let minVal = -96;
@@ -346,7 +347,7 @@
         const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
         for (const ratio of yTicks) {
           const scaledVal = maxScale - ratio * (maxScale - minScale);
-          const freqHz = scaleToHz(scaledVal, vp.frequencyScale);
+          const freqHz = scaleToHz(scaledVal, freqScale);
           const y = padTop + ratio * plotH;
 
           sliceCtx.beginPath();
@@ -390,7 +391,7 @@
           sliceCtx.beginPath();
           for (let i = 0; i < len; i++) {
             const freq = freqs[i];
-            const scaled = hzToScale(freq, vp.frequencyScale);
+            const scaled = hzToScale(freq, freqScale);
             const yNorm = (scaled - minScale) / (maxScale - minScale || 1);
             const y = padTop + (1 - Math.max(0, Math.min(1, yNorm))) * plotH;
 
@@ -419,8 +420,10 @@
         }
 
         // Draw horizontal cursor guide line & active point marker
-        if (canvasYRatio !== null && activePoint && typeof activePoint.value === 'number') {
-          const cy = padTop + canvasYRatio * plotH;
+        if (activePoint && typeof activePoint.value === 'number') {
+          const scaledPt = hzToScale(activePoint.frequency, freqScale);
+          const ptYNorm = (scaledPt - minScale) / (maxScale - minScale || 1);
+          const cy = padTop + (1 - Math.max(0, Math.min(1, ptYNorm))) * plotH;
           const valNorm = (activePoint.value - minVal) / (maxVal - minVal || 1);
           const cx = padLeft + Math.max(0, Math.min(1, valNorm)) * plotW;
 

@@ -495,71 +495,111 @@ export type SpectrumPoint = {
   value: number;
 };
 
+/**
+ * Spectrogram viewer canvas controller and inspector.
+ */
 export interface ISpectrogramViewer {
-  // Rendering & Lifecycle
+  /** Renders the current spectrogram viewport asynchronously. */
   render(): Promise<void>;
+  /** Schedules a render on the next animation frame. */
   requestRender(): void;
+  /** Disposes the renderer, WebGL resources, and event listeners. */
   destroy(): void;
+  /** Returns the current render status. */
   getStatus(): SpectrogramStatus;
+  /** Returns the bound HTML canvas element. */
   getCanvas(): HTMLCanvasElement;
 
-  // Viewport & Dimensions
+  /** Returns the active audio source. */
   getSource(): AudioSource;
+  /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
+  /** Returns the visible time and frequency viewport. */
   getViewport(): ViewportConfig;
+  /** Returns the active frequency scale (`linear`, `log`, or `mel`). */
   getFrequencyScale(): FrequencyScale;
+  /** Returns the full available frequency bounds in Hz. */
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;
   };
+  /** Returns the Nyquist frequency in Hz. */
   getNyquist(): number;
 
-  // Configuration
+  /** Returns the resolved spectrogram configuration options. */
   getConfig(): ResolvedSpectrogramConfig;
+  /** Updates configuration options and triggers a re-render. */
   updateConfig(input: Partial<SpectrogramOptions>): void;
+  /** Alias for `updateConfig`. */
   setConfig(input: Partial<SpectrogramOptions>): void;
+  /** Updates the audio source and invalidates the tile cache. */
+  setSource(source: AudioSource): void;
+  /** Returns the active rendering engine (`webgl2` or `canvas2d`). */
   getRendererKind(): "webgl2" | "canvas2d";
 
-  // Coordinates (Annotations & Overlays)
+  /**
+   * Converts canvas pixel coordinates to time (seconds) and frequency (Hz).
+   */
   canvasToTimeFrequency(
     x: number,
     y: number,
   ): { time: number; frequency: number };
+  /**
+   * Converts time (seconds) and frequency (Hz) to canvas pixel coordinates.
+   */
   timeFrequencyToCanvas(
     time: number,
     frequency: number,
   ): { x: number; y: number };
 
-  // Events
+  /** Subscribes to spectrogram events. */
   on<Name extends keyof SpectrogramEvents>(
     name: Name,
     handler: (event: SpectrogramEvents[Name]) => void,
   ): () => void;
 
-  // Data Inspection & Spectrum Queries
+  /**
+   * Queries spectral magnitudes across all frequency bins at a specific timestamp.
+   * @param input Target time in seconds, optional channel, and value mode.
+   */
   querySpectrum(input: {
     time: number;
     channel?: number;
     mode?: ValueMode;
   }): Promise<SpectrumSlice>;
+  /**
+   * Queries spectral magnitudes for a specific STFT frame index.
+   * @param input Frame index, optional channel, and value mode.
+   */
   queryFrame(input: {
     frameIndex: number;
     channel?: number;
     mode?: ValueMode;
   }): Promise<SpectrumSlice>;
+  /**
+   * Queries the spectral intensity value at a specific time and frequency.
+   * @param input Time in seconds, frequency in Hz, optional channel, and value mode.
+   */
   queryPoint(input: {
     time: number;
     frequency: number;
     channel?: number;
     mode?: ValueMode;
   }): Promise<SpectrumPoint>;
+  /**
+   * Queries the spectral intensity value at canvas pixel coordinates.
+   * @param input Canvas X and Y in pixels, optional channel, and value mode.
+   */
   queryCanvasPoint(input: {
     x: number;
     y: number;
     channel?: number;
     mode?: ValueMode;
   }): Promise<SpectrumPoint>;
+  /** Returns current STFT tile cache statistics. */
   getCacheStats(): CacheStats;
+  /** Clears cached STFT tiles from memory. */
   clearCache(): void;
+  /** Returns status information for all computation tiles. */
   getTileStates(): TileStateInfo[];
 }

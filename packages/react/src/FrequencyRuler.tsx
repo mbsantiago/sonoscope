@@ -17,11 +17,19 @@ import {
 } from "react";
 import { useSonoscopeContext } from "./SonoscopeContext";
 
+/**
+ * Imperative handle exposed by the FrequencyRuler component ref.
+ */
 export type FrequencyRulerHandle = {
+  /** Returns the underlying FrequencyRulerViewer instance. */
   getViewer: () => FrequencyRulerViewer | null;
+  /** Returns the canvas element. */
   getCanvas: () => HTMLCanvasElement | null;
 };
 
+/**
+ * Props for the FrequencyRuler component.
+ */
 export interface FrequencyRulerProps extends FrequencyRulerConfig {
   scope?: Sonoscope | null | undefined;
   source?: AudioSource | undefined;
@@ -35,6 +43,9 @@ export interface FrequencyRulerProps extends FrequencyRulerConfig {
   onReady?: ((viewer: FrequencyRulerViewer) => void) | undefined;
 }
 
+/**
+ * Renders an interactive frequency axis ruler canvas.
+ */
 export const FrequencyRuler = forwardRef<
   FrequencyRulerHandle,
   FrequencyRulerProps

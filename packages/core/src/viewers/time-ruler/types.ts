@@ -172,23 +172,39 @@ export type TimeRulerEvents = {
   error: { error: Error };
 };
 
+/**
+ * Time ruler viewer canvas controller and coordinate tick renderer.
+ */
 export interface ITimeRulerViewer {
+  /** Renders the current time ruler viewport asynchronously. */
   render(): Promise<void>;
+  /** Schedules a render on the next animation frame. */
   requestRender(): void;
+  /** Disposes the ruler renderer and event listeners. */
   destroy(): void;
+  /** Returns the current render status. */
   getStatus(): TimeRulerStatus;
+  /** Returns the bound HTML canvas element. */
   getCanvas(): HTMLCanvasElement;
 
+  /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
+  /** Returns the visible time viewport. */
   getViewport(): TimeRulerViewport;
 
+  /** Returns the resolved time ruler configuration options. */
   getConfig(): ResolvedTimeRulerConfig;
+  /** Updates configuration options and triggers a re-render. */
   updateConfig(input: Partial<TimeRulerOptions>): void;
+  /** Alias for `updateConfig`. */
   setConfig(input: Partial<TimeRulerOptions>): void;
 
+  /** Converts canvas X pixel position to time in seconds. */
   canvasToTime(x: number): number;
+  /** Converts time in seconds to canvas X pixel position. */
   timeToCanvas(time: number): number;
 
+  /** Subscribes to time ruler events. */
   on<Name extends keyof TimeRulerEvents>(
     name: Name,
     handler: (event: TimeRulerEvents[Name]) => void,

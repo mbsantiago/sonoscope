@@ -1,4 +1,4 @@
-import type { NavigableViewer, NavigationOptions } from "./navigation";
+import type { NavigationOptions } from "./navigation";
 import type {
   AudioSource,
   FollowPlaybackMode,
@@ -16,8 +16,9 @@ import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformConfig } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
-import { attachNavigation } from "./navigation";
+import { attachPlayheadOverlay, type PlayheadOverlayOptions } from "./playhead";
 import { ArrayAudioSource } from "./sources/array-source";
+import { ClippedAudioSource } from "./sources/clipped-source";
 import {
   createAudioSourceFromBlob,
   createAudioSourceFromBuffer,
@@ -47,7 +48,7 @@ function safeRequestAnimationFrame(callback: () => void): number {
   if (typeof requestAnimationFrame !== "undefined") {
     return requestAnimationFrame(callback);
   }
-  return setTimeout(callback, 16) as unknown as number;
+  return setTimeout(callback, 1000 / 60) as unknown as number;
 }
 
 function safeCancelAnimationFrame(id: number): void {
@@ -58,13 +59,20 @@ function safeCancelAnimationFrame(id: number): void {
   }
 }
 
+/**
+ * Main coordinator that binds audio playback, viewport state, and visualization viewers.
+ */
 export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private _viewport: IViewportController;
+  private _clipStart: number | undefined;
+  private _clipEnd: number | undefined;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
+  private playheadCleanups: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
+  private readonly viewers = new Set<SpectrogramViewer | WaveformViewer>();
   private animationFrame: number | undefined;
 
   private totalDuration: number;
@@ -73,6 +81,26 @@ export class Sonoscope implements ISonoscope {
   private followPlayback: FollowPlaybackMode;
   private smoothAnchor: number;
 
+  /**
+   * Creates a new Sonoscope coordinator instance.
+   * @param options Configuration options or an existing AudioSource.
+   * @param options.source Audio source for decoding and STFT computation.
+   * @param options.audio Optional HTML audio element to synchronize playback with.
+   * @param options.clipStart Clip start boundary in seconds.
+   * @param options.clipEnd Clip end boundary in seconds.
+   * @param options.startTime Initial viewport start time in seconds.
+   * @param options.endTime Initial viewport end time in seconds.
+   * @param options.minFrequency Initial minimum frequency in Hz.
+   * @param options.maxFrequency Initial maximum frequency in Hz.
+   * @param options.followPlayback Viewport follow mode during audio playback (`page`, `smooth`, or `off`).
+   * @param options.smoothAnchor Screen anchor ratio (0 to 1) for smooth playback follow.
+   * @param options.minDuration Minimum zoom duration in seconds.
+   * @param options.maxDuration Maximum zoom duration in seconds.
+   * @param options.sampleRate Target audio sample rate in Hz.
+   * @param options.preferStreaming Prefer streaming audio source when loading from URL.
+   * @param options.preferDecoded Prefer full decoded AudioBuffer over streaming.
+   * @param options.viewport Custom viewport controller to share coordinates across instances.
+   */
   constructor(options: SonoscopeOptions | AudioSource) {
     const isSource =
       typeof options === "object" &&
@@ -85,6 +113,21 @@ export class Sonoscope implements ISonoscope {
       : (options as SonoscopeOptions);
 
     this._source = opts.source;
+
+    if (opts.clipStart !== undefined || opts.clipEnd !== undefined) {
+      this._clipStart = opts.clipStart;
+      this._clipEnd = opts.clipEnd;
+      if (!(this._source instanceof ClippedAudioSource)) {
+        this._source = new ClippedAudioSource(this._source, {
+          clipStart: opts.clipStart,
+          clipEnd: opts.clipEnd,
+        });
+      }
+    } else if (this._source instanceof ClippedAudioSource) {
+      this._clipStart = this._source.clipStart;
+      this._clipEnd = this._source.clipEnd;
+    }
+
     this.totalDuration = Math.max(0.01, this._source.duration);
     this.minDuration = Math.max(0.001, opts.minDuration ?? 0.05);
     this.maxDuration = Math.max(
@@ -94,21 +137,36 @@ export class Sonoscope implements ISonoscope {
     this.followPlayback = opts.followPlayback ?? "page";
     this.smoothAnchor = Math.max(0, Math.min(1, opts.smoothAnchor ?? 0.5));
 
+    const initialClipStart = this._clipStart ?? 0;
+    const initialClipEnd = this._clipEnd ?? this.totalDuration;
+
     if (opts.viewport) {
       this._viewport = opts.viewport;
+      this._viewport.setTimeBounds(initialClipStart, initialClipEnd);
     } else {
       const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
       const minFrequency = opts.minFrequency ?? 0;
       const maxFrequency = opts.maxFrequency ?? nyquist;
 
+      const initialStartTime = Math.max(
+        initialClipStart,
+        opts.startTime ?? initialClipStart,
+      );
+      const initialEndTime = Math.min(
+        initialClipEnd,
+        opts.endTime ?? Math.min(initialStartTime + 10, initialClipEnd),
+      );
+
       this._viewport = new ViewportController({
+        minTime: initialClipStart,
+        maxTime: initialClipEnd,
         totalDuration: this.totalDuration,
         minDuration: this.minDuration,
         maxDuration: this.maxDuration,
         minFrequency,
         maxFrequency,
-        startTime: opts.startTime ?? 0,
-        endTime: opts.endTime ?? Math.min(10, this.totalDuration),
+        startTime: initialStartTime,
+        endTime: Math.max(initialStartTime + this.minDuration, initialEndTime),
       });
     }
 
@@ -121,24 +179,32 @@ export class Sonoscope implements ISonoscope {
     }
   }
 
+  /** Active audio source. */
   get source(): AudioSource {
     return this._source;
   }
 
+  /** Viewport controller managing visible time and frequency coordinates. */
   get viewport(): IViewportController {
     return this._viewport;
   }
 
+  /** Returns the viewport controller instance. */
   getViewportController(): IViewportController {
     return this._viewport;
   }
 
+  /** Creates a standalone viewport controller. */
   static createViewport(
     options?: ViewportControllerOptions,
   ): IViewportController {
     return new ViewportController(options);
   }
 
+  /**
+   * Creates an independent Sonoscope coordinator sharing the same audio source.
+   * @param options Optional overrides for viewport or playback configuration.
+   */
   fork(options?: Partial<SonoscopeOptions>): Sonoscope {
     return new Sonoscope({
       source: this._source,
@@ -147,6 +213,11 @@ export class Sonoscope implements ISonoscope {
     });
   }
 
+  /**
+   * Creates a Sonoscope instance by fetching and decoding or streaming an audio URL.
+   * @param url URL of the audio file.
+   * @param options Coordinator options.
+   */
   static async fromUrl(
     url: string,
     options?: Omit<SonoscopeOptions, "source">,
@@ -170,6 +241,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  /**
+   * Creates a Sonoscope instance from an existing HTMLAudioElement.
+   * @param audio HTML audio element with a valid src.
+   * @param options Coordinator options.
+   */
   static async fromAudio(
     audio: HTMLAudioElement,
     options?: Omit<SonoscopeOptions, "source" | "audio">,
@@ -194,6 +270,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source, audio });
   }
 
+  /**
+   * Creates a Sonoscope instance from an existing AudioSource.
+   * @param source AudioSource instance.
+   * @param options Coordinator options.
+   */
   static fromSource(
     source: AudioSource,
     options?: Omit<SonoscopeOptions, "source">,
@@ -201,6 +282,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  /**
+   * Creates a Sonoscope instance from an in-memory AudioBuffer.
+   * @param buffer Web Audio API AudioBuffer.
+   * @param options Coordinator options.
+   */
   static fromAudioBuffer(
     buffer: AudioBuffer,
     options?: Omit<SonoscopeOptions, "source">,
@@ -209,6 +295,11 @@ export class Sonoscope implements ISonoscope {
     return new Sonoscope({ ...options, source });
   }
 
+  /**
+   * Creates a Sonoscope instance from a Blob or File object.
+   * @param blob Audio Blob or File.
+   * @param options Coordinator options.
+   */
   static async fromBlob(
     blob: Blob,
     options?: Omit<SonoscopeOptions, "source">,
@@ -399,6 +490,96 @@ export class Sonoscope implements ISonoscope {
     }
   }
 
+  getClipBounds(): {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  } {
+    return { clipStart: this._clipStart, clipEnd: this._clipEnd };
+  }
+
+  setClipBounds(bounds: {
+    clipStart?: number | undefined;
+    clipEnd?: number | undefined;
+  }): void {
+    const total = this._source.duration;
+    const newStart =
+      bounds.clipStart !== undefined
+        ? Math.max(0, bounds.clipStart)
+        : (this._clipStart ?? 0);
+    const newEnd =
+      bounds.clipEnd !== undefined
+        ? Math.min(total, bounds.clipEnd)
+        : (this._clipEnd ?? total);
+
+    this._clipStart = newStart;
+    this._clipEnd = newEnd;
+
+    if (this._source instanceof ClippedAudioSource) {
+      this._source.setClipBounds({
+        clipStart: newStart,
+        clipEnd: newEnd,
+      });
+    }
+
+    this._viewport.setTimeBounds(newStart, newEnd);
+    const clipSpan = Math.max(0.001, newEnd - newStart);
+    const vpDuration = Math.min(
+      this._viewport.getViewport().duration,
+      clipSpan,
+    );
+    this._viewport.setViewport(
+      {
+        startTime: newStart,
+        endTime: newStart + vpDuration,
+      },
+      "clipchange",
+    );
+
+    if (this.audioElement) {
+      if (
+        !this.audioElement.paused &&
+        typeof this.audioElement.pause === "function"
+      ) {
+        this.audioElement.pause();
+      }
+      this.audioElement.currentTime = newStart;
+      this.events.emit("timeupdate", { currentTime: newStart });
+    }
+
+    this.events.emit("clipchange", {
+      clipStart: this._clipStart,
+      clipEnd: this._clipEnd,
+    });
+  }
+
+  private enforceClipPlayback(currentTime: number): number {
+    let targetTime = currentTime;
+    if (this._clipStart !== undefined && targetTime < this._clipStart) {
+      targetTime = this._clipStart;
+      if (
+        this.audioElement &&
+        Math.abs(this.audioElement.currentTime - targetTime) > 0.05
+      ) {
+        this.audioElement.currentTime = targetTime;
+      }
+    }
+    if (this._clipEnd !== undefined && targetTime >= this._clipEnd) {
+      targetTime = this._clipEnd;
+      if (this.audioElement) {
+        if (Math.abs(this.audioElement.currentTime - targetTime) > 0.05) {
+          this.audioElement.currentTime = targetTime;
+        }
+        if (
+          !this.audioElement.paused &&
+          typeof this.audioElement.pause === "function"
+        ) {
+          this.audioElement.pause();
+        }
+      }
+    }
+    return targetTime;
+  }
+
   getAudio(): HTMLAudioElement | undefined {
     return this.audioElement;
   }
@@ -419,7 +600,7 @@ export class Sonoscope implements ISonoscope {
     if (this.followPlayback === "page") {
       if (currentTime >= vp.endTime || currentTime < vp.startTime) {
         const nextStart = Math.max(
-          0,
+          this._clipStart ?? 0,
           Math.min(this.totalDuration - duration, currentTime),
         );
         this.setViewport(
@@ -430,7 +611,7 @@ export class Sonoscope implements ISonoscope {
     } else if (this.followPlayback === "smooth") {
       const targetStart = currentTime - duration * this.smoothAnchor;
       const nextStart = Math.max(
-        0,
+        this._clipStart ?? 0,
         Math.min(this.totalDuration - duration, targetStart),
       );
       this.setViewport(
@@ -447,7 +628,8 @@ export class Sonoscope implements ISonoscope {
         this.stopPlaybackLoop();
         return;
       }
-      const currentTime = this.getCurrentTime();
+      const rawTime = this.getCurrentTime();
+      const currentTime = this.enforceClipPlayback(rawTime);
       this.events.emit("timeupdate", { currentTime });
       this.checkPlaybackFollow(currentTime);
       this.animationFrame = safeRequestAnimationFrame(tick);
@@ -466,16 +648,33 @@ export class Sonoscope implements ISonoscope {
     this.detachAudio();
     this.audioElement = audio;
 
+    if (this._clipStart !== undefined && audio.currentTime < this._clipStart) {
+      audio.currentTime = this._clipStart;
+    }
+
     const onTimeUpdate = () => {
-      this.events.emit("timeupdate", { currentTime: audio.currentTime });
-      this.checkPlaybackFollow(audio.currentTime);
+      const currentTime = this.enforceClipPlayback(audio.currentTime);
+      this.events.emit("timeupdate", { currentTime });
+      this.checkPlaybackFollow(currentTime);
     };
     const onPlay = () => {
+      if (
+        this._clipEnd !== undefined &&
+        audio.currentTime >= this._clipEnd - 0.05
+      ) {
+        audio.currentTime = this._clipStart ?? 0;
+      } else if (
+        this._clipStart !== undefined &&
+        audio.currentTime < this._clipStart
+      ) {
+        audio.currentTime = this._clipStart;
+      }
       this.startPlaybackLoop();
     };
     const onPause = () => {
       this.stopPlaybackLoop();
-      this.events.emit("timeupdate", { currentTime: audio.currentTime });
+      const currentTime = this.enforceClipPlayback(audio.currentTime);
+      this.events.emit("timeupdate", { currentTime });
     };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
@@ -499,8 +698,9 @@ export class Sonoscope implements ISonoscope {
     });
 
     this.events.emit("audiochange", { audio });
-    this.events.emit("timeupdate", { currentTime: audio.currentTime });
-    this.checkPlaybackFollow(audio.currentTime);
+    const initialTime = this.enforceClipPlayback(audio.currentTime);
+    this.events.emit("timeupdate", { currentTime: initialTime });
+    this.checkPlaybackFollow(initialTime);
 
     if (!audio.paused && !audio.ended) {
       this.startPlaybackLoop();
@@ -525,7 +725,9 @@ export class Sonoscope implements ISonoscope {
   }
 
   seek(time: number): void {
-    const clamped = Math.max(0, Math.min(this.getDuration(), time));
+    const minBound = this._clipStart ?? 0;
+    const maxBound = this._clipEnd ?? this.getDuration();
+    const clamped = Math.max(minBound, Math.min(maxBound, time));
     if (this.audioElement) {
       this.audioElement.currentTime = clamped;
     }
@@ -534,23 +736,82 @@ export class Sonoscope implements ISonoscope {
   }
 
   setSource(source: AudioSource): void {
-    this._source = source;
-    this.totalDuration = Math.max(0.01, source.duration);
-    const nyquist = Math.max(100, Math.floor(source.sampleRate / 2));
-    if (this._viewport instanceof ViewportController) {
-      this._viewport.setTotalDuration(this.totalDuration);
-      this._viewport.setBaseFrequencyBounds(0, nyquist);
+    if (source instanceof ClippedAudioSource) {
+      this._source = source;
+      this._clipStart = source.clipStart;
+      this._clipEnd = source.clipEnd;
+    } else if (this._clipStart !== undefined || this._clipEnd !== undefined) {
+      const rawTotal = Math.max(0.01, source.duration);
+      const clipStart = Math.min(this._clipStart ?? 0, rawTotal);
+      const clipEnd = Math.min(this._clipEnd ?? rawTotal, rawTotal);
+      this._clipStart = this._clipStart !== undefined ? clipStart : undefined;
+      this._clipEnd = this._clipEnd !== undefined ? clipEnd : undefined;
+      this._source = new ClippedAudioSource(source, {
+        clipStart,
+        clipEnd,
+      });
+    } else {
+      this._source = source;
     }
+
+    this.totalDuration = Math.max(0.01, source.duration);
+    const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
+    const effectiveMinTime = this._clipStart ?? 0;
+    const effectiveMaxTime = this._clipEnd ?? this.totalDuration;
+
+    if (this._viewport instanceof ViewportController) {
+      this._viewport.setTotalDuration(source.duration);
+      this._viewport.setBaseFrequencyBounds(0, nyquist);
+      this._viewport.setTimeBounds(effectiveMinTime, effectiveMaxTime);
+    }
+
     const vp = this._viewport.getViewport();
-    this._viewport.setViewport({
-      startTime: Math.min(vp.startTime, this.totalDuration),
-      endTime: Math.min(vp.endTime, this.totalDuration),
-      minFrequency: Math.min(vp.minFrequency, nyquist),
-      maxFrequency: Math.min(vp.maxFrequency, nyquist),
-    });
-    this.events.emit("sourcechange", { source });
+    const currentDuration = Math.min(
+      vp.duration,
+      effectiveMaxTime - effectiveMinTime,
+    );
+    const clampedStart = Math.max(
+      effectiveMinTime,
+      Math.min(vp.startTime, effectiveMaxTime - currentDuration),
+    );
+
+    this._viewport.setViewport(
+      {
+        startTime: clampedStart,
+        endTime: clampedStart + currentDuration,
+        minFrequency: 0,
+        maxFrequency: nyquist,
+      },
+      "sourcechange",
+    );
+
+    if (this.audioElement) {
+      if (
+        this.audioElement.currentTime < effectiveMinTime ||
+        this.audioElement.currentTime > effectiveMaxTime
+      ) {
+        this.audioElement.currentTime = effectiveMinTime;
+      }
+    }
+
+    for (const viewer of this.viewers) {
+      viewer.setSource(this._source);
+    }
+
+    this.events.emit("sourcechange", { source: this._source });
+    if (this._clipStart !== undefined || this._clipEnd !== undefined) {
+      this.events.emit("clipchange", {
+        clipStart: this._clipStart,
+        clipEnd: this._clipEnd,
+      });
+    }
   }
 
+  /**
+   * Creates and attaches a SpectrogramViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Spectrogram visual configuration.
+   */
   createSpectrogram(
     canvas: HTMLCanvasElement,
     options?: Partial<SpectrogramOptions> & {
@@ -558,14 +819,21 @@ export class Sonoscope implements ISonoscope {
       source?: AudioSource | undefined;
     },
   ): SpectrogramViewer {
-    return new SpectrogramViewer(
+    const viewer = new SpectrogramViewer(
       canvas,
       options?.viewport ?? this._viewport,
       options?.source ?? this._source,
       options,
     );
+    this.viewers.add(viewer);
+    return viewer;
   }
 
+  /**
+   * Creates and attaches a WaveformViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Waveform visual configuration.
+   */
   createWaveform(
     canvas: HTMLCanvasElement,
     options?: Partial<WaveformConfig> & {
@@ -573,14 +841,21 @@ export class Sonoscope implements ISonoscope {
       source?: AudioSource | undefined;
     },
   ): WaveformViewer {
-    return new WaveformViewer(
+    const viewer = new WaveformViewer(
       canvas,
       options?.viewport ?? this._viewport,
       options?.source ?? this._source,
       options,
     );
+    this.viewers.add(viewer);
+    return viewer;
   }
 
+  /**
+   * Creates and attaches a TimeRulerViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Ruler appearance and tick formatting options.
+   */
   createTimeRuler(
     canvas: HTMLCanvasElement,
     options?: Partial<TimeRulerOptions> & {
@@ -594,6 +869,11 @@ export class Sonoscope implements ISonoscope {
     );
   }
 
+  /**
+   * Creates and attaches a FrequencyRulerViewer to a canvas element.
+   * @param canvas HTML canvas element for rendering.
+   * @param options Frequency scale and tick formatting options.
+   */
   createFrequencyRuler(
     canvas: HTMLCanvasElement,
     options?: Partial<FrequencyRulerOptions> & {
@@ -611,61 +891,35 @@ export class Sonoscope implements ISonoscope {
     container: HTMLElement,
     options?: NavigationOptions,
   ): () => void {
-    if (
-      (typeof HTMLElement !== "undefined" &&
-        container instanceof HTMLElement) ||
-      (typeof container === "object" &&
-        container !== null &&
-        "addEventListener" in container)
-    ) {
-      const scopeAdapter: NavigableViewer = {
-        getViewport: () => {
-          const vp = this.getViewport();
-          return {
-            startTime: vp.startTime,
-            endTime: vp.endTime,
-            minFrequency: vp.minFrequency,
-            maxFrequency: vp.maxFrequency,
-          };
-        },
-        setViewport: (vp) => {
-          this.setViewport(vp, "navigation");
-        },
-        requestRender: () => {},
-        getCanvas: () => container,
-        getScope: () => this,
-        getConfig: () => ({
-          canvas: container,
-          minViewportDuration: this.minDuration,
-          maxViewportDuration: this.maxDuration,
-          minFrequency: 0,
-          maxFrequency: this.getNyquist(),
-        }),
-        getTimeBounds: () => ({
-          startTime: 0,
-          endTime: this.totalDuration,
-          minDurationSeconds: this.minDuration,
-          maxDurationSeconds: this.maxDuration,
-        }),
-        getFrequencyBounds: () => ({
-          minFrequency: 0,
-          maxFrequency: this.getNyquist(),
-          minSpanHz: 20,
-        }),
-      };
+    const cleanup = this._viewport.attachNavigation(container, options);
+    this.navigationCleanups.push(cleanup);
+    return () => {
+      const idx = this.navigationCleanups.indexOf(cleanup);
+      if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+      cleanup();
+    };
+  }
 
-      const cleanup = attachNavigation(scopeAdapter, container, options);
-      this.navigationCleanups.push(cleanup);
-      return () => {
-        const idx = this.navigationCleanups.indexOf(cleanup);
-        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
-        cleanup();
-      };
-    }
-
-    throw new Error(
-      "Invalid navigation target: expected DOM container element",
-    );
+  /**
+   * Attaches a synchronized playback playhead overlay to a DOM container.
+   * @param container DOM element that will host the playhead line.
+   * @param options Visual styling options for the playhead overlay.
+   * @returns Cleanup function that removes the playhead element and unsubscribes event listeners.
+   */
+  attachPlayhead(
+    container: HTMLElement,
+    options?: PlayheadOverlayOptions,
+  ): () => void {
+    const overlay = attachPlayheadOverlay(container, this, options);
+    const cleanup = () => {
+      overlay.destroy();
+    };
+    this.playheadCleanups.push(cleanup);
+    return () => {
+      const idx = this.playheadCleanups.indexOf(cleanup);
+      if (idx !== -1) this.playheadCleanups.splice(idx, 1);
+      cleanup();
+    };
   }
 
   attachAutoResize(
@@ -688,6 +942,10 @@ export class Sonoscope implements ISonoscope {
       cleanup();
     }
     this.navigationCleanups = [];
+    for (const cleanup of this.playheadCleanups) {
+      cleanup();
+    }
+    this.playheadCleanups = [];
     this.events.emit("destroy", undefined);
     this.events.clear();
   }

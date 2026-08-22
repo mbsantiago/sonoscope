@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fast Audio Clip Switching Demo</title>
+    <style>
+      :root {
+        --bg-main: #0b0f19;
+        --bg-card: #131b2e;
+        --border: rgba(255, 255, 255, 0.12);
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-hover: #0284c7;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg-main);
+        color: var(--text);
+        font-family: system-ui, -apple-system, sans-serif;
+        line-height: 1.5;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      header {
+        margin-bottom: 1.5rem;
+      }
+      h1 {
+        margin: 0.5rem 0;
+        font-size: 1.6rem;
+        font-weight: 600;
+      }
+      p.subtitle {
+        color: var(--text-muted);
+        margin: 0 0 1rem 0;
+      }
+
+      .nav-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .nav-buttons {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      button {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.45rem 0.9rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      button:hover {
+        background: #334155;
+        border-color: #64748b;
+      }
+      button kbd {
+        background: rgba(0, 0, 0, 0.4);
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-family: ui-monospace, monospace;
+        color: #94a3b8;
+      }
+      .clip-badge {
+        font-family: ui-monospace, monospace;
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+      }
+      .clip-badge strong {
+        color: var(--text);
+      }
+
+      .playlist {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+      }
+      .track-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .track-card.active-recording {
+        border-color: var(--accent);
+      }
+      .track-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .clip-list {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .clip-btn {
+        flex: 1;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.775rem;
+        background: #0f172a;
+        border-color: #334155;
+        justify-content: space-between;
+      }
+      .clip-btn.active {
+        background: var(--accent-hover);
+        border-color: var(--accent);
+        color: #ffffff;
+        font-weight: 600;
+      }
+      .clip-btn.active kbd {
+        color: #e0f2fe;
+        background: rgba(0, 0, 0, 0.25);
+      }
+
+      .stage {
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #070a10;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1rem;
+      }
+      .ruler-container {
+        position: relative;
+        width: 100%;
+        height: 34px;
+        background: #0d1321;
+        border-bottom: 1px solid var(--border);
+      }
+      .ruler-container canvas {
+        display: block;
+        width: 100%;
+        height: 34px;
+      }
+      .spec-container {
+        position: relative;
+        width: 100%;
+        height: 280px;
+      }
+      .spec-container canvas {
+        display: block;
+        width: 100%;
+        height: 280px;
+      }
+
+      audio {
+        width: 100%;
+        margin-bottom: 0.75rem;
+      }
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        font-family: ui-monospace, monospace;
+        color: var(--text-muted);
+        padding: 0.25rem 0;
+      }
+      .status-bar span b {
+        color: var(--text);
+      }
+
+      .shortcuts-hint {
+        margin-top: 1.5rem;
+        padding: 0.75rem 1rem;
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px dashed var(--border);
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+      }
+      .shortcuts-hint kbd {
+        background: #1e293b;
+        color: var(--text);
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-family: ui-monospace, monospace;
+        border: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <p><a href="./index.html">← Back to demos</a></p>
+        <h1>Fast Audio Clip Switching</h1>
+        <p class="subtitle">
+          Demonstrates rapid switching between audio clips across range-enabled WAV recordings.
+          Switching clips within the same recording updates boundaries dynamically without reloading, while switching recordings streams WAV chunks seamlessly.
+        </p>
+      </header>
+
+      <div class="nav-bar">
+        <div class="nav-buttons">
+          <button type="button" id="btn-prev" title="Previous Clip (p)">
+            ← Previous <kbd>p</kbd>
+          </button>
+          <button type="button" id="btn-next" title="Next Clip (n)">
+            Next → <kbd>n</kbd>
+          </button>
+          <button type="button" id="btn-random" title="Random Clip (r)">
+            🎲 Random <kbd>r</kbd>
+          </button>
+        </div>
+        <div class="clip-badge">
+          <span id="label-clip-index">Clip 1 / 16</span> ·
+          <strong id="label-clip-name">Loading...</strong>
+        </div>
+      </div>
+
+      <div class="playlist" id="playlist-container"></div>
+
+      <div class="stage" id="stage">
+        <div class="ruler-container" id="ruler-container">
+          <canvas id="ruler-canvas"></canvas>
+        </div>
+        <div class="spec-container" id="spec-container">
+          <canvas id="spec-canvas"></canvas>
+        </div>
+      </div>
+
+      <audio id="audio" controls crossorigin="anonymous"></audio>
+
+      <div class="status-bar">
+        <span id="stat-bounds">Clip: <b>[0.00s, 0.00s]</b></span>
+        <span id="stat-latency">Switch latency: <b>0 ms</b></span>
+        <span id="stat-playhead">Playhead: <b>0.00s</b></span>
+      </div>
+
+      <div class="shortcuts-hint">
+        <strong>Keyboard shortcuts:</strong> Press <kbd>n</kbd> or <kbd>→</kbd> for next clip, <kbd>p</kbd> or <kbd>←</kbd> for previous clip, <kbd>r</kbd> for random clip, <kbd>Space</kbd> to toggle playback.
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        attachPlayheadOverlay,
+        createAudioSourceFromUrl,
+        Sonoscope,
+      } from "@sonoscope/core";
+
+      const recordings = [
+        {
+          title: "After You’ve Gone (1918)",
+          url: "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Vocal Intro", clipStart: 2, clipEnd: 8 },
+            { name: "Trumpet Chorus", clipStart: 18, clipEnd: 26 },
+          ],
+        },
+        {
+          title: "High Society (1911)",
+          url: "https://upload.wikimedia.org/wikipedia/commons/9/9d/High_Society_%281911_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "March Intro", clipStart: 3, clipEnd: 11 },
+            { name: "Clarinet Solo", clipStart: 35, clipEnd: 45 },
+          ],
+        },
+        {
+          title: "Tema de Lucil·la",
+          url: "https://upload.wikimedia.org/wikipedia/commons/4/47/Acompanyament_Tema_de_Lucil%C2%B7la.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Theme Opening", clipStart: 2, clipEnd: 8 },
+            { name: "Theme Variation", clipStart: 20, clipEnd: 28 },
+          ],
+        },
+        {
+          title: "Canto de Ruiseñor",
+          url: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Alcal%C3%A1_de_Henares_%28RPS_13-04-2024%29_canto_de_ruise%C3%B1or_%28Luscinia_megarhynchos%29_en_el_Soto_del_Henares.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Ruiseñor Phrase 1", clipStart: 1, clipEnd: 6.5 },
+            { name: "Ruiseñor Phrase 2", clipStart: 10, clipEnd: 16 },
+          ],
+        },
+        {
+          title: "Wawel (Krystyna Czubówna)",
+          url: "https://upload.wikimedia.org/wikipedia/commons/f/f7/Krystyna_Czub%C3%B3wna._Wawel._Kr%C3%B3lestwo_odkryte_%28narracja%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Narration Opening", clipStart: 1, clipEnd: 7 },
+            { name: "Mid-phrase", clipStart: 12, clipEnd: 19 },
+          ],
+        },
+        {
+          title: "Backyard Ambience",
+          url: "https://upload.wikimedia.org/wikipedia/commons/0/0c/Backyard_ambience_%28Gravity_Sound%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Early Chorus", clipStart: 3, clipEnd: 9 },
+            { name: "Distant Chimes", clipStart: 16, clipEnd: 23 },
+          ],
+        },
+        {
+          title: "Pench Night Safari",
+          url: "https://upload.wikimedia.org/wikipedia/commons/5/52/Pench_Night_Safari_Sounds.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Cricket Nocturne", clipStart: 1, clipEnd: 6.5 },
+            { name: "Night Wildlife", clipStart: 12, clipEnd: 19 },
+          ],
+        },
+        {
+          title: "Same.wav (Synthesizer)",
+          url: "https://upload.wikimedia.org/wikipedia/commons/2/25/Same.wav",
+          clips: [
+            { name: "Attack Phase", clipStart: 0, clipEnd: 2.5 },
+            { name: "Decay & Release", clipStart: 2.8, clipEnd: 5.5 },
+          ],
+        },
+      ];
+
+      // Flatten clips into linear indexable playlist
+      const playlist = [];
+      recordings.forEach((rec, recIdx) => {
+        rec.clips.forEach((clip, clipIdx) => {
+          playlist.push({
+            recordingIndex: recIdx,
+            clipIndex: clipIdx,
+            recordingTitle: rec.title,
+            url: rec.url,
+            name: clip.name,
+            clipStart: clip.clipStart,
+            clipEnd: clip.clipEnd,
+          });
+        });
+      });
+
+      const audio = document.getElementById("audio");
+      const canvasSpec = document.getElementById("spec-canvas");
+      const canvasRuler = document.getElementById("ruler-canvas");
+      const stage = document.getElementById("stage");
+      const rulerContainer = document.getElementById("ruler-container");
+      const specContainer = document.getElementById("spec-container");
+      const playlistContainer = document.getElementById("playlist-container");
+      const btnPrev = document.getElementById("btn-prev");
+      const btnNext = document.getElementById("btn-next");
+      const btnRandom = document.getElementById("btn-random");
+      const labelClipIndex = document.getElementById("label-clip-index");
+      const labelClipName = document.getElementById("label-clip-name");
+      const statBounds = document.getElementById("stat-bounds");
+      const statLatency = document.getElementById("stat-latency");
+      const statPlayhead = document.getElementById("stat-playhead");
+
+      let currentIndex = 0;
+      let scope = null;
+      let spectrogram = null;
+      let timeRuler = null;
+
+      // Build UI Playlist Cards
+      function renderPlaylistUI() {
+        playlistContainer.innerHTML = "";
+        recordings.forEach((rec, recIdx) => {
+          const card = document.createElement("div");
+          card.className = "track-card";
+          card.id = `track-card-${recIdx}`;
+
+          const title = document.createElement("div");
+          title.className = "track-title";
+          title.textContent = rec.title;
+          card.appendChild(title);
+
+          const clipList = document.createElement("div");
+          clipList.className = "clip-list";
+
+          rec.clips.forEach((clip, clipIdx) => {
+            const flatIdx = playlist.findIndex(
+              (p) => p.recordingIndex === recIdx && p.clipIndex === clipIdx,
+            );
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "clip-btn";
+            btn.id = `clip-btn-${flatIdx}`;
+            btn.innerHTML = `<span>${clip.name}</span> <kbd>${clip.clipStart}s–${clip.clipEnd}s</kbd>`;
+            btn.addEventListener("click", () => switchClip(flatIdx));
+            clipList.appendChild(btn);
+          });
+
+          card.appendChild(clipList);
+          playlistContainer.appendChild(card);
+        });
+      }
+
+      function updateActiveUI() {
+        const item = playlist[currentIndex];
+        labelClipIndex.textContent = `Clip ${currentIndex + 1} / ${playlist.length}`;
+        labelClipName.textContent = `${item.recordingTitle} · ${item.name}`;
+
+        document.querySelectorAll(".track-card").forEach((c, idx) => {
+          c.classList.toggle("active-recording", idx === item.recordingIndex);
+        });
+        document.querySelectorAll(".clip-btn").forEach((b, idx) => {
+          b.classList.toggle("active", idx === currentIndex);
+        });
+      }
+
+      function updateStatus() {
+        if (!scope) return;
+        const bounds = scope.getClipBounds();
+        const start = bounds.clipStart?.toFixed(2) ?? "0.00";
+        const end = bounds.clipEnd?.toFixed(2) ?? scope.getDuration().toFixed(2);
+        statBounds.innerHTML = `Clip: <b>[${start}s, ${end}s]</b>`;
+        statPlayhead.innerHTML = `Playhead: <b>${scope.getCurrentTime().toFixed(2)}s</b>`;
+      }
+
+      async function switchClip(targetIndex) {
+        const target = (targetIndex + playlist.length) % playlist.length;
+        const prevItem = playlist[currentIndex];
+        const nextItem = playlist[target];
+        currentIndex = target;
+        updateActiveUI();
+
+        const startTime = performance.now();
+
+        if (scope && prevItem.url === nextItem.url) {
+          // Fast in-place clip update (same underlying source!)
+          scope.setClipBounds({
+            clipStart: nextItem.clipStart,
+            clipEnd: nextItem.clipEnd,
+          });
+          const elapsed = performance.now() - startTime;
+          statLatency.innerHTML = `Switch latency: <b>${elapsed.toFixed(1)} ms</b> (in-place bounds update)`;
+        } else {
+          // Switching recording: decode / stream new range source
+          audio.src = nextItem.url;
+          const nextSource = await createAudioSourceFromUrl(nextItem.url, {
+            clipStart: nextItem.clipStart,
+            clipEnd: nextItem.clipEnd,
+          });
+
+          if (!scope) {
+            scope = new Sonoscope({
+              source: nextSource,
+              audio,
+              clipStart: nextItem.clipStart,
+              clipEnd: nextItem.clipEnd,
+            });
+
+            timeRuler = scope.createTimeRuler(canvasRuler, {
+              program: "ticks",
+              tickPosition: "bottom",
+              color: "#94a3b8",
+              tickColor: "#334155",
+              backgroundColor: "#0d1321",
+            });
+
+            spectrogram = scope.createSpectrogram(canvasSpec, {
+              colorMap: "viridis",
+              frequencyScale: "linear",
+              minValue: -90,
+              maxValue: -10,
+            });
+
+            scope.attachNavigation(stage);
+            attachPlayheadOverlay(rulerContainer, scope);
+            attachPlayheadOverlay(specContainer, scope);
+
+            scope.on("clipchange", updateStatus);
+            scope.on("viewportchange", updateStatus);
+            scope.on("timeupdate", (e) => {
+              statPlayhead.innerHTML = `Playhead: <b>${e.currentTime.toFixed(2)}s</b>`;
+            });
+          } else {
+            scope.setSource(nextSource);
+            scope.setClipBounds({
+              clipStart: nextItem.clipStart,
+              clipEnd: nextItem.clipEnd,
+            });
+          }
+
+          const elapsed = performance.now() - startTime;
+          statLatency.innerHTML = `Switch latency: <b>${elapsed.toFixed(1)} ms</b> (new range source)`;
+        }
+
+        updateStatus();
+      }
+
+      function switchRandom() {
+        if (playlist.length <= 1) return;
+        let next;
+        do {
+          next = Math.floor(Math.random() * playlist.length);
+        } while (next === currentIndex);
+        void switchClip(next);
+      }
+
+      btnPrev.addEventListener("click", () => switchClip(currentIndex - 1));
+      btnNext.addEventListener("click", () => switchClip(currentIndex + 1));
+      btnRandom.addEventListener("click", switchRandom);
+
+      window.addEventListener("keydown", (e) => {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        if (e.key === "n" || e.key === "N" || e.key === "ArrowRight") {
+          e.preventDefault();
+          switchClip(currentIndex + 1);
+        } else if (e.key === "p" || e.key === "P" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          switchClip(currentIndex - 1);
+        } else if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          switchRandom();
+        } else if (e.key === " ") {
+          e.preventDefault();
+          if (audio.paused) audio.play();
+          else audio.pause();
+        }
+      });
+
+      renderPlaylistUI();
+      await switchClip(0);
+    </script>
+  </body>
+</html>
