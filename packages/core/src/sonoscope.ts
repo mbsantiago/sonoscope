@@ -16,6 +16,7 @@ import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformConfig } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
+import { attachPlayheadOverlay, type PlayheadOverlayOptions } from "./playhead";
 import { ArrayAudioSource } from "./sources/array-source";
 import { ClippedAudioSource } from "./sources/clipped-source";
 import {
@@ -69,6 +70,7 @@ export class Sonoscope implements ISonoscope {
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
+  private playheadCleanups: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
   private readonly viewers = new Set<SpectrogramViewer | WaveformViewer>();
   private animationFrame: number | undefined;
@@ -853,6 +855,28 @@ export class Sonoscope implements ISonoscope {
     };
   }
 
+  /**
+   * Attaches a synchronized playback playhead overlay to a DOM container.
+   * @param container DOM element that will host the playhead line.
+   * @param options Visual styling options for the playhead overlay.
+   * @returns Cleanup function that removes the playhead element and unsubscribes event listeners.
+   */
+  attachPlayhead(
+    container: HTMLElement,
+    options?: PlayheadOverlayOptions,
+  ): () => void {
+    const overlay = attachPlayheadOverlay(container, this, options);
+    const cleanup = () => {
+      overlay.destroy();
+    };
+    this.playheadCleanups.push(cleanup);
+    return () => {
+      const idx = this.playheadCleanups.indexOf(cleanup);
+      if (idx !== -1) this.playheadCleanups.splice(idx, 1);
+      cleanup();
+    };
+  }
+
   attachAutoResize(
     canvas: HTMLCanvasElement,
     options?: AutoResizeOptions,
@@ -873,6 +897,10 @@ export class Sonoscope implements ISonoscope {
       cleanup();
     }
     this.navigationCleanups = [];
+    for (const cleanup of this.playheadCleanups) {
+      cleanup();
+    }
+    this.playheadCleanups = [];
     this.events.emit("destroy", undefined);
     this.events.clear();
   }

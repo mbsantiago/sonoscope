@@ -1,5 +1,5 @@
 import "./styles.css";
-import { attachPlayheadOverlay, Sonoscope, type SpectrogramViewer } from "@sonoscope/core";
+import { Sonoscope, type SpectrogramViewer } from "@sonoscope/core";
 
 const audioUrl = "https://xeno-canto.org/1145817/download";
 
@@ -53,7 +53,7 @@ async function loadSource(type: string) {
       currentScope = await Sonoscope.fromAudio(audioElement, {
         followPlayback: "page",
       });
-      infoEl.textContent = `fromAudio (${currentScope.duration.toFixed(1)}s, ${currentScope.getSampleRate()} Hz)`;
+      infoEl.textContent = `fromAudio (${currentScope.getDuration().toFixed(1)}s, ${currentScope.getSampleRate()} Hz)`;
       currentViewer = currentScope.createSpectrogram(canvas, {
         colorMap: "viridis",
         frequencyScale: "mel",
@@ -61,11 +61,11 @@ async function loadSource(type: string) {
         maxValue: 0,
       });
       detachNav = currentScope.attachNavigation(canvas);
-      detachPlayhead = attachPlayheadOverlay(container, currentScope);
+      detachPlayhead = currentScope.attachPlayhead(container);
     } else if (type === "array") {
       const sampleRate = 44100;
       const samples = generateChirpSignal(sampleRate, 3.0);
-      currentScope = await Sonoscope.fromArray(samples, { sampleRate });
+      currentScope = Sonoscope.fromArray(samples, sampleRate);
       infoEl.textContent = `fromArray (3.0s synthetic chirp @ ${sampleRate} Hz)`;
       currentViewer = currentScope.createSpectrogram(canvas, {
         colorMap: "turbo",
@@ -90,7 +90,7 @@ async function loadSource(type: string) {
     } else {
       // "url"
       currentScope = await Sonoscope.fromUrl(audioUrl);
-      infoEl.textContent = `fromUrl (${currentScope.duration.toFixed(1)}s, ${currentScope.getSampleRate()} Hz)`;
+      infoEl.textContent = `fromUrl (${currentScope.getDuration().toFixed(1)}s, ${currentScope.getSampleRate()} Hz)`;
       currentViewer = currentScope.createSpectrogram(canvas, {
         colorMap: "inferno",
         frequencyScale: "mel",

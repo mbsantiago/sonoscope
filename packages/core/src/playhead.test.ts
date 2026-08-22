@@ -20,6 +20,7 @@ interface MockElement {
     left: number;
     top: number;
   };
+  querySelector: (selector: string) => MockElement | null;
 }
 
 function createMockElement(_tag = "div"): MockElement {
@@ -43,6 +44,10 @@ function createMockElement(_tag = "div"): MockElement {
       return child;
     },
     contains: (child: MockElement) => el.children.includes(child),
+    querySelector: (selector: string) => {
+      const cls = selector.replace(/^\./, "");
+      return el.children.find((c) => c.className.includes(cls)) ?? null;
+    },
     clientWidth: 1000,
     clientHeight: 200,
     getBoundingClientRect: () => ({
@@ -125,5 +130,29 @@ describe("PlayheadOverlay", () => {
     expect(el.style.display).toBe("none");
 
     overlay.destroy();
+  });
+
+  it("attaches and cleans up via sonoscope.attachPlayhead() convenience method", () => {
+    const scope = new Sonoscope({ source, startTime: 0, endTime: 10 });
+    const detach = scope.attachPlayhead(container, { color: "#ff0000" });
+
+    const playheadEl = container.querySelector<HTMLElement>(
+      ".sonoscope-playhead",
+    );
+    expect(playheadEl).not.toBeNull();
+    expect(playheadEl?.style.backgroundColor).toBe("#ff0000");
+
+    detach();
+    expect(container.querySelector(".sonoscope-playhead")).toBeNull();
+  });
+
+  it("cleans up attached playhead automatically on scope.destroy()", () => {
+    const scope = new Sonoscope({ source, startTime: 0, endTime: 10 });
+    scope.attachPlayhead(container);
+
+    expect(container.querySelector(".sonoscope-playhead")).not.toBeNull();
+
+    scope.destroy();
+    expect(container.querySelector(".sonoscope-playhead")).toBeNull();
   });
 });

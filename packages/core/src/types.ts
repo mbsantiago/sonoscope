@@ -1,4 +1,5 @@
 import type { NavigationOptions } from "./navigation";
+import type { PlayheadOverlayOptions } from "./playhead";
 
 export type Rgba = [number, number, number, number];
 
@@ -407,6 +408,17 @@ export interface ISonoscope {
     options?: NavigationOptions,
   ): () => void;
 
+  /**
+   * Attaches a synchronized playback playhead overlay to a DOM container.
+   * @param container DOM element that will host the playhead line.
+   * @param options Visual styling options for the playhead overlay.
+   * @returns Cleanup function that removes the playhead element and unsubscribes event listeners.
+   */
+  attachPlayhead(
+    container: HTMLElement,
+    options?: PlayheadOverlayOptions,
+  ): () => void;
+
   /** Subscribes to coordinator events. */
   on<K extends keyof SonoscopeEvents>(
     event: K,
@@ -426,3 +438,4 @@ export type {
   TimeBounds,
   WheelNavigationOptions,
 } from "./navigation";
+export type { IPlayheadOverlay, PlayheadOverlayOptions } from "./playhead";

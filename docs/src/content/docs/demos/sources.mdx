@@ -29,7 +29,7 @@ const audioScope = await Sonoscope.fromAudio(audioElement);
 const fileScope = await Sonoscope.fromBlob(file);
 
 // 4. Raw sample array
-const arrayScope = await Sonoscope.fromArray(samples, { sampleRate: 44100 });
+const arrayScope = Sonoscope.fromArray(samples, 44100);
 
 // 5. Audio clip
 const clipScope = await Sonoscope.fromUrl("/audio/recording.wav", {
@@ -75,7 +75,7 @@ const scope = await Sonoscope.fromAudio(audioElement, { followPlayback: "page" }
 
 const spectrogram = scope.createSpectrogram(canvas, { colorMap: "viridis" });
 scope.attachNavigation(canvas);
-attachPlayheadOverlay(container, scope);
+scope.attachPlayhead(container);
 ```
 
 <AudioSourcePreview type="audio" />
@@ -127,7 +127,7 @@ for (let i = 0; i < samples.length; i++) {
   samples[i] = 0.6 * Math.sin(2 * Math.PI * frequency * t);
 }
 
-const scope = await Sonoscope.fromArray(samples, { sampleRate });
+const scope = Sonoscope.fromArray(samples, sampleRate);
 scope.createSpectrogram(canvas, { colorMap: "turbo", frequencyScale: "linear" });
 scope.attachNavigation(canvas);
 ```

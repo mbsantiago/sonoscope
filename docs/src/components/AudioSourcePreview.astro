@@ -70,7 +70,7 @@ const configJson = JSON.stringify(config);
 </audio-source-preview>
 
 <script>
-  import { attachPlayheadOverlay, Sonoscope } from "@sonoscope/core";
+  import { Sonoscope } from "@sonoscope/core";
   import { DEFAULT_AUDIO_URL } from "../constants";
 
   function generateSyntheticSignal(preset: string = "chirp"): { samples: Float32Array; sampleRate: number } {
@@ -150,7 +150,7 @@ const configJson = JSON.stringify(config);
             ...config,
           });
           this.detachNav = this.scope.attachNavigation(canvas);
-          this.detachPlayhead = attachPlayheadOverlay(container, this.scope);
+          this.detachPlayhead = this.scope.attachPlayhead(container);
         }
       } else if (type === "blob") {
         const fileInput = this.querySelector<HTMLInputElement>(".file-input");
@@ -176,7 +176,7 @@ const configJson = JSON.stringify(config);
           this.detachNav = this.scope.attachNavigation(canvas);
 
           if (statusSpan) {
-            statusSpan.textContent = `Loaded "${name}" (${(blob.size / 1024).toFixed(1)} KB, ${this.scope.duration.toFixed(2)}s)`;
+            statusSpan.textContent = `Loaded "${name}" (${(blob.size / 1024).toFixed(1)} KB, ${this.scope.getDuration().toFixed(2)}s)`;
           }
         };
 
@@ -205,7 +205,7 @@ const configJson = JSON.stringify(config);
           this.scope?.destroy();
 
           const { samples, sampleRate } = generateSyntheticSignal(preset);
-          this.scope = await Sonoscope.fromArray(samples, { sampleRate });
+          this.scope = Sonoscope.fromArray(samples, sampleRate);
           if (!this.isConnected) {
             this.scope.destroy();
             return;
