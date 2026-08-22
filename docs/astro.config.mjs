@@ -180,7 +180,8 @@ export default defineConfig({
 					items: [
 						{ label: 'Spectrogram', slug: 'demos/spectrogram' },
 						{ label: 'Waveform', slug: 'demos/waveform' },
-            { label: 'Rulers', slug: 'demos/rulers' },
+						{ label: 'Rulers', slug: 'demos/rulers' },
+						{ label: 'Audio Sources', slug: 'demos/sources' },
 						{ label: 'React Components', slug: 'demos/react' },
 						{ label: 'Python Widget', slug: 'demos/python' },
 					],

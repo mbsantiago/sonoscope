@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Audio Sources Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="toolbar">
+        <label>Source:</label>
+        <select id="source-select">
+          <option value="url">1. Remote URL</option>
+          <option value="audio">2. HTMLAudioElement (Sync Playback)</option>
+          <option value="array">3. Float32Array (Synthetic Audio)</option>
+          <option value="clip">4. Audio Clip (1.0s - 3.5s)</option>
+        </select>
+        <span id="source-info">Loading...</span>
+      </div>
+
+      <div class="viewer-container" id="container">
+        <canvas id="spectrogram"></canvas>
+      </div>
+
+      <div id="audio-controls" class="audio-controls hidden">
+        <audio id="audio-player" controls></audio>
+      </div>
+    </div>
+  </body>
+</html>

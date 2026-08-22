@@ -1,0 +1,182 @@
+---
+title: Audio Sources
+description: Initialize and visualize audio from URLs, HTML audio elements, Blobs, raw PCM arrays, and bounded clips.
+---
+
+import AudioSourcePreview from "../../../components/AudioSourcePreview.astro";
+import TypeTable from "../../../components/TypeTable.astro";
+
+Sonoscope accepts audio from multiple source formats, including remote media URLs, browser `<audio>` elements, uploaded Files and Blobs, raw PCM numerical arrays, and bounded audio clips.
+
+Each source type supplies decoded audio blocks to the WASM STFT compute engine on demand, without blocking the main UI thread.
+
+---
+
+## The basics
+
+Create a [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/) instance using the static factory method matching your audio data format:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+// 1. Remote URL
+const urlScope = await Sonoscope.fromUrl("/audio/sound.wav");
+
+// 2. HTML Audio Element
+const audioScope = await Sonoscope.fromAudio(audioElement);
+
+// 3. Blob / File
+const fileScope = await Sonoscope.fromBlob(fileBlob);
+
+// 4. Raw PCM Array
+const arrayScope = await Sonoscope.fromArray(pcmFloat32Array, { sampleRate: 44100 });
+
+// 5. Bounded Clip
+const clipScope = await Sonoscope.fromUrl("/audio/sound.wav", { clipStart: 1.0, clipEnd: 3.5 });
+```
+
+---
+
+## Source types & examples
+
+### 1. Sonoscope from URL
+
+Initializes audio from a remote or local audio file URL using [`Sonoscope.fromUrl`](/sonoscope/reference/core/classes/sonoscope/#fromurl). When streaming WAV or MP3 files with HTTP Range support, Sonoscope fetches and decodes only the visible viewport frames on demand.
+
+**When to use:**
+* Loading remote audio files over the network without pre-downloading the entire track.
+* Standard web applications fetching audio assets from static CDNs or APIs.
+
+```ts
+const scope = await Sonoscope.fromUrl("https://example.com/sound.wav");
+const spectrogram = scope.createSpectrogram(canvas, { colorMap: "viridis" });
+scope.attachNavigation(canvas);
+```
+
+<AudioSourcePreview type="url" />
+
+---
+
+### 2. Sonoscope from HTMLAudioElement
+
+Connects directly to an existing browser `<audio>` element using [`Sonoscope.fromAudio`](/sonoscope/reference/core/classes/sonoscope/#fromaudio). Automatically synchronizes timeline viewport scrolling and animated playhead tracking with user playback.
+
+**When to use:**
+* Building interactive audio players with built-in native browser media playback controls.
+* Tracking playhead location in real time with continuous viewport following (`page` or `smooth` mode).
+
+```ts
+const audioElement = document.querySelector("audio");
+const scope = await Sonoscope.fromAudio(audioElement, { followPlayback: "page" });
+
+const spectrogram = scope.createSpectrogram(canvas, { colorMap: "viridis" });
+scope.attachNavigation(canvas);
+attachPlayheadOverlay(container, scope);
+```
+
+<AudioSourcePreview type="audio" />
+
+---
+
+### 3. Sonoscope from Blob (with file upload)
+
+Loads audio from an in-memory `Blob` or `File` object using [`Sonoscope.fromBlob`](/sonoscope/reference/core/classes/sonoscope/#fromblob). In the interactive demo below, you can upload any local audio file to inspect its spectrogram.
+
+**When to use:**
+* Client-side audio editors or analyzers where users drag-and-drop or select files from their local filesystem.
+* Processing audio blobs recorded directly from the browser microphone via `MediaRecorder`.
+
+```ts
+const fileInput = document.querySelector('input[type="file"]');
+fileInput.addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    const scope = await Sonoscope.fromBlob(file);
+    scope.createSpectrogram(canvas, { colorMap: "inferno" });
+    scope.attachNavigation(canvas);
+  }
+});
+```
+
+<AudioSourcePreview type="blob" />
+
+---
+
+### 4. Sonoscope from Array (synthetic audio)
+
+Initializes audio from a raw numerical `Float32Array` or `number[]` array using [`Sonoscope.fromArray`](/sonoscope/reference/core/classes/sonoscope/#fromarray). No file encoding or decoding overhead is required.
+
+**When to use:**
+* Visualizing algorithmically synthesized sound signals, mathematical waveforms, or DSP filter responses.
+* Rendering audio data generated in memory by Python/NumPy, Web Audio nodes, or machine learning pipelines.
+
+```ts
+// Generate a 2.5-second linear chirp sweep from 300 Hz to 4500 Hz
+const sampleRate = 44100;
+const duration = 2.5;
+const samples = new Float32Array(Math.floor(sampleRate * duration));
+
+for (let i = 0; i < samples.length; i++) {
+  const t = i / sampleRate;
+  const f = 300 + (4200 * (t / duration));
+  samples[i] = 0.6 * Math.sin(2 * Math.PI * f * t);
+}
+
+const scope = await Sonoscope.fromArray(samples, { sampleRate });
+scope.createSpectrogram(canvas, { colorMap: "turbo", frequencyScale: "linear" });
+scope.attachNavigation(canvas);
+```
+
+<AudioSourcePreview type="array" />
+
+---
+
+### 5. Audio clip
+
+Restricts visualization, playback, and coordinate bounds to an isolated temporal time window using `{ clipStart, clipEnd }` options or [`ClippedAudioSource`](/sonoscope/reference/core/classes/clippedaudiosource/).
+
+**When to use:**
+* Visualizing a specific segment or annotation in a long audio recording without altering the original underlying file.
+* Fast clip switching workflows where switching between clips reuses cached STFT computation and frames.
+
+```ts
+// Extract and isolate a 2.5-second window (1.0s to 3.5s) from a longer recording
+const scope = await Sonoscope.fromUrl("https://example.com/recording.wav", {
+  clipStart: 1.0,
+  clipEnd: 3.5,
+});
+
+const spectrogram = scope.createSpectrogram(canvas, { colorMap: "plasma" });
+scope.attachNavigation(canvas);
+```
+
+<AudioSourcePreview type="clip" clipStart={1.0} clipEnd={3.5} />
+
+---
+
+## Configuration options
+
+### [Sonoscope options](/sonoscope/reference/core/type-aliases/sonoscopeoptions/)
+
+Options accepted by `new Sonoscope(options)` and static factory methods. Full reference: [`SonoscopeOptions`](/sonoscope/reference/core/type-aliases/sonoscopeoptions/).
+
+<TypeTable file="packages/core/src/types.ts" name="SonoscopeOptions" />
+
+---
+
+## Try it yourself!
+
+Switch between audio source formats live in the interactive playground below:
+* **Select a source** from the dropdown menu to initialize different input types.
+* **Drag and scroll** across the spectrogram canvas to pan and zoom.
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={380}
+  previewHeight={380}
+  files={{
+    "index.ts": loadFile("sources/index.ts"),
+    "index.html": loadFile("sources/index.html"),
+    "styles.css": loadFile("sources/styles.css"),
+  }}
+/>
