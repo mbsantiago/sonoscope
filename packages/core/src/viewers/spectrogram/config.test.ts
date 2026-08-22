@@ -91,9 +91,9 @@ describe("resolveConfig", () => {
     );
     expect(
       resolveConfig(source, {
-        renderer: { type: "webgl", program: "dither" },
+        renderer: { type: "webgl", program: "halftone" },
       }).renderer,
-    ).toEqual({ type: "webgl", program: "dither" });
+    ).toEqual({ type: "webgl", program: "halftone" });
   });
 
   it("validates selected channel against the source", () => {

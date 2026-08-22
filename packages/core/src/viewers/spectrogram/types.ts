@@ -14,7 +14,7 @@ export type ValueMode = "magnitude" | "power" | "db";
 
 export type WebGLRendererProgramName =
   | "normal"
-  | "dither"
+  | "halftone"
   | "sobel"
   | "terrain";
 
@@ -22,21 +22,21 @@ export type WebGLRendererProgram =
   | WebGLRendererProgramName
   | WebGL2RenderProgram;
 
-export type DitherOptions = {
+export type HalftoneOptions = {
   dotFrequency?: number | undefined;
   minEnergyThreshold?: number | undefined;
   energyGamma?: number | undefined;
 };
 
-export type DitherRendererConfig = {
-  type: "dither";
+export type HalftoneRendererConfig = {
+  type: "halftone";
   program?: WebGLRendererProgram | undefined;
-} & DitherOptions;
+} & HalftoneOptions;
 
 export type WebGLRendererConfig = {
   type: "webgl" | "webgl2" | WebGLRendererProgramName;
   program?: WebGLRendererProgram | undefined;
-} & DitherOptions;
+} & HalftoneOptions;
 
 export type Canvas2DRendererConfig = {
   type: "canvas2d";
@@ -45,13 +45,13 @@ export type Canvas2DRendererConfig = {
 export type AutoRendererConfig = {
   type: "auto";
   program?: WebGLRendererProgram | undefined;
-} & DitherOptions;
+} & HalftoneOptions;
 
 export type SpectrogramRendererConfig =
   | AutoRendererConfig
   | Canvas2DRendererConfig
   | WebGLRendererConfig
-  | DitherRendererConfig;
+  | HalftoneRendererConfig;
 
 export type RendererMode =
   | "auto"
@@ -252,7 +252,7 @@ export type SpectrogramConfig = {
    * - "auto": Uses WebGL2 if supported, falling back to Canvas 2D.
    * - "webgl" / "webgl2": Hardware-accelerated GPU shader renderer.
    * - "canvas2d": CPU Canvas 2D fallback renderer.
-   * - Custom object with shader program (`{ type: "webgl", program: "normal" | "dither" | "sobel" | "terrain" }`).
+   * - Custom object with shader program (`{ type: "webgl", program: "normal" | "halftone" | "sobel" | "terrain" }`).
    * @default "auto"
    */
   renderer?: RendererMode | undefined;

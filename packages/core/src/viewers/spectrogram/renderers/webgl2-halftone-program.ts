@@ -1,7 +1,7 @@
 import type { RenderInput } from "./canvas";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 
-export const WEBGL2_DITHER_FRAGMENT_SHADER = `#version 300 es
+export const WEBGL2_HALFTONE_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
 in vec2 v_globalUv;
@@ -160,15 +160,15 @@ void main() {
   outColor = mix(backgroundColor, dotColor, dotMask);
 }`;
 
-export class DitherSpectrogramProgram extends NormalSpectrogramProgram {
+export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
   constructor(gl: WebGL2RenderingContext) {
-    super(gl, WEBGL2_DITHER_FRAGMENT_SHADER);
+    super(gl, WEBGL2_HALFTONE_FRAGMENT_SHADER);
   }
 
   protected override setCustomUniforms(input: RenderInput): void {
-    const dotFrequency = input.dither?.dotFrequency ?? 0.24;
-    const minEnergyThreshold = input.dither?.minEnergyThreshold ?? 0;
-    const energyGamma = input.dither?.energyGamma ?? 1.4;
+    const dotFrequency = input.halftone?.dotFrequency ?? 0.24;
+    const minEnergyThreshold = input.halftone?.minEnergyThreshold ?? 0;
+    const energyGamma = input.halftone?.energyGamma ?? 1.4;
 
     this.shader.uniform1f("u_dotFrequency", dotFrequency);
     this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);

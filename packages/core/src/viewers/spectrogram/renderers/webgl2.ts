@@ -9,9 +9,9 @@ import {
   type SpectrogramRenderer,
 } from "./canvas";
 import {
-  DitherSpectrogramProgram,
-  WEBGL2_DITHER_FRAGMENT_SHADER,
-} from "./webgl2-dither-program";
+  HalftoneSpectrogramProgram,
+  WEBGL2_HALFTONE_FRAGMENT_SHADER,
+} from "./webgl2-halftone-program";
 import {
   NormalSpectrogramProgram,
   WEBGL2_FRAGMENT_SHADER,
@@ -38,7 +38,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
   private readonly fallback = new CanvasSpectrogramRenderer();
   private readonly normalProgram: WebGL2RenderProgram;
-  private readonly ditherProgram: WebGL2RenderProgram;
+  private readonly halftoneProgram: WebGL2RenderProgram;
   private readonly sobelProgram: WebGL2RenderProgram;
   private readonly terrainProgram: WebGL2RenderProgram;
   private readonly customProgram: WebGL2RenderProgram | undefined;
@@ -51,7 +51,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     customProgram?: WebGL2RenderProgram,
   ) {
     this.normalProgram = new NormalSpectrogramProgram(gl);
-    this.ditherProgram = new DitherSpectrogramProgram(gl);
+    this.halftoneProgram = new HalftoneSpectrogramProgram(gl);
     this.sobelProgram = new SobelSpectrogramProgram(gl);
     this.terrainProgram = new TerrainSpectrogramProgram(gl);
     this.customProgram = customProgram;
@@ -82,7 +82,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       compileShaderDiagnostic(
         gl,
         gl.FRAGMENT_SHADER,
-        WEBGL2_DITHER_FRAGMENT_SHADER,
+        WEBGL2_HALFTONE_FRAGMENT_SHADER,
       ) ??
       compileShaderDiagnostic(
         gl,
@@ -130,7 +130,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.invalidate();
     this.gl.deleteTexture(this.colorMapTexture);
     this.normalProgram.delete();
-    this.ditherProgram.delete();
+    this.halftoneProgram.delete();
     this.sobelProgram.delete();
     this.terrainProgram.delete();
     this.customProgram?.delete();
@@ -149,7 +149,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     if (typeof input.webglProgram === "object") return input.webglProgram;
     if (input.webglProgram === "terrain") return this.terrainProgram;
     if (input.webglProgram === "sobel") return this.sobelProgram;
-    if (input.webglProgram === "dither") return this.ditherProgram;
+    if (input.webglProgram === "halftone") return this.halftoneProgram;
     if (input.webglProgram === "normal") return this.normalProgram;
     if (this.customProgram) return this.customProgram;
     return this.normalProgram;

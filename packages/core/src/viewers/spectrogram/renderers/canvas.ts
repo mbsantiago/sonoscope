@@ -16,7 +16,7 @@ import {
 } from "../spectrogram-sampling";
 import { normalizeValue } from "../value-scale";
 
-export type DitherRenderOptions = {
+export type HalftoneRenderOptions = {
   dotFrequency?: number | undefined;
   minEnergyThreshold?: number | undefined;
   energyGamma?: number | undefined;
@@ -33,11 +33,11 @@ export type RenderInput = {
   playheadTime?: number;
   webglProgram?:
     | "normal"
-    | "dither"
+    | "halftone"
     | "sobel"
     | "terrain"
     | WebGL2RenderProgram;
-  dither?: DitherRenderOptions | undefined;
+  halftone?: HalftoneRenderOptions | undefined;
   profile?: PerformanceProfiler;
 };
 

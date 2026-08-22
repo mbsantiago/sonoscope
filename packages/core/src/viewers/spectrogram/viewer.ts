@@ -901,10 +901,10 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
 function webglProgramRenderInput(
   renderer: RendererMode,
-): Pick<RenderInput, "webglProgram" | "dither"> {
+): Pick<RenderInput, "webglProgram" | "halftone"> {
   if (typeof renderer === "string") {
     if (
-      renderer === "dither" ||
+      renderer === "halftone" ||
       renderer === "terrain" ||
       renderer === "sobel" ||
       renderer === "normal"
@@ -914,7 +914,7 @@ function webglProgramRenderInput(
     return {};
   }
   if (typeof renderer === "object" && renderer !== null) {
-    const dither =
+    const halftone =
       "dotFrequency" in renderer ||
       "minEnergyThreshold" in renderer ||
       "energyGamma" in renderer
@@ -928,22 +928,22 @@ function webglProgramRenderInput(
     if ("program" in renderer && renderer.program) {
       return {
         webglProgram: renderer.program,
-        ...(dither ? { dither } : {}),
+        ...(halftone ? { halftone } : {}),
       };
     }
     if (
-      renderer.type === "dither" ||
+      renderer.type === "halftone" ||
       renderer.type === "terrain" ||
       renderer.type === "sobel" ||
       renderer.type === "normal"
     ) {
       return {
         webglProgram: renderer.type,
-        ...(dither ? { dither } : {}),
+        ...(halftone ? { halftone } : {}),
       };
     }
-    if (dither) {
-      return { dither };
+    if (halftone) {
+      return { halftone };
     }
   }
   return {};

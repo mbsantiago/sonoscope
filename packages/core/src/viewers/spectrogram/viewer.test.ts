@@ -1670,9 +1670,9 @@ describe("SpectrogramViewer", () => {
 
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
       const v1 = scope.createSpectrogram(mockCanvas, {
-        renderer: "dither",
+        renderer: "halftone",
       });
-      expect(v1.getConfig().renderer).toBe("dither");
+      expect(v1.getConfig().renderer).toBe("halftone");
       v1.destroy();
 
       const v2 = scope.createSpectrogram(mockCanvas, {
@@ -1682,21 +1682,21 @@ describe("SpectrogramViewer", () => {
       v2.destroy();
 
       const v3 = scope.createSpectrogram(mockCanvas, {
-        renderer: { type: "dither" },
+        renderer: { type: "halftone" },
       });
-      expect(v3.getConfig().renderer).toEqual({ type: "dither" });
+      expect(v3.getConfig().renderer).toEqual({ type: "halftone" });
       v3.destroy();
 
       const v4 = scope.createSpectrogram(mockCanvas, {
         renderer: {
-          type: "dither",
+          type: "halftone",
           dotFrequency: 0.25,
           minEnergyThreshold: 0.1,
           energyGamma: 3.5,
         },
       });
       expect(v4.getConfig().renderer).toEqual({
-        type: "dither",
+        type: "halftone",
         dotFrequency: 0.25,
         minEnergyThreshold: 0.1,
         energyGamma: 3.5,

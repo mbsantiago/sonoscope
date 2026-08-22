@@ -76,7 +76,7 @@ describe("loading and profiler backends in browser", () => {
 
     const programs = [
       "normal",
-      "dither",
+      "halftone",
       "sobel",
       "terrain",
       "normal",

@@ -79,8 +79,8 @@ export type {
   BackendMode,
   CacheStats,
   Canvas2DRendererConfig,
-  DitherOptions,
-  DitherRendererConfig,
+  HalftoneOptions,
+  HalftoneRendererConfig,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -217,7 +217,7 @@ export {
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
 export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";
-export { DitherSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-dither-program";
+export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-halftone-program";
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
 export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
 export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-sobel-program";

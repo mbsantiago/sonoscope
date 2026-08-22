@@ -14,7 +14,7 @@ function isWebGLStrict(mode: RendererMode): boolean {
     return (
       mode === "webgl" ||
       mode === "webgl2" ||
-      mode === "dither" ||
+      mode === "halftone" ||
       mode === "terrain" ||
       mode === "sobel" ||
       mode === "normal"
@@ -24,7 +24,7 @@ function isWebGLStrict(mode: RendererMode): boolean {
     return (
       mode.type === "webgl" ||
       mode.type === "webgl2" ||
-      mode.type === "dither" ||
+      mode.type === "halftone" ||
       mode.type === "terrain" ||
       mode.type === "sobel" ||
       mode.type === "normal"

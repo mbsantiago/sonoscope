@@ -16,7 +16,7 @@ export const WEBGL2_UNIFORMS = [
   "u_terrainHeight",
   "u_terrainPlayhead",
   "u_terrainTimeRange",
-  // Dither shader parameters
+  // Halftone shader parameters
   "u_dotFrequency",
   "u_minEnergyThreshold",
   "u_energyGamma",

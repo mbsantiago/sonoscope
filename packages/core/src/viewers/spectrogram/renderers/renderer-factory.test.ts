@@ -59,7 +59,7 @@ describe("createSpectrogramRenderer", () => {
     expect(() => createSpectrogramRenderer(canvas(null), "webgl")).toThrow(
       /returned null/,
     );
-    expect(() => createSpectrogramRenderer(canvas(null), "dither")).toThrow(
+    expect(() => createSpectrogramRenderer(canvas(null), "halftone")).toThrow(
       /returned null/,
     );
     expect(() => createSpectrogramRenderer(canvas(null), "terrain")).toThrow(
@@ -68,12 +68,12 @@ describe("createSpectrogramRenderer", () => {
     expect(() =>
       createSpectrogramRenderer(canvas(null), {
         type: "webgl",
-        program: "dither",
+        program: "halftone",
       }),
     ).toThrow(/returned null/);
     expect(() =>
       createSpectrogramRenderer(canvas(null), {
-        type: "dither",
+        type: "halftone",
       }),
     ).toThrow(/returned null/);
   });
@@ -103,7 +103,7 @@ describe("createSpectrogramRenderer", () => {
     expect(() => createSpectrogramRenderer(canvas(gl), "webgl")).toThrow(
       /Unable to compile WebGL2/,
     );
-    expect(() => createSpectrogramRenderer(canvas(gl), "dither")).toThrow(
+    expect(() => createSpectrogramRenderer(canvas(gl), "halftone")).toThrow(
       /Unable to compile WebGL2/,
     );
   });
@@ -112,17 +112,17 @@ describe("createSpectrogramRenderer", () => {
     const gl = webgl2();
     const r1 = createSpectrogramRenderer(canvas(gl), {
       type: "webgl",
-      program: "dither",
+      program: "halftone",
     });
     expect(r1.kind).toBe("webgl2");
 
-    const r2 = createSpectrogramRenderer(canvas(gl), "dither");
+    const r2 = createSpectrogramRenderer(canvas(gl), "halftone");
     expect(r2.kind).toBe("webgl2");
 
     const r3 = createSpectrogramRenderer(canvas(gl), "terrain");
     expect(r3.kind).toBe("webgl2");
 
-    const r4 = createSpectrogramRenderer(canvas(gl), { type: "dither" });
+    const r4 = createSpectrogramRenderer(canvas(gl), { type: "halftone" });
     expect(r4.kind).toBe("webgl2");
   });
 });
