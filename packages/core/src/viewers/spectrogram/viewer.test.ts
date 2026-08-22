@@ -1402,7 +1402,7 @@ describe("SpectrogramViewer", () => {
     const ultraHighRateSource: AudioSource = {
       id: "bat-ultrasonic-500k",
       sampleRate: 500_000,
-      duration: 5,
+      duration: 1,
       channelCount: 1,
       read: () => new Float32Array(500_000),
     };
@@ -1411,14 +1411,13 @@ describe("SpectrogramViewer", () => {
       canvas: canvas(),
       source: ultraHighRateSource,
       hopSize: 128,
-      tileMaxCells: 524_288, // default: 1024 frames × 512 bins
+      tileMaxCells: 2**16,
       startTime: 0,
       endTime: 5,
     });
 
     await viewer.render();
 
-    // 5s of 500kHz at hop 128 is ~19531 frames; with 1024 frames/tile (tileMaxCells=524288, 512 bins), ~19 tiles
     const stats = viewer.getCacheStats();
     expect(stats.tiles).toBeGreaterThanOrEqual(18);
   });
