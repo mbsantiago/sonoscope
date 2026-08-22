@@ -111,13 +111,17 @@ export class BarsWaveformRenderer implements WaveformRenderer {
       typeof canvas.getBoundingClientRect === "function"
         ? canvas.getBoundingClientRect()
         : null;
-    const dpr = (rect && rect.width > 0 ? width / rect.width : 1) || 1;
+
+    const dpr =
+      typeof window !== "undefined" && window.devicePixelRatio
+        ? window.devicePixelRatio
+        : (rect && rect.width > 0 ? Math.round(width / rect.width) : 1) || 1;
 
     const barWidthCss = Math.max(0.5, this.options.barWidth ?? 3);
     const barGapCss = Math.max(0, this.options.barGap ?? 2);
-    const bw = Math.max(1, barWidthCss * dpr);
-    const bg = barGapCss * dpr;
-    const step = bw + bg;
+    const bw = Math.max(1, Math.round(barWidthCss * dpr));
+    const bg = Math.max(0, Math.round(barGapCss * dpr));
+    const step = Math.max(1, bw + bg);
 
     const timeSpan = endTime - startTime;
     if (timeSpan <= 0 || step <= 0) {

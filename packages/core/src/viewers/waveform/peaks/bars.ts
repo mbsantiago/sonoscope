@@ -51,7 +51,7 @@ export class BarPeakPyramid {
     const startSampleIndex = Math.max(0, Math.floor(readStart * sampleRate));
     const endSampleIndex = Math.min(
       Math.round(totalDuration * sampleRate),
-      Math.ceil(readEnd * sampleRate),
+      Math.ceil(readEnd * sampleRate) + 4,
     );
 
     const samples = await this.source.read({
@@ -67,20 +67,11 @@ export class BarPeakPyramid {
 
     for (let k = kStart; k <= kEnd; k++) {
       const idx = k - kStart;
-      const s0 = Math.max(
-        0,
-        Math.min(
-          len - 1,
-          Math.round(k * barDuration * sampleRate - startSampleIndex),
-        ),
-      );
-      const s1 = Math.max(
-        s0 + 1,
-        Math.min(
-          len,
-          Math.round((k + 1) * barDuration * sampleRate - startSampleIndex),
-        ),
-      );
+      const targetS0 = Math.round(k * barDuration * sampleRate);
+      const targetS1 = Math.round((k + 1) * barDuration * sampleRate);
+
+      const s0 = Math.max(0, Math.min(len - 1, targetS0 - startSampleIndex));
+      const s1 = Math.max(s0 + 1, Math.min(len, targetS1 - startSampleIndex));
 
       let minVal = samples[s0] ?? 0;
       let maxVal = samples[s0] ?? 0;
