@@ -86,7 +86,19 @@ scope.createSpectrogram(spectrogramCanvas, {
 
 <SpectrogramPreview config={{ windowSize: 512, hopSize: 128 }} />
 
-### 6. Halftone shader effect
+### 6. Narrow dynamic range
+Raises the noise floor to suppress quiet background and expose mid-level detail:
+
+```ts
+scope.createSpectrogram(spectrogramCanvas, {
+  minValue: -60,
+  maxValue: -10,
+});
+```
+
+<SpectrogramPreview config={{ minValue: -60, maxValue: -10 }} />
+
+### 7. Halftone shader effect
 Renders with a retro halftone shader program:
 
 ```ts
