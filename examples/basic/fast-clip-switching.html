@@ -242,9 +242,12 @@
           <button type="button" id="btn-next" title="Next Clip (n)">
             Next → <kbd>n</kbd>
           </button>
+          <button type="button" id="btn-random" title="Random Clip (r)">
+            🎲 Random <kbd>r</kbd>
+          </button>
         </div>
         <div class="clip-badge">
-          <span id="label-clip-index">Clip 1 / 10</span> ·
+          <span id="label-clip-index">Clip 1 / 16</span> ·
           <strong id="label-clip-name">Loading...</strong>
         </div>
       </div>
@@ -269,7 +272,7 @@
       </div>
 
       <div class="shortcuts-hint">
-        <strong>Keyboard shortcuts:</strong> Press <kbd>n</kbd> or <kbd>→</kbd> for next clip, <kbd>p</kbd> or <kbd>←</kbd> for previous clip, <kbd>Space</kbd> to toggle playback.
+        <strong>Keyboard shortcuts:</strong> Press <kbd>n</kbd> or <kbd>→</kbd> for next clip, <kbd>p</kbd> or <kbd>←</kbd> for previous clip, <kbd>r</kbd> for random clip, <kbd>Space</kbd> to toggle playback.
       </div>
     </div>
 
@@ -290,6 +293,38 @@
           ],
         },
         {
+          title: "High Society (1911)",
+          url: "https://upload.wikimedia.org/wikipedia/commons/9/9d/High_Society_%281911_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "March Intro", clipStart: 3, clipEnd: 11 },
+            { name: "Clarinet Solo", clipStart: 35, clipEnd: 45 },
+          ],
+        },
+        {
+          title: "Tema de Lucil·la",
+          url: "https://upload.wikimedia.org/wikipedia/commons/4/47/Acompanyament_Tema_de_Lucil%C2%B7la.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Theme Opening", clipStart: 2, clipEnd: 8 },
+            { name: "Theme Variation", clipStart: 20, clipEnd: 28 },
+          ],
+        },
+        {
+          title: "Canto de Ruiseñor",
+          url: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Alcal%C3%A1_de_Henares_%28RPS_13-04-2024%29_canto_de_ruise%C3%B1or_%28Luscinia_megarhynchos%29_en_el_Soto_del_Henares.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Ruiseñor Phrase 1", clipStart: 1, clipEnd: 6.5 },
+            { name: "Ruiseñor Phrase 2", clipStart: 10, clipEnd: 16 },
+          ],
+        },
+        {
+          title: "Wawel (Krystyna Czubówna)",
+          url: "https://upload.wikimedia.org/wikipedia/commons/f/f7/Krystyna_Czub%C3%B3wna._Wawel._Kr%C3%B3lestwo_odkryte_%28narracja%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+          clips: [
+            { name: "Narration Opening", clipStart: 1, clipEnd: 7 },
+            { name: "Mid-phrase", clipStart: 12, clipEnd: 19 },
+          ],
+        },
+        {
           title: "Backyard Ambience",
           url: "https://upload.wikimedia.org/wikipedia/commons/0/0c/Backyard_ambience_%28Gravity_Sound%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
           clips: [
@@ -303,14 +338,6 @@
           clips: [
             { name: "Cricket Nocturne", clipStart: 1, clipEnd: 6.5 },
             { name: "Night Wildlife", clipStart: 12, clipEnd: 19 },
-          ],
-        },
-        {
-          title: "Chant Serin Birdsong",
-          url: "https://upload.wikimedia.org/wikipedia/commons/0/01/Chant_serin.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
-          clips: [
-            { name: "First Trill Phrase", clipStart: 0.5, clipEnd: 4.5 },
-            { name: "Second Trill Phrase", clipStart: 6, clipEnd: 11 },
           ],
         },
         {
@@ -348,6 +375,7 @@
       const playlistContainer = document.getElementById("playlist-container");
       const btnPrev = document.getElementById("btn-prev");
       const btnNext = document.getElementById("btn-next");
+      const btnRandom = document.getElementById("btn-random");
       const labelClipIndex = document.getElementById("label-clip-index");
       const labelClipName = document.getElementById("label-clip-name");
       const statBounds = document.getElementById("stat-bounds");
@@ -487,8 +515,18 @@
         updateStatus();
       }
 
+      function switchRandom() {
+        if (playlist.length <= 1) return;
+        let next;
+        do {
+          next = Math.floor(Math.random() * playlist.length);
+        } while (next === currentIndex);
+        void switchClip(next);
+      }
+
       btnPrev.addEventListener("click", () => switchClip(currentIndex - 1));
       btnNext.addEventListener("click", () => switchClip(currentIndex + 1));
+      btnRandom.addEventListener("click", switchRandom);
 
       window.addEventListener("keydown", (e) => {
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -498,6 +536,9 @@
         } else if (e.key === "p" || e.key === "P" || e.key === "ArrowLeft") {
           e.preventDefault();
           switchClip(currentIndex - 1);
+        } else if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          switchRandom();
         } else if (e.key === " ") {
           e.preventDefault();
           if (audio.paused) audio.play();
