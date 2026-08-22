@@ -736,30 +736,75 @@ export class Sonoscope implements ISonoscope {
   }
 
   setSource(source: AudioSource): void {
-    this._source = source;
-    this.totalDuration = Math.max(0.01, source.duration);
-    const nyquist = Math.max(100, Math.floor(source.sampleRate / 2));
-    if (this._viewport instanceof ViewportController) {
-      this._viewport.setTotalDuration(this.totalDuration);
-      this._viewport.setBaseFrequencyBounds(0, nyquist);
-      this._viewport.setTimeBounds(0, this.totalDuration);
+    if (source instanceof ClippedAudioSource) {
+      this._source = source;
+      this._clipStart = source.clipStart;
+      this._clipEnd = source.clipEnd;
+    } else if (this._clipStart !== undefined || this._clipEnd !== undefined) {
+      const rawTotal = Math.max(0.01, source.duration);
+      const clipStart = Math.min(this._clipStart ?? 0, rawTotal);
+      const clipEnd = Math.min(this._clipEnd ?? rawTotal, rawTotal);
+      this._clipStart = this._clipStart !== undefined ? clipStart : undefined;
+      this._clipEnd = this._clipEnd !== undefined ? clipEnd : undefined;
+      this._source = new ClippedAudioSource(source, {
+        clipStart,
+        clipEnd,
+      });
+    } else {
+      this._source = source;
     }
+
+    this.totalDuration = Math.max(0.01, source.duration);
+    const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
+    const effectiveMinTime = this._clipStart ?? 0;
+    const effectiveMaxTime = this._clipEnd ?? this.totalDuration;
+
+    if (this._viewport instanceof ViewportController) {
+      this._viewport.setTotalDuration(source.duration);
+      this._viewport.setBaseFrequencyBounds(0, nyquist);
+      this._viewport.setTimeBounds(effectiveMinTime, effectiveMaxTime);
+    }
+
     const vp = this._viewport.getViewport();
+    const currentDuration = Math.min(
+      vp.duration,
+      effectiveMaxTime - effectiveMinTime,
+    );
+    const clampedStart = Math.max(
+      effectiveMinTime,
+      Math.min(vp.startTime, effectiveMaxTime - currentDuration),
+    );
+
     this._viewport.setViewport(
       {
-        startTime: Math.min(vp.startTime, this.totalDuration),
-        endTime: Math.min(vp.endTime, this.totalDuration),
+        startTime: clampedStart,
+        endTime: clampedStart + currentDuration,
         minFrequency: 0,
         maxFrequency: nyquist,
       },
       "sourcechange",
     );
 
-    for (const viewer of this.viewers) {
-      viewer.setSource(source);
+    if (this.audioElement) {
+      if (
+        this.audioElement.currentTime < effectiveMinTime ||
+        this.audioElement.currentTime > effectiveMaxTime
+      ) {
+        this.audioElement.currentTime = effectiveMinTime;
+      }
     }
 
-    this.events.emit("sourcechange", { source });
+    for (const viewer of this.viewers) {
+      viewer.setSource(this._source);
+    }
+
+    this.events.emit("sourcechange", { source: this._source });
+    if (this._clipStart !== undefined || this._clipEnd !== undefined) {
+      this.events.emit("clipchange", {
+        clipStart: this._clipStart,
+        clipEnd: this._clipEnd,
+      });
+    }
   }
 
   /**

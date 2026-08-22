@@ -137,11 +137,13 @@ describe("ViewportController", () => {
     expect(controller.getViewport().startTime).toBe(10);
     expect(controller.getViewport().endTime).toBe(15);
 
-    // setTimeBounds dynamically updates bounds and clamps viewport
+    // setTimeBounds dynamically updates bounds and clamps viewport without overwriting totalDuration
+    controller.setTotalDuration(60);
     controller.setTimeBounds(6, 12);
     expect(controller.getTimeBounds()).toEqual({ minTime: 6, maxTime: 12 });
     const vp = controller.getViewport();
     expect(vp.startTime).toBeGreaterThanOrEqual(6);
     expect(vp.endTime).toBeLessThanOrEqual(12);
+    expect(vp.totalDuration).toBe(60);
   });
 });

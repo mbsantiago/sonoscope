@@ -114,7 +114,6 @@ export class ViewportController implements IViewportController {
   setTimeBounds(minTime: number, maxTime: number): void {
     this.minTime = Math.max(0, minTime);
     this.maxTime = Math.max(this.minTime + 0.001, maxTime);
-    this.totalDuration = this.maxTime;
     const duration = Math.min(
       this.endTime - this.startTime,
       this.maxTime - this.minTime,

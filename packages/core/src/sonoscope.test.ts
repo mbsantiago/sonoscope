@@ -855,6 +855,38 @@ describe("Sonoscope", () => {
       scope.pan(50);
       expect(scope.getViewport().endTime).toBe(30);
     });
+
+    it("setSource preserves clip bounds and clamps audio playback currentTime", () => {
+      const sourceA = createMockSource(60);
+      const audio = createMockAudio();
+      audio.currentTime = 10;
+
+      const scope = new Sonoscope({
+        source: sourceA,
+        audio: audio as unknown as HTMLAudioElement,
+        clipStart: 10,
+        clipEnd: 30,
+        followPlayback: "off",
+      });
+
+      expect(scope.getClipBounds()).toEqual({ clipStart: 10, clipEnd: 30 });
+      expect(scope.getViewport().startTime).toBe(10);
+
+      // Simulate playback advancing to 25s
+      audio.currentTime = 25;
+
+      // Switch to a shorter source (20s)
+      const sourceB = createMockSource(20);
+      scope.setSource(sourceB);
+
+      // Clip bounds should be clamped to new source duration: [10, 20]
+      expect(scope.getClipBounds()).toEqual({ clipStart: 10, clipEnd: 20 });
+      expect(scope.getViewport().startTime).toBeGreaterThanOrEqual(10);
+      expect(scope.getViewport().endTime).toBeLessThanOrEqual(20);
+
+      // audio.currentTime (previously 25) was beyond new max (20), so it should be clamped to clipStart (10)
+      expect(audio.currentTime).toBe(10);
+    });
   });
 
   describe("Lifecycle and Cleanup", () => {
