@@ -1,8 +1,6 @@
 import type { AudioSource, ISonoscope } from "../../types";
 import type {
-  BarPeakBlock,
   IWaveformViewer,
-  PeakBlock,
   ResolvedWaveformConfig,
   WaveformConfig,
   WaveformEvents,
@@ -14,7 +12,6 @@ import { attachAutoResize } from "../../auto-resize";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
 import { clampViewportTimes } from "../../viewport-math";
-import { WaveformPeakPyramid } from "./peaks";
 import { createWaveformRenderer } from "./renderers/renderer-factory";
 
 function resolveWaveformConfig(
@@ -85,7 +82,6 @@ function resolveWaveformConfig(
 
 export class WaveformViewer implements IWaveformViewer {
   private readonly events = new TypedEventEmitter<WaveformEvents>();
-  private pyramid: WaveformPeakPyramid;
   private renderer: WaveformRenderer;
   private scopeCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
@@ -121,10 +117,6 @@ export class WaveformViewer implements IWaveformViewer {
     this.canvas = canvas;
     this.config = resolvedConfig;
     this.renderer = createWaveformRenderer(resolvedConfig.renderer);
-    this.pyramid = new WaveformPeakPyramid(
-      this.scope.source,
-      resolvedConfig.channel,
-    );
     this.bindScope();
     if (options?.autoResize !== false) {
       this.resizeCleanup = attachAutoResize(this.canvas, {
@@ -169,20 +161,10 @@ export class WaveformViewer implements IWaveformViewer {
       delete (baseConfig as Partial<ResolvedWaveformConfig>).color;
     }
 
-    const previousChannel = this.config.channel;
-
     this.config = resolveWaveformConfig(this.scope.source, {
       ...baseConfig,
       ...cleanInput,
     });
-
-    if (this.config.channel !== previousChannel) {
-      this.pyramid.clear();
-      this.pyramid = new WaveformPeakPyramid(
-        this.scope.source,
-        this.config.channel,
-      );
-    }
 
     if (input.renderer !== undefined) {
       this.renderer.destroy?.();
@@ -263,49 +245,21 @@ export class WaveformViewer implements IWaveformViewer {
     this.status = { state: "rendering" };
     this.events.emit("renderstart", { requestId });
 
-    const rect = this.canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const targetWidth = Math.max(
-      1,
-      Math.floor((rect.width || this.canvas.width) * dpr),
-    );
-
     const vp = this.getViewport();
-    const timeSpan = vp.endTime - vp.startTime;
-    const barDuration = this.renderer.getBarDuration?.(
-      timeSpan,
-      targetWidth,
-      dpr,
-    );
 
-    let peaks: PeakBlock | BarPeakBlock;
-    if (typeof barDuration === "number" && barDuration > 0) {
-      peaks = await this.pyramid.getBarPeaks(
-        vp.startTime,
-        vp.endTime,
-        barDuration,
-      );
-    } else {
-      peaks = await this.pyramid.getPeaks(
-        vp.startTime,
-        vp.endTime,
-        targetWidth,
-      );
-    }
-
-    if (this.status.state === "destroyed") return;
-
-    this.renderer.render({
+    await this.renderer.render({
       canvas: this.canvas,
-      peaks,
-      color: this.config.color,
-      backgroundColor: this.config.backgroundColor,
+      source: this.scope.source,
+      channel: this.config.channel,
       startTime: vp.startTime,
       endTime: vp.endTime,
+      color: this.config.color,
+      backgroundColor: this.config.backgroundColor,
       amplitudeScale: this.config.amplitudeScale,
       colorMap: this.config.colorMap,
     });
+
+    if (this.status.state === "destroyed") return;
 
     this.status = { state: "ready" };
     this.events.emit("rendercomplete", { requestId });
@@ -318,7 +272,6 @@ export class WaveformViewer implements IWaveformViewer {
     this.scopeCleanup = [];
     this.resizeCleanup?.();
     this.resizeCleanup = undefined;
-    this.pyramid.clear();
     this.renderer.destroy?.();
   }
 
@@ -342,11 +295,6 @@ export class WaveformViewer implements IWaveformViewer {
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {
-      this.pyramid.clear();
-      this.pyramid = new WaveformPeakPyramid(
-        this.scope.source,
-        this.config.channel,
-      );
       this.events.emit("configchange", { config: this.config });
       this.requestRender();
     });

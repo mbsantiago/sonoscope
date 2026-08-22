@@ -1,3 +1,4 @@
+import type { AudioSource } from "../../../types";
 import { describe, expect, it, vi } from "vitest";
 import { WebGL2WaveformRenderer } from "./webgl2";
 
@@ -26,27 +27,40 @@ function createMockCanvas(): HTMLCanvasElement {
   } as unknown as HTMLCanvasElement;
 }
 
+const dummySource: AudioSource = {
+  id: "test-source",
+  sampleRate: 1000,
+  duration: 10,
+  channelCount: 1,
+  read: ({ startTime, endTime }) => {
+    const count = Math.max(0, Math.floor((endTime - startTime) * 1000));
+    const data = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      data[i] = Math.sin(i * 0.1);
+    }
+    return data;
+  },
+};
+
 describe("WebGL2WaveformRenderer", () => {
   it("instantiates with kind 'webgl2'", () => {
     const renderer = new WebGL2WaveformRenderer();
     expect(renderer.kind).toBe("webgl2");
   });
 
-  it("falls back cleanly to canvas2d when WebGL2 context is unavailable in Node/jsdom", () => {
+  it("falls back cleanly to canvas2d when WebGL2 context is unavailable in Node/jsdom", async () => {
     const renderer = new WebGL2WaveformRenderer();
     const canvas = createMockCanvas();
 
-    expect(() => {
+    await expect(
       renderer.render({
         canvas,
-        peaks: {
-          min: new Float32Array([-0.5, -0.8]),
-          max: new Float32Array([0.5, 0.8]),
-        },
+        source: dummySource,
+        channel: 0,
         startTime: 0,
         endTime: 2,
-      });
-    }).not.toThrow();
+      }),
+    ).resolves.not.toThrow();
 
     renderer.destroy();
   });

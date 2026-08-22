@@ -1,5 +1,6 @@
 import type { WaveformRenderer, WaveformRenderInput } from "../types";
 import { parseColor } from "../../../colormap";
+import { ContinuousPeakPyramid } from "../peaks/continuous";
 import { CanvasWaveformRenderer } from "./canvas";
 import {
   createWaveformProgram,
@@ -15,11 +16,17 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
   private xNormBuffer: WebGLBuffer | null = null;
   private vao: WebGLVertexArrayObject | null = null;
   private fallbackRenderer: CanvasWaveformRenderer | null = null;
+  private pyramid: ContinuousPeakPyramid | null = null;
+  private currentSource: unknown = null;
+  private currentChannel = 0;
 
-  render(input: WaveformRenderInput): void {
+  async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
-      peaks,
+      source,
+      channel = 0,
+      startTime,
+      endTime,
       color = "#38bdf8",
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
@@ -50,7 +57,7 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       if (!this.fallbackRenderer) {
         this.fallbackRenderer = new CanvasWaveformRenderer();
       }
-      this.fallbackRenderer.render(input);
+      await this.fallbackRenderer.render(input);
       return;
     }
 
@@ -75,10 +82,30 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
         if (!this.fallbackRenderer) {
           this.fallbackRenderer = new CanvasWaveformRenderer();
         }
-        this.fallbackRenderer.render(input);
+        await this.fallbackRenderer.render(input);
         return;
       }
     }
+
+    if (
+      !this.pyramid ||
+      this.currentSource !== source ||
+      this.currentChannel !== channel
+    ) {
+      this.pyramid?.clear();
+      this.pyramid = new ContinuousPeakPyramid(source, channel);
+      this.currentSource = source;
+      this.currentChannel = channel;
+    }
+
+    const rect =
+      typeof canvas.getBoundingClientRect === "function"
+        ? canvas.getBoundingClientRect()
+        : null;
+    const dpr = (rect && rect.width > 0 ? width / rect.width : 1) || 1;
+    const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
+
+    const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
 
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
@@ -174,6 +201,9 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       this.vao = null;
       this.gl = null;
     }
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
     if (this.fallbackRenderer) {
       this.fallbackRenderer.destroy?.();
       this.fallbackRenderer = null;

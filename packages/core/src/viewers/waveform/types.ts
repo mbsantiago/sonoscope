@@ -1,4 +1,4 @@
-import type { ColorMapConfig, ISonoscope } from "../../types";
+import type { AudioSource, ColorMapConfig, ISonoscope } from "../../types";
 import type { BarsWaveformRendererOptions } from "./renderers/bars";
 
 export type PeakBlock = {
@@ -49,23 +49,19 @@ export type WaveformRendererKind =
 
 export type WaveformRenderInput = {
   canvas: HTMLCanvasElement;
-  peaks: PeakBlock | BarPeakBlock;
-  color?: string | undefined;
-  backgroundColor?: string | undefined;
+  source: AudioSource;
+  channel: number;
   startTime: number;
   endTime: number;
+  color?: string | undefined;
+  backgroundColor?: string | undefined;
   amplitudeScale?: number | undefined;
   colorMap?: ColorMapConfig | undefined;
 };
 
 export interface WaveformRenderer {
   readonly kind: WaveformRendererKind | string;
-  render(input: WaveformRenderInput): void;
-  getBarDuration?(
-    timeSpan: number,
-    width: number,
-    dpr?: number,
-  ): number | undefined;
+  render(input: WaveformRenderInput): Promise<void> | void;
   destroy?(): void;
 }
 

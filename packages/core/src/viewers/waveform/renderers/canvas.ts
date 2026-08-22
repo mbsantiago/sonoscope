@@ -1,12 +1,19 @@
 import type { WaveformRenderer, WaveformRenderInput } from "../types";
+import { ContinuousPeakPyramid } from "../peaks/continuous";
 
 export class CanvasWaveformRenderer implements WaveformRenderer {
   readonly kind = "canvas2d" as const;
+  private pyramid: ContinuousPeakPyramid | null = null;
+  private currentSource: unknown = null;
+  private currentChannel = 0;
 
-  render(input: WaveformRenderInput): void {
+  async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
-      peaks,
+      source,
+      channel = 0,
+      startTime,
+      endTime,
       color = "#38bdf8",
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
@@ -17,6 +24,26 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
 
     const width = Math.max(1, canvas.width || 1);
     const height = Math.max(1, canvas.height || 1);
+
+    if (
+      !this.pyramid ||
+      this.currentSource !== source ||
+      this.currentChannel !== channel
+    ) {
+      this.pyramid?.clear();
+      this.pyramid = new ContinuousPeakPyramid(source, channel);
+      this.currentSource = source;
+      this.currentChannel = channel;
+    }
+
+    const rect =
+      typeof canvas.getBoundingClientRect === "function"
+        ? canvas.getBoundingClientRect()
+        : null;
+    const dpr = (rect && rect.width > 0 ? width / rect.width : 1) || 1;
+    const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
+
+    const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
 
     ctx.save();
     ctx.clearRect(0, 0, width, height);
@@ -78,5 +105,9 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     ctx.restore();
   }
 
-  destroy(): void {}
+  destroy(): void {
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
+  }
 }

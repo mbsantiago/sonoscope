@@ -3,6 +3,7 @@ import type {
   WaveformRenderer,
   WaveformRenderInput,
 } from "../types";
+import { BarPeakPyramid } from "../peaks/bars";
 
 export interface BarsWaveformRendererOptions {
   /**
@@ -57,6 +58,9 @@ export interface BarsWaveformRendererOptions {
 export class BarsWaveformRenderer implements WaveformRenderer {
   readonly kind = "bars" as const;
   private options: BarsWaveformRendererOptions;
+  private pyramid: BarPeakPyramid | null = null;
+  private currentSource: unknown = null;
+  private currentChannel = 0;
 
   constructor(options: BarsWaveformRendererOptions = {}) {
     this.options = { ...options };
@@ -77,10 +81,11 @@ export class BarsWaveformRenderer implements WaveformRenderer {
     return width > 0 ? (step / width) * timeSpan : 0;
   }
 
-  render(input: WaveformRenderInput): void {
+  async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
-      peaks,
+      source,
+      channel = 0,
       color = "#38bdf8",
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
@@ -100,12 +105,6 @@ export class BarsWaveformRenderer implements WaveformRenderer {
     if (backgroundColor && backgroundColor !== "transparent") {
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, width, height);
-    }
-
-    const len = peaks.min.length;
-    if (len === 0) {
-      ctx.restore();
-      return;
     }
 
     const rect =
@@ -133,6 +132,29 @@ export class BarsWaveformRenderer implements WaveformRenderer {
       return;
     }
 
+    if (
+      !this.pyramid ||
+      this.currentSource !== source ||
+      this.currentChannel !== channel
+    ) {
+      this.pyramid?.clear();
+      this.pyramid = new BarPeakPyramid(source, channel);
+      this.currentSource = source;
+      this.currentChannel = channel;
+    }
+
+    const barPeaks: BarPeakBlock = await this.pyramid.getBarPeaks(
+      startTime,
+      endTime,
+      barDuration,
+    );
+
+    const len = barPeaks.min.length;
+    if (len === 0) {
+      ctx.restore();
+      return;
+    }
+
     const barAlign = this.options.barAlign ?? "center";
     const symmetric = this.options.symmetric ?? true;
     const rounded =
@@ -149,30 +171,10 @@ export class BarsWaveformRenderer implements WaveformRenderer {
     const fullH = height * Math.max(0.01, amplitudeScale);
     const halfBw = bw / 2;
 
-    const barPeaks = peaks as Partial<BarPeakBlock>;
-    const hasPrecomputedBarPeaks =
-      typeof barPeaks.barDuration === "number" &&
-      typeof barPeaks.kStart === "number" &&
-      typeof barPeaks.kEnd === "number";
-
-    const effectiveBarDuration = hasPrecomputedBarPeaks
-      ? barPeaks.barDuration!
-      : barDuration;
-
-    const kStart = hasPrecomputedBarPeaks
-      ? barPeaks.kStart!
-      : Math.max(
-          0,
-          Math.floor((startTime - effectiveBarDuration) / effectiveBarDuration),
-        );
-    const kEnd = hasPrecomputedBarPeaks
-      ? barPeaks.kEnd!
-      : Math.ceil((endTime + effectiveBarDuration) / effectiveBarDuration);
-
     const bars: Array<{ x: number; maxVal: number; minVal: number }> = [];
 
-    for (let k = kStart; k <= kEnd; k++) {
-      const tCenter = (k + 0.5) * effectiveBarDuration;
+    for (let k = barPeaks.kStart; k <= barPeaks.kEnd; k++) {
+      const tCenter = (k + 0.5) * barPeaks.barDuration;
       const x = ((tCenter - startTime) / timeSpan) * width;
 
       // Cull bars completely outside canvas view
@@ -180,40 +182,9 @@ export class BarsWaveformRenderer implements WaveformRenderer {
         continue;
       }
 
-      let maxVal = 0;
-      let minVal = 0;
-
-      if (hasPrecomputedBarPeaks) {
-        const idx = k - barPeaks.kStart!;
-        maxVal = peaks.max[idx] ?? 0;
-        minVal = peaks.min[idx] ?? 0;
-      } else {
-        // Fallback for standard PeakBlock without precomputed bar peaks
-        const tStart = k * effectiveBarDuration;
-        const tEnd = (k + 1) * effectiveBarDuration;
-        const pStart = Math.max(
-          0,
-          Math.min(
-            len - 1,
-            Math.round(((tStart - startTime) / timeSpan) * len),
-          ),
-        );
-        const pEnd = Math.max(
-          pStart + 1,
-          Math.min(len, Math.round(((tEnd - startTime) / timeSpan) * len)),
-        );
-
-        let mx = -Infinity;
-        let mn = Infinity;
-        for (let j = pStart; j < pEnd; j++) {
-          const vMax = peaks.max[j]!;
-          const vMin = peaks.min[j]!;
-          if (vMax > mx) mx = vMax;
-          if (vMin < mn) mn = vMin;
-        }
-        maxVal = mx === -Infinity ? 0 : mx;
-        minVal = mn === Infinity ? 0 : mn;
-      }
+      const idx = k - barPeaks.kStart;
+      const maxVal = barPeaks.max[idx] ?? 0;
+      const minVal = barPeaks.min[idx] ?? 0;
 
       bars.push({ x, maxVal, minVal });
     }
@@ -325,47 +296,57 @@ export class BarsWaveformRenderer implements WaveformRenderer {
     minBarHeight: number,
     canvasHeight: number,
   ): { topY: number; bottomY: number; barHeight: number } {
+    let topY: number;
+    let bottomY: number;
+
     if (barAlign === "bottom") {
-      const peak = Math.max(Math.abs(maxVal), Math.abs(minVal));
-      const barH = Math.max(minBarHeight, halfBw * 2, peak * fullH);
-      return {
-        topY: canvasHeight - barH,
-        bottomY: canvasHeight,
-        barHeight: barH,
-      };
+      const peakAmp = Math.max(
+        Math.abs(maxVal),
+        Math.abs(minVal),
+        minBarHeight > 0 ? minBarHeight / fullH : 0,
+      );
+      const effectiveH = Math.max(minBarHeight, peakAmp * fullH);
+      bottomY = canvasHeight;
+      topY = canvasHeight - effectiveH;
+    } else if (barAlign === "top") {
+      const peakAmp = Math.max(
+        Math.abs(maxVal),
+        Math.abs(minVal),
+        minBarHeight > 0 ? minBarHeight / fullH : 0,
+      );
+      const effectiveH = Math.max(minBarHeight, peakAmp * fullH);
+      topY = 0;
+      bottomY = effectiveH;
+    } else {
+      // Center alignment
+      if (symmetric) {
+        const peakAmp = Math.max(
+          Math.abs(maxVal),
+          Math.abs(minVal),
+          minBarHeight > 0 ? minBarHeight / (2 * halfH) : 0,
+        );
+        const effectiveHalfH = Math.max(
+          minBarHeight / 2,
+          halfBw,
+          peakAmp * halfH,
+        );
+        topY = centerY - effectiveHalfH;
+        bottomY = centerY + effectiveHalfH;
+      } else {
+        const topH = Math.max(halfBw, maxVal * halfH);
+        const botH = Math.max(halfBw, Math.abs(minVal) * halfH);
+        topY = centerY - topH;
+        bottomY = centerY + botH;
+      }
     }
 
-    if (barAlign === "top") {
-      const peak = Math.max(Math.abs(maxVal), Math.abs(minVal));
-      const barH = Math.max(minBarHeight, halfBw * 2, peak * fullH);
-      return {
-        topY: 0,
-        bottomY: barH,
-        barHeight: barH,
-      };
-    }
-
-    // Default "center"
-    if (symmetric) {
-      const peak = Math.max(Math.abs(maxVal), Math.abs(minVal));
-      const barH = Math.max(minBarHeight, halfBw * 2, peak * 2 * halfH);
-      return {
-        topY: centerY - barH / 2,
-        bottomY: centerY + barH / 2,
-        barHeight: barH,
-      };
-    }
-
-    const posH = Math.max(halfBw, maxVal * halfH);
-    const negH = Math.max(halfBw, -minVal * halfH);
-    const topY = centerY - posH;
-    const bottomY = centerY + negH;
-    return {
-      topY,
-      bottomY,
-      barHeight: bottomY - topY,
-    };
+    const barHeight = Math.max(minBarHeight, bottomY - topY);
+    return { topY, bottomY, barHeight };
   }
 
-  destroy(): void {}
+  destroy(): void {
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
+  }
 }

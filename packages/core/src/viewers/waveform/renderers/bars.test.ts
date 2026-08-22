@@ -1,3 +1,4 @@
+import type { AudioSource } from "../../../types";
 import { describe, expect, it, vi } from "vitest";
 import { BarsWaveformRenderer } from "./bars";
 
@@ -23,32 +24,47 @@ function createMockCanvas(): HTMLCanvasElement {
   } as unknown as HTMLCanvasElement;
 }
 
+const dummySource: AudioSource = {
+  id: "test-source",
+  sampleRate: 1000,
+  duration: 10,
+  channelCount: 1,
+  read: ({ startTime, endTime }) => {
+    const start = Math.floor(startTime * 1000);
+    const end = Math.floor(endTime * 1000);
+    const count = Math.max(0, end - start);
+    const data = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const val = 0.8 * Math.sin((start + i) * 0.05);
+      data[i] = val;
+    }
+    return data;
+  },
+};
+
 describe("BarsWaveformRenderer", () => {
   it("instantiates with kind 'bars'", () => {
     const renderer = new BarsWaveformRenderer();
     expect(renderer.kind).toBe("bars");
   });
 
-  it("renders segmented bars without crashing", () => {
+  it("renders segmented bars without crashing", async () => {
     const renderer = new BarsWaveformRenderer();
     const canvas = createMockCanvas();
-    const peaks = {
-      min: new Float32Array([-0.5, -0.8, -0.2, -0.9, -0.1]),
-      max: new Float32Array([0.5, 0.9, 0.3, 0.8, 0.2]),
-    };
 
-    expect(() =>
+    await expect(
       renderer.render({
         canvas,
-        peaks,
+        source: dummySource,
+        channel: 0,
         startTime: 0,
         endTime: 1,
         color: "#f03e1e",
       }),
-    ).not.toThrow();
+    ).resolves.not.toThrow();
   });
 
-  it("supports custom barWidth, barGap, and alignment options", () => {
+  it("supports custom barWidth, barGap, and alignment options", async () => {
     const renderer = new BarsWaveformRenderer({
       barWidth: 4,
       barGap: 3,
@@ -56,21 +72,18 @@ describe("BarsWaveformRenderer", () => {
       symmetric: false,
     });
     const canvas = createMockCanvas();
-    const peaks = {
-      min: new Float32Array([-0.5, -0.8, -0.2]),
-      max: new Float32Array([0.5, 0.9, 0.3]),
-    };
 
-    expect(() =>
+    await expect(
       renderer.render({
         canvas,
-        peaks,
+        source: dummySource,
+        channel: 0,
         startTime: 0,
         endTime: 2,
         color: "#ff3e00",
         amplitudeScale: 1.5,
       }),
-    ).not.toThrow();
+    ).resolves.not.toThrow();
 
     expect(renderer.getOptions().barWidth).toBe(4);
     expect(renderer.getOptions().barGap).toBe(3);
@@ -87,66 +100,57 @@ describe("BarsWaveformRenderer", () => {
     });
   });
 
-  it("renders with custom color and background", () => {
+  it("renders with custom color and background", async () => {
     const renderer = new BarsWaveformRenderer();
     const canvas = createMockCanvas();
-    const peaks = {
-      min: new Float32Array([-0.4, -0.7, -0.1, -0.8]),
-      max: new Float32Array([0.4, 0.7, 0.2, 0.9]),
-    };
 
-    expect(() =>
+    await expect(
       renderer.render({
         canvas,
-        peaks,
+        source: dummySource,
+        channel: 0,
         startTime: 0,
         endTime: 10,
         color: "#f03e1e",
         backgroundColor: "#111827",
       }),
-    ).not.toThrow();
+    ).resolves.not.toThrow();
   });
 
-  it("handles empty peaks array gracefully", () => {
+  it("handles empty time range gracefully", async () => {
     const renderer = new BarsWaveformRenderer();
     const canvas = createMockCanvas();
-    const peaks = {
-      min: new Float32Array(0),
-      max: new Float32Array(0),
-    };
 
-    expect(() =>
+    await expect(
       renderer.render({
         canvas,
-        peaks,
-        startTime: 0,
-        endTime: 1,
+        source: dummySource,
+        channel: 0,
+        startTime: 2,
+        endTime: 2,
       }),
-    ).not.toThrow();
+    ).resolves.not.toThrow();
   });
 
-  it("renders with top alignment and custom radius", () => {
+  it("renders with top alignment and custom radius", async () => {
     const renderer = new BarsWaveformRenderer({
       barAlign: "top",
       barRadius: 2,
     });
     const canvas = createMockCanvas();
-    const peaks = {
-      min: new Float32Array([-0.5]),
-      max: new Float32Array([0.5]),
-    };
 
-    expect(() =>
+    await expect(
       renderer.render({
         canvas,
-        peaks,
+        source: dummySource,
+        channel: 0,
         startTime: 0,
         endTime: 1,
       }),
-    ).not.toThrow();
+    ).resolves.not.toThrow();
   });
 
-  it("maintains absolute bar positions and stable heights during panning", () => {
+  it("maintains absolute bar positions and stable heights during panning", async () => {
     const renderer = new BarsWaveformRenderer({
       barWidth: 4,
       barGap: 6, // step = 10px on 200px canvas = 20 bars
@@ -172,32 +176,14 @@ describe("BarsWaveformRenderer", () => {
       }),
     } as unknown as HTMLCanvasElement;
 
-    // Fixed dummy 10-second peak data at 100 samples/sec (1000 samples)
-    const totalPeaks = 1000;
-    const globalPeaksMax = new Float32Array(totalPeaks);
-    const globalPeaksMin = new Float32Array(totalPeaks);
-    for (let i = 0; i < totalPeaks; i++) {
-      const val = 0.8 * Math.sin(i * 0.05);
-      globalPeaksMax[i] = Math.max(0, val);
-      globalPeaksMin[i] = Math.min(0, val);
-    }
-
-    // Slice for viewport 1: [1.0s, 3.0s] (200 samples)
-    const pStart1 = Math.floor(1.0 * 100);
-    const pEnd1 = Math.floor(3.0 * 100);
-    const peaks1 = {
-      max: globalPeaksMax.slice(pStart1, pEnd1),
-      min: globalPeaksMin.slice(pStart1, pEnd1),
-    };
-
-    renderer.render({
+    await renderer.render({
       canvas: canvas1,
-      peaks: peaks1,
+      source: dummySource,
+      channel: 0,
       startTime: 1.0,
       endTime: 3.0,
     });
 
-    // Slice for viewport 2: shifted/panned by +0.1s -> [1.1s, 3.1s] (200 samples)
     const moveToCalls2: Array<[number, number]> = [];
     const lineToCalls2: Array<[number, number]> = [];
     const canvas2 = {
@@ -217,16 +203,10 @@ describe("BarsWaveformRenderer", () => {
       }),
     } as unknown as HTMLCanvasElement;
 
-    const pStart2 = Math.floor(1.1 * 100);
-    const pEnd2 = Math.floor(3.1 * 100);
-    const peaks2 = {
-      max: globalPeaksMax.slice(pStart2, pEnd2),
-      min: globalPeaksMin.slice(pStart2, pEnd2),
-    };
-
-    renderer.render({
+    await renderer.render({
       canvas: canvas2,
-      peaks: peaks2,
+      source: dummySource,
+      channel: 0,
       startTime: 1.1,
       endTime: 3.1,
     });
