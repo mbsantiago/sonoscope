@@ -112,14 +112,33 @@
         position: relative;
         max-width: 960px;
         border: 1px solid #1e293b;
-        border-radius: 4px;
+        border-radius: 6px;
         overflow: hidden;
         background: #070a10;
+        display: flex;
+        flex-direction: column;
       }
-      canvas {
+      .ruler-container {
+        position: relative;
+        width: 100%;
+        height: 36px;
+        background: #0d1321;
+        border-bottom: 1px solid #1e293b;
+      }
+      .ruler-container canvas {
         display: block;
         width: 100%;
-        height: 320px;
+        height: 36px;
+      }
+      .spec-container {
+        position: relative;
+        width: 100%;
+        height: 300px;
+      }
+      .spec-container canvas {
+        display: block;
+        width: 100%;
+        height: 300px;
       }
       audio {
         width: 100%;
@@ -176,8 +195,13 @@
       </div>
     </div>
 
-    <div class="stage">
-      <canvas id="spectrogram-canvas"></canvas>
+    <div class="stage" id="stage">
+      <div class="ruler-container" id="ruler-container">
+        <canvas id="ruler-canvas"></canvas>
+      </div>
+      <div class="spec-container" id="spec-container">
+        <canvas id="spectrogram-canvas"></canvas>
+      </div>
     </div>
 
     <audio id="audio" controls crossorigin="anonymous"></audio>
@@ -193,11 +217,18 @@
     </p>
 
     <script type="module">
-      import { Sonoscope } from "@sonoscope/core";
+      import {
+        attachPlayheadOverlay,
+        Sonoscope,
+      } from "@sonoscope/core";
 
       const audioUrl = "https://xeno-canto.org/930425/download";
       const audio = document.getElementById("audio");
-      const canvas = document.getElementById("spectrogram-canvas");
+      const canvasSpec = document.getElementById("spectrogram-canvas");
+      const canvasRuler = document.getElementById("ruler-canvas");
+      const specContainer = document.getElementById("spec-container");
+      const rulerContainer = document.getElementById("ruler-container");
+      const stage = document.getElementById("stage");
       const clipStatusEl = document.getElementById("clip-status");
       const playbackStatusEl = document.getElementById("playback-status");
       const inputStart = document.getElementById("input-start");
@@ -214,15 +245,26 @@
         clipEnd: 20,
       });
 
-      const spectrogram = scope.createSpectrogram(canvas, {
+      // 2. Create synchronized Time Ruler & Spectrogram
+      const timeRuler = scope.createTimeRuler(canvasRuler, {
+        program: "ticks",
+        tickPosition: "bottom",
+        color: "#94a3b8",
+        tickColor: "#334155",
+        backgroundColor: "#0d1321",
+      });
+
+      const spectrogram = scope.createSpectrogram(canvasSpec, {
         colorMap: "viridis",
         minValue: -100,
         maxValue: -20,
         frequencyScale: "mel",
       });
 
-      scope.attachNavigation(canvas);
-      spectrogram.requestRender();
+      // 3. Attach navigation and playheads
+      scope.attachNavigation(stage);
+      attachPlayheadOverlay(rulerContainer, scope);
+      attachPlayheadOverlay(specContainer, scope);
 
       function updateStatus() {
         const bounds = scope.getClipBounds();
