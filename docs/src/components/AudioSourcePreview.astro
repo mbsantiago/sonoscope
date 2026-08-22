@@ -29,7 +29,7 @@ const configJson = JSON.stringify(config);
   data-clip-start={clipStart}
   data-clip-end={clipEnd}
   data-config={configJson}
-  class={className}
+  class={`not-content ${className || ""}`}
   style={`display: block; width: ${typeof width === "number" ? `${width}px` : width}; margin: 12px 0;`}
 >
   {type === "audio" && (

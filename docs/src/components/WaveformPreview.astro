@@ -20,7 +20,7 @@ const configJson = JSON.stringify(config);
 
 <waveform-preview
   data-config={configJson}
-  class={className}
+  class={`not-content ${className || ""}`}
   style={`display: block; width: ${typeof width === "number" ? `${width}px` : width}; height: ${typeof height === "number" ? `${height}px` : height}; margin: 8px 0;`}
 >
   <canvas style="width: 100%; height: 100%; display: block; border-radius: 4px;"></canvas>
