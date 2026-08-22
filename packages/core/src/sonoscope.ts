@@ -2,10 +2,12 @@ import type { NavigableViewer, NavigationOptions } from "./navigation";
 import type {
   AudioSource,
   FollowPlaybackMode,
-  FrequencyScale,
   ISonoscope,
+  IViewportController,
   SonoscopeEvents,
   SonoscopeOptions,
+  ViewportConfig,
+  ViewportControllerOptions,
   ViewportState,
 } from "./types";
 import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
@@ -27,7 +29,7 @@ import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
-import { clampViewportTimes } from "./viewport-math";
+import { ViewportController } from "./viewport";
 
 export function isSonoscope(value: unknown): value is ISonoscope {
   return (
@@ -58,17 +60,13 @@ function safeCancelAnimationFrame(id: number): void {
 
 export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
+  private _viewport: IViewportController;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
   private animationFrame: number | undefined;
 
-  private startTime: number;
-  private endTime: number;
-  private minFrequency: number;
-  private maxFrequency: number;
-  private frequencyScale: FrequencyScale;
   private totalDuration: number;
   private minDuration: number;
   private maxDuration: number;
@@ -96,23 +94,27 @@ export class Sonoscope implements ISonoscope {
     this.followPlayback = opts.followPlayback ?? "page";
     this.smoothAnchor = Math.max(0, Math.min(1, opts.smoothAnchor ?? 0.5));
 
-    const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
-    this.frequencyScale = opts.frequencyScale ?? "linear";
-    this.minFrequency =
-      opts.minFrequency ?? (this.frequencyScale === "log" ? 20 : 0);
-    this.maxFrequency = opts.maxFrequency ?? nyquist;
+    if (opts.viewport) {
+      this._viewport = opts.viewport;
+    } else {
+      const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
+      const minFrequency = opts.minFrequency ?? 0;
+      const maxFrequency = opts.maxFrequency ?? nyquist;
 
-    const initialStart = opts.startTime ?? 0;
-    const initialEnd = opts.endTime ?? Math.min(10, this.totalDuration);
-    const clamped = clampViewportTimes(
-      initialStart,
-      initialEnd,
-      this.totalDuration,
-      this.minDuration,
-      this.maxDuration,
-    );
-    this.startTime = clamped.startTime;
-    this.endTime = clamped.endTime;
+      this._viewport = new ViewportController({
+        totalDuration: this.totalDuration,
+        minDuration: this.minDuration,
+        maxDuration: this.maxDuration,
+        minFrequency,
+        maxFrequency,
+        startTime: opts.startTime ?? 0,
+        endTime: opts.endTime ?? Math.min(10, this.totalDuration),
+      });
+    }
+
+    this._viewport.on("viewportchange", (e) => {
+      this.events.emit("viewportchange", e);
+    });
 
     if (opts.audio) {
       this.attachAudio(opts.audio);
@@ -121,6 +123,28 @@ export class Sonoscope implements ISonoscope {
 
   get source(): AudioSource {
     return this._source;
+  }
+
+  get viewport(): IViewportController {
+    return this._viewport;
+  }
+
+  getViewportController(): IViewportController {
+    return this._viewport;
+  }
+
+  static createViewport(
+    options?: ViewportControllerOptions,
+  ): IViewportController {
+    return new ViewportController(options);
+  }
+
+  fork(options?: Partial<SonoscopeOptions>): Sonoscope {
+    return new Sonoscope({
+      source: this._source,
+      audio: this.audioElement,
+      ...options,
+    });
   }
 
   static async fromUrl(
@@ -296,155 +320,34 @@ export class Sonoscope implements ISonoscope {
   }
 
   getViewport(): ViewportState {
-    return {
-      startTime: this.startTime,
-      endTime: this.endTime,
-      duration: this.endTime - this.startTime,
-      totalDuration: this.totalDuration,
-      minFrequency: this.minFrequency,
-      maxFrequency: this.maxFrequency,
-      frequencyScale: this.frequencyScale,
-    };
+    return this._viewport.getViewport();
   }
 
-  setViewport(
-    vp: Partial<{
-      startTime: number | undefined;
-      endTime: number | undefined;
-      minFrequency: number | undefined;
-      maxFrequency: number | undefined;
-      frequencyScale: FrequencyScale | undefined;
-    }>,
-    source?: string | undefined,
-  ): void {
-    let changed = false;
-
-    if (vp.startTime !== undefined || vp.endTime !== undefined) {
-      const targetStart = Number.isFinite(vp.startTime)
-        ? (vp.startTime as number)
-        : this.startTime;
-      const targetEnd = Number.isFinite(vp.endTime)
-        ? (vp.endTime as number)
-        : this.endTime;
-      const clamped = clampViewportTimes(
-        targetStart,
-        targetEnd,
-        this.totalDuration,
-        this.minDuration,
-        this.maxDuration,
-      );
-
-      if (
-        Math.abs(clamped.startTime - this.startTime) >= 1e-6 ||
-        Math.abs(clamped.endTime - this.endTime) >= 1e-6
-      ) {
-        this.startTime = clamped.startTime;
-        this.endTime = clamped.endTime;
-        changed = true;
-      }
-    }
-
-    if (
-      vp.minFrequency !== undefined &&
-      Math.abs(this.minFrequency - vp.minFrequency) >= 1e-6
-    ) {
-      this.minFrequency = vp.minFrequency;
-      changed = true;
-    }
-
-    if (
-      vp.maxFrequency !== undefined &&
-      Math.abs(this.maxFrequency - vp.maxFrequency) >= 1e-6
-    ) {
-      this.maxFrequency = vp.maxFrequency;
-      changed = true;
-    }
-
-    if (
-      vp.frequencyScale !== undefined &&
-      this.frequencyScale !== vp.frequencyScale
-    ) {
-      this.frequencyScale = vp.frequencyScale;
-      changed = true;
-    }
-
-    if (changed) {
-      this.events.emit("viewportchange", {
-        viewport: this.getViewport(),
-        source,
-      });
-    }
+  setViewport(vp: Partial<ViewportConfig>, source?: string | undefined): void {
+    this._viewport.setViewport(vp, source);
   }
 
   updateViewport(
-    vp: Partial<{
-      startTime: number | undefined;
-      endTime: number | undefined;
-      minFrequency: number | undefined;
-      maxFrequency: number | undefined;
-      frequencyScale: FrequencyScale | undefined;
-    }>,
+    vp: Partial<ViewportConfig>,
     source?: string | undefined,
   ): void {
-    this.setViewport(vp, source);
+    this._viewport.updateViewport(vp, source);
   }
 
   zoom(factor: number, centerTime?: number, source?: string): void {
-    if (!Number.isFinite(factor) || factor <= 0) return;
-    const duration = this.endTime - this.startTime;
-    const center = Number.isFinite(centerTime)
-      ? (centerTime as number)
-      : (this.startTime + this.endTime) / 2;
-    const targetDuration = Math.max(
-      this.minDuration,
-      Math.min(this.maxDuration, this.totalDuration, duration * factor),
-    );
-
-    if (Math.abs(targetDuration - duration) < 1e-9) return;
-
-    const ratio = (center - this.startTime) / (duration || 1);
-    const startTime = Math.max(
-      0,
-      Math.min(
-        this.totalDuration - targetDuration,
-        center - targetDuration * ratio,
-      ),
-    );
-
-    this.setViewport(
-      { startTime, endTime: startTime + targetDuration },
-      source,
-    );
+    this._viewport.zoom(factor, centerTime, source);
   }
 
   zoomTime(factor: number, centerTime?: number, source?: string): void {
-    this.zoom(factor, centerTime, source);
+    this._viewport.zoomTime(factor, centerTime, source);
   }
 
   pan(deltaSeconds: number, source?: string): void {
-    if (!Number.isFinite(deltaSeconds)) return;
-    const duration = this.endTime - this.startTime;
-    const nextStart = Math.max(
-      0,
-      Math.min(this.totalDuration - duration, this.startTime + deltaSeconds),
-    );
-    this.setViewport(
-      { startTime: nextStart, endTime: nextStart + duration },
-      source,
-    );
+    this._viewport.pan(deltaSeconds, source);
   }
 
   panTo(startTime: number, source?: string): void {
-    if (!Number.isFinite(startTime)) return;
-    const duration = this.endTime - this.startTime;
-    const nextStart = Math.max(
-      0,
-      Math.min(this.totalDuration - duration, startTime),
-    );
-    this.setViewport(
-      { startTime: nextStart, endTime: nextStart + duration },
-      source,
-    );
+    this._viewport.panTo(startTime, source);
   }
 
   zoomFrequency(
@@ -452,33 +355,11 @@ export class Sonoscope implements ISonoscope {
     centerFrequency?: number,
     source?: string,
   ): void {
-    if (!Number.isFinite(factor) || factor <= 0) return;
-    const currentSpan = this.maxFrequency - this.minFrequency;
-    const nyquist = this.getNyquist();
-    const minSpan = 10;
-    const maxSpan = nyquist;
-    const targetSpan = Math.max(
-      minSpan,
-      Math.min(maxSpan, currentSpan * factor),
-    );
-    if (Math.abs(targetSpan - currentSpan) < 1e-9) return;
-
-    const center = Number.isFinite(centerFrequency)
-      ? (centerFrequency as number)
-      : (this.minFrequency + this.maxFrequency) / 2;
-    const ratio =
-      currentSpan <= 0 ? 0.5 : (center - this.minFrequency) / currentSpan;
-    const newMin = Math.max(
-      0,
-      Math.min(nyquist - targetSpan, center - targetSpan * ratio),
-    );
-    const newMax = newMin + targetSpan;
-
-    this.setViewport({ minFrequency: newMin, maxFrequency: newMax }, source);
+    this._viewport.zoomFrequency(factor, centerFrequency, source);
   }
 
   zoomFreq(factor: number, centerFrequency?: number, source?: string): void {
-    this.zoomFrequency(factor, centerFrequency, source);
+    this._viewport.zoomFreq(factor, centerFrequency, source);
   }
 
   zoomBoth(
@@ -486,82 +367,11 @@ export class Sonoscope implements ISonoscope {
     center?: { time?: number; frequency?: number },
     source?: string,
   ): void {
-    const timeFactor = typeof factor === "number" ? factor : factor.time;
-    const freqFactor = typeof factor === "number" ? factor : factor.frequency;
-
-    let nextStartTime = this.startTime;
-    let nextEndTime = this.endTime;
-    let nextMinFreq = this.minFrequency;
-    let nextMaxFreq = this.maxFrequency;
-
-    if (Number.isFinite(timeFactor) && timeFactor > 0) {
-      const duration = this.endTime - this.startTime;
-      const cTime = Number.isFinite(center?.time)
-        ? (center!.time as number)
-        : (this.startTime + this.endTime) / 2;
-      const targetDuration = Math.max(
-        this.minDuration,
-        Math.min(this.maxDuration, this.totalDuration, duration * timeFactor),
-      );
-      if (Math.abs(targetDuration - duration) >= 1e-9) {
-        const ratio = (cTime - this.startTime) / (duration || 1);
-        nextStartTime = Math.max(
-          0,
-          Math.min(
-            this.totalDuration - targetDuration,
-            cTime - targetDuration * ratio,
-          ),
-        );
-        nextEndTime = nextStartTime + targetDuration;
-      }
-    }
-
-    if (Number.isFinite(freqFactor) && freqFactor > 0) {
-      const currentSpan = this.maxFrequency - this.minFrequency;
-      const nyquist = this.getNyquist();
-      const minSpan = 10;
-      const maxSpan = nyquist;
-      const targetSpan = Math.max(
-        minSpan,
-        Math.min(maxSpan, currentSpan * freqFactor),
-      );
-      if (Math.abs(targetSpan - currentSpan) >= 1e-9) {
-        const cFreq = Number.isFinite(center?.frequency)
-          ? (center!.frequency as number)
-          : (this.minFrequency + this.maxFrequency) / 2;
-        const ratio =
-          currentSpan <= 0 ? 0.5 : (cFreq - this.minFrequency) / currentSpan;
-        nextMinFreq = Math.max(
-          0,
-          Math.min(nyquist - targetSpan, cFreq - targetSpan * ratio),
-        );
-        nextMaxFreq = nextMinFreq + targetSpan;
-      }
-    }
-
-    this.setViewport(
-      {
-        startTime: nextStartTime,
-        endTime: nextEndTime,
-        minFrequency: nextMinFreq,
-        maxFrequency: nextMaxFreq,
-      },
-      source,
-    );
+    this._viewport.zoomBoth(factor, center, source);
   }
 
   panFrequency(deltaHz: number, source?: string): void {
-    if (!Number.isFinite(deltaHz) || deltaHz === 0) return;
-    const span = this.maxFrequency - this.minFrequency;
-    const nyquist = this.getNyquist();
-    const newMin = Math.max(
-      0,
-      Math.min(nyquist - span, this.minFrequency + deltaHz),
-    );
-    this.setViewport(
-      { minFrequency: newMin, maxFrequency: newMin + span },
-      source,
-    );
+    this._viewport.panFrequency(deltaHz, source);
   }
 
   getDuration(): number {
@@ -603,10 +413,11 @@ export class Sonoscope implements ISonoscope {
 
   private checkPlaybackFollow(currentTime: number): void {
     if (this.followPlayback === "off") return;
-    const duration = this.endTime - this.startTime;
+    const vp = this._viewport.getViewport();
+    const duration = vp.duration;
 
     if (this.followPlayback === "page") {
-      if (currentTime >= this.endTime || currentTime < this.startTime) {
+      if (currentTime >= vp.endTime || currentTime < vp.startTime) {
         const nextStart = Math.max(
           0,
           Math.min(this.totalDuration - duration, currentTime),
@@ -725,36 +536,75 @@ export class Sonoscope implements ISonoscope {
   setSource(source: AudioSource): void {
     this._source = source;
     this.totalDuration = Math.max(0.01, source.duration);
-    this.setViewport({ startTime: this.startTime, endTime: this.endTime });
+    const nyquist = Math.max(100, Math.floor(source.sampleRate / 2));
+    if (this._viewport instanceof ViewportController) {
+      this._viewport.setTotalDuration(this.totalDuration);
+      this._viewport.setBaseFrequencyBounds(0, nyquist);
+    }
+    const vp = this._viewport.getViewport();
+    this._viewport.setViewport({
+      startTime: Math.min(vp.startTime, this.totalDuration),
+      endTime: Math.min(vp.endTime, this.totalDuration),
+      minFrequency: Math.min(vp.minFrequency, nyquist),
+      maxFrequency: Math.min(vp.maxFrequency, nyquist),
+    });
     this.events.emit("sourcechange", { source });
   }
 
   createSpectrogram(
     canvas: HTMLCanvasElement,
-    options?: Partial<SpectrogramOptions>,
+    options?: Partial<SpectrogramOptions> & {
+      viewport?: IViewportController | undefined;
+      source?: AudioSource | undefined;
+    },
   ): SpectrogramViewer {
-    return new SpectrogramViewer(this, canvas, options);
+    return new SpectrogramViewer(
+      canvas,
+      options?.viewport ?? this._viewport,
+      options?.source ?? this._source,
+      options,
+    );
   }
 
   createWaveform(
     canvas: HTMLCanvasElement,
-    options?: Partial<WaveformConfig>,
+    options?: Partial<WaveformConfig> & {
+      viewport?: IViewportController | undefined;
+      source?: AudioSource | undefined;
+    },
   ): WaveformViewer {
-    return new WaveformViewer(this, canvas, options);
+    return new WaveformViewer(
+      canvas,
+      options?.viewport ?? this._viewport,
+      options?.source ?? this._source,
+      options,
+    );
   }
 
   createTimeRuler(
     canvas: HTMLCanvasElement,
-    options?: Partial<TimeRulerOptions>,
+    options?: Partial<TimeRulerOptions> & {
+      viewport?: IViewportController | undefined;
+    },
   ): TimeRulerViewer {
-    return new TimeRulerViewer(this, canvas, options);
+    return new TimeRulerViewer(
+      canvas,
+      options?.viewport ?? this._viewport,
+      options,
+    );
   }
 
   createFrequencyRuler(
     canvas: HTMLCanvasElement,
-    options?: Partial<FrequencyRulerOptions>,
+    options?: Partial<FrequencyRulerOptions> & {
+      viewport?: IViewportController | undefined;
+    },
   ): FrequencyRulerViewer {
-    return new FrequencyRulerViewer(this, canvas, options);
+    return new FrequencyRulerViewer(
+      canvas,
+      options?.viewport ?? this._viewport,
+      options,
+    );
   }
 
   attachNavigation(
@@ -776,7 +626,6 @@ export class Sonoscope implements ISonoscope {
             endTime: vp.endTime,
             minFrequency: vp.minFrequency,
             maxFrequency: vp.maxFrequency,
-            frequencyScale: vp.frequencyScale,
           };
         },
         setViewport: (vp) => {

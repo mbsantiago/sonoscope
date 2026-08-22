@@ -1,4 +1,4 @@
-import type { ISonoscope } from "../../types";
+import type { IViewportController, ViewportConfig } from "../../types";
 import type {
   ITimeRulerViewer,
   ResolvedTimeRulerConfig,
@@ -66,7 +66,7 @@ function resolveTimeRulerConfig(
     font:
       input.font ??
       '10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-    tickPosition: input.tickPosition ?? "top",
+    tickPosition: input.tickPosition ?? "bottom",
     timeFormat: input.timeFormat ?? "auto",
     minMajorPixelSpacing: input.minMajorPixelSpacing ?? 75,
     program: input.program ?? "ticks",
@@ -76,10 +76,10 @@ function resolveTimeRulerConfig(
 export class TimeRulerViewer implements ITimeRulerViewer {
   private readonly events = new TypedEventEmitter<TimeRulerEvents>();
   private readonly canvas: HTMLCanvasElement;
-  private readonly scope: ISonoscope;
+  private readonly viewport: IViewportController;
   private config: ResolvedTimeRulerConfig;
   private programInstance: TimeRulerProgram;
-  private scopeCleanup: Array<() => void> = [];
+  private viewportCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
   private renderRunning = false;
@@ -88,16 +88,31 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private status: TimeRulerStatus = { state: "idle" };
 
   constructor(
-    scope: ISonoscope,
     canvas: HTMLCanvasElement,
+    viewport: IViewportController,
     options?: Partial<TimeRulerOptions>,
   ) {
-    this.scope = scope;
+    if (!canvas) {
+      throw new Error("TimeRulerViewer requires a canvas");
+    }
+    if (!viewport) {
+      throw new Error("TimeRulerViewer requires a viewport controller");
+    }
+
+    this.viewport = viewport;
     this.canvas = canvas;
-    this.config = resolveTimeRulerConfig(options, scope.getDuration());
+    const vp = viewport.getViewport();
+    this.config = resolveTimeRulerConfig(
+      {
+        startTime: vp.startTime,
+        endTime: vp.endTime,
+        ...options,
+      },
+      vp.totalDuration,
+    );
     this.programInstance = resolveTimeRulerProgram(this.config.program);
 
-    this.bindScope();
+    this.bindViewport();
     if (options?.autoResize !== false) {
       this.resizeCleanup = attachAutoResize(this.canvas, {
         devicePixelRatio: options?.devicePixelRatio,
@@ -110,11 +125,11 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     }
   }
 
-  private bindScope(): void {
-    for (const cleanup of this.scopeCleanup) cleanup();
-    this.scopeCleanup = [];
+  private bindViewport(): void {
+    for (const cleanup of this.viewportCleanup) cleanup();
+    this.viewportCleanup = [];
 
-    const unlistenViewport = this.scope.on("viewportchange", (e) => {
+    const unlistenViewport = this.viewport.on("viewportchange", (e) => {
       const currentStart = this.config.startTime;
       const currentEnd = this.config.endTime;
       if (
@@ -129,15 +144,11 @@ export class TimeRulerViewer implements ITimeRulerViewer {
       this.requestRender();
     });
 
-    const unlistenSource = this.scope.on("sourcechange", () => {
-      this.requestRender();
-    });
-
-    this.scopeCleanup.push(unlistenViewport, unlistenSource);
+    this.viewportCleanup.push(unlistenViewport);
   }
 
-  getScope(): ISonoscope {
-    return this.scope;
+  getViewportController(): IViewportController {
+    return this.viewport;
   }
 
   getCanvas(): HTMLCanvasElement {
@@ -149,10 +160,15 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   getViewport(): TimeRulerViewport {
+    const vp = this.viewport.getViewport();
     return {
-      startTime: this.config.startTime,
-      endTime: this.config.endTime,
+      startTime: vp.startTime,
+      endTime: vp.endTime,
     };
+  }
+
+  setViewport(vp: Partial<ViewportConfig>): void {
+    this.viewport.setViewport(vp);
   }
 
   getConfig(): ResolvedTimeRulerConfig {
@@ -160,7 +176,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   updateConfig(input: Partial<TimeRulerOptions>): void {
-    const duration = this.scope.getDuration();
+    const duration = this.viewport.getViewport().totalDuration;
     const baseConfig = { ...this.config, ...input };
     this.config = resolveTimeRulerConfig(baseConfig, duration);
     this.programInstance = resolveTimeRulerProgram(this.config.program);
@@ -183,17 +199,15 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   }
 
   timeToCanvas(time: number): number {
+    const span = Math.max(1e-6, this.config.endTime - this.config.startTime);
     const width = this.canvas.width || 1;
-    const duration = Math.max(
-      0.000001,
-      this.config.endTime - this.config.startTime,
-    );
-    return ((time - this.config.startTime) / duration) * width;
+    const norm = (time - this.config.startTime) / span;
+    return norm * width;
   }
 
   async render(): Promise<void> {
     if (this.status.state === "destroyed") return;
-    const requestId = `ruler-${++this.requestCounter}`;
+    const requestId = `time-ruler-${++this.requestCounter}`;
     this.status = { state: "rendering" };
     this.events.emit("renderstart", { requestId });
 
@@ -207,7 +221,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
 
     const width = Math.max(1, this.canvas.width || 1);
     const height = Math.max(1, this.canvas.height || 1);
-    const vp = this.getViewport();
+    const vp = this.viewport.getViewport();
 
     this.programInstance.draw(
       ctx,
@@ -215,7 +229,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
         canvas: this.canvas,
         startTime: vp.startTime,
         endTime: vp.endTime,
-        totalDuration: this.scope.getDuration(),
+        totalDuration: vp.totalDuration,
         color: this.config.color,
         backgroundColor: this.config.backgroundColor,
         tickColor: this.config.tickColor,
@@ -264,8 +278,8 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   destroy(): void {
     this.status = { state: "destroyed" };
     this.events.clear();
-    for (const cleanup of this.scopeCleanup) cleanup();
-    this.scopeCleanup = [];
+    for (const cleanup of this.viewportCleanup) cleanup();
+    this.viewportCleanup = [];
     this.resizeCleanup?.();
     this.resizeCleanup = undefined;
   }

@@ -1,5 +1,10 @@
 import type { PerformanceProfiler } from "../../../performance";
-import type { ColorMapConfig, Rgba, ViewportConfig } from "../../../types";
+import type {
+  ColorMapConfig,
+  FrequencyScale,
+  Rgba,
+  ViewportConfig,
+} from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { WebGL2RenderProgram } from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
@@ -14,6 +19,7 @@ import { normalizeValue } from "../value-scale";
 export type RenderInput = {
   canvas: HTMLCanvasElement;
   viewport: ViewportConfig;
+  frequencyScale?: FrequencyScale;
   valueScale: Required<ValueScaleConfig>;
   colorMap: ColorMapConfig;
   tiles: SpectrogramMatrix[];

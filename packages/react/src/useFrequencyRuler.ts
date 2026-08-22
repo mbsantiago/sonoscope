@@ -40,7 +40,11 @@ export function useFrequencyRuler(
       return;
     }
 
-    const instance = new FrequencyRulerViewer(scope, canvas, memoizedConfig);
+    const instance = new FrequencyRulerViewer(
+      canvas,
+      scope.viewport,
+      memoizedConfig,
+    );
     viewerRef.current = instance;
     setViewer(instance);
     setStatus(instance.getStatus());

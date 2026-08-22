@@ -1,4 +1,4 @@
-import type { ISonoscope } from "../../types";
+import type { IViewportController } from "../../types";
 import type { TimeFormatMode } from "./ticks";
 
 export type TimeRulerProgramName = "ticks" | "boxes";
@@ -179,7 +179,7 @@ export interface ITimeRulerViewer {
   getStatus(): TimeRulerStatus;
   getCanvas(): HTMLCanvasElement;
 
-  getScope(): ISonoscope;
+  getViewportController(): IViewportController;
   getViewport(): TimeRulerViewport;
 
   getConfig(): ResolvedTimeRulerConfig;

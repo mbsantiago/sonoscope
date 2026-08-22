@@ -61,7 +61,6 @@ export default function InteractiveSpectrogram({
         try {
           scope = await Sonoscope.fromUrl(audioUrl, {
             audio,
-            frequencyScale: scale,
             followPlayback: "page",
           });
         } catch (err) {
@@ -71,7 +70,6 @@ export default function InteractiveSpectrogram({
             audio.src = fallbackUrl;
             scope = await Sonoscope.fromUrl(fallbackUrl, {
               audio,
-              frequencyScale: scale,
               followPlayback: "page",
             });
           } else {
@@ -234,11 +232,8 @@ export default function InteractiveSpectrogram({
 
   // 3. Frequency Scale change
   useEffect(() => {
-    const scope = scopeRef.current;
-    if (!scope) return;
-    const minFreq = scale === "log" ? 20 : 0;
-    const maxFreq = Math.floor(scope.getSampleRate() / 2);
-    scope.setViewport({ frequencyScale: scale, minFrequency: minFreq, maxFrequency: maxFreq });
+    specRef.current?.updateConfig({ frequencyScale: scale });
+    freqRulerRef.current?.updateConfig({ frequencyScale: scale });
   }, [scale]);
 
   return (

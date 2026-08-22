@@ -135,8 +135,8 @@ export function SpectrogramPanel(
             onViewportChange({
               startTime: vp.startTime,
               endTime: vp.endTime,
-              minFrequency: vp.minFrequency,
-              maxFrequency: vp.maxFrequency,
+              minFrequency: vp.minFrequency ?? 0,
+              maxFrequency: vp.maxFrequency ?? 24000,
             });
           }}
           canvasProps={{

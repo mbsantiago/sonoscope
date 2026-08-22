@@ -146,8 +146,8 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
       "u_viewport",
       input.viewport.startTime,
       input.viewport.endTime,
-      input.viewport.minFrequency,
-      input.viewport.maxFrequency,
+      input.viewport.minFrequency ?? 0,
+      input.viewport.maxFrequency ?? 24000,
     );
     this.shader.uniform2f(
       "u_canvasSize",
@@ -164,7 +164,7 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
     );
     this.shader.uniform1f(
       "u_frequencyScale",
-      frequencyScaleCode(input.viewport.frequencyScale),
+      frequencyScaleCode(input.frequencyScale),
     );
 
     const placeholderCount = input.placeholders?.length ?? 0;

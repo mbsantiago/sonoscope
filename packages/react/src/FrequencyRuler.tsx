@@ -105,8 +105,8 @@ export const FrequencyRuler = forwardRef<
         }
 
         const viewer = new FrequencyRulerViewer(
-          effectiveScope,
           canvas,
+          effectiveScope.viewport,
           memoizedConfig,
         );
 

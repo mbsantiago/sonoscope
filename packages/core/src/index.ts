@@ -33,10 +33,14 @@ export type {
   FollowPlaybackMode,
   FrequencyScale,
   ISonoscope,
+  IViewportController,
   Rgba,
   SonoscopeEvents,
   SonoscopeOptions,
   ViewportConfig,
+  ViewportConstraints,
+  ViewportControllerOptions,
+  ViewportEvents,
   ViewportState,
 } from "./types";
 // FrequencyRuler Types
@@ -226,5 +230,6 @@ export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { createWaveformRenderer } from "./viewers/waveform/renderers/renderer-factory";
 export { WebGL2WaveformRenderer } from "./viewers/waveform/renderers/webgl2";
 export { WaveformViewer } from "./viewers/waveform/viewer";
-// Viewport Utilities
+// Viewport
+export { ViewportController } from "./viewport";
 export { clampViewportTimes } from "./viewport-math";

@@ -40,14 +40,13 @@ import { Sonoscope } from '@sonoscope/core';
 
 // Initialize Sonoscope from an HTML <audio> element
 const audioElement = document.querySelector('audio');
-const scope = await Sonoscope.fromAudio(audioElement, {
-  frequencyScale: 'mel',
-});
+const scope = await Sonoscope.fromAudio(audioElement);
 
 // Render Spectrogram on a canvas
 const canvas = document.querySelector('canvas#spectrogram');
 const spec = scope.createSpectrogram(canvas, {
   colorMap: 'viridis',
+  frequencyScale: 'mel',
   minValue: -80,
   maxValue: 0,
 });
@@ -70,9 +69,9 @@ import { SonoscopeProvider, Spectrogram, Waveform, TimeRuler } from '@sonoscope/
 
 export function AudioViewer() {
   return (
-    <SonoscopeProvider url="/audio/sample.wav" frequencyScale="mel">
+    <SonoscopeProvider url="/audio/sample.wav">
       <TimeRuler height={24} />
-      <Spectrogram height={300} colorMap="inferno" showAudioControls />
+      <Spectrogram height={300} colorMap="inferno" frequencyScale="mel" showAudioControls />
       <Waveform height={80} />
     </SonoscopeProvider>
   );

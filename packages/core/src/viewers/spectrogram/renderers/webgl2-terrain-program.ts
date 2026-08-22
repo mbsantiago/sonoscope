@@ -142,8 +142,8 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
       "u_viewport",
       input.viewport.startTime,
       input.viewport.endTime,
-      input.viewport.minFrequency,
-      input.viewport.maxFrequency,
+      input.viewport.minFrequency ?? 0,
+      input.viewport.maxFrequency ?? 24000,
     );
     this.shader.uniform2f(
       "u_terrainTimeRange",
@@ -157,7 +157,7 @@ export class TerrainSpectrogramProgram implements WebGL2RenderProgram {
     );
     this.shader.uniform1f(
       "u_frequencyScale",
-      frequencyScaleCode(input.viewport.frequencyScale),
+      frequencyScaleCode(input.frequencyScale),
     );
     this.shader.uniform1f("u_terrainHeight", 0.34);
     gl.activeTexture(gl.TEXTURE1);

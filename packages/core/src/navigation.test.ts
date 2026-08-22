@@ -17,7 +17,6 @@ const viewport: ViewportConfig = {
   endTime: 8,
   minFrequency: 0,
   maxFrequency: 1000,
-  frequencyScale: "linear",
 };
 
 afterEach(() => {
@@ -90,8 +89,8 @@ describe("navigation utilities", () => {
   it("keeps an off-center frequency anchor under the same ratio after zooming", () => {
     const anchorFreq = 300;
     const ratioBefore =
-      (anchorFreq - viewport.minFrequency) /
-      (viewport.maxFrequency - viewport.minFrequency);
+      (anchorFreq - viewport.minFrequency!) /
+      (viewport.maxFrequency! - viewport.minFrequency!);
     const next = zoomViewportFrequency(
       viewport,
       { minFrequency: 0, maxFrequency: 1000 },
@@ -99,8 +98,8 @@ describe("navigation utilities", () => {
       0.5,
     );
     const ratioAfter =
-      (anchorFreq - next.minFrequency) /
-      (next.maxFrequency - next.minFrequency);
+      (anchorFreq - next.minFrequency!) /
+      (next.maxFrequency! - next.minFrequency!);
 
     expect(ratioAfter).toBeCloseTo(ratioBefore, 12);
   });
@@ -342,7 +341,7 @@ describe("attachWheelNavigation", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToFrequency: (_y: number) => 10000,
-    } as unknown as any;
+    } as unknown as NavigableViewer;
 
     attachWheelNavigation(freqViewer, canvas);
     const wheel = listeners.get("wheel")!;
@@ -539,7 +538,7 @@ describe("attachDragNavigation", () => {
       setViewport,
       requestRender: vi.fn(),
       canvasToFrequency: (_y: number) => 10000,
-    } as unknown as any;
+    } as unknown as NavigableViewer;
 
     attachDragNavigation(freqViewer, canvas);
 

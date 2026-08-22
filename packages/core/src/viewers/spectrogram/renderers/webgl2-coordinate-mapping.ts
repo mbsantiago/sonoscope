@@ -8,13 +8,19 @@ export function viewportPixelToFrequency(input: {
   maxFrequency: number;
   frequencyScale: FrequencyScale;
 }): number {
-  return canvasToTimeFrequency(0, input.y, 1, input.height, {
-    startTime: 0,
-    endTime: 1,
-    minFrequency: input.minFrequency,
-    maxFrequency: input.maxFrequency,
-    frequencyScale: input.frequencyScale,
-  }).frequency;
+  return canvasToTimeFrequency(
+    0,
+    input.y,
+    1,
+    input.height,
+    {
+      startTime: 0,
+      endTime: 1,
+      minFrequency: input.minFrequency,
+      maxFrequency: input.maxFrequency,
+    },
+    input.frequencyScale,
+  ).frequency;
 }
 
 export function frequencyToTextureV(input: {

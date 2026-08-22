@@ -1,4 +1,4 @@
-import type { FrequencyScale, ISonoscope } from "../../types";
+import type { FrequencyScale, IViewportController } from "../../types";
 import type { FrequencyFormatMode } from "./ticks";
 
 export type FrequencyRulerProgramName = "ticks" | "boxes";
@@ -172,7 +172,7 @@ export interface IFrequencyRulerViewer {
   getStatus(): FrequencyRulerStatus;
   getCanvas(): HTMLCanvasElement;
 
-  getScope(): ISonoscope;
+  getViewportController(): IViewportController;
   getViewport(): FrequencyRulerViewport;
 
   getConfig(): ResolvedFrequencyRulerConfig;

@@ -74,8 +74,8 @@ describe("WebGL2 shaders", () => {
         endTime: 1,
         minFrequency: 0,
         maxFrequency: 100,
-        frequencyScale: "linear",
       },
+      frequencyScale: "linear",
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [brightBandTile()],
@@ -113,8 +113,8 @@ describe("WebGL2 shaders", () => {
         endTime: 1,
         minFrequency: 0,
         maxFrequency: 100,
-        frequencyScale: "linear",
       },
+      frequencyScale: "linear",
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [tile],
@@ -150,8 +150,8 @@ describe("WebGL2 shaders", () => {
         endTime: 1,
         minFrequency: 0,
         maxFrequency: 100,
-        frequencyScale: "linear",
       },
+      frequencyScale: "linear",
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [brightBandTile()],
@@ -188,8 +188,8 @@ describe("WebGL2 shaders", () => {
         endTime: 1,
         minFrequency: 0,
         maxFrequency: 100,
-        frequencyScale: "linear",
       },
+      frequencyScale: "linear",
       valueScale: {
         mode: "magnitude",
         min: -100,
@@ -232,8 +232,8 @@ describe("WebGL2 shaders", () => {
         endTime: 1,
         minFrequency: 0,
         maxFrequency: 100,
-        frequencyScale: "linear",
       },
+      frequencyScale: "linear",
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [singleBrightBinTile(0)],
@@ -293,8 +293,8 @@ describe("WebGL2 shaders", () => {
           endTime: 1,
           minFrequency: frequencyScale === "log" ? 1 : 0,
           maxFrequency: 100,
-          frequencyScale,
         },
+        frequencyScale,
         valueScale: {
           mode: "magnitude",
           min: 0,
@@ -338,8 +338,8 @@ describe("WebGL2 shaders", () => {
           endTime: 1,
           minFrequency: frequencyScale === "log" ? 1 : 0,
           maxFrequency: 100,
-          frequencyScale,
         },
+        frequencyScale,
         valueScale: {
           mode: "magnitude",
           min: 0,
@@ -382,8 +382,8 @@ describe("WebGL2 shaders", () => {
         endTime: 1,
         minFrequency: 0,
         maxFrequency: 100,
-        frequencyScale: "linear",
       },
+      frequencyScale: "linear",
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [brightBandTile()],
@@ -423,8 +423,8 @@ describe("WebGL2 shaders", () => {
           endTime: 1,
           minFrequency: frequencyScale === "log" ? 1 : 0,
           maxFrequency: 100,
-          frequencyScale,
         },
+        frequencyScale,
         valueScale: {
           mode: "magnitude",
           min: 0,
@@ -506,12 +506,17 @@ describe("WebGL2 shaders", () => {
     try {
       const audio = document.createElement("audio");
       const scope = await Sonoscope.fromUrl("/test.wav", { audio });
-      const viewer = new SpectrogramViewer(scope, canvas, {
-        backend: {
-          computeTile: async (request: ComputeTileRequest) =>
-            brightBandTile(request.timeStart, request.timeEnd),
+      const viewer = new SpectrogramViewer(
+        canvas,
+        scope.viewport,
+        scope.source,
+        {
+          backend: {
+            computeTile: async (request: ComputeTileRequest) =>
+              brightBandTile(request.timeStart, request.timeEnd),
+          },
         },
-      });
+      );
 
       expect(viewer.getConfig().renderer).toBe("auto");
       expect(viewer.getRendererKind()).toBe("webgl2");
@@ -548,8 +553,8 @@ describe("WebGL2 shaders", () => {
           endTime: 1,
           minFrequency: 0,
           maxFrequency: 100,
-          frequencyScale: "linear",
         },
+        frequencyScale: "linear",
         valueScale: {
           mode: "magnitude",
           min: 0,

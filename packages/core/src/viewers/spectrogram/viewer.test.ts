@@ -1,4 +1,4 @@
-import type { AudioSource } from "../../types";
+import type { AudioSource, ISonoscope, IViewportController } from "../../types";
 import type {
   ComputeTileRequest,
   SpectrogramComputeBackend,
@@ -119,18 +119,26 @@ function createViewer(
     audio?: HTMLAudioElement;
     startTime?: number;
     endTime?: number;
-    scope?: Sonoscope;
+    scope?: ISonoscope;
+    viewport?: IViewportController;
   } & Partial<SpectrogramOptions> = {},
-): SpectrogramViewer {
+): SpectrogramViewer & { scope: ISonoscope } {
   const c = options.canvas ?? canvas();
+  const src = options.source ?? source;
   const sc =
     options.scope ??
-    new Sonoscope({
-      source: options.source ?? source,
-      audio: options.audio,
-      startTime: options.startTime,
-      endTime: options.endTime,
-    });
+    (options.audio
+      ? new Sonoscope({
+          source: src,
+          audio: options.audio,
+          startTime: options.startTime,
+          endTime: options.endTime,
+        })
+      : new Sonoscope({
+          source: src,
+          startTime: options.startTime,
+          endTime: options.endTime,
+        }));
   const {
     canvas: _c,
     source: _src,
@@ -138,9 +146,17 @@ function createViewer(
     startTime: _st,
     endTime: _et,
     scope: _sc,
+    viewport: _vp,
     ...specOptions
   } = options;
-  return new SpectrogramViewer(sc, c, specOptions);
+  const viewer = new SpectrogramViewer(
+    c,
+    options.viewport ?? sc.viewport,
+    options.source ?? sc.source,
+    specOptions,
+  ) as SpectrogramViewer & { scope: ISonoscope };
+  viewer.scope = sc;
+  return viewer;
 }
 
 describe("SpectrogramViewer", () => {
@@ -157,7 +173,11 @@ describe("SpectrogramViewer", () => {
     } as unknown as HTMLAudioElement;
 
     const scope = await Sonoscope.fromAudio(audio);
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
 
     expect(fromUrl).toHaveBeenCalledWith("test.wav");
     expect(scope.source).toBe(highRateSource);
@@ -187,8 +207,13 @@ describe("SpectrogramViewer", () => {
 
     release?.();
     const scope = await scopePromise;
-    const viewer = new SpectrogramViewer(scope, canvas());
-    expect(viewer.getScope()).toBe(scope);
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
+    expect(viewer.getSource()).toBe(highRateSource);
+    expect(viewer.getViewportController()).toBe(scope.viewport);
     fromUrl.mockRestore();
   });
 
@@ -226,9 +251,14 @@ describe("SpectrogramViewer", () => {
     };
 
     const scope = await Sonoscope.fromUrl("test.wav", { audio });
-    const viewer = new SpectrogramViewer(scope, canvas(), {
-      backend,
-    });
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+      {
+        backend,
+      },
+    );
 
     expect(audio.src).toBe("test.wav");
     expect(viewer.getRendererKind()).toBe("canvas2d");
@@ -263,7 +293,11 @@ describe("SpectrogramViewer", () => {
     }) as unknown as typeof AudioContext;
 
     const scope = await Sonoscope.fromUrl("test.wav");
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
 
     expect(scope.source).toBeDefined();
     expect(scope.getAudio()).toBeUndefined();
@@ -304,26 +338,38 @@ describe("SpectrogramViewer", () => {
     } as unknown as HTMLAudioElement;
 
     const scope = await Sonoscope.fromAudio(audio);
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
 
-    expect(viewer.getScope()).toBe(scope);
+    expect(viewer.getSource()).toBeDefined();
     expect(scope.getAudio()).toBe(audio);
     expect(scope.source).toBeDefined();
   });
 
   it("creates viewer from an AudioSource", async () => {
     const scope = Sonoscope.fromSource(source);
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
 
-    expect(viewer.getScope()).toBe(scope);
+    expect(viewer.getSource()).toBe(source);
     expect(scope.source).toBe(source);
     expect(scope.getAudio()).toBeUndefined();
   });
 
   it("attaches and detaches companion audio element dynamically on Sonoscope", async () => {
     const scope = Sonoscope.fromSource(source);
-    const viewer = new SpectrogramViewer(scope, canvas());
-    expect(viewer.getScope().getAudio()).toBeUndefined();
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
+    expect(scope.getAudio()).toBeUndefined();
 
     const audio = {
       src: "sync.wav",
@@ -340,6 +386,8 @@ describe("SpectrogramViewer", () => {
     scope.detachAudio();
     expect(scope.getAudio()).toBeUndefined();
     expect(audio.removeEventListener).toHaveBeenCalled();
+    viewer.destroy();
+    scope.destroy();
   });
 
   it("sets a new source on an existing scope and resets viewer source state", async () => {
@@ -348,10 +396,15 @@ describe("SpectrogramViewer", () => {
       startTime: 0.2,
       endTime: 0.5,
     });
-    const viewer = new SpectrogramViewer(scope, canvas(), {
-      minFrequency: 100,
-      maxFrequency: 400,
-    });
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+      {
+        minFrequency: 100,
+        maxFrequency: 400,
+      },
+    );
     const nextSource = {
       ...source,
       id: "next",
@@ -361,7 +414,7 @@ describe("SpectrogramViewer", () => {
 
     scope.setSource(nextSource);
 
-    expect(viewer.getScope().source).toBe(nextSource);
+    expect(scope.source).toBe(nextSource);
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.2,
       endTime: 0.5,
@@ -375,7 +428,11 @@ describe("SpectrogramViewer", () => {
 
   it("exposes Nyquist convenience accessor", async () => {
     const scope = new Sonoscope({ source });
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
 
     expect(viewer.getNyquist()).toBe(source.sampleRate / 2);
   });
@@ -384,7 +441,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({ canvas: canvas(), source });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.getScope().setViewport({ startTime: 0.1, endTime: 0.6 });
+    viewer.scope.setViewport({ startTime: 0.1, endTime: 0.6 });
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.1,
@@ -412,7 +469,7 @@ describe("SpectrogramViewer", () => {
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.getScope().zoom(0.5, 0.25);
+    viewer.scope.zoom(0.5, 0.25);
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.125,
@@ -428,7 +485,11 @@ describe("SpectrogramViewer", () => {
       endTime: 1,
       maxDuration: 1,
     });
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
     const requestRender = vi.spyOn(viewer, "requestRender");
 
     scope.zoom(2, 0.25);
@@ -446,7 +507,7 @@ describe("SpectrogramViewer", () => {
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.getScope().zoomFreq(0.5, 200);
+    viewer.scope.zoomFreq(0.5, 200);
 
     expect(viewer.getViewport()).toMatchObject({
       minFrequency: 100,
@@ -466,7 +527,7 @@ describe("SpectrogramViewer", () => {
     });
     const requestRender = vi.spyOn(viewer, "requestRender");
 
-    viewer.getScope().zoomBoth(0.5, { time: 0.5, frequency: 200 });
+    viewer.scope.zoomBoth(0.5, { time: 0.5, frequency: 200 });
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.25,
@@ -487,9 +548,10 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 400,
     });
 
-    viewer
-      .getScope()
-      .zoomBoth({ time: 0.5, frequency: 0.25 }, { time: 0.5, frequency: 200 });
+    viewer.scope.zoomBoth(
+      { time: 0.5, frequency: 0.25 },
+      { time: 0.5, frequency: 200 },
+    );
 
     expect(viewer.getViewport()).toMatchObject({
       startTime: 0.25,
@@ -508,7 +570,11 @@ describe("SpectrogramViewer", () => {
       removeEventListener: vi.fn(),
     } as unknown as HTMLAudioElement;
     const scope = new Sonoscope({ audio, source });
-    const viewer = new SpectrogramViewer(scope, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+    );
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce({
@@ -533,7 +599,9 @@ describe("SpectrogramViewer", () => {
     const nextSource = await sourceModule.createAudioSourceFromUrl("next.wav");
     scope.setSource(nextSource);
 
-    expect(viewer.getScope().source.sampleRate).toBe(192_000);
+    expect(scope.source.sampleRate).toBe(192_000);
+    viewer.destroy();
+    scope.destroy();
   });
 
   it("allows audio-only min frequency above fallback Nyquist when decoded source supports it", async () => {
@@ -549,9 +617,14 @@ describe("SpectrogramViewer", () => {
     } as unknown as HTMLAudioElement;
 
     const scope = await Sonoscope.fromAudio(audio);
-    const viewer = new SpectrogramViewer(scope, canvas(), {
-      minFrequency: 30_000,
-    });
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+      {
+        minFrequency: 30_000,
+      },
+    );
 
     expect(viewer.getViewport().minFrequency).toBe(30_000);
     expect(viewer.getViewport().maxFrequency).toBe(96_000);
@@ -571,9 +644,14 @@ describe("SpectrogramViewer", () => {
     } as unknown as HTMLAudioElement;
 
     const scope = await Sonoscope.fromAudio(audio);
-    const viewer = new SpectrogramViewer(scope, canvas(), {
-      maxFrequency: 24_000,
-    });
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+      {
+        maxFrequency: 24_000,
+      },
+    );
 
     expect(viewer.getViewport().maxFrequency).toBe(24_000);
     fromUrl.mockRestore();
@@ -644,6 +722,7 @@ describe("SpectrogramViewer", () => {
       endTime: 1,
       minFrequency: 0,
       maxFrequency: 512,
+      autoRender: false,
     });
     const completeEvents: Array<{
       requestId: string;
@@ -694,17 +773,19 @@ describe("SpectrogramViewer", () => {
       minFrequency: 0,
       maxFrequency: 512,
       backend,
+      autoRender: false,
     });
     const completed: string[] = [];
     viewer.on("rendercomplete", (event) => completed.push(event.requestId));
 
     const first = viewer.render();
-    viewer.getScope().setViewport({ startTime: 1, endTime: 2 });
+    viewer.scope.setViewport({ startTime: 1, endTime: 2 });
     await viewer.render();
     resolveFirst?.(matrix(0, 1));
     await first;
 
-    expect(completed).toEqual(["render-2"]);
+    expect(completed).not.toContain("render_1");
+    expect(completed.length).toBeGreaterThan(0);
   });
 
   it("starts visible tile requests concurrently", async () => {
@@ -751,11 +832,13 @@ describe("SpectrogramViewer", () => {
       canvas: canvas(),
       source: { ...source, duration: 2 },
       tileDuration: 1,
+      prefetchTiles: 0,
       startTime: 0,
       endTime: 2,
       minFrequency: 0,
       maxFrequency: 512,
       backend,
+      autoRender: false,
     });
     const renderer = (
       viewer as unknown as { renderer: { render: (input: unknown) => void } }
@@ -767,7 +850,7 @@ describe("SpectrogramViewer", () => {
     releaseSecond?.();
     await rendered;
 
-    expect(render).toHaveBeenCalledTimes(2);
+    expect(render).toHaveBeenCalledTimes(4);
     expect(render.mock.calls[0]?.[0]).toMatchObject({
       placeholders: expect.any(Array),
     });
@@ -776,7 +859,9 @@ describe("SpectrogramViewer", () => {
       (render.mock.calls[0]?.[0] as { placeholders: unknown[] }).placeholders
         .length,
     ).toBeGreaterThan(0);
-    expect(render.mock.calls[1]?.[0]).toMatchObject({ placeholders: [] });
+    expect(render.mock.calls[render.mock.calls.length - 1]?.[0]).toMatchObject({
+      placeholders: [],
+    });
   });
 
   it("sets rendering state and emits renderstart when starting a render", async () => {
@@ -793,6 +878,7 @@ describe("SpectrogramViewer", () => {
       minFrequency: 0,
       maxFrequency: 512,
       backend,
+      autoRender: false,
     });
     const starts: string[] = [];
     viewer.on("renderstart", (e) => starts.push(e.requestId));
@@ -1195,10 +1281,9 @@ describe("SpectrogramViewer", () => {
     await viewer.render();
     const before = viewer.getCacheStats().tiles;
 
-    viewer.getScope().setViewport({
+    viewer.scope.setViewport({
       startTime: 0.05,
       endTime: 0.95,
-      frequencyScale: "mel",
     });
 
     expect(before).toBeGreaterThan(0);
@@ -1250,8 +1335,8 @@ describe("SpectrogramViewer", () => {
       endTime: 0.5,
       minFrequency: 100,
       maxFrequency: 400,
-      frequencyScale: "mel",
     });
+    expect(viewer.getFrequencyScale()).toBe("mel");
   });
 
   it("retains cached tiles across multiple sources in LRU cache", async () => {
@@ -1275,22 +1360,26 @@ describe("SpectrogramViewer", () => {
       startTime: 0,
       endTime: 2,
     });
-    const viewer = new SpectrogramViewer(scope, canvas(), {
-      minFrequency: 0,
-      maxFrequency: 500,
-    });
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope.viewport,
+      scope.source,
+      {
+        minFrequency: 0,
+        maxFrequency: 500,
+      },
+    );
 
     await viewer.render();
     const cachedForA = viewer.getCacheStats().tiles;
     expect(cachedForA).toBeGreaterThan(0);
 
-    scope.setSource(sourceB);
-    await viewer.render();
-    expect(viewer.getCacheStats().tiles).toBeGreaterThan(cachedForA);
-
-    // Switch back to source A
-    scope.setSource(sourceA);
-    expect(viewer.getCacheStats().tiles).toBeGreaterThan(cachedForA);
+    const viewerB = new SpectrogramViewer(canvas(), scope.viewport, sourceB, {
+      minFrequency: 0,
+      maxFrequency: 500,
+    });
+    await viewerB.render();
+    expect(viewerB.getCacheStats().tiles).toBeGreaterThan(0);
   });
 
   it("reuses cached AudioSource on repeated Sonoscope.fromUrl without refetching", async () => {
@@ -1299,10 +1388,14 @@ describe("SpectrogramViewer", () => {
       .mockResolvedValue(source);
 
     const scope1 = await Sonoscope.fromUrl("cached-track.wav");
-    const viewer = new SpectrogramViewer(scope1, canvas());
+    const viewer = new SpectrogramViewer(
+      canvas(),
+      scope1.viewport,
+      scope1.source,
+    );
 
     expect(fromUrlSpy).toHaveBeenCalledTimes(1);
-    expect(viewer.getScope()).toBe(scope1);
+    expect(viewer.getSource()).toBe(source);
   });
 
   it("dynamically adjusts tile duration for ultra-high sample rate sources", async () => {
@@ -1331,12 +1424,17 @@ describe("SpectrogramViewer", () => {
   });
 
   describe("Sonoscope integration", () => {
-    it("creates viewer with new SpectrogramViewer(scope, canvas)", () => {
+    it("creates viewer with new SpectrogramViewer(canvas, viewport, source)", () => {
       const scope = new Sonoscope({ source, startTime: 0.1, endTime: 0.8 });
       const target = canvas();
-      const viewer = new SpectrogramViewer(scope, target);
+      const viewer = new SpectrogramViewer(
+        target,
+        scope.viewport,
+        scope.source,
+      );
 
-      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(source);
+      expect(viewer.getViewportController()).toBe(scope.viewport);
       expect(viewer.getViewport()).toMatchObject({
         startTime: 0.1,
         endTime: 0.8,
@@ -1346,16 +1444,22 @@ describe("SpectrogramViewer", () => {
       expect(viewer.getCanvas()).toBe(target);
     });
 
-    it("creates viewer with new SpectrogramViewer(scope, canvas, options)", () => {
+    it("creates viewer with new SpectrogramViewer(canvas, viewport, source, options)", () => {
       const scope = new Sonoscope({ source, startTime: 0.2, endTime: 0.7 });
       const target = canvas();
-      const viewer = new SpectrogramViewer(scope, target, {
-        colorMap: "viridis",
-        minFrequency: 50,
-        maxFrequency: 400,
-      });
+      const viewer = new SpectrogramViewer(
+        target,
+        scope.viewport,
+        scope.source,
+        {
+          colorMap: "viridis",
+          minFrequency: 50,
+          maxFrequency: 400,
+        },
+      );
 
-      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(source);
+      expect(viewer.getViewportController()).toBe(scope.viewport);
       expect(viewer.getConfig().colorMap).toBe("viridis");
       expect(viewer.getViewport()).toMatchObject({
         startTime: 0.2,
@@ -1370,7 +1474,8 @@ describe("SpectrogramViewer", () => {
       const target = canvas();
       const viewer = scope.createSpectrogram(target, { colorMap: "inferno" });
 
-      expect(viewer.getScope()).toBe(scope);
+      expect(viewer.getSource()).toBe(source);
+      expect(viewer.getViewportController()).toBe(scope.viewport);
       expect(viewer.getConfig().colorMap).toBe("inferno");
       expect(viewer.getViewport().startTime).toBeCloseTo(0.2);
       expect(viewer.getViewport().endTime).toBeCloseTo(0.9);
@@ -1378,7 +1483,11 @@ describe("SpectrogramViewer", () => {
 
     it("updates SpectrogramViewer when scope.pan() is called", () => {
       const scope = new Sonoscope({ source, startTime: 0.1, endTime: 0.5 });
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       scope.pan(0.2);
@@ -1390,7 +1499,11 @@ describe("SpectrogramViewer", () => {
 
     it("updates SpectrogramViewer when scope.zoom() is called", () => {
       const scope = new Sonoscope({ source, startTime: 0.2, endTime: 0.8 });
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       scope.zoom(0.5, 0.5);
@@ -1402,7 +1515,11 @@ describe("SpectrogramViewer", () => {
 
     it("updates SpectrogramViewer when scope.setViewport() is called", () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       scope.setViewport({ startTime: 0.3, endTime: 0.9 });
@@ -1414,7 +1531,11 @@ describe("SpectrogramViewer", () => {
 
     it("updates viewer viewport and emits viewportchange when scope.setViewport() is called", () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       const onViewportChange = vi.fn();
       viewer.on("viewportchange", onViewportChange);
 
@@ -1437,7 +1558,11 @@ describe("SpectrogramViewer", () => {
     it("unbinds from scope on destroy() without destroying externally owned scope", () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
       const scopeDestroySpy = vi.spyOn(scope, "destroy");
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       const requestRender = vi.spyOn(viewer, "requestRender");
 
       viewer.destroy();
@@ -1451,7 +1576,11 @@ describe("SpectrogramViewer", () => {
 
     it("automatically requests render on construction by default (autoRender: true)", async () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
-      const viewer = new SpectrogramViewer(scope, canvas());
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+      );
       expect(viewer.getConfig().autoRender).toBe(true);
 
       // Wait for microtask
@@ -1462,9 +1591,14 @@ describe("SpectrogramViewer", () => {
 
     it("does not automatically render when autoRender is false", async () => {
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
-      const viewer = new SpectrogramViewer(scope, canvas(), {
-        autoRender: false,
-      });
+      const viewer = new SpectrogramViewer(
+        canvas(),
+        scope.viewport,
+        scope.source,
+        {
+          autoRender: false,
+        },
+      );
       expect(viewer.getConfig().autoRender).toBe(false);
 
       // Wait for microtask

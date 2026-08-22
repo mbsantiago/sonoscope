@@ -1,4 +1,8 @@
-import type { AudioSource, ColorMapConfig, ISonoscope } from "../../types";
+import type {
+  AudioSource,
+  ColorMapConfig,
+  IViewportController,
+} from "../../types";
 import type { BarsWaveformRendererOptions } from "./renderers/bars";
 
 export type PeakBlock = {
@@ -185,7 +189,8 @@ export interface IWaveformViewer {
   getRendererKind(): string;
 
   // Viewport
-  getScope(): ISonoscope;
+  getSource(): AudioSource;
+  getViewportController(): IViewportController;
   getViewport(): WaveformViewport;
 
   // Configuration

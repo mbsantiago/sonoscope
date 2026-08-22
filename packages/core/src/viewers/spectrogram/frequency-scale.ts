@@ -26,13 +26,16 @@ export function canvasToTimeFrequency(
   width: number,
   height: number,
   viewport: ViewportConfig,
+  frequencyScale: FrequencyScale = "linear",
 ): { time: number; frequency: number } {
+  const minFreq = viewport.minFrequency ?? 0;
+  const maxFreq = viewport.maxFrequency ?? 24000;
   const time =
     viewport.startTime + (x / width) * (viewport.endTime - viewport.startTime);
-  const min = hzToScale(viewport.minFrequency, viewport.frequencyScale);
-  const max = hzToScale(viewport.maxFrequency, viewport.frequencyScale);
+  const min = hzToScale(minFreq, frequencyScale);
+  const max = hzToScale(maxFreq, frequencyScale);
   const scaled = max - (y / height) * (max - min);
-  return { time, frequency: scaleToHz(scaled, viewport.frequencyScale) };
+  return { time, frequency: scaleToHz(scaled, frequencyScale) };
 }
 
 export function timeFrequencyToCanvas(
@@ -41,13 +44,16 @@ export function timeFrequencyToCanvas(
   width: number,
   height: number,
   viewport: ViewportConfig,
+  frequencyScale: FrequencyScale = "linear",
 ): { x: number; y: number } {
+  const minFreq = viewport.minFrequency ?? 0;
+  const maxFreq = viewport.maxFrequency ?? 24000;
   const x =
     ((time - viewport.startTime) / (viewport.endTime - viewport.startTime)) *
     width;
-  const min = hzToScale(viewport.minFrequency, viewport.frequencyScale);
-  const max = hzToScale(viewport.maxFrequency, viewport.frequencyScale);
-  const scaled = hzToScale(frequency, viewport.frequencyScale);
+  const min = hzToScale(minFreq, frequencyScale);
+  const max = hzToScale(maxFreq, frequencyScale);
+  const scaled = hzToScale(frequency, frequencyScale);
   const y = (1 - (scaled - min) / (max - min)) * height;
   return { x, y };
 }

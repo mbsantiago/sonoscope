@@ -56,27 +56,23 @@ scope.createSpectrogram(spectrogramCanvas, {
 Compresses higher frequencies to match human pitch perception:
 
 ```ts
-const scope = await Sonoscope.fromUrl("/audio/sample.wav", {
+scope.createSpectrogram(spectrogramCanvas, {
   frequencyScale: "mel",
 });
-
-scope.createSpectrogram(spectrogramCanvas);
 ```
 
-<SpectrogramPreview scopeOptions={{ frequencyScale: "mel" }} />
+<SpectrogramPreview config={{ frequencyScale: "mel" }} />
 
 ### 4. Logarithmic frequency scale
 Distributes octaves equally along the vertical frequency axis:
 
 ```ts
-const scope = await Sonoscope.fromUrl("/audio/sample.wav", {
+scope.createSpectrogram(spectrogramCanvas, {
   frequencyScale: "log",
 });
-
-scope.createSpectrogram(spectrogramCanvas);
 ```
 
-<SpectrogramPreview scopeOptions={{ frequencyScale: "log" }} />
+<SpectrogramPreview config={{ frequencyScale: "log" }} />
 
 ### 5. High time-resolution STFT
 Uses a smaller window and hop size to emphasize rapid transient events:

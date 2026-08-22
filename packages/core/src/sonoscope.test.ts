@@ -120,7 +120,6 @@ describe("Sonoscope", () => {
       totalDuration: 15,
       minFrequency: 0,
       maxFrequency: 22050,
-      frequencyScale: "linear",
     });
     expect(scope.getAudio()).toBeUndefined();
     expect(scope.getCurrentTime()).toBe(0);
@@ -151,7 +150,6 @@ describe("Sonoscope", () => {
       totalDuration: 30,
       minFrequency: 0,
       maxFrequency: 24000,
-      frequencyScale: "linear",
     });
     expect(scope.getAudio()).toBe(audio);
     expect(scope.getFollowPlayback()).toBe("smooth");
@@ -650,8 +648,58 @@ describe("Sonoscope", () => {
 
     it("throws when target is invalid", () => {
       const scope = new Sonoscope(createMockSource(20));
-      expect(() => scope.attachNavigation(null as any)).toThrow();
-      expect(() => scope.attachNavigation({} as any)).toThrow();
+      expect(() =>
+        scope.attachNavigation(null as unknown as HTMLElement),
+      ).toThrow();
+      expect(() =>
+        scope.attachNavigation({} as unknown as HTMLElement),
+      ).toThrow();
+    });
+  });
+
+  describe("ViewportController and Sharing", () => {
+    it("exposes viewport property and getViewportController()", () => {
+      const source = createMockSource(20);
+      const scope = new Sonoscope({ source });
+
+      expect(scope.viewport).toBeDefined();
+      expect(scope.getViewportController()).toBe(scope.viewport);
+      expect(scope.viewport.getViewport().totalDuration).toBe(20);
+    });
+
+    it("forks a child Sonoscope sharing the audio source with independent viewport", () => {
+      const source = createMockSource(30);
+      const parent = new Sonoscope({ source, startTime: 0, endTime: 10 });
+      const child = parent.fork({ startTime: 15, endTime: 25 });
+
+      expect(child.source).toBe(parent.source);
+      expect(child.getViewport().startTime).toBe(15);
+      expect(child.getViewport().endTime).toBe(25);
+      expect(parent.getViewport().startTime).toBe(0);
+      expect(parent.getViewport().endTime).toBe(10);
+
+      // Mutating child viewport does not affect parent
+      child.pan(5);
+      expect(child.getViewport().startTime).toBe(20);
+      expect(parent.getViewport().startTime).toBe(0);
+    });
+
+    it("creates standalone unbound ViewportController via Sonoscope.createViewport()", () => {
+      const vp = Sonoscope.createViewport({
+        startTime: 2,
+        endTime: 8,
+        minFrequency: 100,
+        maxFrequency: 8000,
+      });
+
+      expect(vp.getViewport().startTime).toBe(2);
+      expect(vp.getViewport().endTime).toBe(8);
+      expect(vp.getViewport().minFrequency).toBe(100);
+      expect(vp.getViewport().maxFrequency).toBe(8000);
+
+      vp.pan(3);
+      expect(vp.getViewport().startTime).toBe(5);
+      expect(vp.getViewport().endTime).toBe(11);
     });
   });
 

@@ -152,8 +152,12 @@ describe("playback sync", () => {
     const specCanvas = createMockCanvas();
     const waveCanvas = createMockCanvas();
 
-    const spec = new SpectrogramViewer(scope, specCanvas);
-    const wave = new WaveformViewer(scope, waveCanvas);
+    const spec = new SpectrogramViewer(
+      specCanvas,
+      scope.viewport,
+      scope.source,
+    );
+    const wave = new WaveformViewer(waveCanvas, scope.viewport, scope.source);
 
     const specRenderSpy = vi.spyOn(spec, "requestRender");
     const waveRenderSpy = vi.spyOn(wave, "requestRender");
@@ -175,7 +179,12 @@ describe("playback sync", () => {
 
   it("coalesces repeated requested renders on viewer", async () => {
     const scope = Sonoscope.fromSource(source);
-    const viewer = new SpectrogramViewer(scope, createMockCanvas());
+    const viewer = new SpectrogramViewer(
+      createMockCanvas(),
+      scope.viewport,
+      scope.source,
+      { autoRender: false },
+    );
     const render = vi.spyOn(viewer, "render").mockResolvedValue();
 
     viewer.requestRender();
@@ -197,17 +206,24 @@ describe("playback sync", () => {
   it("detaches audio cleanly from Sonoscope", () => {
     const audio = createMockAudio();
     const scope = new Sonoscope({ source, audio });
-    const spec = new SpectrogramViewer(scope, createMockCanvas());
-    const wave = new WaveformViewer(scope, createMockCanvas());
+    const spec = new SpectrogramViewer(
+      createMockCanvas(),
+      scope.viewport,
+      scope.source,
+    );
+    const wave = new WaveformViewer(
+      createMockCanvas(),
+      scope.viewport,
+      scope.source,
+    );
 
     expect(scope.getAudio()).toBe(audio);
-    expect(spec.getScope().getAudio()).toBe(audio);
-    expect(wave.getScope().getAudio()).toBe(audio);
 
     scope.detachAudio();
     expect(scope.getAudio()).toBeUndefined();
-    expect(spec.getScope().getAudio()).toBeUndefined();
-    expect(wave.getScope().getAudio()).toBeUndefined();
     expect(audio.listenerCount()).toBe(0);
+    spec.destroy();
+    wave.destroy();
+    scope.destroy();
   });
 });

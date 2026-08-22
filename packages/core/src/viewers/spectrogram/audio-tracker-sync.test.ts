@@ -104,7 +104,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
     });
 
     const { canvas } = createMockCanvas(800, 400);
-    const viewer = new SpectrogramViewer(scope, canvas, {
+    const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
       autoRender: false,
       tileDuration,
       hopSize,
@@ -216,7 +216,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
     const { canvas } = createMockCanvas(canvasWidth, canvasHeight);
 
     const backend = new MainThreadComputeBackend();
-    const viewer = new SpectrogramViewer(scope, canvas, {
+    const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
       autoRender: false,
       backend,
       renderer: "canvas2d",
@@ -324,11 +324,12 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
     });
 
     const { canvas } = createMockCanvas(800, 200);
-    const viewer = new SpectrogramViewer(scope, canvas, {
+    const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
       startTime: 0,
       endTime: 10,
       showPlayhead: true,
       tileDuration: 10,
+      autoRender: false,
     });
 
     let renderCount = 0;

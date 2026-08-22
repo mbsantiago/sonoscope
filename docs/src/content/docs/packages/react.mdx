@@ -13,7 +13,7 @@ Provides the shared Sonoscope instance and coordinated viewport context to child
 ```tsx
 import { SonoscopeProvider } from "@sonoscope/react";
 
-<SonoscopeProvider url="/audio/birdsong.wav" frequencyScale="mel">
+<SonoscopeProvider url="/audio/birdsong.wav">
   {/* Nested viewers and rulers */}
 </SonoscopeProvider>
 ```
@@ -27,6 +27,7 @@ import { Spectrogram } from "@sonoscope/react";
 <Spectrogram
   height={320}
   colorMap="plasma"
+  frequencyScale="mel"
   minValue={-80}
   maxValue={0}
   showAudioControls

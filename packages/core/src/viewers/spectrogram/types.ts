@@ -1,8 +1,9 @@
 import type { FrameStats } from "../../performance";
 import type {
+  AudioSource,
   ColorMapConfig,
   FrequencyScale,
-  ISonoscope,
+  IViewportController,
   ViewportConfig,
 } from "../../types";
 import type { SpectrogramComputeBackend } from "./backends/backend";
@@ -470,8 +471,10 @@ export interface ISpectrogramViewer {
   getCanvas(): HTMLCanvasElement;
 
   // Viewport & Dimensions
-  getScope(): ISonoscope;
+  getSource(): AudioSource;
+  getViewportController(): IViewportController;
   getViewport(): ViewportConfig;
+  getFrequencyScale(): FrequencyScale;
   getFrequencyBounds(): {
     minFrequency: number;
     maxFrequency: number;
