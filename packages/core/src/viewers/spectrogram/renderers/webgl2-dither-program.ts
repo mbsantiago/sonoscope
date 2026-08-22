@@ -80,19 +80,20 @@ float sampleSpectrogram(vec2 screenCoord) {
   return mix(mix(low0, low1, frameFraction), mix(high0, high1, frameFraction), binFraction);
 }
 
-// 5-tap area integration over the cell bounds
-float sampleCellArea(vec2 cellIndex, float cellSize, mat2 invRot) {
+// 5-tap area integration over the cell bounds.
+// Cells are in content-space; timeOffset converts them back to screen-space for sampling.
+float sampleCellArea(vec2 cellIndex, float cellSize, mat2 invRot, float timeOffset) {
   vec2 c0 = (cellIndex + vec2(0.50, 0.50)) * cellSize;
   vec2 c1 = (cellIndex + vec2(0.25, 0.25)) * cellSize;
   vec2 c2 = (cellIndex + vec2(0.75, 0.25)) * cellSize;
   vec2 c3 = (cellIndex + vec2(0.25, 0.75)) * cellSize;
   vec2 c4 = (cellIndex + vec2(0.75, 0.75)) * cellSize;
 
-  float v0 = sampleSpectrogram(invRot * c0);
-  float v1 = sampleSpectrogram(invRot * c1);
-  float v2 = sampleSpectrogram(invRot * c2);
-  float v3 = sampleSpectrogram(invRot * c3);
-  float v4 = sampleSpectrogram(invRot * c4);
+  float v0 = sampleSpectrogram(invRot * c0 - vec2(timeOffset, 0.0));
+  float v1 = sampleSpectrogram(invRot * c1 - vec2(timeOffset, 0.0));
+  float v2 = sampleSpectrogram(invRot * c2 - vec2(timeOffset, 0.0));
+  float v3 = sampleSpectrogram(invRot * c3 - vec2(timeOffset, 0.0));
+  float v4 = sampleSpectrogram(invRot * c4 - vec2(timeOffset, 0.0));
 
   return v0 * 0.36 + (v1 + v2 + v3 + v4) * 0.16;
 }
@@ -116,27 +117,28 @@ void main() {
     discard;
   }
 
-  float dotFrequency = u_dotFrequency > 0.0 ? u_dotFrequency : 0.16;
-  float minEnergyThreshold = u_minEnergyThreshold >= 0.0 ? u_minEnergyThreshold : 0.05;
-  float energyGamma = u_energyGamma > 0.0 ? u_energyGamma : 2.8;
+  // Anchor the dot grid to absolute time so dots move with the spectrogram during panning.
+  // timeOffset is the x-pixel shift that aligns screen-space x=0 with absolute time=0.
+  float timeSpan = max(0.000001, u_viewport.y - u_viewport.x);
+  float timeOffset = u_viewport.x / timeSpan * u_canvasSize.x;
+  vec2 contentCoord = vec2(gl_FragCoord.x + timeOffset, gl_FragCoord.y);
 
-  // Halftone grid configuration
-  float cellSize = 1.0 / dotFrequency;
+  float cellSize = 1.0 / u_dotFrequency;
   const float cosA = 0.70710678;
   const float sinA = 0.70710678;
   mat2 rot = mat2(cosA, -sinA, sinA, cosA);
   mat2 invRot = mat2(cosA, sinA, -sinA, cosA);
 
-  vec2 rotatedCoord = rot * gl_FragCoord.xy * dotFrequency;
+  vec2 rotatedCoord = rot * contentCoord * u_dotFrequency;
   vec2 cellIndex = floor(rotatedCoord);
   vec2 cellLocal = fract(rotatedCoord) - vec2(0.5);
 
   // Area-averaged cell energy
-  float rawIntensity = sampleCellArea(cellIndex, cellSize, invRot);
+  float rawIntensity = sampleCellArea(cellIndex, cellSize, invRot, timeOffset);
   
-  // Continuous normalized intensity without early returns
-  float normIntensity = clamp((rawIntensity - minEnergyThreshold) / max(0.0001, 1.0 - minEnergyThreshold), 0.0, 1.0);
-  float shapedArea = pow(normIntensity, energyGamma);
+  // Continuous normalized intensity
+  float normIntensity = clamp((rawIntensity - u_minEnergyThreshold) / max(0.0001, 1.0 - u_minEnergyThreshold), 0.0, 1.0);
+  float shapedArea = pow(normIntensity, u_energyGamma);
   float targetRadius = 0.7071 * sqrt(shapedArea);
 
   // Colors
@@ -144,7 +146,7 @@ void main() {
   vec4 dotColor = texture(u_colormap, vec2(rawIntensity, 0.5));
 
   // Constant analytical anti-aliasing width (1 pixel in cell-space)
-  float aa = dotFrequency * 0.75;
+  float aa = u_dotFrequency * 0.75;
   float dist = length(cellLocal);
 
   // Edge antialiasing: smooth falloff at the perimeter of the circle
@@ -164,9 +166,9 @@ export class DitherSpectrogramProgram extends NormalSpectrogramProgram {
   }
 
   protected override setCustomUniforms(input: RenderInput): void {
-    const dotFrequency = input.dither?.dotFrequency ?? 0.16;
-    const minEnergyThreshold = input.dither?.minEnergyThreshold ?? 0.05;
-    const energyGamma = input.dither?.energyGamma ?? 2.8;
+    const dotFrequency = input.dither?.dotFrequency ?? 0.24;
+    const minEnergyThreshold = input.dither?.minEnergyThreshold ?? 0;
+    const energyGamma = input.dither?.energyGamma ?? 1.4;
 
     this.shader.uniform1f("u_dotFrequency", dotFrequency);
     this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);
