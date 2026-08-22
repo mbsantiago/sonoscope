@@ -82,19 +82,20 @@ scope.attachPlayhead(container);
 
 ---
 
-### 3. Sonoscope from Blob (file upload)
+### 3. Sonoscope from Blob (file upload & drag-and-drop)
 
-Load audio from an in-memory `Blob` or `File` object. Try selecting any audio file from your computer in the demo below to see its spectrogram.
+Load audio from an in-memory `Blob` or `File` object. Select an audio file from your computer or drag and drop one directly onto the spectrogram below to inspect it.
 
 **When to use:**
 * When users upload or drag and drop audio files into your app.
 * When working with audio recorded from the microphone in the browser.
 
 ```ts
-const fileInput = document.querySelector('input[type="file"]');
-
-fileInput.addEventListener("change", async (event) => {
-  const file = event.target.files[0];
+// Handle drag and drop over a canvas or container element
+container.addEventListener("dragover", (event) => event.preventDefault());
+container.addEventListener("drop", async (event) => {
+  event.preventDefault();
+  const file = event.dataTransfer?.files?.[0];
   if (file) {
     const scope = await Sonoscope.fromBlob(file);
     scope.createSpectrogram(canvas, { colorMap: "inferno" });
@@ -166,22 +167,3 @@ scope.attachNavigation(canvas);
 Options accepted by `new Sonoscope(options)` and the factory helpers. Full reference: [`SonoscopeOptions`](/sonoscope/reference/core/type-aliases/sonoscopeoptions/).
 
 <TypeTable file="packages/core/src/types.ts" name="SonoscopeOptions" />
-
----
-
-## Try it yourself!
-
-Switch between different audio sources in the live sandbox below:
-* **Select a source** from the dropdown menu.
-* **Drag and scroll** on the canvas to explore the resulting spectrogram.
-
-<SandpackPlayground
-  template="vanilla-ts"
-  editorHeight={380}
-  previewHeight={380}
-  files={{
-    "index.ts": loadFile("sources/index.ts"),
-    "index.html": loadFile("sources/index.html"),
-    "styles.css": loadFile("sources/styles.css"),
-  }}
-/>
