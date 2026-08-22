@@ -8,13 +8,13 @@ import { BarPeakPyramid } from "../peaks/bars";
 export interface BarsWaveformRendererOptions {
   /**
    * Width of each bar in CSS pixels.
-   * Default: 3
+   * @default 3
    */
   barWidth?: number | undefined;
 
   /**
    * Gap between adjacent bars in CSS pixels.
-   * Default: 2
+   * @default 2
    */
   barGap?: number | undefined;
 
@@ -22,13 +22,13 @@ export interface BarsWaveformRendererOptions {
    * Corner radius for bars in CSS pixels.
    * If undefined and rounded is true, pill/capsule shapes are rendered (radius = barWidth / 2).
    * If 0, flat rectangular bars are rendered.
-   * Default: undefined
+   * @default undefined
    */
   barRadius?: number | undefined;
 
   /**
    * Whether bar ends are rounded (pill/capsule shape).
-   * Default: true
+   * @default true
    */
   rounded?: boolean | undefined;
 
@@ -37,20 +37,20 @@ export interface BarsWaveformRendererOptions {
    * - "center": Bars expand vertically from the horizontal centerline.
    * - "bottom": Bars grow upwards from the bottom edge.
    * - "top": Bars grow downwards from the top edge.
-   * Default: "center"
+   * @default "center"
    */
   barAlign?: "center" | "bottom" | "top" | undefined;
 
   /**
    * Whether to mirror amplitude symmetrically around center in "center" mode.
-   * Default: true
+   * @default true
    */
   symmetric?: boolean | undefined;
 
   /**
    * Minimum height of a bar in CSS pixels.
    * If 0, bars taper down to a circle of diameter barWidth during silence.
-   * Default: 0
+   * @default 0
    */
   minBarHeight?: number | undefined;
 }
