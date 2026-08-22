@@ -30,8 +30,8 @@ async function main() {
   scope.createSpectrogram(specCanvas, {
     colorMap: "viridis",
     frequencyScale: "mel",
-    minValue: -80,
-    maxValue: 0,
+    minDb: -80,
+    maxDb: 0,
   });
 
   // 4. Attach drag/zoom navigation to sync all views

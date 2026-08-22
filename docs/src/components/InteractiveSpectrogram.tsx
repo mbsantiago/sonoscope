@@ -89,8 +89,8 @@ export default function InteractiveSpectrogram({
 
         const spec = scope.createSpectrogram(specCanvasRef.current, {
           colorMap: cmap,
-          minValue: -80,
-          maxValue: 0,
+          minDb: -80,
+          maxDb: 0,
           frequencyScale: scale,
           minFrequency: minFreq,
           maxFrequency: maxFreq,

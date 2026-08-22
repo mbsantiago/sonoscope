@@ -33,8 +33,8 @@ describe("resolveConfig", () => {
 
     // Flat Value Scale
     expect(config.valueMode).toBe("db");
-    expect(config.minValue).toBe(-100);
-    expect(config.maxValue).toBe(0);
+    expect(config.minDb).toBe(-100);
+    expect(config.maxDb).toBe(0);
     expect(config.valueGamma).toBe(1);
     expect(config.clampValues).toBe(true);
 
@@ -61,8 +61,8 @@ describe("resolveConfig", () => {
       endTime: 5,
       frequencyScale: "mel",
       valueMode: "magnitude",
-      minValue: 0,
-      maxValue: 1,
+      minDb: -80,
+      maxDb: -10,
       showPlayhead: false,
       tileDuration: 10,
     });
@@ -75,8 +75,8 @@ describe("resolveConfig", () => {
     expect(config.endTime).toBe(5);
     expect(config.frequencyScale).toBe("mel");
     expect(config.valueMode).toBe("magnitude");
-    expect(config.minValue).toBe(0);
-    expect(config.maxValue).toBe(1);
+    expect(config.minDb).toBe(-80);
+    expect(config.maxDb).toBe(-10);
     expect(config.showPlayhead).toBe(false);
     expect(config.tileDuration).toBe(10);
   });

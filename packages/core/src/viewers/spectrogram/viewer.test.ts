@@ -1261,8 +1261,8 @@ describe("SpectrogramViewer", () => {
     viewer.setConfig({
       colorMap: "magma",
       valueMode: "db",
-      minValue: -80,
-      maxValue: -5,
+      minDb: -80,
+      maxDb: -5,
     });
 
     expect(before).toBeGreaterThan(0);

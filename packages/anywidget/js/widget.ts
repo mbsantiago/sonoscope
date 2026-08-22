@@ -292,8 +292,8 @@ async function render({
   }
 
   const spec = scope.createSpectrogram(specCanvas, {
-    minValue: minDb,
-    maxValue: maxDb,
+    minDb,
+    maxDb,
     windowSize,
     hopSize,
     frequencyScale,
@@ -341,13 +341,13 @@ async function render({
   modelUnsubs.push(() => model.off("change:cmap", onCmapChange));
 
   const onMinDbChange = () => {
-    spec.updateConfig({ minValue: model.get("min_db") });
+    spec.updateConfig({ minDb: model.get("min_db") });
   };
   model.on("change:min_db", onMinDbChange);
   modelUnsubs.push(() => model.off("change:min_db", onMinDbChange));
 
   const onMaxDbChange = () => {
-    spec.updateConfig({ maxValue: model.get("max_db") });
+    spec.updateConfig({ maxDb: model.get("max_db") });
   };
   model.on("change:max_db", onMaxDbChange);
   modelUnsubs.push(() => model.off("change:max_db", onMaxDbChange));

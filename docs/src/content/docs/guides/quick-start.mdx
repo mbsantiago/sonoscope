@@ -49,8 +49,8 @@ const canvas = document.querySelector('canvas#spectrogram');
 const spec = scope.createSpectrogram(canvas, {
   colorMap: 'viridis',
   frequencyScale: 'mel',
-  minValue: -80,
-  maxValue: 0,
+  minDb: -80,
+  maxDb: 0,
 });
 
 // Enable interactive zoom and pan (defaults to both time and frequency axes)

@@ -352,16 +352,16 @@ export type SpectrogramConfig = {
   valueMode?: ValueMode | undefined;
 
   /**
-   * Lower intensity limit mapped to the start of the colormap (in dB when valueMode is "db").
+   * Lower intensity limit mapped to the start of the colormap (always specified in dB; converted internally for non-dB value modes).
    * @default -100
    */
-  minValue?: number | undefined;
+  minDb?: number | undefined;
 
   /**
    * Upper intensity limit mapped to the end of the colormap (in dB when valueMode is "db").
    * @default 0
    */
-  maxValue?: number | undefined;
+  maxDb?: number | undefined;
 
   /**
    * Power-law gamma exponent for dynamic range contrast adjustment.
@@ -370,7 +370,7 @@ export type SpectrogramConfig = {
   valueGamma?: number | undefined;
 
   /**
-   * Whether to clamp intensity values strictly within [minValue, maxValue].
+   * Whether to clamp intensity values strictly within [minDb, maxDb].
    * @default true
    */
   clampValues?: boolean | undefined;
@@ -455,8 +455,8 @@ export type ResolvedSpectrogramConfig = {
 
   // Value Scale
   valueMode: ValueMode;
-  minValue: number;
-  maxValue: number;
+  minDb: number;
+  maxDb: number;
   valueGamma: number;
   clampValues: boolean;
 

@@ -5,7 +5,7 @@
 **Goal:** Flatten `SpectrogramConfig` and `ResolvedSpectrogramConfig` so that options are top-level properties instead of nested group objects (`stft`, `viewport`, `valueScale`, `playback`, `cache`, `superpowers`), while keeping modular polymorphic unions (`renderer`, `backend`, `colorMap`, `transforms`).
 
 **Architecture:**
-1. Update `SpectrogramConfig` and `ResolvedSpectrogramConfig` in `src/types.ts` to have flat top-level properties (e.g. `windowSize`, `fftSize`, `hopSize`, `window`, `startTime`, `endTime`, `minFrequency`, `maxFrequency`, `frequencyScale`, `minViewportDuration`, `maxViewportDuration`, `valueMode`, `minValue`, `maxValue`, `valueGamma`, `clampValues`, `showPlayhead`, `followPlayback`, `followMargin`, `renderOnSeek`, `tileDuration`, `maxCachedTiles`, `prefetchTiles`, `secretSpectrogram3d`).
+1. Update `SpectrogramConfig` and `ResolvedSpectrogramConfig` in `src/types.ts` to have flat top-level properties (e.g. `windowSize`, `fftSize`, `hopSize`, `window`, `startTime`, `endTime`, `minFrequency`, `maxFrequency`, `frequencyScale`, `minViewportDuration`, `maxViewportDuration`, `valueMode`, `minDb`, `maxDb`, `valueGamma`, `clampValues`, `showPlayhead`, `followPlayback`, `followMargin`, `renderOnSeek`, `tileDuration`, `maxCachedTiles`, `prefetchTiles`, `secretSpectrogram3d`).
 2. Update `src/config.ts` to resolve flat properties (with backwards-compatible fallback for any nested objects during transition).
 3. Update `src/viewer.ts` to use flat resolved config properties for internal computations, state tracking, and `viewer.updateConfig()`.
 4. Update test suites and demo examples to use the flat config format.

@@ -110,9 +110,9 @@
         </select></label
       >
       <label
-        >Min value
+        >Min dB
         <input
-          name="minValue"
+          name="minDb"
           type="range"
           min="-140"
           max="0"
@@ -122,9 +122,9 @@
         <span class="val-badge" id="min-val-disp">-100 dB</span>
       </label>
       <label
-        >Max value
+        >Max dB
         <input
-          name="maxValue"
+          name="maxDb"
           type="range"
           min="-100"
           max="20"
@@ -222,8 +222,8 @@
       const audio = document.querySelector("audio");
       let canvas = document.querySelector("canvas");
       const status = document.querySelector("[data-status]");
-      const minSlider = document.querySelector('input[name="minValue"]');
-      const maxSlider = document.querySelector('input[name="maxValue"]');
+      const minSlider = document.querySelector('input[name="minDb"]');
+      const maxSlider = document.querySelector('input[name="maxDb"]');
       const minDisp = document.getElementById("min-val-disp");
       const maxDisp = document.getElementById("max-val-disp");
       const modeSelect = document.querySelector('select[name="mode"]');
@@ -240,49 +240,18 @@
       }
 
       function updateRangeLabels() {
-        const mode = modeSelect.value;
         const minVal = Number(minSlider.value);
         const maxVal = Number(maxSlider.value);
-        if (mode === "db") {
-          minDisp.textContent = `${minVal} dB`;
-          maxDisp.textContent = `${maxVal} dB`;
-        } else {
-          minDisp.textContent = minVal.toFixed(2);
-          maxDisp.textContent = maxVal.toFixed(2);
-        }
-      }
-
-      function updateModeRanges() {
-        const mode = modeSelect.value;
-        if (mode === "db") {
-          minSlider.min = "-140";
-          minSlider.max = "0";
-          minSlider.step = "1";
-          minSlider.value = "-100";
-          maxSlider.min = "-100";
-          maxSlider.max = "20";
-          maxSlider.step = "1";
-          maxSlider.value = "0";
-        } else {
-          minSlider.min = "0";
-          minSlider.max = "1";
-          minSlider.step = "0.01";
-          minSlider.value = "0";
-          maxSlider.min = "0.01";
-          maxSlider.max = "2";
-          maxSlider.step = "0.01";
-          maxSlider.value = "1";
-        }
-        updateRangeLabels();
+        minDisp.textContent = `${minVal} dB`;
+        maxDisp.textContent = `${maxVal} dB`;
       }
 
       modeSelect.addEventListener("change", () => {
-        updateModeRanges();
         if (viewer) {
           viewer.updateConfig({
             valueMode: modeSelect.value,
-            minValue: Number(minSlider.value),
-            maxValue: Number(maxSlider.value),
+            minDb: Number(minSlider.value),
+            maxDb: Number(maxSlider.value),
           });
         }
       });
@@ -291,7 +260,7 @@
         updateRangeLabels();
         if (viewer) {
           viewer.updateConfig({
-            minValue: Number(minSlider.value),
+            minDb: Number(minSlider.value),
           });
         }
       });
@@ -300,7 +269,7 @@
         updateRangeLabels();
         if (viewer) {
           viewer.updateConfig({
-            maxValue: Number(maxSlider.value),
+            maxDb: Number(maxSlider.value),
           });
         }
       });
@@ -323,8 +292,8 @@
           ...(source ? { maxFrequency: source.sampleRate / 2 } : {}),
           frequencyScale: value("frequencyScale"),
           valueMode: value("mode"),
-          minValue: Number(minSlider.value),
-          maxValue: Number(maxSlider.value),
+          minDb: Number(minSlider.value),
+          maxDb: Number(maxSlider.value),
           valueGamma: 1,
           clampValues: true,
           colorMap: value("colorMap"),

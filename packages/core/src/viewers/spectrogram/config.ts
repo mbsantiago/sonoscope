@@ -90,8 +90,8 @@ export function resolveConfig(
     );
 
   const valueMode: ValueMode = input.valueMode ?? "db";
-  const minValue = input.minValue ?? -100;
-  const maxValue = input.maxValue ?? 0;
+  const minDb = input.minDb ?? -100;
+  const maxDb = input.maxDb ?? 0;
   const valueGamma = input.valueGamma ?? 1;
   const clampValues = input.clampValues ?? true;
 
@@ -136,8 +136,8 @@ export function resolveConfig(
 
     // Value Scale
     valueMode,
-    minValue,
-    maxValue,
+    minDb,
+    maxDb,
     valueGamma,
     clampValues,
 

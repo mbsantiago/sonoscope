@@ -117,8 +117,8 @@ export function SpectrogramPanel(
           ref={spectrogramRef}
           colorMap={settings.colorMap}
           valueMode={settings.valueMode}
-          minValue={settings.minDb}
-          maxValue={settings.maxDb}
+          minDb={settings.minDb}
+          maxDb={settings.maxDb}
           valueGamma={1}
           clampValues={true}
           windowSize={settings.windowSize}
