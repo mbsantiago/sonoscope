@@ -103,6 +103,9 @@ export function DualRangeSlider(props: {
           step={step}
           value={clampedMin}
           className="dual-range-input dual-range-min"
+          style={{
+            zIndex: clampedMin > effectiveMax - totalRange * 0.15 ? 5 : 3,
+          }}
           onChange={(event) => {
             const nextMin = Number(event.currentTarget.value);
             onChange(Math.min(nextMin, clampedMax), clampedMax);
@@ -116,6 +119,7 @@ export function DualRangeSlider(props: {
           step={step}
           value={clampedMax}
           className="dual-range-input dual-range-max"
+          style={{ zIndex: 4 }}
           onChange={(event) => {
             const nextMax = Number(event.currentTarget.value);
             onChange(clampedMin, Math.max(nextMax, clampedMin));
