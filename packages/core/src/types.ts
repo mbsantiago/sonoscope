@@ -134,6 +134,8 @@ export type ViewportEvents = {
 
 export type ViewportConstraints = {
   totalDuration?: number | undefined;
+  minTime?: number | undefined;
+  maxTime?: number | undefined;
   minDuration?: number | undefined;
   maxDuration?: number | undefined;
   minFrequency?: number | undefined;
@@ -147,6 +149,8 @@ export interface IViewportController {
   getViewport(): ViewportState;
   setViewport(patch: Partial<ViewportConfig>, source?: string): void;
   updateViewport(patch: Partial<ViewportConfig>, source?: string): void;
+  setTimeBounds(minTime: number, maxTime: number): void;
+  getTimeBounds(): { minTime: number; maxTime: number };
   zoom(factor: number, centerTime?: number, source?: string): void;
   zoomTime(factor: number, centerTime?: number, source?: string): void;
   pan(deltaSeconds: number, source?: string): void;

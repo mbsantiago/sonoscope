@@ -794,6 +794,29 @@ describe("Sonoscope", () => {
       // Seeking past clipEnd clamps to clipEnd
       scope.seek(30);
       expect(audio.currentTime).toBe(25);
+
+      // Pressing play when at clipEnd rewinds to clipStart and plays
+      audio.paused = false;
+      audio.emit("play");
+      expect(audio.currentTime).toBe(10);
+    });
+
+    it("pauses audio and resets playhead on setClipBounds", () => {
+      const source = createMockSource(50);
+      const audio = createMockAudio();
+      const scope = new Sonoscope({
+        source,
+        audio,
+        clipStart: 5,
+        clipEnd: 15,
+      });
+
+      audio.currentTime = 8;
+      audio.paused = false;
+
+      scope.setClipBounds({ clipStart: 20, clipEnd: 30 });
+      expect(audio.paused).toBe(true);
+      expect(audio.currentTime).toBe(20);
     });
 
     it("dynamically updates clip bounds via setClipBounds", () => {
@@ -824,6 +847,13 @@ describe("Sonoscope", () => {
       const vp = scope.getViewport();
       expect(vp.startTime).toBeGreaterThanOrEqual(15);
       expect(vp.endTime).toBeLessThanOrEqual(30);
+
+      // Panning cannot exceed clip bounds
+      scope.pan(-50);
+      expect(scope.getViewport().startTime).toBe(15);
+
+      scope.pan(50);
+      expect(scope.getViewport().endTime).toBe(30);
     });
   });
 

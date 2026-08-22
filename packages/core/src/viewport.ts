@@ -23,6 +23,8 @@ export class ViewportController implements IViewportController {
   private minFrequency: number;
   private maxFrequency: number;
   private totalDuration: number;
+  private minTime: number;
+  private maxTime: number;
   private minDuration: number;
   private maxDuration: number;
   private baseMinFrequency: number;
@@ -37,14 +39,27 @@ export class ViewportController implements IViewportController {
   private navigationCleanups: Array<() => void> = [];
 
   constructor(options: ViewportControllerOptions = {}) {
-    this.totalDuration =
-      options.totalDuration !== undefined
+    this.minTime = Math.max(0, options.minTime ?? 0);
+    this.maxTime =
+      options.maxTime !== undefined
+        ? Math.max(this.minTime + 0.001, options.maxTime)
+        : options.totalDuration !== undefined
+          ? Math.max(this.minTime + 0.001, options.totalDuration)
+          : Infinity;
+
+    this.totalDuration = Number.isFinite(this.maxTime)
+      ? this.maxTime
+      : options.totalDuration !== undefined
         ? Math.max(0.001, options.totalDuration)
         : Infinity;
+
     this.minDuration = Math.max(0.001, options.minDuration ?? 0.001);
     this.maxDuration = Math.max(
       this.minDuration,
-      options.maxDuration ?? this.totalDuration,
+      options.maxDuration ??
+        (Number.isFinite(this.maxTime)
+          ? this.maxTime - this.minTime
+          : this.totalDuration),
     );
 
     this.baseMinFrequency = options.minFrequency ?? 0;
@@ -53,23 +68,24 @@ export class ViewportController implements IViewportController {
       options.maxFrequency ?? 24000,
     );
 
-    const initialStart = options.startTime ?? 0;
+    const initialStart = options.startTime ?? this.minTime;
     const initialEnd =
       options.endTime ??
-      (Number.isFinite(this.totalDuration)
-        ? Math.min(10, this.totalDuration)
-        : 10);
+      (Number.isFinite(this.maxTime)
+        ? Math.min(this.minTime + 10, this.maxTime)
+        : this.minTime + 10);
 
-    const clamped = Number.isFinite(this.totalDuration)
+    const clamped = Number.isFinite(this.maxTime)
       ? clampViewportTimes(
           initialStart,
           initialEnd,
-          this.totalDuration,
+          this.maxTime,
           this.minDuration,
           this.maxDuration,
+          this.minTime,
         )
       : {
-          startTime: Math.max(0, initialStart),
+          startTime: Math.max(this.minTime, initialStart),
           endTime: Math.max(initialStart + this.minDuration, initialEnd),
         };
 
@@ -95,6 +111,29 @@ export class ViewportController implements IViewportController {
     };
   }
 
+  setTimeBounds(minTime: number, maxTime: number): void {
+    this.minTime = Math.max(0, minTime);
+    this.maxTime = Math.max(this.minTime + 0.001, maxTime);
+    this.totalDuration = this.maxTime;
+    const duration = Math.min(
+      this.endTime - this.startTime,
+      this.maxTime - this.minTime,
+    );
+    const clampedStart = clamp(
+      this.startTime,
+      this.minTime,
+      Math.max(this.minTime, this.maxTime - duration),
+    );
+    this.setViewport({
+      startTime: clampedStart,
+      endTime: clampedStart + duration,
+    });
+  }
+
+  getTimeBounds(): { minTime: number; maxTime: number } {
+    return { minTime: this.minTime, maxTime: this.maxTime };
+  }
+
   setViewport(patch: Partial<ViewportConfig>, source?: string): void {
     let changed = false;
 
@@ -102,16 +141,17 @@ export class ViewportController implements IViewportController {
       const requestedStart = patch.startTime ?? this.startTime;
       const requestedEnd = patch.endTime ?? this.endTime;
 
-      const clamped = Number.isFinite(this.totalDuration)
+      const clamped = Number.isFinite(this.maxTime)
         ? clampViewportTimes(
             requestedStart,
             requestedEnd,
-            this.totalDuration,
+            this.maxTime,
             this.minDuration,
             this.maxDuration,
+            this.minTime,
           )
         : {
-            startTime: Math.max(0, requestedStart),
+            startTime: Math.max(this.minTime, requestedStart),
             endTime: Math.max(requestedStart + this.minDuration, requestedEnd),
           };
 
@@ -173,8 +213,8 @@ export class ViewportController implements IViewportController {
     const duration = this.endTime - this.startTime;
     const newStart = clamp(
       this.startTime + deltaSeconds,
-      0,
-      Math.max(0, this.totalDuration - duration),
+      this.minTime,
+      Math.max(this.minTime, this.maxTime - duration),
     );
     this.setViewport(
       { startTime: newStart, endTime: newStart + duration },
@@ -191,8 +231,8 @@ export class ViewportController implements IViewportController {
     const duration = this.endTime - this.startTime;
     const newStart = clamp(
       startTime,
-      0,
-      Math.max(0, this.totalDuration - duration),
+      this.minTime,
+      Math.max(this.minTime, this.maxTime - duration),
     );
     this.setViewport(
       { startTime: newStart, endTime: newStart + duration },
@@ -207,10 +247,13 @@ export class ViewportController implements IViewportController {
       centerTime !== undefined && Number.isFinite(centerTime)
         ? centerTime
         : this.startTime + currentDuration / 2;
+    const maxAllowed = Number.isFinite(this.maxTime)
+      ? Math.min(this.maxDuration, this.maxTime - this.minTime)
+      : this.maxDuration;
     const targetDuration = clamp(
       currentDuration * factor,
       this.minDuration,
-      this.maxDuration,
+      maxAllowed,
     );
 
     if (Math.abs(targetDuration - currentDuration) < 1e-9) return;
@@ -220,8 +263,8 @@ export class ViewportController implements IViewportController {
 
     const newStart = clamp(
       center - targetDuration * ratio,
-      0,
-      Math.max(0, this.totalDuration - targetDuration),
+      this.minTime,
+      Math.max(this.minTime, this.maxTime - targetDuration),
     );
 
     this.setViewport(
@@ -305,17 +348,20 @@ export class ViewportController implements IViewportController {
 
     const currentDuration = this.endTime - this.startTime;
     const centerT = center?.time ?? this.startTime + currentDuration / 2;
+    const maxAllowed = Number.isFinite(this.maxTime)
+      ? Math.min(this.maxDuration, this.maxTime - this.minTime)
+      : this.maxDuration;
     const targetDuration = clamp(
       currentDuration * timeFactor,
       this.minDuration,
-      Math.min(this.maxDuration, this.totalDuration),
+      maxAllowed,
     );
     const ratioT =
       currentDuration <= 0 ? 0.5 : (centerT - this.startTime) / currentDuration;
     const newStart = clamp(
       centerT - targetDuration * ratioT,
-      0,
-      Math.max(0, this.totalDuration - targetDuration),
+      this.minTime,
+      Math.max(this.minTime, this.maxTime - targetDuration),
     );
 
     const currentSpan = this.maxFrequency - this.minFrequency;
@@ -394,12 +440,15 @@ export class ViewportController implements IViewportController {
           maxFrequency: this.baseMaxFrequency,
         }),
         getTimeBounds: () => ({
-          startTime: 0,
-          endTime: Number.isFinite(this.totalDuration)
-            ? this.totalDuration
-            : 1e9,
+          startTime: this.minTime,
+          endTime: Number.isFinite(this.maxTime) ? this.maxTime : 1e9,
           minDurationSeconds: this.minDuration,
-          maxDurationSeconds: this.maxDuration,
+          maxDurationSeconds: Math.min(
+            this.maxDuration,
+            Number.isFinite(this.maxTime)
+              ? this.maxTime - this.minTime
+              : this.maxDuration,
+          ),
         }),
         getFrequencyBounds: () => ({
           minFrequency: this.baseMinFrequency,

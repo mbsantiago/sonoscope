@@ -115,4 +115,33 @@ describe("ViewportController", () => {
     expect(vp.minFrequency).toBe(100);
     expect(vp.maxFrequency).toBe(8000);
   });
+
+  it("constrains panning and zooming within minTime and maxTime", () => {
+    const controller = new ViewportController({
+      minTime: 5,
+      maxTime: 15,
+      startTime: 5,
+      endTime: 10,
+    });
+
+    expect(controller.getViewport().startTime).toBe(5);
+    expect(controller.getViewport().endTime).toBe(10);
+
+    // Cannot pan before minTime (5)
+    controller.panTime(-10);
+    expect(controller.getViewport().startTime).toBe(5);
+    expect(controller.getViewport().endTime).toBe(10);
+
+    // Cannot pan after maxTime (15)
+    controller.panTime(20);
+    expect(controller.getViewport().startTime).toBe(10);
+    expect(controller.getViewport().endTime).toBe(15);
+
+    // setTimeBounds dynamically updates bounds and clamps viewport
+    controller.setTimeBounds(6, 12);
+    expect(controller.getTimeBounds()).toEqual({ minTime: 6, maxTime: 12 });
+    const vp = controller.getViewport();
+    expect(vp.startTime).toBeGreaterThanOrEqual(6);
+    expect(vp.endTime).toBeLessThanOrEqual(12);
+  });
 });

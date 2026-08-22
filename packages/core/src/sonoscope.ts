@@ -116,6 +116,7 @@ export class Sonoscope implements ISonoscope {
 
     if (opts.viewport) {
       this._viewport = opts.viewport;
+      this._viewport.setTimeBounds(initialClipStart, initialClipEnd);
     } else {
       const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
       const minFrequency = opts.minFrequency ?? 0;
@@ -131,6 +132,8 @@ export class Sonoscope implements ISonoscope {
       );
 
       this._viewport = new ViewportController({
+        minTime: initialClipStart,
+        maxTime: initialClipEnd,
         totalDuration: this.totalDuration,
         minDuration: this.minDuration,
         maxDuration: this.maxDuration,
@@ -443,11 +446,11 @@ export class Sonoscope implements ISonoscope {
     const newStart =
       bounds.clipStart !== undefined
         ? Math.max(0, bounds.clipStart)
-        : this._clipStart;
+        : (this._clipStart ?? 0);
     const newEnd =
       bounds.clipEnd !== undefined
         ? Math.min(total, bounds.clipEnd)
-        : this._clipEnd;
+        : (this._clipEnd ?? total);
 
     this._clipStart = newStart;
     this._clipEnd = newEnd;
@@ -459,27 +462,29 @@ export class Sonoscope implements ISonoscope {
       });
     }
 
-    if (newStart !== undefined || newEnd !== undefined) {
-      const clipMin = newStart ?? 0;
-      const clipMax = newEnd ?? total;
-      const currentVp = this._viewport.getViewport();
-      const clampedStart = Math.max(
-        clipMin,
-        Math.min(clipMax - currentVp.duration, currentVp.startTime),
-      );
-      const clampedEnd = Math.min(clipMax, clampedStart + currentVp.duration);
-
-      this._viewport.setViewport(
-        {
-          startTime: clampedStart,
-          endTime: clampedEnd,
-        },
-        "clipchange",
-      );
-    }
+    this._viewport.setTimeBounds(newStart, newEnd);
+    const clipSpan = Math.max(0.001, newEnd - newStart);
+    const vpDuration = Math.min(
+      this._viewport.getViewport().duration,
+      clipSpan,
+    );
+    this._viewport.setViewport(
+      {
+        startTime: newStart,
+        endTime: newStart + vpDuration,
+      },
+      "clipchange",
+    );
 
     if (this.audioElement) {
-      this.enforceClipPlayback(this.audioElement.currentTime);
+      if (
+        !this.audioElement.paused &&
+        typeof this.audioElement.pause === "function"
+      ) {
+        this.audioElement.pause();
+      }
+      this.audioElement.currentTime = newStart;
+      this.events.emit("timeupdate", { currentTime: newStart });
     }
 
     this.events.emit("clipchange", {
@@ -536,7 +541,7 @@ export class Sonoscope implements ISonoscope {
     if (this.followPlayback === "page") {
       if (currentTime >= vp.endTime || currentTime < vp.startTime) {
         const nextStart = Math.max(
-          0,
+          this._clipStart ?? 0,
           Math.min(this.totalDuration - duration, currentTime),
         );
         this.setViewport(
@@ -547,7 +552,7 @@ export class Sonoscope implements ISonoscope {
     } else if (this.followPlayback === "smooth") {
       const targetStart = currentTime - duration * this.smoothAnchor;
       const nextStart = Math.max(
-        0,
+        this._clipStart ?? 0,
         Math.min(this.totalDuration - duration, targetStart),
       );
       this.setViewport(
@@ -594,7 +599,17 @@ export class Sonoscope implements ISonoscope {
       this.checkPlaybackFollow(currentTime);
     };
     const onPlay = () => {
-      this.enforceClipPlayback(audio.currentTime);
+      if (
+        this._clipEnd !== undefined &&
+        audio.currentTime >= this._clipEnd - 0.05
+      ) {
+        audio.currentTime = this._clipStart ?? 0;
+      } else if (
+        this._clipStart !== undefined &&
+        audio.currentTime < this._clipStart
+      ) {
+        audio.currentTime = this._clipStart;
+      }
       this.startPlaybackLoop();
     };
     const onPause = () => {

@@ -14,7 +14,10 @@ export type ClippedSourceEvents = {
 export class ClippedAudioSource implements AudioSource {
   readonly sampleRate: number;
   readonly channelCount: number;
-  readonly id: string;
+
+  get id(): string {
+    return `clipped:${this.underlyingSource.id}:${this._clipStart}:${this._clipEnd}`;
+  }
 
   private _clipStart: number;
   private _clipEnd: number;
@@ -34,8 +37,6 @@ export class ClippedAudioSource implements AudioSource {
       maxDuration,
       Math.max(this._clipStart, bounds.clipEnd ?? maxDuration),
     );
-
-    this.id = `clipped:${underlyingSource.id}:${this._clipStart}:${this._clipEnd}`;
 
     if (underlyingSource.onRangeAvailable) {
       this.underlyingRangeCleanup = underlyingSource.onRangeAvailable(
