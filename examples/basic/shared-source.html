@@ -227,8 +227,8 @@
         // ── 2. Create the first spectrogram on scope1 ─────────────────────────
         const spec1 = scope1.createSpectrogram(canvas1, {
           colorMap: "viridis",
-          minValue: -100,
-          maxValue: -20,
+          minDb: -100,
+          maxDb: -20,
           frequencyScale: "linear",
           windowSize: 1024,
           hopSize: 256,
@@ -253,8 +253,8 @@
 
         const spec2 = scope2.createSpectrogram(canvas2, {
           colorMap: "magma",
-          minValue: -90,
-          maxValue: -15,
+          minDb: -90,
+          maxDb: -15,
           frequencyScale: "mel",
           windowSize: 1024,
           hopSize: 128,

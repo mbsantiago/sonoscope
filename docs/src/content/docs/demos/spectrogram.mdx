@@ -45,12 +45,12 @@ Applies the Inferno palette with adjusted decibel floors for enhanced contrast:
 ```ts
 scope.createSpectrogram(spectrogramCanvas, {
   colorMap: "inferno",
-  minValue: -80,
-  maxValue: 0,
+  minDb: -80,
+  maxDb: 0,
 });
 ```
 
-<SpectrogramPreview config={{ colorMap: "inferno", minValue: -80, maxValue: 0 }} />
+<SpectrogramPreview config={{ colorMap: "inferno", minDb: -80, maxDb: 0 }} />
 
 ### 3. Mel frequency scale
 Compresses higher frequencies to match human pitch perception:
@@ -91,12 +91,12 @@ Raises the noise floor to suppress quiet background and expose mid-level detail:
 
 ```ts
 scope.createSpectrogram(spectrogramCanvas, {
-  minValue: -60,
-  maxValue: -10,
+  minDb: -60,
+  maxDb: -10,
 });
 ```
 
-<SpectrogramPreview config={{ minValue: -60, maxValue: -10 }} />
+<SpectrogramPreview config={{ minDb: -60, maxDb: -10 }} />
 
 ### 7. Halftone shader effect
 Renders with a retro halftone shader program:
@@ -104,12 +104,12 @@ Renders with a retro halftone shader program:
 ```ts
 scope.createSpectrogram(spectrogramCanvas, {
   renderer: "halftone",
-  minValue: -120,
-  maxValue: -40,
+  minDb: -120,
+  maxDb: -40,
 });
 ```
 
-<SpectrogramPreview config={{ renderer: "halftone", minValue: -120, maxValue: -40 }} />
+<SpectrogramPreview config={{ renderer: "halftone", minDb: -120, maxDb: -40 }} />
 
 ---
 

@@ -16,8 +16,8 @@ async function main() {
     colorMap: "inferno",
 
     // Decibel dynamic range mapping
-    minValue: -80,
-    maxValue: 0,
+    minDb: -80,
+    maxDb: 0,
 
     // STFT resolution parameters
     windowSize: 1024,

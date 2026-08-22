@@ -77,8 +77,8 @@ export function CustomViewer() {
   const { canvasRef, audioRef, status, duration } = useSpectrogram({
     url: "https://example.com/audio.mp3",
     colorMap: "cividis",
-    minValue: -100,
-    maxValue: 0,
+    minDb: -100,
+    maxDb: 0,
   });
 
   return (

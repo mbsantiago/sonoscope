@@ -36,7 +36,7 @@ export default function App() {
             />
           </div>
           <div className="spectrogram-container">
-            <Spectrogram colorMap="plasma" frequencyScale="mel" minValue={-80} maxValue={0} />
+            <Spectrogram colorMap="plasma" frequencyScale="mel" minDb={-80} maxDb={0} />
           </div>
         </div>
         <div className="waveform-container">

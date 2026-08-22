@@ -383,8 +383,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       frequencyScale: this.config.frequencyScale,
       valueScale: {
         mode: this.config.valueMode,
-        min: this.config.minValue,
-        max: this.config.maxValue,
+        min: this.config.minDb,
+        max: this.config.maxDb,
         gamma: this.config.valueGamma,
         clamp: this.config.clampValues,
       },
