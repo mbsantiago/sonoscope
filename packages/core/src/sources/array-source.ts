@@ -51,10 +51,13 @@ export class ArrayAudioSource implements AudioSource {
     if (!channelData) {
       throw new Error(`Invalid channel ${options.channel}`);
     }
-    const start = Math.max(0, Math.floor(options.startTime * this.sampleRate));
+    const start = Math.max(
+      0,
+      Math.floor(options.startTime * this.sampleRate + 1e-6),
+    );
     const end = Math.min(
       channelData.length,
-      Math.ceil(options.endTime * this.sampleRate),
+      Math.ceil(options.endTime * this.sampleRate - 1e-6),
     );
     return channelData.slice(start, end);
   }

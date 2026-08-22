@@ -31,6 +31,10 @@ export default defineConfig({
         shaders: resolve(import.meta.dirname, "shaders.html"),
         sources: resolve(import.meta.dirname, "sources.html"),
         waveform: resolve(import.meta.dirname, "waveform.html"),
+        waveformRenderers: resolve(
+          import.meta.dirname,
+          "waveform-renderers.html",
+        ),
         zoom: resolve(import.meta.dirname, "zoom.html"),
       },
     },

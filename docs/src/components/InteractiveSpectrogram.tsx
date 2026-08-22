@@ -10,7 +10,7 @@ import {
 } from "@sonoscope/core";
 import { useEffect, useRef, useState } from "react";
 
-export const DEFAULT_AUDIO_URL = "https://xeno-canto.org/1145817/download";
+export const DEFAULT_AUDIO_URL = "sonoscope/audio/marico-sunbird.ogg";
 
 export interface DemoProps {
   audioUrl?: string;
@@ -298,7 +298,7 @@ export default function InteractiveSpectrogram({
         </div>
 
         <div className="inline-flex items-center gap-1 text-xs opacity-70">
-          Himalayan Rubythroat · <em>Calliope pectoralis</em> · Cedric Mroczko, XC1145817. Accessible at <a href="www.xeno-canto.org/1145817">www.xeno-canto.org/1145817</a>
+          Himalayan Rubythroat · <em>Calliope pectoralis</em> · Cedric Mroczko, XC1145817. Accessible at <a href="https://www.xeno-canto.org/1145817">www.xeno-canto.org/1145817</a>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
-import type { AudioSource } from "../../types";
+import type { AudioSource } from "../../../types";
 import { describe, expect, it } from "vitest";
-import { computePeaks, WaveformPeakPyramid } from "./peaks";
+import { ContinuousPeakPyramid, computePeaks } from "./continuous";
 
 describe("computePeaks", () => {
   it("handles empty samples gracefully", () => {
@@ -38,7 +38,7 @@ describe("computePeaks", () => {
   });
 });
 
-describe("WaveformPeakPyramid", () => {
+describe("ContinuousPeakPyramid", () => {
   const dummySource: AudioSource = {
     id: "test",
     sampleRate: 1000,
@@ -64,28 +64,30 @@ describe("WaveformPeakPyramid", () => {
   };
 
   it("retrieves peaks for a visible time range", async () => {
-    const pyramid = new WaveformPeakPyramid(dummySource, 0);
+    const pyramid = new ContinuousPeakPyramid(dummySource, 0);
     const peaks = await pyramid.getPeaks(0, 2, 100);
-    expect(peaks.min.length).toBe(100);
-    expect(peaks.max.length).toBe(100);
+    expect(peaks.min.length).toBeGreaterThanOrEqual(100);
+    expect(peaks.max.length).toBeGreaterThanOrEqual(100);
+    expect(peaks.x?.length).toBe(peaks.min.length);
+    expect(peaks.isLineMode).toBe(false);
     expect(peaks.max.some((v) => v > 0)).toBe(true);
     expect(peaks.min.some((v) => v < 0)).toBe(true);
   });
 
   it("maintains smooth stability during continuous sub-millisecond scrolling", async () => {
-    const pyramid = new WaveformPeakPyramid(dummySource, 0);
+    const pyramid = new ContinuousPeakPyramid(dummySource, 0);
     const p1 = await pyramid.getPeaks(1.0, 3.0, 200);
     const p2 = await pyramid.getPeaks(1.01, 3.01, 200); // 10ms forward (1 frame at 60fps)
 
-    expect(p1.max.length).toBe(200);
-    expect(p2.max.length).toBe(200);
+    expect(p1.max.length).toBeGreaterThanOrEqual(200);
+    expect(p2.max.length).toBeGreaterThanOrEqual(200);
     // Values shifted slightly should correlate closely
     const diff = Math.abs(p1.max[100]! - p2.max[99]!);
     expect(diff).toBeLessThan(0.15);
   });
 
-  it("produces exactly matching peak boundaries when shifted by integer pixel offsets", async () => {
-    const pyramid = new WaveformPeakPyramid(dummySource, 0);
+  it("produces invariant peak values and continuous floating coordinates when panning", async () => {
+    const pyramid = new ContinuousPeakPyramid(dummySource, 0);
     const width = 100;
     const duration = 2.0; // 2s across 100 pixels = 0.02s per pixel
     const shiftPixels = 5;
@@ -98,10 +100,18 @@ describe("WaveformPeakPyramid", () => {
       width,
     );
 
-    // Pixel i in p2 must exactly equal pixel (i + shiftPixels) in p1!
+    // Pixel bucket i in p2 has identical peak values to (i + shiftPixels) in p1
     for (let i = 0; i < width - shiftPixels; i++) {
       expect(p2.max[i]).toBeCloseTo(p1.max[i + shiftPixels]!, 5);
       expect(p2.min[i]).toBeCloseTo(p1.min[i + shiftPixels]!, 5);
     }
+  });
+
+  it("handles high zoom sub-sample mode with continuous sample coordinates", async () => {
+    const pyramid = new ContinuousPeakPyramid(dummySource, 0);
+    const peaks = await pyramid.getPeaks(0.5, 0.502, 100);
+    expect(peaks.isLineMode).toBe(true);
+    expect(peaks.x?.length).toBe(peaks.min.length);
+    expect(peaks.min.length).toBeGreaterThan(0);
   });
 });

@@ -152,11 +152,11 @@ export class StreamingWavSource implements AudioSource {
     if (!channelData) throw new Error(`Channel ${options.channel} not found`);
     const startFrame = Math.max(
       0,
-      Math.floor(options.startTime * this.sampleRate),
+      Math.floor(options.startTime * this.sampleRate + 1e-6),
     );
     const endFrame = Math.min(
       channelData.length,
-      Math.ceil(options.endTime * this.sampleRate),
+      Math.ceil(options.endTime * this.sampleRate - 1e-6),
     );
 
     this.requestFrames(endFrame);

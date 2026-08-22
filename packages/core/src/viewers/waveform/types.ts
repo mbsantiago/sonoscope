@@ -1,8 +1,17 @@
-import type { ColorMapConfig, ISonoscope } from "../../types";
+import type { AudioSource, ColorMapConfig, ISonoscope } from "../../types";
+import type { BarsWaveformRendererOptions } from "./renderers/bars";
 
 export type PeakBlock = {
   min: Float32Array;
   max: Float32Array;
+  x?: Float32Array | undefined;
+  isLineMode?: boolean | undefined;
+};
+
+export type BarPeakBlock = PeakBlock & {
+  kStart: number;
+  kEnd: number;
+  barDuration: number;
 };
 
 export type WaveformViewport = {
@@ -10,23 +19,44 @@ export type WaveformViewport = {
   endTime: number;
 };
 
+export type BarsWaveformRendererConfig = BarsWaveformRendererOptions & {
+  type: "bars";
+};
+
+export type Canvas2DWaveformRendererConfig = {
+  type: "canvas2d";
+};
+
+export type WebGL2WaveformRendererConfig = {
+  type: "webgl2";
+};
+
+export type WaveformRendererMode =
+  | "canvas2d"
+  | "webgl2"
+  | "bars"
+  | BarsWaveformRendererConfig
+  | Canvas2DWaveformRendererConfig
+  | WebGL2WaveformRendererConfig
+  | WaveformRenderer;
+
+export type WaveformRendererKind = "canvas2d" | "webgl2" | "bars";
+
 export type WaveformRenderInput = {
   canvas: HTMLCanvasElement;
-  peaks: PeakBlock;
-  color?: string | undefined;
-  progressColor?: string | undefined;
-  backgroundColor?: string | undefined;
-  cursorColor?: string | undefined;
-  playheadTime?: number | undefined;
+  source: AudioSource;
+  channel: number;
   startTime: number;
   endTime: number;
+  color?: string | undefined;
+  backgroundColor?: string | undefined;
   amplitudeScale?: number | undefined;
   colorMap?: ColorMapConfig | undefined;
 };
 
 export interface WaveformRenderer {
-  readonly kind: "canvas2d" | "webgl2";
-  render(input: WaveformRenderInput): void;
+  readonly kind: WaveformRendererKind | string;
+  render(input: WaveformRenderInput): Promise<void> | void;
   destroy?(): void;
 }
 
@@ -38,17 +68,13 @@ export type WaveformConfig = {
   minViewportDuration?: number | undefined;
   maxViewportDuration?: number | undefined;
   color?: string | undefined;
-  progressColor?: string | undefined;
   backgroundColor?: string | undefined;
-  cursorColor?: string | undefined;
   amplitudeScale?: number | undefined;
   colorMap?: ColorMapConfig | undefined;
-  renderer?: "canvas2d" | "webgl2" | WaveformRenderer | undefined;
+  renderer?: WaveformRendererMode | undefined;
   autoResize?: boolean | undefined;
   devicePixelRatio?: boolean | number | undefined;
 };
-
-export type WaveformOptions = WaveformConfig;
 
 export type ResolvedWaveformConfig = {
   autoRender: boolean;
@@ -58,12 +84,10 @@ export type ResolvedWaveformConfig = {
   minViewportDuration: number;
   maxViewportDuration: number;
   color: string;
-  progressColor: string;
   backgroundColor: string;
-  cursorColor: string;
   amplitudeScale: number;
   colorMap?: ColorMapConfig | undefined;
-  renderer: "canvas2d" | "webgl2" | WaveformRenderer;
+  renderer: WaveformRendererMode;
 };
 
 export type WaveformStatus =
@@ -88,6 +112,7 @@ export interface IWaveformViewer {
   destroy(): void;
   getStatus(): WaveformStatus;
   getCanvas(): HTMLCanvasElement;
+  getRendererKind(): string;
 
   // Viewport
   getScope(): ISonoscope;
@@ -95,8 +120,8 @@ export interface IWaveformViewer {
 
   // Configuration
   getConfig(): ResolvedWaveformConfig;
-  updateConfig(input: Partial<WaveformOptions>): void;
-  setConfig(input: Partial<WaveformOptions>): void;
+  updateConfig(input: Partial<WaveformConfig>): void;
+  setConfig(input: Partial<WaveformConfig>): void;
 
   // Coordinates
   canvasToTime(x: number): number;

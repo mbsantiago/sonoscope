@@ -1,12 +1,19 @@
 import type { WaveformRenderer, WaveformRenderInput } from "../types";
+import { ContinuousPeakPyramid } from "../peaks/continuous";
 
 export class CanvasWaveformRenderer implements WaveformRenderer {
   readonly kind = "canvas2d" as const;
+  private pyramid: ContinuousPeakPyramid | null = null;
+  private currentSource: unknown = null;
+  private currentChannel = 0;
 
-  render(input: WaveformRenderInput): void {
+  async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
-      peaks,
+      source,
+      channel = 0,
+      startTime,
+      endTime,
       color = "#38bdf8",
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
@@ -18,6 +25,29 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     const width = Math.max(1, canvas.width || 1);
     const height = Math.max(1, canvas.height || 1);
 
+    if (
+      !this.pyramid ||
+      this.currentSource !== source ||
+      this.currentChannel !== channel
+    ) {
+      this.pyramid?.clear();
+      this.pyramid = new ContinuousPeakPyramid(source, channel);
+      this.currentSource = source;
+      this.currentChannel = channel;
+    }
+
+    const rect =
+      typeof canvas.getBoundingClientRect === "function"
+        ? canvas.getBoundingClientRect()
+        : null;
+    const dpr =
+      typeof window !== "undefined" && window.devicePixelRatio
+        ? window.devicePixelRatio
+        : (rect && rect.width > 0 ? Math.round(width / rect.width) : 1) || 1;
+    const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
+
+    const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
+
     ctx.save();
     ctx.clearRect(0, 0, width, height);
 
@@ -28,6 +58,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
 
     const centerY = height / 2;
     const halfH = (height / 2) * Math.max(0.01, amplitudeScale);
+    const strokeWidth = Math.max(1, 1.5 * dpr);
     const len = peaks.min.length;
 
     // Draw center zero-axis baseline
@@ -39,37 +70,34 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     ctx.stroke();
 
     if (len > 0) {
-      // Determine if waveform is in sub-sample line mode vs envelope mode
-      let maxSpread = 0;
-      for (let i = 0; i < len; i++) {
-        const spread = peaks.max[i]! - peaks.min[i]!;
-        if (spread > maxSpread) maxSpread = spread;
-      }
-      const isLineMode = maxSpread < 0.04;
+      const hasX = Boolean(peaks.x && peaks.x.length === len);
+      const isLineMode = Boolean(peaks.isLineMode);
 
       if (isLineMode) {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
-          const x = (i / Math.max(1, len - 1)) * width;
+          const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
           const sample = (peaks.max[i]! + peaks.min[i]!) / 2;
           const y = centerY - sample * halfH;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = strokeWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         ctx.stroke();
       } else {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
-          const x = (i / Math.max(1, len - 1)) * width;
+          const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
           const maxVal = peaks.max[i]!;
           const y = centerY - maxVal * halfH;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         for (let i = len - 1; i >= 0; i--) {
-          const x = (i / Math.max(1, len - 1)) * width;
+          const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
           const minVal = peaks.min[i]!;
           const y = centerY - minVal * halfH;
           ctx.lineTo(x, y);
@@ -77,11 +105,19 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = strokeWidth;
+        ctx.lineJoin = "round";
+        ctx.stroke();
       }
     }
 
     ctx.restore();
   }
 
-  destroy(): void {}
+  destroy(): void {
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
+  }
 }

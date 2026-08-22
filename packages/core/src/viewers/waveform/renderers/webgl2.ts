@@ -1,5 +1,6 @@
 import type { WaveformRenderer, WaveformRenderInput } from "../types";
 import { parseColor } from "../../../colormap";
+import { ContinuousPeakPyramid } from "../peaks/continuous";
 import { CanvasWaveformRenderer } from "./canvas";
 import {
   createWaveformProgram,
@@ -15,11 +16,17 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
   private xNormBuffer: WebGLBuffer | null = null;
   private vao: WebGLVertexArrayObject | null = null;
   private fallbackRenderer: CanvasWaveformRenderer | null = null;
+  private pyramid: ContinuousPeakPyramid | null = null;
+  private currentSource: unknown = null;
+  private currentChannel = 0;
 
-  render(input: WaveformRenderInput): void {
+  async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
-      peaks,
+      source,
+      channel = 0,
+      startTime,
+      endTime,
       color = "#38bdf8",
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
@@ -50,7 +57,7 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       if (!this.fallbackRenderer) {
         this.fallbackRenderer = new CanvasWaveformRenderer();
       }
-      this.fallbackRenderer.render(input);
+      await this.fallbackRenderer.render(input);
       return;
     }
 
@@ -75,10 +82,33 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
         if (!this.fallbackRenderer) {
           this.fallbackRenderer = new CanvasWaveformRenderer();
         }
-        this.fallbackRenderer.render(input);
+        await this.fallbackRenderer.render(input);
         return;
       }
     }
+
+    if (
+      !this.pyramid ||
+      this.currentSource !== source ||
+      this.currentChannel !== channel
+    ) {
+      this.pyramid?.clear();
+      this.pyramid = new ContinuousPeakPyramid(source, channel);
+      this.currentSource = source;
+      this.currentChannel = channel;
+    }
+
+    const rect =
+      typeof canvas.getBoundingClientRect === "function"
+        ? canvas.getBoundingClientRect()
+        : null;
+    const dpr =
+      typeof window !== "undefined" && window.devicePixelRatio
+        ? window.devicePixelRatio
+        : (rect && rect.width > 0 ? Math.round(width / rect.width) : 1) || 1;
+    const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
+
+    const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
 
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
@@ -109,22 +139,18 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
     if (len > 0) {
       const centerY = height / 2;
       const halfH = (height / 2) * Math.max(0.01, amplitudeScale);
-
-      let maxSpread = 0;
-      for (let i = 0; i < len; i++) {
-        const spread = peaks.max[i]! - peaks.min[i]!;
-        if (spread > maxSpread) maxSpread = spread;
-      }
-      const isLineMode = maxSpread < 0.05;
+      const strokeWidth = Math.max(1, 1.5 * dpr);
+      const halfThick = strokeWidth / 2;
+      const hasX = Boolean(peaks.x && peaks.x.length === len);
+      const isLineMode = Boolean(peaks.isLineMode);
 
       const vertexCount = len * 2;
       const positions = new Float32Array(vertexCount * 2);
       const xNorms = new Float32Array(vertexCount);
-      const halfThick = isLineMode ? 1.25 : 0;
 
       for (let i = 0; i < len; i++) {
-        const norm = i / Math.max(1, len - 1);
-        const x = norm * width;
+        const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
+        const norm = width > 0 ? x / width : 0;
         let topY: number;
         let bottomY: number;
 
@@ -134,11 +160,10 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
           topY = y - halfThick;
           bottomY = y + halfThick;
         } else {
-          topY = centerY - peaks.max[i]! * halfH;
-          bottomY = centerY - peaks.min[i]! * halfH;
-          if (bottomY - topY < 1) {
-            bottomY = topY + 1;
-          }
+          const envTop = centerY - peaks.max[i]! * halfH;
+          const envBottom = centerY - peaks.min[i]! * halfH;
+          topY = envTop - halfThick;
+          bottomY = envBottom + halfThick;
         }
 
         const idx = i * 4;
@@ -179,6 +204,9 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       this.vao = null;
       this.gl = null;
     }
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
     if (this.fallbackRenderer) {
       this.fallbackRenderer.destroy?.();
       this.fallbackRenderer = null;

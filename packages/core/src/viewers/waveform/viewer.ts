@@ -2,8 +2,8 @@ import type { AudioSource, ISonoscope } from "../../types";
 import type {
   IWaveformViewer,
   ResolvedWaveformConfig,
+  WaveformConfig,
   WaveformEvents,
-  WaveformOptions,
   WaveformRenderer,
   WaveformStatus,
   WaveformViewport,
@@ -12,13 +12,11 @@ import { attachAutoResize } from "../../auto-resize";
 import { colorMapToRgb } from "../../colormap";
 import { TypedEventEmitter } from "../../events";
 import { clampViewportTimes } from "../../viewport-math";
-import { WaveformPeakPyramid } from "./peaks";
-import { CanvasWaveformRenderer } from "./renderers/canvas";
-import { WebGL2WaveformRenderer } from "./renderers/webgl2";
+import { createWaveformRenderer } from "./renderers/renderer-factory";
 
 function resolveWaveformConfig(
   source: AudioSource,
-  input: Partial<WaveformOptions> = {},
+  input: Partial<WaveformConfig> = {},
 ): ResolvedWaveformConfig {
   if (!source) throw new Error("WaveformViewer requires a source");
 
@@ -66,9 +64,6 @@ function resolveWaveformConfig(
   const defaultColor = input.colorMap
     ? colorMapToRgb(input.colorMap, 210)
     : "#38bdf8";
-  const defaultProgressColor = input.colorMap
-    ? colorMapToRgb(input.colorMap, 255)
-    : "#0284c7";
 
   return {
     autoRender: input.autoRender ?? true,
@@ -78,9 +73,7 @@ function resolveWaveformConfig(
     minViewportDuration,
     maxViewportDuration,
     color: input.color ?? defaultColor,
-    progressColor: input.progressColor ?? defaultProgressColor,
     backgroundColor: input.backgroundColor ?? "transparent",
-    cursorColor: input.cursorColor ?? "#ffffff",
     amplitudeScale: input.amplitudeScale ?? 1.0,
     colorMap: input.colorMap,
     renderer: input.renderer ?? "canvas2d",
@@ -89,7 +82,6 @@ function resolveWaveformConfig(
 
 export class WaveformViewer implements IWaveformViewer {
   private readonly events = new TypedEventEmitter<WaveformEvents>();
-  private pyramid: WaveformPeakPyramid;
   private renderer: WaveformRenderer;
   private scopeCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
@@ -105,7 +97,7 @@ export class WaveformViewer implements IWaveformViewer {
   constructor(
     scope: ISonoscope,
     canvas: HTMLCanvasElement,
-    options?: Partial<WaveformOptions>,
+    options?: Partial<WaveformConfig>,
   ) {
     if (!scope) {
       throw new Error("WaveformViewer requires an ISonoscope instance");
@@ -121,23 +113,10 @@ export class WaveformViewer implements IWaveformViewer {
       endTime: scopeVp.endTime,
     });
 
-    let renderer: WaveformRenderer;
-    if (typeof resolvedConfig.renderer === "object") {
-      renderer = resolvedConfig.renderer;
-    } else if (resolvedConfig.renderer === "webgl2") {
-      renderer = new WebGL2WaveformRenderer();
-    } else {
-      renderer = new CanvasWaveformRenderer();
-    }
-
     this.scope = scope;
     this.canvas = canvas;
     this.config = resolvedConfig;
-    this.renderer = renderer;
-    this.pyramid = new WaveformPeakPyramid(
-      this.scope.source,
-      resolvedConfig.channel,
-    );
+    this.renderer = createWaveformRenderer(resolvedConfig.renderer);
     this.bindScope();
     if (options?.autoResize !== false) {
       this.resizeCleanup = attachAutoResize(this.canvas, {
@@ -170,57 +149,42 @@ export class WaveformViewer implements IWaveformViewer {
     return this.config;
   }
 
-  setConfig(input: Partial<WaveformOptions>): void {
+  setConfig(input: Partial<WaveformConfig>): void {
     const cleanInput = Object.fromEntries(
       Object.entries(input).filter(([_, v]) => v !== undefined),
     );
     const shouldDeriveColors =
-      input.colorMap !== undefined &&
-      input.color === undefined &&
-      input.progressColor === undefined;
+      input.colorMap !== undefined && input.color === undefined;
 
     const baseConfig = { ...this.config };
     if (shouldDeriveColors) {
       delete (baseConfig as Partial<ResolvedWaveformConfig>).color;
-      delete (baseConfig as Partial<ResolvedWaveformConfig>).progressColor;
     }
-
-    const previousChannel = this.config.channel;
 
     this.config = resolveWaveformConfig(this.scope.source, {
       ...baseConfig,
       ...cleanInput,
     });
 
-    if (this.config.channel !== previousChannel) {
-      this.pyramid.clear();
-      this.pyramid = new WaveformPeakPyramid(
-        this.scope.source,
-        this.config.channel,
-      );
-    }
-
     if (input.renderer !== undefined) {
       this.renderer.destroy?.();
-      if (typeof input.renderer === "object") {
-        this.renderer = input.renderer;
-      } else if (input.renderer === "webgl2") {
-        this.renderer = new WebGL2WaveformRenderer();
-      } else {
-        this.renderer = new CanvasWaveformRenderer();
-      }
+      this.renderer = createWaveformRenderer(this.config.renderer);
     }
 
     this.events.emit("configchange", { config: this.config });
   }
 
-  updateConfig(input: Partial<WaveformOptions>): void {
+  updateConfig(input: Partial<WaveformConfig>): void {
     this.setConfig(input);
     this.requestRender();
   }
 
   getStatus(): WaveformStatus {
     return this.status;
+  }
+
+  getRendererKind(): string {
+    return this.renderer.kind;
   }
 
   canvasToTime(x: number): number {
@@ -281,35 +245,21 @@ export class WaveformViewer implements IWaveformViewer {
     this.status = { state: "rendering" };
     this.events.emit("renderstart", { requestId });
 
-    const rect = this.canvas.getBoundingClientRect();
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const targetWidth = Math.max(
-      1,
-      Math.floor((rect.width || this.canvas.width) * dpr),
-    );
-
     const vp = this.getViewport();
-    const peaks = await this.pyramid.getPeaks(
-      vp.startTime,
-      vp.endTime,
-      targetWidth,
-    );
 
-    if (this.status.state === "destroyed") return;
-
-    this.renderer.render({
+    await this.renderer.render({
       canvas: this.canvas,
-      peaks,
-      color: this.config.color,
-      progressColor: this.config.progressColor,
-      backgroundColor: this.config.backgroundColor,
-      cursorColor: this.config.cursorColor,
+      source: this.scope.source,
+      channel: this.config.channel,
       startTime: vp.startTime,
       endTime: vp.endTime,
+      color: this.config.color,
+      backgroundColor: this.config.backgroundColor,
       amplitudeScale: this.config.amplitudeScale,
       colorMap: this.config.colorMap,
     });
+
+    if (this.status.state === "destroyed") return;
 
     this.status = { state: "ready" };
     this.events.emit("rendercomplete", { requestId });
@@ -322,7 +272,6 @@ export class WaveformViewer implements IWaveformViewer {
     this.scopeCleanup = [];
     this.resizeCleanup?.();
     this.resizeCleanup = undefined;
-    this.pyramid.clear();
     this.renderer.destroy?.();
   }
 
@@ -346,11 +295,6 @@ export class WaveformViewer implements IWaveformViewer {
     });
 
     const unlistenSource = this.scope.on("sourcechange", () => {
-      this.pyramid.clear();
-      this.pyramid = new WaveformPeakPyramid(
-        this.scope.source,
-        this.config.channel,
-      );
       this.events.emit("configchange", { config: this.config });
       this.requestRender();
     });
