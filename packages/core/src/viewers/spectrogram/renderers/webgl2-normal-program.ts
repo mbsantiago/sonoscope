@@ -167,6 +167,8 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
       frequencyScaleCode(input.frequencyScale),
     );
 
+    this.setCustomUniforms(input);
+
     const placeholderCount = input.placeholders?.length ?? 0;
     for (let index = 0; index < placeholderCount; index++)
       this.drawPlaceholder();
@@ -176,6 +178,8 @@ export class NormalSpectrogramProgram implements WebGL2RenderProgram {
       gl.bindVertexArray(null);
     }
   }
+
+  protected setCustomUniforms(_input: RenderInput): void {}
 
   delete(): void {
     if (this.vao) {

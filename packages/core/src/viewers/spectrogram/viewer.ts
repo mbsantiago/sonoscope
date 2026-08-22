@@ -901,7 +901,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
 function webglProgramRenderInput(
   renderer: RendererMode,
-): Pick<RenderInput, "webglProgram"> {
+): Pick<RenderInput, "webglProgram" | "dither"> {
   if (typeof renderer === "string") {
     if (
       renderer === "dither" ||
@@ -914,8 +914,22 @@ function webglProgramRenderInput(
     return {};
   }
   if (typeof renderer === "object" && renderer !== null) {
+    const dither =
+      "dotFrequency" in renderer ||
+      "minEnergyThreshold" in renderer ||
+      "energyGamma" in renderer
+        ? {
+            dotFrequency: renderer.dotFrequency,
+            minEnergyThreshold: renderer.minEnergyThreshold,
+            energyGamma: renderer.energyGamma,
+          }
+        : undefined;
+
     if ("program" in renderer && renderer.program) {
-      return { webglProgram: renderer.program };
+      return {
+        webglProgram: renderer.program,
+        ...(dither ? { dither } : {}),
+      };
     }
     if (
       renderer.type === "dither" ||
@@ -923,7 +937,13 @@ function webglProgramRenderInput(
       renderer.type === "sobel" ||
       renderer.type === "normal"
     ) {
-      return { webglProgram: renderer.type };
+      return {
+        webglProgram: renderer.type,
+        ...(dither ? { dither } : {}),
+      };
+    }
+    if (dither) {
+      return { dither };
     }
   }
   return {};

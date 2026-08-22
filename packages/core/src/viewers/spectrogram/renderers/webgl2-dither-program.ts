@@ -1,3 +1,4 @@
+import type { RenderInput } from "./canvas";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 
 export const WEBGL2_DITHER_FRAGMENT_SHADER = `#version 300 es
@@ -18,10 +19,9 @@ uniform vec4 u_valueScale;
 uniform float u_frequencyScale;
 uniform float u_overlayMode;
 
-// Halftone tuning constants
-const float DOT_FREQUENCY = 0.16;          // Dot density
-const float MIN_ENERGY_THRESHOLD = 0.05;   // Noise floor cutoff
-const float ENERGY_GAMMA = 2.8;            // Non-linear power curve
+uniform float u_dotFrequency;
+uniform float u_minEnergyThreshold;
+uniform float u_energyGamma;
 
 float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
 float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
@@ -116,14 +116,18 @@ void main() {
     discard;
   }
 
+  float dotFrequency = u_dotFrequency > 0.0 ? u_dotFrequency : 0.16;
+  float minEnergyThreshold = u_minEnergyThreshold >= 0.0 ? u_minEnergyThreshold : 0.05;
+  float energyGamma = u_energyGamma > 0.0 ? u_energyGamma : 2.8;
+
   // Halftone grid configuration
-  const float cellSize = 1.0 / DOT_FREQUENCY;
+  float cellSize = 1.0 / dotFrequency;
   const float cosA = 0.70710678;
   const float sinA = 0.70710678;
   mat2 rot = mat2(cosA, -sinA, sinA, cosA);
   mat2 invRot = mat2(cosA, sinA, -sinA, cosA);
 
-  vec2 rotatedCoord = rot * gl_FragCoord.xy * DOT_FREQUENCY;
+  vec2 rotatedCoord = rot * gl_FragCoord.xy * dotFrequency;
   vec2 cellIndex = floor(rotatedCoord);
   vec2 cellLocal = fract(rotatedCoord) - vec2(0.5);
 
@@ -131,8 +135,8 @@ void main() {
   float rawIntensity = sampleCellArea(cellIndex, cellSize, invRot);
   
   // Continuous normalized intensity without early returns
-  float normIntensity = clamp((rawIntensity - MIN_ENERGY_THRESHOLD) / (1.0 - MIN_ENERGY_THRESHOLD), 0.0, 1.0);
-  float shapedArea = pow(normIntensity, ENERGY_GAMMA);
+  float normIntensity = clamp((rawIntensity - minEnergyThreshold) / max(0.0001, 1.0 - minEnergyThreshold), 0.0, 1.0);
+  float shapedArea = pow(normIntensity, energyGamma);
   float targetRadius = 0.7071 * sqrt(shapedArea);
 
   // Colors
@@ -140,7 +144,7 @@ void main() {
   vec4 dotColor = texture(u_colormap, vec2(rawIntensity, 0.5));
 
   // Constant analytical anti-aliasing width (1 pixel in cell-space)
-  float aa = DOT_FREQUENCY * 0.75;
+  float aa = dotFrequency * 0.75;
   float dist = length(cellLocal);
 
   // Edge antialiasing: smooth falloff at the perimeter of the circle
@@ -157,5 +161,15 @@ void main() {
 export class DitherSpectrogramProgram extends NormalSpectrogramProgram {
   constructor(gl: WebGL2RenderingContext) {
     super(gl, WEBGL2_DITHER_FRAGMENT_SHADER);
+  }
+
+  protected override setCustomUniforms(input: RenderInput): void {
+    const dotFrequency = input.dither?.dotFrequency ?? 0.16;
+    const minEnergyThreshold = input.dither?.minEnergyThreshold ?? 0.05;
+    const energyGamma = input.dither?.energyGamma ?? 2.8;
+
+    this.shader.uniform1f("u_dotFrequency", dotFrequency);
+    this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);
+    this.shader.uniform1f("u_energyGamma", energyGamma);
   }
 }

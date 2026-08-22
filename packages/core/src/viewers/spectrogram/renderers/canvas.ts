@@ -16,6 +16,12 @@ import {
 } from "../spectrogram-sampling";
 import { normalizeValue } from "../value-scale";
 
+export type DitherRenderOptions = {
+  dotFrequency?: number | undefined;
+  minEnergyThreshold?: number | undefined;
+  energyGamma?: number | undefined;
+};
+
 export type RenderInput = {
   canvas: HTMLCanvasElement;
   viewport: ViewportConfig;
@@ -31,6 +37,7 @@ export type RenderInput = {
     | "sobel"
     | "terrain"
     | WebGL2RenderProgram;
+  dither?: DitherRenderOptions | undefined;
   profile?: PerformanceProfiler;
 };
 

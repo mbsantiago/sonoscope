@@ -1687,6 +1687,22 @@ describe("SpectrogramViewer", () => {
       expect(v3.getConfig().renderer).toEqual({ type: "dither" });
       v3.destroy();
 
+      const v4 = scope.createSpectrogram(mockCanvas, {
+        renderer: {
+          type: "dither",
+          dotFrequency: 0.25,
+          minEnergyThreshold: 0.1,
+          energyGamma: 3.5,
+        },
+      });
+      expect(v4.getConfig().renderer).toEqual({
+        type: "dither",
+        dotFrequency: 0.25,
+        minEnergyThreshold: 0.1,
+        energyGamma: 3.5,
+      });
+      v4.destroy();
+
       scope.destroy();
     });
   });

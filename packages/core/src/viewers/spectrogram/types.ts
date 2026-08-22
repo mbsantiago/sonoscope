@@ -22,10 +22,21 @@ export type WebGLRendererProgram =
   | WebGLRendererProgramName
   | WebGL2RenderProgram;
 
+export type DitherOptions = {
+  dotFrequency?: number | undefined;
+  minEnergyThreshold?: number | undefined;
+  energyGamma?: number | undefined;
+};
+
+export type DitherRendererConfig = {
+  type: "dither";
+  program?: WebGLRendererProgram | undefined;
+} & DitherOptions;
+
 export type WebGLRendererConfig = {
   type: "webgl" | "webgl2" | WebGLRendererProgramName;
-  program?: WebGLRendererProgram;
-};
+  program?: WebGLRendererProgram | undefined;
+} & DitherOptions;
 
 export type Canvas2DRendererConfig = {
   type: "canvas2d";
@@ -33,13 +44,14 @@ export type Canvas2DRendererConfig = {
 
 export type AutoRendererConfig = {
   type: "auto";
-  program?: WebGLRendererProgram;
-};
+  program?: WebGLRendererProgram | undefined;
+} & DitherOptions;
 
 export type SpectrogramRendererConfig =
   | AutoRendererConfig
   | Canvas2DRendererConfig
-  | WebGLRendererConfig;
+  | WebGLRendererConfig
+  | DitherRendererConfig;
 
 export type RendererMode =
   | "auto"

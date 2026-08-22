@@ -79,6 +79,8 @@ export type {
   BackendMode,
   CacheStats,
   Canvas2DRendererConfig,
+  DitherOptions,
+  DitherRendererConfig,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
