@@ -175,7 +175,7 @@ describe("WaveformViewer", () => {
     expect(viewer.getRendererKind()).toBe("canvas2d");
   });
 
-  it("supports bars and segmented-bars renderer option with customization", async () => {
+  it("supports bars renderer option with customization", async () => {
     const canvas = createMockCanvas();
     const scope = new Sonoscope({ source: dummySource });
     const viewer = new WaveformViewer(scope, canvas, {
@@ -200,12 +200,12 @@ describe("WaveformViewer", () => {
 
     viewer.updateConfig({
       renderer: {
-        type: "segmented-bars",
+        type: "bars",
         barWidth: 6,
       },
     });
     expect(viewer.getConfig().renderer).toEqual({
-      type: "segmented-bars",
+      type: "bars",
       barWidth: 6,
     });
     expect(viewer.getRendererKind()).toBe("bars");

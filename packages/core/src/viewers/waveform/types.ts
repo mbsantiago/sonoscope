@@ -20,7 +20,7 @@ export type WaveformViewport = {
 };
 
 export type BarsWaveformRendererConfig = BarsWaveformRendererOptions & {
-  type: "bars" | "segmented-bars";
+  type: "bars";
 };
 
 export type Canvas2DWaveformRendererConfig = {
@@ -35,17 +35,12 @@ export type WaveformRendererMode =
   | "canvas2d"
   | "webgl2"
   | "bars"
-  | "segmented-bars"
   | BarsWaveformRendererConfig
   | Canvas2DWaveformRendererConfig
   | WebGL2WaveformRendererConfig
   | WaveformRenderer;
 
-export type WaveformRendererKind =
-  | "canvas2d"
-  | "webgl2"
-  | "bars"
-  | "segmented-bars";
+export type WaveformRendererKind = "canvas2d" | "webgl2" | "bars";
 
 export type WaveformRenderInput = {
   canvas: HTMLCanvasElement;

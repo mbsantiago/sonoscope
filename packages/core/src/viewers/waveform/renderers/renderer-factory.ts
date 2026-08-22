@@ -27,7 +27,7 @@ export function createWaveformRenderer(
         return new WebGL2WaveformRenderer();
       }
 
-      if (mode.type === "bars" || mode.type === "segmented-bars") {
+      if (mode.type === "bars") {
         const { type: _type, ...options } = mode;
         return new BarsWaveformRenderer(options);
       }
@@ -38,7 +38,7 @@ export function createWaveformRenderer(
     return new WebGL2WaveformRenderer();
   }
 
-  if (mode === "bars" || mode === "segmented-bars") {
+  if (mode === "bars") {
     return new BarsWaveformRenderer();
   }
 

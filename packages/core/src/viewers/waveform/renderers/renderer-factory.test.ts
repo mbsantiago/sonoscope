@@ -28,9 +28,6 @@ describe("createWaveformRenderer", () => {
     const r1 = createWaveformRenderer("bars");
     expect(r1).toBeInstanceOf(BarsWaveformRenderer);
 
-    const r2 = createWaveformRenderer("segmented-bars");
-    expect(r2).toBeInstanceOf(BarsWaveformRenderer);
-
     const r3 = createWaveformRenderer({
       type: "bars",
       barWidth: 6,
