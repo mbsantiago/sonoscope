@@ -125,8 +125,8 @@ export function resolveConfig(
   const clampValues = input.clampValues ?? DEFAULT_CONFIG.clampValues;
 
   const tileMaxCells = input.tileMaxCells ?? DEFAULT_CONFIG.tileMaxCells;
-  if (tileMaxCells <= 0)
-    throw new Error("tileMaxCells must be greater than zero");
+  if (!Number.isFinite(tileMaxCells) || tileMaxCells <= 0)
+    throw new Error("tileMaxCells must be a finite number greater than zero");
 
   const binCount = Math.max(1, Math.floor(fftSize / 2));
   const framesPerTile = Math.max(1, Math.floor(tileMaxCells / binCount));
