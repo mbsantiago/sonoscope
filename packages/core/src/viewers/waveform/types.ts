@@ -4,6 +4,8 @@ import type { BarsWaveformRendererOptions } from "./renderers/bars";
 export type PeakBlock = {
   min: Float32Array;
   max: Float32Array;
+  x?: Float32Array | undefined;
+  isLineMode?: boolean | undefined;
 };
 
 export type BarPeakBlock = PeakBlock & {

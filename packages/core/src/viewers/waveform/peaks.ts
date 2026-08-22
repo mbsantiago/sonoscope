@@ -49,83 +49,139 @@ export class WaveformPeakPyramid {
     targetWidth: number,
   ): Promise<PeakBlock> {
     const sampleRate = this.source.sampleRate;
-    const outLength = Math.max(1, Math.round(targetWidth));
-    const min = new Float32Array(outLength);
-    const max = new Float32Array(outLength);
+    const totalDuration = this.source.duration;
+    const timeSpan = endTime - startTime;
 
-    const padSamples = 2;
-    const startSampleIndex = Math.max(
-      0,
-      Math.floor(startTime * sampleRate) - padSamples,
+    if (timeSpan <= 0 || targetWidth <= 0) {
+      return {
+        min: new Float32Array(0),
+        max: new Float32Array(0),
+        x: new Float32Array(0),
+        isLineMode: false,
+      };
+    }
+
+    const outWidth = Math.max(1, Math.round(targetWidth));
+    const samplesPerPixel = (timeSpan * sampleRate) / outWidth;
+    const isLineMode = samplesPerPixel <= 3;
+
+    if (isLineMode) {
+      // Sub-sample / high zoom mode: extract sample points with continuous exact coordinates
+      const sStart = Math.max(0, Math.floor(startTime * sampleRate) - 1);
+      const sEnd = Math.min(
+        Math.round(totalDuration * sampleRate),
+        Math.ceil(endTime * sampleRate) + 1,
+      );
+      const count = Math.max(0, sEnd - sStart + 1);
+
+      if (count === 0) {
+        return {
+          min: new Float32Array(0),
+          max: new Float32Array(0),
+          x: new Float32Array(0),
+          isLineMode: true,
+        };
+      }
+
+      const samples = await this.source.read({
+        channel: this.channel,
+        startTime: sStart / sampleRate,
+        endTime: sEnd / sampleRate,
+      });
+
+      const len = samples.length;
+      const min = new Float32Array(count);
+      const max = new Float32Array(count);
+      const x = new Float32Array(count);
+
+      for (let s = sStart; s <= sEnd; s++) {
+        const idx = s - sStart;
+        const sampleOffset = Math.max(0, Math.min(len - 1, idx));
+        const val = samples[sampleOffset] ?? 0;
+        min[idx] = val;
+        max[idx] = val;
+        const t = s / sampleRate;
+        x[idx] = ((t - startTime) / timeSpan) * targetWidth;
+      }
+
+      return { min, max, x, isLineMode: true };
+    }
+
+    // Envelope mode: contiguous exact partition anchored to absolute time grid [k * deltaT, (k + 1) * deltaT]
+    const deltaT = timeSpan / outWidth;
+    const kStart = Math.max(0, Math.floor((startTime - deltaT) / deltaT));
+    const kEnd = Math.min(
+      Math.ceil(totalDuration / deltaT),
+      Math.ceil((endTime + deltaT) / deltaT),
     );
+    const count = Math.max(0, kEnd - kStart + 1);
+
+    if (count === 0) {
+      return {
+        min: new Float32Array(0),
+        max: new Float32Array(0),
+        x: new Float32Array(0),
+        isLineMode: false,
+      };
+    }
+
+    const readStart = Math.max(0, kStart * deltaT);
+    const readEnd = Math.min(totalDuration, (kEnd + 1) * deltaT);
+
+    const startSampleIndex = Math.max(0, Math.floor(readStart * sampleRate));
     const endSampleIndex = Math.min(
-      Math.round(this.source.duration * sampleRate),
-      Math.ceil(endTime * sampleRate) + padSamples,
+      Math.round(totalDuration * sampleRate),
+      Math.ceil(readEnd * sampleRate),
     );
-
-    const readStart = startSampleIndex / sampleRate;
-    const readEnd = endSampleIndex / sampleRate;
 
     const samples = await this.source.read({
       channel: this.channel,
-      startTime: readStart,
-      endTime: readEnd,
+      startTime: startSampleIndex / sampleRate,
+      endTime: endSampleIndex / sampleRate,
     });
 
     const len = samples.length;
+    const min = new Float32Array(count);
+    const max = new Float32Array(count);
+    const x = new Float32Array(count);
+
     if (len === 0) {
-      return { min, max };
+      return { min, max, x, isLineMode: false };
     }
 
-    const timeSpan = endTime - startTime;
-    const samplesPerPixel = (timeSpan * sampleRate) / outLength;
-
-    if (samplesPerPixel <= 3) {
-      // Sub-sample / high zoom mode: use continuous linear interpolation between samples
-      for (let i = 0; i < outLength; i++) {
-        const t = startTime + (i / Math.max(1, outLength - 1)) * timeSpan;
-        const targetSample = t * sampleRate;
-        const s = targetSample - startSampleIndex;
-        const s0 = Math.max(0, Math.min(len - 1, Math.floor(s)));
-        const s1 = Math.max(0, Math.min(len - 1, s0 + 1));
-        const frac = Math.max(0, Math.min(1, s - s0));
-        const v0 = samples[s0] ?? 0;
-        const v1 = samples[s1] ?? 0;
-        const interpolated = v0 + (v1 - v0) * frac;
-        min[i] = interpolated;
-        max[i] = interpolated;
-      }
-      return { min, max };
-    }
-
-    // Envelope mode: contiguous exact partition anchored to absolute sample indices
-    let prevOffset = Math.max(
-      0,
-      Math.min(len - 1, Math.round(startTime * sampleRate - startSampleIndex)),
-    );
-
-    for (let i = 0; i < outLength; i++) {
-      const t1 = startTime + ((i + 1) / outLength) * timeSpan;
-      const nextOffset = Math.max(
-        prevOffset + 1,
-        Math.min(len, Math.round(t1 * sampleRate - startSampleIndex)),
+    for (let k = kStart; k <= kEnd; k++) {
+      const idx = k - kStart;
+      const s0 = Math.max(
+        0,
+        Math.min(
+          len - 1,
+          Math.round(k * deltaT * sampleRate - startSampleIndex),
+        ),
+      );
+      const s1 = Math.max(
+        s0 + 1,
+        Math.min(
+          len,
+          Math.round((k + 1) * deltaT * sampleRate - startSampleIndex),
+        ),
       );
 
-      let minVal = samples[prevOffset] ?? 0;
-      let maxVal = samples[prevOffset] ?? 0;
+      let minVal = samples[s0] ?? 0;
+      let maxVal = samples[s0] ?? 0;
 
-      for (let j = prevOffset; j < nextOffset; j++) {
+      for (let j = s0; j < s1; j++) {
         const val = samples[j]!;
         if (val < minVal) minVal = val;
         if (val > maxVal) maxVal = val;
       }
 
-      min[i] = minVal;
-      max[i] = maxVal;
-      prevOffset = nextOffset;
+      min[idx] = minVal;
+      max[idx] = maxVal;
+      const tCenter = (k + 0.5) * deltaT;
+      x[idx] = ((tCenter - startTime) / timeSpan) * targetWidth;
     }
 
-    return { min, max };
+    return { min, max, x, isLineMode: false };
   }
 
   async getBarPeaks(

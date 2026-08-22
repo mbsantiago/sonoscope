@@ -39,18 +39,13 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     ctx.stroke();
 
     if (len > 0) {
-      // Determine if waveform is in sub-sample line mode vs envelope mode
-      let maxSpread = 0;
-      for (let i = 0; i < len; i++) {
-        const spread = peaks.max[i]! - peaks.min[i]!;
-        if (spread > maxSpread) maxSpread = spread;
-      }
-      const isLineMode = maxSpread < 0.04;
+      const hasX = Boolean(peaks.x && peaks.x.length === len);
+      const isLineMode = Boolean(peaks.isLineMode);
 
       if (isLineMode) {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
-          const x = (i / Math.max(1, len - 1)) * width;
+          const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
           const sample = (peaks.max[i]! + peaks.min[i]!) / 2;
           const y = centerY - sample * halfH;
           if (i === 0) ctx.moveTo(x, y);
@@ -62,14 +57,14 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       } else {
         ctx.beginPath();
         for (let i = 0; i < len; i++) {
-          const x = (i / Math.max(1, len - 1)) * width;
+          const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
           const maxVal = peaks.max[i]!;
           const y = centerY - maxVal * halfH;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         for (let i = len - 1; i >= 0; i--) {
-          const x = (i / Math.max(1, len - 1)) * width;
+          const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
           const minVal = peaks.min[i]!;
           const y = centerY - minVal * halfH;
           ctx.lineTo(x, y);
