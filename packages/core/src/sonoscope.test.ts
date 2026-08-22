@@ -701,6 +701,46 @@ describe("Sonoscope", () => {
       expect(vp.getViewport().startTime).toBe(5);
       expect(vp.getViewport().endTime).toBe(11);
     });
+
+    it("attaches navigation directly to standalone ViewportController", () => {
+      const vp = Sonoscope.createViewport({
+        startTime: 0,
+        endTime: 10,
+        totalDuration: 50,
+      });
+
+      const canvas = createMockCanvas();
+      const detach = vp.attachNavigation(canvas);
+      expect(typeof detach).toBe("function");
+
+      const hasPointerEvents =
+        typeof window !== "undefined" && "PointerEvent" in window;
+      const downEvent = hasPointerEvents ? "pointerdown" : "mousedown";
+      const moveEvent = hasPointerEvents ? "pointermove" : "mousemove";
+
+      const down = canvas.listeners.get(downEvent)![0]!;
+      const move = canvas.listeners.get(moveEvent)![0]!;
+
+      down({
+        button: 0,
+        clientX: 50,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      move({
+        button: 0,
+        clientX: 25,
+        clientY: 50,
+        pointerId: 1,
+      } as unknown as PointerEvent);
+
+      expect(vp.getViewport().startTime).toBeCloseTo(2.5);
+      expect(vp.getViewport().endTime).toBeCloseTo(12.5);
+
+      detach();
+      vp.destroy();
+    });
   });
 
   describe("Lifecycle and Cleanup", () => {

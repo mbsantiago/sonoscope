@@ -6,6 +6,11 @@ import type {
   ViewportState,
 } from "./types";
 import { TypedEventEmitter } from "./events";
+import {
+  attachNavigation,
+  type NavigableViewer,
+  type NavigationOptions,
+} from "./navigation";
 import { clampViewportTimes } from "./viewport-math";
 
 function clamp(value: number, min: number, max: number): number {
@@ -29,6 +34,7 @@ export class ViewportController implements IViewportController {
   private readonly initialMaxFrequency: number;
 
   private readonly events = new TypedEventEmitter<ViewportEvents>();
+  private navigationCleanups: Array<() => void> = [];
 
   constructor(options: ViewportControllerOptions = {}) {
     this.totalDuration =
@@ -354,7 +360,73 @@ export class ViewportController implements IViewportController {
     return this.events.on(event, handler);
   }
 
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void {
+    if (
+      (typeof HTMLElement !== "undefined" &&
+        container instanceof HTMLElement) ||
+      (typeof container === "object" &&
+        container !== null &&
+        "addEventListener" in container)
+    ) {
+      const adapter: NavigableViewer = {
+        getViewport: () => {
+          const vp = this.getViewport();
+          return {
+            startTime: vp.startTime,
+            endTime: vp.endTime,
+            minFrequency: vp.minFrequency,
+            maxFrequency: vp.maxFrequency,
+          };
+        },
+        setViewport: (vp) => {
+          this.setViewport(vp, "navigation");
+        },
+        requestRender: () => {},
+        getCanvas: () => container,
+        getConfig: () => ({
+          canvas: container,
+          minViewportDuration: this.minDuration,
+          maxViewportDuration: this.maxDuration,
+          minFrequency: this.baseMinFrequency,
+          maxFrequency: this.baseMaxFrequency,
+        }),
+        getTimeBounds: () => ({
+          startTime: 0,
+          endTime: Number.isFinite(this.totalDuration)
+            ? this.totalDuration
+            : 1e9,
+          minDurationSeconds: this.minDuration,
+          maxDurationSeconds: this.maxDuration,
+        }),
+        getFrequencyBounds: () => ({
+          minFrequency: this.baseMinFrequency,
+          maxFrequency: this.baseMaxFrequency,
+          minSpanHz: 20,
+        }),
+      };
+
+      const cleanup = attachNavigation(adapter, container, options);
+      this.navigationCleanups.push(cleanup);
+      return () => {
+        const idx = this.navigationCleanups.indexOf(cleanup);
+        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+        cleanup();
+      };
+    }
+
+    throw new Error(
+      "Invalid navigation target: expected DOM container element",
+    );
+  }
+
   destroy(): void {
+    for (const cleanup of this.navigationCleanups) {
+      cleanup();
+    }
+    this.navigationCleanups = [];
     this.events.emit("destroy", undefined);
     this.events.clear();
   }

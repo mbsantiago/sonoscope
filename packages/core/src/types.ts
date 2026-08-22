@@ -169,6 +169,10 @@ export interface IViewportController {
     event: K,
     handler: (e: ViewportEvents[K]) => void,
   ): () => void;
+  attachNavigation(
+    container: HTMLElement,
+    options?: NavigationOptions,
+  ): () => void;
   destroy(): void;
 }
 

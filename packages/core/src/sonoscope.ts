@@ -1,4 +1,4 @@
-import type { NavigableViewer, NavigationOptions } from "./navigation";
+import type { NavigationOptions } from "./navigation";
 import type {
   AudioSource,
   FollowPlaybackMode,
@@ -16,7 +16,6 @@ import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformConfig } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
-import { attachNavigation } from "./navigation";
 import { ArrayAudioSource } from "./sources/array-source";
 import {
   createAudioSourceFromBlob,
@@ -611,61 +610,13 @@ export class Sonoscope implements ISonoscope {
     container: HTMLElement,
     options?: NavigationOptions,
   ): () => void {
-    if (
-      (typeof HTMLElement !== "undefined" &&
-        container instanceof HTMLElement) ||
-      (typeof container === "object" &&
-        container !== null &&
-        "addEventListener" in container)
-    ) {
-      const scopeAdapter: NavigableViewer = {
-        getViewport: () => {
-          const vp = this.getViewport();
-          return {
-            startTime: vp.startTime,
-            endTime: vp.endTime,
-            minFrequency: vp.minFrequency,
-            maxFrequency: vp.maxFrequency,
-          };
-        },
-        setViewport: (vp) => {
-          this.setViewport(vp, "navigation");
-        },
-        requestRender: () => {},
-        getCanvas: () => container,
-        getScope: () => this,
-        getConfig: () => ({
-          canvas: container,
-          minViewportDuration: this.minDuration,
-          maxViewportDuration: this.maxDuration,
-          minFrequency: 0,
-          maxFrequency: this.getNyquist(),
-        }),
-        getTimeBounds: () => ({
-          startTime: 0,
-          endTime: this.totalDuration,
-          minDurationSeconds: this.minDuration,
-          maxDurationSeconds: this.maxDuration,
-        }),
-        getFrequencyBounds: () => ({
-          minFrequency: 0,
-          maxFrequency: this.getNyquist(),
-          minSpanHz: 20,
-        }),
-      };
-
-      const cleanup = attachNavigation(scopeAdapter, container, options);
-      this.navigationCleanups.push(cleanup);
-      return () => {
-        const idx = this.navigationCleanups.indexOf(cleanup);
-        if (idx !== -1) this.navigationCleanups.splice(idx, 1);
-        cleanup();
-      };
-    }
-
-    throw new Error(
-      "Invalid navigation target: expected DOM container element",
-    );
+    const cleanup = this._viewport.attachNavigation(container, options);
+    this.navigationCleanups.push(cleanup);
+    return () => {
+      const idx = this.navigationCleanups.indexOf(cleanup);
+      if (idx !== -1) this.navigationCleanups.splice(idx, 1);
+      cleanup();
+    };
   }
 
   attachAutoResize(
