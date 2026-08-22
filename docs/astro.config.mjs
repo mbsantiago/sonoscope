@@ -11,7 +11,7 @@ const [coreTypeDoc, coreSidebarGroup] = createStarlightTypeDocPlugin();
 const [reactTypeDoc, reactSidebarGroup] = createStarlightTypeDocPlugin();
 
 /**
- * Remark plugin that auto-injects SandpackPlayground and loadFile
+ * Remark plugin that auto-injects SandpackPlayground, SonoscopeGlobal, and loadFile
  * strictly for MDX files inside the /demos/ directory.
  */
 function remarkDemoAutoImport() {
@@ -21,47 +21,69 @@ function remarkDemoAutoImport() {
       return;
     }
 
-    tree.children.unshift({
-      type: 'mdxjsEsm',
-      value: `import SandpackPlayground from '/src/components/SandpackPlayground.astro';\nimport { loadFile } from '/src/utils/loadFile.ts';`,
-      data: {
-        estree: {
-          type: 'Program',
-          sourceType: 'module',
-          body: [
-            {
-              type: 'ImportDeclaration',
-              specifiers: [
-                {
-                  type: 'ImportDefaultSpecifier',
-                  local: { type: 'Identifier', name: 'SandpackPlayground' },
+    tree.children.unshift(
+      {
+        type: 'mdxjsEsm',
+        value: `import SandpackPlayground from '/src/components/SandpackPlayground.astro';\nimport SonoscopeGlobal from '/src/components/SonoscopeGlobal.astro';\nimport { loadFile } from '/src/utils/loadFile.ts';`,
+        data: {
+          estree: {
+            type: 'Program',
+            sourceType: 'module',
+            body: [
+              {
+                type: 'ImportDeclaration',
+                specifiers: [
+                  {
+                    type: 'ImportDefaultSpecifier',
+                    local: { type: 'Identifier', name: 'SandpackPlayground' },
+                  },
+                ],
+                source: {
+                  type: 'Literal',
+                  value: '/src/components/SandpackPlayground.astro',
+                  raw: "'/src/components/SandpackPlayground.astro'",
                 },
-              ],
-              source: {
-                type: 'Literal',
-                value: '/src/components/SandpackPlayground.astro',
-                raw: "'/src/components/SandpackPlayground.astro'",
               },
-            },
-            {
-              type: 'ImportDeclaration',
-              specifiers: [
-                {
-                  type: 'ImportSpecifier',
-                  imported: { type: 'Identifier', name: 'loadFile' },
-                  local: { type: 'Identifier', name: 'loadFile' },
+              {
+                type: 'ImportDeclaration',
+                specifiers: [
+                  {
+                    type: 'ImportDefaultSpecifier',
+                    local: { type: 'Identifier', name: 'SonoscopeGlobal' },
+                  },
+                ],
+                source: {
+                  type: 'Literal',
+                  value: '/src/components/SonoscopeGlobal.astro',
+                  raw: "'/src/components/SonoscopeGlobal.astro'",
                 },
-              ],
-              source: {
-                type: 'Literal',
-                value: '/src/utils/loadFile.ts',
-                raw: "'/src/utils/loadFile.ts'",
               },
-            },
-          ],
+              {
+                type: 'ImportDeclaration',
+                specifiers: [
+                  {
+                    type: 'ImportSpecifier',
+                    imported: { type: 'Identifier', name: 'loadFile' },
+                    local: { type: 'Identifier', name: 'loadFile' },
+                  },
+                ],
+                source: {
+                  type: 'Literal',
+                  value: '/src/utils/loadFile.ts',
+                  raw: "'/src/utils/loadFile.ts'",
+                },
+              },
+            ],
+          },
         },
       },
-    });
+      {
+        type: 'mdxJsxFlowElement',
+        name: 'SonoscopeGlobal',
+        attributes: [],
+        children: [],
+      }
+    );
   };
 }
 
@@ -69,6 +91,9 @@ function remarkDemoAutoImport() {
 export default defineConfig({
 	site: 'https://mbsantiago.github.io',
 	base: '/sonoscope',
+	devToolbar: {
+		enabled: false,
+	},
 	integrations: [
 		starlight({
 			title: 'Sonoscope',

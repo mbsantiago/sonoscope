@@ -1,0 +1,88 @@
+---
+import { getTypeProperties } from "../utils/typeTable";
+
+export interface Props {
+  file: string;
+  name: string;
+}
+
+const { file, name } = Astro.props;
+const properties = getTypeProperties(file, name);
+---
+
+<div class="type-table-wrapper not-content">
+  <table class="type-table">
+    <thead>
+      <tr>
+        <th style="width: 22%;">Option</th>
+        <th style="width: 26%;">Type</th>
+        <th style="width: 18%;">Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {properties.map((prop) => (
+        <tr>
+          <td>
+            <code>{prop.name}</code>
+            {prop.optional && <span class="optional-badge">opt</span>}
+          </td>
+          <td>
+            <code class="type-code">{prop.type}</code>
+          </td>
+          <td>
+            <code>{prop.default}</code>
+          </td>
+          <td>{prop.description}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .type-table-wrapper {
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    border: 1px solid var(--sl-color-gray-5, rgba(128, 128, 128, 0.2));
+    border-radius: 8px;
+  }
+
+  .type-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .type-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: var(--sl-color-gray-6, rgba(128, 128, 128, 0.08));
+    border-bottom: 1px solid var(--sl-color-gray-5, rgba(128, 128, 128, 0.2));
+    font-weight: 600;
+  }
+
+  .type-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--sl-color-gray-6, rgba(128, 128, 128, 0.1));
+    vertical-align: top;
+  }
+
+  .type-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .optional-badge {
+    font-size: 0.6875rem;
+    padding: 0.1rem 0.35rem;
+    margin-left: 0.35rem;
+    border-radius: 4px;
+    background: var(--sl-color-gray-5, rgba(128, 128, 128, 0.2));
+    color: var(--sl-color-gray-2, #888);
+  }
+
+  .type-code {
+    word-break: break-word;
+  }
+</style>

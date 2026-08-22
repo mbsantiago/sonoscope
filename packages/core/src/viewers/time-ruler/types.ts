@@ -34,21 +34,105 @@ export interface TimeRulerProgram {
 }
 
 export type TimeRulerConfig = {
+  /**
+   * Whether to automatically re-render when viewport or configuration changes.
+   * @default true
+   */
   autoRender?: boolean | undefined;
+
+  /**
+   * Viewport start time in seconds.
+   * @default 0
+   */
   startTime?: number | undefined;
+
+  /**
+   * Viewport end time in seconds.
+   * @default audio duration
+   */
   endTime?: number | undefined;
+
+  /**
+   * Minimum viewport duration in seconds to prevent zooming in too far.
+   * @default 0.001
+   */
   minViewportDuration?: number | undefined;
+
+  /**
+   * Maximum viewport duration in seconds to prevent zooming out past bounds.
+   * @default audio duration
+   */
   maxViewportDuration?: number | undefined;
+
+  /**
+   * Primary color for axis lines, tick marks, and text labels.
+   * @default "#a0a0a0"
+   */
   color?: string | undefined;
+
+  /**
+   * Canvas background fill color.
+   * @default "transparent"
+   */
   backgroundColor?: string | undefined;
+
+  /**
+   * Specific color override for tick lines.
+   * @default color
+   */
   tickColor?: string | undefined;
+
+  /**
+   * Specific color override for text labels.
+   * @default color
+   */
   labelColor?: string | undefined;
+
+  /**
+   * CSS font specification for time labels.
+   * @default "10px monospace"
+   */
   font?: string | undefined;
+
+  /**
+   * Tick mark position relative to the ruler baseline.
+   * @default "top"
+   */
   tickPosition?: "top" | "bottom" | "both" | "inside" | undefined;
+
+  /**
+   * Numeric timestamp formatting mode.
+   * - "auto": Adapts precision based on zoom level.
+   * - "seconds": Displays raw seconds (e.g., `12.5s`).
+   * - "timecode": Broadcast notation (`mm:ss.ms`).
+   * - "hhmmss": Clock time (`hh:mm:ss`).
+   * - Custom function `(sec: number) => string`.
+   * @default "auto"
+   */
   timeFormat?: TimeFormatMode | undefined;
+
+  /**
+   * Minimum pixel spacing between adjacent major tick labels.
+   * @default 75
+   */
   minMajorPixelSpacing?: number | undefined;
+
+  /**
+   * Visual renderer program: standard tick lines or segmented boxes.
+   * @default "ticks"
+   */
   program?: TimeRulerProgramName | TimeRulerProgram | undefined;
+
+  /**
+   * Whether to automatically resize canvas pixel resolution when container dimensions change.
+   * @default true
+   */
   autoResize?: boolean | undefined;
+
+  /**
+   * Device pixel ratio scaling factor for HiDPI/Retina displays.
+   * @default window.devicePixelRatio
+   */
   devicePixelRatio?: boolean | number | undefined;
 };
 

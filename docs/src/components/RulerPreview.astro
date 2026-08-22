@@ -1,0 +1,84 @@
+---
+import type { TimeRulerConfig, FrequencyRulerConfig } from "@sonoscope/core";
+
+export interface Props {
+  orientation?: "time" | "frequency";
+  config?: TimeRulerConfig | FrequencyRulerConfig;
+  height?: number | string;
+  width?: number | string;
+  class?: string;
+}
+
+const {
+  orientation = "time",
+  config = {},
+  height = 36,
+  width = "100%",
+  class: className,
+} = Astro.props;
+
+const configJson = JSON.stringify(config);
+---
+
+<ruler-preview
+  data-orientation={orientation}
+  data-config={configJson}
+  class={className}
+  style={`display: block; width: ${typeof width === "number" ? `${width}px` : width}; height: ${typeof height === "number" ? `${height}px` : height}; margin: 8px 0;`}
+>
+  <canvas style="width: 100%; height: 100%; display: block; border-radius: 4px;"></canvas>
+</ruler-preview>
+
+<script>
+  import { Sonoscope } from "@sonoscope/core";
+  import { DEFAULT_AUDIO_URL } from "../constants";
+
+  let sharedScopePromise: Promise<Sonoscope> | null = null;
+
+  function getSharedScope(): Promise<Sonoscope> {
+    if (!sharedScopePromise) {
+      const audio = new Audio(DEFAULT_AUDIO_URL);
+      sharedScopePromise = Sonoscope.fromUrl(DEFAULT_AUDIO_URL, { audio });
+    }
+    return sharedScopePromise;
+  }
+
+  class RulerPreviewElement extends HTMLElement {
+    private viewer: any = null;
+
+    async connectedCallback() {
+      const canvas = this.querySelector("canvas");
+      if (!canvas) return;
+
+      const orientation = this.dataset.orientation ?? "time";
+      const config = this.dataset.config ? JSON.parse(this.dataset.config) : {};
+
+      const scope = await getSharedScope();
+      if (!this.isConnected) return;
+
+      if (orientation === "time") {
+        this.viewer = scope.createTimeRuler(canvas, {
+          autoResize: true,
+          ...config,
+        });
+      } else {
+        this.viewer = scope.createFrequencyRuler(canvas, {
+          autoResize: true,
+          ...config,
+        });
+      }
+      scope.attachNavigation(canvas, {
+        axis: orientation === "time" ? "time" : "frequency",
+      });
+    }
+
+    disconnectedCallback() {
+      this.viewer?.destroy();
+      this.viewer = null;
+    }
+  }
+
+  if (!customElements.get("ruler-preview")) {
+    customElements.define("ruler-preview", RulerPreviewElement);
+  }
+</script>
