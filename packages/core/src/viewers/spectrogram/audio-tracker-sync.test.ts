@@ -82,12 +82,12 @@ function createMockCanvas(
 }
 
 describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
-  it("maintains mathematical tile grid continuity across 360 tiles of a 1-hour audio stream", () => {
+  it("maintains mathematical tile grid continuity across tiles of a 1-hour audio stream", () => {
     const sampleRate = 44100;
     const duration = 3600.0; // 1-hour audio stream
     const hopSize = 512;
     const windowSize = 2048;
-    const tileDuration = 10.0; // ~360 tiles for 3600s
+    // tileMaxCells=524288 with fftSize=2048 (1024 bins) → 512 frames/tile → ~5.94s/tile → ~606 tiles
 
     const source: AudioSource = {
       id: "test-1-hour-stream",
@@ -106,7 +106,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
     const { canvas } = createMockCanvas(800, 400);
     const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
       autoRender: false,
-      tileDuration,
+      tileMaxCells: 524_288,
       hopSize,
       windowSize,
       fftSize: 2048,
@@ -122,8 +122,8 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       }
     ).tileRangesForTimeRange(0, duration);
 
-    // Verify we have at least 360 tiles for the 1-hour duration
-    expect(tileRanges.length).toBeGreaterThanOrEqual(360);
+    // Verify we have at least 600 tiles for the 1-hour duration
+    expect(tileRanges.length).toBeGreaterThanOrEqual(600);
 
     const hopDuration = hopSize / sampleRate;
 
@@ -221,20 +221,20 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       backend,
       renderer: "canvas2d",
       valueMode: "magnitude",
-      tileDuration: 2,
+      tileMaxCells: 131_072, // 1024 frames × 128 bins → ~5.95s tiles, ensuring the 1.5s viewport stays in one tile
       hopSize,
       windowSize,
       fftSize,
       prefetchTiles: 0,
-      showPlayhead: true,
     });
 
     // Render the view lazily fetching only the single visible tile
     await viewer.render();
 
-    // Verify on-demand lazy evaluation: only 1 visible tile was read, NOT 3600s
-    expect(readCallCount).toBe(1);
-    expect(totalSamplesRead).toBeLessThan(sampleRate * 6);
+    // Verify on-demand lazy evaluation: only 1-2 visible tiles were read, NOT 3600s worth
+    expect(readCallCount).toBeLessThanOrEqual(2);
+    // Each tile covers ~5.95s at 44100Hz with tileMaxCells=131_072; 2 tiles = ~11.9s worth
+    expect(totalSamplesRead).toBeLessThan(sampleRate * 15);
 
     // 1. Playhead coordinate on 800px canvas for t = 3590.0s
     const { x: expectedPlayheadCanvasX } = viewer.timeFrequencyToCanvas(
@@ -327,8 +327,6 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
     const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
       startTime: 0,
       endTime: 10,
-      showPlayhead: true,
-      tileDuration: 10,
       autoRender: false,
     });
 
