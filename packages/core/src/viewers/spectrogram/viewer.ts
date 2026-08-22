@@ -529,6 +529,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.pendingTiles.clear();
     this.attachSourceRangeSync();
     this.renderGeneration += 1;
+    this.renderer.invalidate?.();
+    const visibleTiles = this.visibleTileRanges();
+    this.paintPartial([], this.missingPlaceholders(visibleTiles, new Map()));
     this.requestRender();
   }
 
