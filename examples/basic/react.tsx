@@ -17,6 +17,7 @@ const initialSettings: SpectrogramSettings = {
   colorMap: "magma",
   minDb: -86,
   maxDb: -8,
+  valueGamma: 1,
   windowSize: 1024,
   hopSize: 128,
   window: "hann",

@@ -143,6 +143,16 @@ export function ControlPanel(props: ControlPanelProps): React.ReactElement {
       />
 
       <SliderControl
+        label="Gamma"
+        value={settings.valueGamma}
+        min={0.1}
+        max={3}
+        step={0.05}
+        formatValue={(val) => val.toFixed(2)}
+        onChange={(valueGamma) => onUpdateSettings({ valueGamma })}
+      />
+
+      <SliderControl
         label="Window size"
         value={settings.windowSize}
         min={256}
