@@ -4,17 +4,24 @@ import { getWasmStftBinary } from "./wasm-stft-binary";
 export interface WasmStftExports {
   memory: WebAssembly.Memory;
   stft_alloc(size: number): number;
-  stft_dealloc(ptr: number, size: number): void;
-  stft_process(
-    samples_ptr: number,
-    samples_len: number,
+  stft_dealloc(ptr: number): void;
+  stft_context_create(
     window_type_u32: number,
     window_size: number,
-    hop_size: number,
     fft_size: number,
+  ): number;
+  stft_context_destroy(context: number): void;
+  stft_process(
+    context: number,
+    samples_ptr: number,
+    samples_len: number,
+    hop_size: number,
     out_mag_ptr: number,
+    out_mag_len: number,
     out_power_ptr: number,
+    out_power_len: number,
     out_db_ptr: number,
+    out_db_len: number,
   ): number;
 }
 
@@ -42,12 +49,61 @@ function windowNameToU32(window: WindowName): number {
     case "rectangular":
       return 3;
     default:
-      return 0;
+      throw new Error(`Unsupported STFT window: ${String(window)}`);
+  }
+}
+
+function validateStftConfig(stft: StftConfig): void {
+  if (!Number.isSafeInteger(stft.windowSize) || stft.windowSize <= 0)
+    throw new Error("windowSize must be a positive safe integer");
+  if (
+    !Number.isSafeInteger(stft.fftSize) ||
+    stft.fftSize <= 0 ||
+    2 ** Math.round(Math.log2(stft.fftSize)) !== stft.fftSize
+  )
+    throw new Error("fftSize must be a power of two");
+  if (!Number.isSafeInteger(stft.hopSize) || stft.hopSize <= 0)
+    throw new Error("hopSize must be a positive safe integer");
+  if (stft.windowSize > stft.fftSize)
+    throw new Error("fftSize must be greater than or equal to windowSize");
+}
+
+function processErrorMessage(code: number): string {
+  switch (code) {
+    case -1:
+      return "STFT received a null required pointer";
+    case -2:
+      return "STFT received an invalid argument";
+    case -3:
+      return "STFT output buffer is too small";
+    case -4:
+      return "STFT output size overflowed";
+    case -5:
+      return "STFT frame count exceeds the supported range";
+    default:
+      return `STFT processing failed with status ${code}`;
   }
 }
 
 class DefaultWasmStftEngine implements WasmStftEngine {
+  private context: { key: string; pointer: number } | undefined;
+
   constructor(readonly exports: WasmStftExports) {}
+
+  private getContext(stft: StftConfig): number {
+    const key = `${stft.window}:${stft.windowSize}:${stft.fftSize}`;
+    if (this.context?.key === key) return this.context.pointer;
+
+    if (this.context) this.exports.stft_context_destroy(this.context.pointer);
+    const pointer = this.exports.stft_context_create(
+      windowNameToU32(stft.window),
+      stft.windowSize,
+      stft.fftSize,
+    );
+    if (!pointer) throw new Error("Failed to create WASM STFT context");
+    this.context = { key, pointer };
+    return pointer;
+  }
 
   computeMatrix(
     samples: Float32Array,
@@ -59,6 +115,8 @@ class DefaultWasmStftEngine implements WasmStftEngine {
     },
   ): SpectrogramMatrix {
     const { stft, sampleRate, channel, timeStart } = options;
+    validateStftConfig(stft);
+    windowNameToU32(stft.window);
     const frameCount = Math.max(
       0,
       Math.floor((samples.length - stft.windowSize) / stft.hopSize) + 1,
@@ -98,25 +156,39 @@ class DefaultWasmStftEngine implements WasmStftEngine {
     const sampleBytes = samples.length * 4;
     const totalBinBytes = totalBins * 4;
 
+    if (
+      !Number.isSafeInteger(sampleBytes) ||
+      !Number.isSafeInteger(totalBinBytes)
+    )
+      throw new Error(
+        "STFT buffer size exceeds JavaScript's safe integer range",
+      );
+
+    const context = this.getContext(stft);
     const samplesPtr = stft_alloc(sampleBytes);
     const outMagPtr = stft_alloc(totalBinBytes);
     const outPowerPtr = stft_alloc(totalBinBytes);
     const outDbPtr = stft_alloc(totalBinBytes);
 
     try {
+      if (!samplesPtr || !outMagPtr || !outPowerPtr || !outDbPtr)
+        throw new Error("Failed to allocate WASM STFT buffers");
       new Float32Array(memory.buffer, samplesPtr, samples.length).set(samples);
 
       const computedFrames = stft_process(
+        context,
         samplesPtr,
         samples.length,
-        windowNameToU32(stft.window),
-        stft.windowSize,
         stft.hopSize,
-        stft.fftSize,
         outMagPtr,
+        totalBins,
         outPowerPtr,
+        totalBins,
         outDbPtr,
+        totalBins,
       );
+      if (computedFrames < 0)
+        throw new Error(processErrorMessage(computedFrames));
 
       const magnitude = new Float32Array(
         memory.buffer,
@@ -149,10 +221,10 @@ class DefaultWasmStftEngine implements WasmStftEngine {
         db,
       };
     } finally {
-      stft_dealloc(samplesPtr, sampleBytes);
-      stft_dealloc(outMagPtr, totalBinBytes);
-      stft_dealloc(outPowerPtr, totalBinBytes);
-      stft_dealloc(outDbPtr, totalBinBytes);
+      stft_dealloc(samplesPtr);
+      stft_dealloc(outMagPtr);
+      stft_dealloc(outPowerPtr);
+      stft_dealloc(outDbPtr);
     }
   }
 }

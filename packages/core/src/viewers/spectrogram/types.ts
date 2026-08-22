@@ -283,6 +283,9 @@ export type SpectrogramConfig = {
 
   /**
    * FFT length in samples. Must be a power of two >= windowSize.
+   *
+   * Spectral magnitudes contain the first `fftSize / 2` bins, normalized by
+   * `fftSize`, without one-sided or window coherent-gain compensation.
    * @default 1024
    */
   fftSize?: number | undefined;
@@ -309,6 +312,7 @@ export type SpectrogramConfig = {
 
   /**
    * Intensity scale representation: "db" (decibels), "magnitude", or "power".
+   * dB values use `20 * log10(max(magnitude, 1e-12))`.
    * @default "db"
    */
   valueMode?: ValueMode | undefined;

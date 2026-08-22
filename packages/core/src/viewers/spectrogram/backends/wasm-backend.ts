@@ -12,6 +12,8 @@ function getWasmWorkerScript(): string {
   return `
 const WASM_BASE64 = "${WASM_STFT_BASE64}";
 let wasmEnginePromise = null;
+let stftContext = null;
+let stftContextKey = null;
 
 function base64ToBytes(base64) {
   const binaryString = atob(base64);
@@ -32,6 +34,37 @@ function getWasmEngine() {
 
 const windowMap = { hann: 0, hamming: 1, blackman: 2, rectangular: 3 };
 
+function validateStft(stft) {
+  if (!Number.isSafeInteger(stft.windowSize) || stft.windowSize <= 0) throw new Error("windowSize must be a positive safe integer");
+  if (!Number.isSafeInteger(stft.fftSize) || stft.fftSize <= 0 || 2 ** Math.round(Math.log2(stft.fftSize)) !== stft.fftSize) throw new Error("fftSize must be a power of two");
+  if (!Number.isSafeInteger(stft.hopSize) || stft.hopSize <= 0) throw new Error("hopSize must be a positive safe integer");
+  if (stft.windowSize > stft.fftSize) throw new Error("fftSize must be greater than or equal to windowSize");
+  if (windowMap[stft.window] === undefined) throw new Error("Unsupported STFT window: " + stft.window);
+}
+
+function getStftContext(exports, stft) {
+  const windowType = windowMap[stft.window];
+  if (windowType === undefined) throw new Error("Unsupported STFT window: " + stft.window);
+  const key = stft.window + ":" + stft.windowSize + ":" + stft.fftSize;
+  if (stftContextKey === key) return stftContext;
+  if (stftContext) exports.stft_context_destroy(stftContext);
+  stftContext = exports.stft_context_create(windowType, stft.windowSize, stft.fftSize);
+  if (!stftContext) throw new Error("Failed to create WASM STFT context");
+  stftContextKey = key;
+  return stftContext;
+}
+
+function processErrorMessage(code) {
+  const errors = {
+    "-1": "STFT received a null required pointer",
+    "-2": "STFT received an invalid argument",
+    "-3": "STFT output buffer is too small",
+    "-4": "STFT output size overflowed",
+    "-5": "STFT frame count exceeds the supported range",
+  };
+  return errors[code] || "STFT processing failed with status " + code;
+}
+
 self.onmessage = async (event) => {
   const start = performance.now();
   const req = event.data;
@@ -39,6 +72,7 @@ self.onmessage = async (event) => {
     const exports = await getWasmEngine();
     const { stft_alloc, stft_dealloc, stft_process, memory } = exports;
     const { channel, timeStart, sampleRate, stft, samples } = req;
+    validateStft(stft);
 
     const frameCount = Math.max(0, Math.floor((samples.length - stft.windowSize) / stft.hopSize) + 1);
     const binCount = Math.floor(stft.fftSize / 2);
@@ -76,29 +110,35 @@ self.onmessage = async (event) => {
       return;
     }
 
-    const windowTypeU32 = windowMap[stft.window] ?? 0;
     const sampleBytes = samples.length * 4;
     const totalBinBytes = totalBins * 4;
+    if (!Number.isSafeInteger(sampleBytes) || !Number.isSafeInteger(totalBinBytes)) {
+      throw new Error("STFT buffer size exceeds JavaScript's safe integer range");
+    }
 
+    const context = getStftContext(exports, stft);
     const samplesPtr = stft_alloc(sampleBytes);
     const outMagPtr = stft_alloc(totalBinBytes);
     const outPowerPtr = stft_alloc(totalBinBytes);
     const outDbPtr = stft_alloc(totalBinBytes);
 
     try {
+      if (!samplesPtr || !outMagPtr || !outPowerPtr || !outDbPtr) throw new Error("Failed to allocate WASM STFT buffers");
       new Float32Array(memory.buffer, samplesPtr, samples.length).set(samples);
 
       const computedFrames = stft_process(
+        context,
         samplesPtr,
         samples.length,
-        windowTypeU32,
-        stft.windowSize,
         stft.hopSize,
-        stft.fftSize,
         outMagPtr,
+        totalBins,
         outPowerPtr,
-        outDbPtr
+        totalBins,
+        outDbPtr,
+        totalBins
       );
+      if (computedFrames < 0) throw new Error(processErrorMessage(computedFrames));
 
       const magnitude = new Float32Array(memory.buffer, outMagPtr, computedFrames * binCount).slice();
       const power = new Float32Array(memory.buffer, outPowerPtr, computedFrames * binCount).slice();
@@ -125,10 +165,10 @@ self.onmessage = async (event) => {
         [times.buffer, frequencies.buffer, magnitude.buffer, power.buffer, db.buffer]
       );
     } finally {
-      stft_dealloc(samplesPtr, sampleBytes);
-      stft_dealloc(outMagPtr, totalBinBytes);
-      stft_dealloc(outPowerPtr, totalBinBytes);
-      stft_dealloc(outDbPtr, totalBinBytes);
+      stft_dealloc(samplesPtr);
+      stft_dealloc(outMagPtr);
+      stft_dealloc(outPowerPtr);
+      stft_dealloc(outDbPtr);
     }
   } catch (error) {
     self.postMessage({

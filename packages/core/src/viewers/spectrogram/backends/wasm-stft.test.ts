@@ -152,4 +152,66 @@ describe("WASM STFT compute engine", () => {
     expect(wasmMatrix.frameCount).toBe(0);
     expect(wasmMatrix.magnitude.length).toBe(0);
   });
+
+  it("rejects invalid STFT configurations instead of producing output", async () => {
+    const samples = new Float32Array(16);
+    const options = {
+      channel: 0,
+      timeStart: 0,
+      sampleRate: 1_000,
+    };
+
+    await expect(
+      computeWasmStftMatrix(samples, {
+        ...options,
+        stft: { windowSize: 4, fftSize: 6, hopSize: 2, window: "hann" },
+      }),
+    ).rejects.toThrow(/power of two/);
+    await expect(
+      computeWasmStftMatrix(samples, {
+        ...options,
+        stft: { windowSize: 8, fftSize: 4, hopSize: 2, window: "hann" },
+      }),
+    ).rejects.toThrow(/greater than or equal/);
+    await expect(
+      computeWasmStftMatrix(new Float32Array(0), {
+        ...options,
+        stft: {
+          windowSize: 4,
+          fftSize: 4,
+          hopSize: 2,
+          window: "invalid" as StftConfig["window"],
+        },
+      }),
+    ).rejects.toThrow(/Unsupported STFT window/);
+  });
+
+  it("rejects invalid native window types and undersized output buffers", async () => {
+    const { exports } = await getWasmStftEngine();
+    expect(exports.stft_context_create(4, 4, 4)).toBe(0);
+
+    const context = exports.stft_context_create(3, 4, 4);
+    const samplesPtr = exports.stft_alloc(8 * Float32Array.BYTES_PER_ELEMENT);
+    const magnitudePtr = exports.stft_alloc(6 * Float32Array.BYTES_PER_ELEMENT);
+    try {
+      expect(
+        exports.stft_process(
+          context,
+          samplesPtr,
+          8,
+          2,
+          magnitudePtr,
+          5,
+          0,
+          0,
+          0,
+          0,
+        ),
+      ).toBe(-3);
+    } finally {
+      exports.stft_context_destroy(context);
+      exports.stft_dealloc(samplesPtr);
+      exports.stft_dealloc(magnitudePtr);
+    }
+  });
 });
