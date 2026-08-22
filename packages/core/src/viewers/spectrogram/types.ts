@@ -352,7 +352,7 @@ export type SpectrogramConfig = {
   valueMode?: ValueMode | undefined;
 
   /**
-   * Lower intensity limit mapped to the start of the colormap (in dB when valueMode is "db").
+   * Lower intensity limit mapped to the start of the colormap (always specified in dB; converted internally for non-dB value modes).
    * @default -100
    */
   minDb?: number | undefined;
