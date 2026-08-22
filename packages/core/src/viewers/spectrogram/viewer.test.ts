@@ -698,7 +698,7 @@ describe("SpectrogramViewer", () => {
       canvas: canvas(),
       source: { ...source, channelCount: 2, duration: 2 },
       channel: 1,
-      tileDuration: 1,
+      tileMaxCells: 2048,
       maxCachedTiles: 8,
       prefetchTiles: 0,
       startTime: 0,
@@ -767,7 +767,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       startTime: 0,
       endTime: 1,
       minFrequency: 0,
@@ -803,7 +803,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 4 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       startTime: 0,
       endTime: 4,
       minFrequency: 0,
@@ -831,7 +831,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 2 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       prefetchTiles: 0,
       startTime: 0,
       endTime: 2,
@@ -871,7 +871,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 1 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       prefetchTiles: 0,
       startTime: 0,
       endTime: 1,
@@ -901,7 +901,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       maxCachedTiles: 6,
       prefetchTiles: 2,
       startTime: 3,
@@ -946,7 +946,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       maxCachedTiles: 6,
       prefetchTiles: 2,
       startTime: 3,
@@ -995,7 +995,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 10 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       maxCachedTiles: 2,
       prefetchTiles: 4,
       startTime: 0,
@@ -1032,7 +1032,7 @@ describe("SpectrogramViewer", () => {
     const viewer = createViewer({
       canvas: canvas(),
       source: { ...source, duration: 3 },
-      tileDuration: 1,
+      tileMaxCells: 2048,
       maxCachedTiles: 4,
       prefetchTiles: 0,
       startTime: 0,
@@ -1398,11 +1398,11 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getSource()).toBe(source);
   });
 
-  it("dynamically adjusts tile duration for ultra-high sample rate sources", async () => {
+  it("dynamically adjusts tile size for ultra-high sample rate sources based on tileMaxCells", async () => {
     const ultraHighRateSource: AudioSource = {
       id: "bat-ultrasonic-500k",
       sampleRate: 500_000,
-      duration: 5,
+      duration: 1,
       channelCount: 1,
       read: () => new Float32Array(500_000),
     };
@@ -1411,16 +1411,15 @@ describe("SpectrogramViewer", () => {
       canvas: canvas(),
       source: ultraHighRateSource,
       hopSize: 128,
-      tileDuration: 5,
+      tileMaxCells: 2 ** 17,
       startTime: 0,
       endTime: 5,
     });
 
     await viewer.render();
 
-    // 5s of 500kHz at hop 128 is ~19531 frames; with max 2048 frames/tile, it should be divided into ~10 tiles
     const stats = viewer.getCacheStats();
-    expect(stats.tiles).toBeGreaterThanOrEqual(9);
+    expect(stats.tiles).toBeGreaterThanOrEqual(16);
   });
 
   describe("Sonoscope integration", () => {

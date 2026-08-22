@@ -162,7 +162,7 @@
             autoRender: false,
             renderer: rendererConfig,
             backend,
-            tileDuration: 2,
+            tileMaxCells: 2 ** 17,
             maxCachedTiles: cacheMode === 'cold' ? 0 : 64,
             minFrequency: 0,
             maxFrequency: 12_000,

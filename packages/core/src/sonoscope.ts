@@ -32,6 +32,11 @@ import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 import { ViewportController } from "./viewport";
 
+const DEFAULT_MIN_DURATION = 0.05;
+const DEFAULT_MAX_DURATION = 40;
+const DEFAULT_FOLLOW_PLAYBACK = "page";
+const DEFAULT_SMOOTH_ANCHOR = 0.5;
+
 export function isSonoscope(value: unknown): value is ISonoscope {
   return (
     typeof value === "object" &&
@@ -129,13 +134,19 @@ export class Sonoscope implements ISonoscope {
     }
 
     this.totalDuration = Math.max(0.01, this._source.duration);
-    this.minDuration = Math.max(0.001, opts.minDuration ?? 0.05);
+    this.minDuration = Math.max(
+      0.001,
+      opts.minDuration ?? DEFAULT_MIN_DURATION,
+    );
     this.maxDuration = Math.max(
       this.minDuration,
-      opts.maxDuration ?? Math.min(30, this.totalDuration),
+      opts.maxDuration ?? Math.min(DEFAULT_MAX_DURATION, this.totalDuration),
     );
-    this.followPlayback = opts.followPlayback ?? "page";
-    this.smoothAnchor = Math.max(0, Math.min(1, opts.smoothAnchor ?? 0.5));
+    this.followPlayback = opts.followPlayback ?? DEFAULT_FOLLOW_PLAYBACK;
+    this.smoothAnchor = Math.max(
+      0,
+      Math.min(1, opts.smoothAnchor ?? DEFAULT_SMOOTH_ANCHOR),
+    );
 
     const initialClipStart = this._clipStart ?? 0;
     const initialClipEnd = this._clipEnd ?? this.totalDuration;

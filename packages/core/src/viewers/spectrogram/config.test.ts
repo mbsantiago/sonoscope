@@ -38,11 +38,8 @@ describe("resolveConfig", () => {
     expect(config.valueGamma).toBe(1);
     expect(config.clampValues).toBe(true);
 
-    // Flat Playback
-    expect(config.showPlayhead).toBe(true);
-
     // Flat Cache
-    expect(config.tileDuration).toBe(5);
+    expect(config.tileMaxCells).toBe(2 ** 17); // 131_072
     expect(config.prefetchTiles).toBeGreaterThanOrEqual(4);
     expect(config.maxCachedTiles).toBeGreaterThanOrEqual(64);
 
@@ -63,8 +60,7 @@ describe("resolveConfig", () => {
       valueMode: "magnitude",
       minDb: -80,
       maxDb: -10,
-      showPlayhead: false,
-      tileDuration: 10,
+      tileMaxCells: 262_144,
     });
 
     expect(config.windowSize).toBe(512);
@@ -77,8 +73,7 @@ describe("resolveConfig", () => {
     expect(config.valueMode).toBe("magnitude");
     expect(config.minDb).toBe(-80);
     expect(config.maxDb).toBe(-10);
-    expect(config.showPlayhead).toBe(false);
-    expect(config.tileDuration).toBe(10);
+    expect(config.tileMaxCells).toBe(262_144);
   });
 
   it("preserves explicit renderer modes", () => {

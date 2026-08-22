@@ -168,7 +168,7 @@
           viewer = scope.createSpectrogram(canvas, {
             renderer: rendererMode.value,
             backend,
-            tileDuration: 8,
+            tileMaxCells: 2 ** 17,
             minFrequency: frequencyScale.value === "log" ? 20 : 0,
             maxFrequency: 8_000,
             frequencyScale: frequencyScale.value,
