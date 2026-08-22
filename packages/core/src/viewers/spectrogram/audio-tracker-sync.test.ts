@@ -106,7 +106,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
     const { canvas } = createMockCanvas(800, 400);
     const viewer = new SpectrogramViewer(canvas, scope.viewport, scope.source, {
       autoRender: false,
-      tileMaxCells: 524_288,
+      tileMaxCells: 2 ** 17,
       hopSize,
       windowSize,
       fftSize: 2048,

@@ -379,7 +379,7 @@ export type SpectrogramConfig = {
 
   /**
    * Maximum 2D STFT matrix cells (frameCount * binCount) budgeted per computation tile.
-   * @default 524_288
+   * @default 131_072
    */
   tileMaxCells?: number | undefined;
 
