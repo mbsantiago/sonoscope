@@ -835,7 +835,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
           stft,
         });
         if (this.isDestroyed()) return transformed;
-        this.cache.set(key, transformed);
+        this.cache.set(
+          key,
+          transformed,
+          (timeStart + timeEnd) / 2,
+          (this.config.startTime + this.config.endTime) / 2,
+        );
         const durationMs = performance.now() - tileStartTime;
         this.events.emit("tileload", {
           tileId: key,
