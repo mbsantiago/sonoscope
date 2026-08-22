@@ -63,7 +63,7 @@ export class ContinuousPeakPyramid {
 
     const outWidth = Math.max(1, Math.round(targetWidth));
     const samplesPerPixel = (timeSpan * sampleRate) / outWidth;
-    const isLineMode = samplesPerPixel <= 3;
+    const isLineMode = samplesPerPixel <= 1.0;
 
     if (isLineMode) {
       // Sub-sample / high zoom mode: extract sample points with continuous exact coordinates
