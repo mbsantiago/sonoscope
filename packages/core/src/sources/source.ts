@@ -115,10 +115,13 @@ export class DecodedAudioSource implements AudioSource {
   }): Float32Array {
     if (options.channel < 0 || options.channel >= this.channelCount)
       throw new Error(`Invalid channel ${options.channel}`);
-    const start = Math.max(0, Math.floor(options.startTime * this.sampleRate));
+    const start = Math.max(
+      0,
+      Math.floor(options.startTime * this.sampleRate + 1e-6),
+    );
     const end = Math.min(
       this.buffer.length,
-      Math.ceil(options.endTime * this.sampleRate),
+      Math.ceil(options.endTime * this.sampleRate - 1e-6),
     );
     return this.buffer.getChannelData(options.channel).slice(start, end);
   }

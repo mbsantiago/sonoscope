@@ -141,11 +141,11 @@ export class StreamingMp3Source implements AudioSource {
 
     const startFrame = Math.max(
       0,
-      Math.floor(options.startTime * this.sampleRate),
+      Math.floor(options.startTime * this.sampleRate + 1e-6),
     );
     const endFrame = Math.max(
       startFrame,
-      Math.ceil(options.endTime * this.sampleRate),
+      Math.ceil(options.endTime * this.sampleRate - 1e-6),
     );
 
     this.requestFrames(endFrame);
