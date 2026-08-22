@@ -91,16 +91,13 @@ Renders with a retro pixel dither shader program:
 
 ```ts
 scope.createSpectrogram(spectrogramCanvas, {
+  renderer: "dither",
   minValue: -120,
   maxValue: -40,
-  renderer: {
-    type: "webgl",
-    program: "dither",
-  },
 });
 ```
 
-<SpectrogramPreview config={{ renderer: { type: "webgl", program: "dither" }, minValue: -120, maxValue: -40 }} />
+<SpectrogramPreview config={{ renderer: "dither", minValue: -120, maxValue: -40 }} />
 
 ---
 

@@ -902,11 +902,29 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 function webglProgramRenderInput(
   renderer: RendererMode,
 ): Pick<RenderInput, "webglProgram"> {
-  if (
-    typeof renderer === "object" &&
-    renderer.type === "webgl" &&
-    renderer.program
-  )
-    return { webglProgram: renderer.program };
+  if (typeof renderer === "string") {
+    if (
+      renderer === "dither" ||
+      renderer === "terrain" ||
+      renderer === "sobel" ||
+      renderer === "normal"
+    ) {
+      return { webglProgram: renderer };
+    }
+    return {};
+  }
+  if (typeof renderer === "object" && renderer !== null) {
+    if ("program" in renderer && renderer.program) {
+      return { webglProgram: renderer.program };
+    }
+    if (
+      renderer.type === "dither" ||
+      renderer.type === "terrain" ||
+      renderer.type === "sobel" ||
+      renderer.type === "normal"
+    ) {
+      return { webglProgram: renderer.type };
+    }
+  }
   return {};
 }

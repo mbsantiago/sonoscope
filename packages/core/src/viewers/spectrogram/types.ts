@@ -11,22 +11,43 @@ import type { SpectrogramWorkerLike } from "./backends/worker-backend";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 
 export type ValueMode = "magnitude" | "power" | "db";
-export type WebGLRendererProgram =
+
+export type WebGLRendererProgramName =
   | "normal"
   | "dither"
   | "sobel"
-  | "terrain"
+  | "terrain";
+
+export type WebGLRendererProgram =
+  | WebGLRendererProgramName
   | WebGL2RenderProgram;
+
 export type WebGLRendererConfig = {
-  type: "webgl";
+  type: "webgl" | "webgl2" | WebGLRendererProgramName;
   program?: WebGLRendererProgram;
 };
+
+export type Canvas2DRendererConfig = {
+  type: "canvas2d";
+};
+
+export type AutoRendererConfig = {
+  type: "auto";
+  program?: WebGLRendererProgram;
+};
+
+export type SpectrogramRendererConfig =
+  | AutoRendererConfig
+  | Canvas2DRendererConfig
+  | WebGLRendererConfig;
+
 export type RendererMode =
   | "auto"
   | "webgl"
   | "webgl2"
   | "canvas2d"
-  | WebGLRendererConfig;
+  | WebGLRendererProgramName
+  | SpectrogramRendererConfig;
 
 export type WasmBackendConfig = {
   type: "wasm";

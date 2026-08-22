@@ -75,8 +75,10 @@ export type {
 } from "./viewers/spectrogram/renderers/webgl2-program";
 // Spectrogram Types
 export type {
+  AutoRendererConfig,
   BackendMode,
   CacheStats,
+  Canvas2DRendererConfig,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -87,6 +89,7 @@ export type {
   SpectrogramProfileEvent,
   SpectrogramProfilerOptions,
   SpectrogramProfileStats,
+  SpectrogramRendererConfig,
   SpectrogramStatus,
   SpectrogramTransform,
   SpectrumPoint,
@@ -99,6 +102,7 @@ export type {
   ValueScaleConfig,
   WebGLRendererConfig,
   WebGLRendererProgram,
+  WebGLRendererProgramName,
   WindowName,
 } from "./viewers/spectrogram/types";
 // TimeRuler Types
