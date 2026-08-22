@@ -39,7 +39,7 @@ describe("resolveConfig", () => {
     expect(config.clampValues).toBe(true);
 
     // Flat Cache
-    expect(config.tileMaxCells).toBe(524_288);
+    expect(config.tileMaxCells).toBe(2 ** 17); // 131_072
     expect(config.prefetchTiles).toBeGreaterThanOrEqual(4);
     expect(config.maxCachedTiles).toBeGreaterThanOrEqual(64);
 
