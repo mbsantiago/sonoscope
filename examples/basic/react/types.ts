@@ -19,6 +19,7 @@ export type SpectrogramSettings = {
   colorMap: BuiltInColorMap;
   minDb: number;
   maxDb: number;
+  valueGamma: number;
   windowSize: number;
   hopSize: number;
   window: WindowName;

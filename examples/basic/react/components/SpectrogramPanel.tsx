@@ -119,7 +119,7 @@ export function SpectrogramPanel(
           valueMode={settings.valueMode}
           minDb={settings.minDb}
           maxDb={settings.maxDb}
-          valueGamma={1}
+          valueGamma={settings.valueGamma}
           clampValues={true}
           windowSize={settings.windowSize}
           fftSize={settings.windowSize}

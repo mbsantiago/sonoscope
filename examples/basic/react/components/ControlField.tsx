@@ -19,17 +19,21 @@ export function SliderControl(props: {
   max: number;
   step: number;
   values?: number[];
+  formatValue?: (val: number) => string;
   onChange: (value: number) => void;
 }): React.ReactElement {
   const valueIndex = props.values?.indexOf(props.value) ?? -1;
   const min = props.values ? 0 : props.min;
   const max = props.values ? props.values.length - 1 : props.max;
   const value = props.values ? Math.max(0, valueIndex) : props.value;
+  const displayValue = props.formatValue
+    ? props.formatValue(props.value)
+    : props.value;
 
   return (
     <label>
       <span>
-        {props.label} <b>{props.value}</b>
+        {props.label} <b>{displayValue}</b>
       </span>
       <input
         type="range"
