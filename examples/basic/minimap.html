@@ -269,14 +269,9 @@
         status.textContent = "Loading and rendering...";
         try {
           scope = await Sonoscope.fromAudio(audio, {
-            minDuration: 0.05,
-            maxDuration: 30,
             followPlayback: "page",
           });
           spectrogram = scope.createSpectrogram(canvas, {
-            tileMaxCells: 131_072,
-            maxCachedTiles: 96,
-            prefetchTiles: 8,
             renderer: "auto",
             renderOnSeek: true,
           });
