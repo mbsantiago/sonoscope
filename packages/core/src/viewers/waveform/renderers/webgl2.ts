@@ -102,7 +102,10 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       typeof canvas.getBoundingClientRect === "function"
         ? canvas.getBoundingClientRect()
         : null;
-    const dpr = (rect && rect.width > 0 ? width / rect.width : 1) || 1;
+    const dpr =
+      typeof window !== "undefined" && window.devicePixelRatio
+        ? window.devicePixelRatio
+        : (rect && rect.width > 0 ? Math.round(width / rect.width) : 1) || 1;
     const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
 
     const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
@@ -136,13 +139,14 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
     if (len > 0) {
       const centerY = height / 2;
       const halfH = (height / 2) * Math.max(0.01, amplitudeScale);
+      const strokeWidth = Math.max(1, 1.5 * dpr);
+      const halfThick = strokeWidth / 2;
       const hasX = Boolean(peaks.x && peaks.x.length === len);
       const isLineMode = Boolean(peaks.isLineMode);
 
       const vertexCount = len * 2;
       const positions = new Float32Array(vertexCount * 2);
       const xNorms = new Float32Array(vertexCount);
-      const halfThick = isLineMode ? 1.25 : 0;
 
       for (let i = 0; i < len; i++) {
         const x = hasX ? peaks.x![i]! : (i / Math.max(1, len - 1)) * width;
@@ -156,11 +160,10 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
           topY = y - halfThick;
           bottomY = y + halfThick;
         } else {
-          topY = centerY - peaks.max[i]! * halfH;
-          bottomY = centerY - peaks.min[i]! * halfH;
-          if (bottomY - topY < 1) {
-            bottomY = topY + 1;
-          }
+          const envTop = centerY - peaks.max[i]! * halfH;
+          const envBottom = centerY - peaks.min[i]! * halfH;
+          topY = envTop - halfThick;
+          bottomY = envBottom + halfThick;
         }
 
         const idx = i * 4;

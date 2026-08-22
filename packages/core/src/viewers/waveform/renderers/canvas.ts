@@ -40,7 +40,10 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       typeof canvas.getBoundingClientRect === "function"
         ? canvas.getBoundingClientRect()
         : null;
-    const dpr = (rect && rect.width > 0 ? width / rect.width : 1) || 1;
+    const dpr =
+      typeof window !== "undefined" && window.devicePixelRatio
+        ? window.devicePixelRatio
+        : (rect && rect.width > 0 ? Math.round(width / rect.width) : 1) || 1;
     const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
 
     const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
@@ -55,6 +58,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
 
     const centerY = height / 2;
     const halfH = (height / 2) * Math.max(0.01, amplitudeScale);
+    const strokeWidth = Math.max(1, 1.5 * dpr);
     const len = peaks.min.length;
 
     // Draw center zero-axis baseline
@@ -79,7 +83,9 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
           else ctx.lineTo(x, y);
         }
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = strokeWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         ctx.stroke();
       } else {
         ctx.beginPath();
@@ -99,6 +105,10 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = strokeWidth;
+        ctx.lineJoin = "round";
+        ctx.stroke();
       }
     }
 
