@@ -1411,7 +1411,7 @@ describe("SpectrogramViewer", () => {
       canvas: canvas(),
       source: ultraHighRateSource,
       hopSize: 128,
-      tileMaxCells: 2**16,
+      tileMaxCells: 2 ** 17,
       startTime: 0,
       endTime: 5,
     });
