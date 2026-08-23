@@ -233,7 +233,7 @@
 
         <label>
           Frequency Program:
-          <select id="freq-program-select">
+          <select id="freq-renderer-select">
             <option value="ticks" selected>Ticks</option>
             <option value="boxes">Boxes</option>
           </select>
@@ -293,7 +293,7 @@
 
       const presetSelect = document.getElementById("preset-select");
       const scaleSelect = document.getElementById("scale-select");
-      const freqProgramSelect = document.getElementById("freq-program-select");
+      const freqProgramSelect = document.getElementById("freq-renderer-select");
       const colormapSelect = document.getElementById("colormap-select");
       const followSelect = document.getElementById("follow-select");
       const audio = document.getElementById("audio-player");
@@ -341,14 +341,14 @@
         scope.setViewport({ minFrequency: minFreq, maxFrequency: maxFreq });
 
         topRuler = scope.createTimeRuler(canvasTopRuler, {
-          program: "ticks",
+          renderer: "ticks",
           tickPosition: "top",
           color: "#cbd5e1",
           tickColor: "#475569",
         });
 
         freqRuler = scope.createFrequencyRuler(canvasFreqRuler, {
-          program: freqProgramSelect.value,
+          renderer: freqProgramSelect.value,
           frequencyScale: scale,
           color: "#cbd5e1",
           tickColor: "#334155",
@@ -364,7 +364,7 @@
         });
 
         bottomRuler = scope.createTimeRuler(canvasBottomRuler, {
-          program: "boxes",
+          renderer: "boxes",
           color: "#f8fafc",
           backgroundColor: "#070b12",
           tickColor: "#334155",
@@ -396,7 +396,7 @@
       });
 
       freqProgramSelect.addEventListener("change", () => {
-        freqRuler?.updateConfig({ program: freqProgramSelect.value });
+        freqRuler?.updateConfig({ renderer: freqProgramSelect.value });
       });
 
       colormapSelect.addEventListener("change", () => {

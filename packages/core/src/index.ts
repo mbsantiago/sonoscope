@@ -50,8 +50,8 @@ export type {
   FrequencyRulerEvents,
   FrequencyRulerFrame,
   FrequencyRulerOptions,
-  FrequencyRulerProgram,
-  FrequencyRulerProgramName,
+  FrequencyRulerRenderer,
+  FrequencyRulerRendererName,
   FrequencyRulerRenderInput,
   FrequencyRulerStatus,
   FrequencyRulerViewport,
@@ -116,18 +116,18 @@ export type {
   TimeRulerEvents,
   TimeRulerFrame,
   TimeRulerOptions,
-  TimeRulerProgram,
-  TimeRulerProgramName,
+  TimeRulerRenderer,
+  TimeRulerRendererName,
   TimeRulerRenderInput,
   TimeRulerStatus,
   TimeRulerViewport,
   TimeTicksResult,
 } from "./viewers/time-ruler";
 // Waveform Types
-export type { BarsWaveformRendererOptions } from "./viewers/waveform/renderers/bars";
 export type {
   BarPeakBlock,
   BarsWaveformRendererConfig,
+  BarsWaveformRendererOptions,
   Canvas2DWaveformRendererConfig,
   IWaveformViewer,
   PeakBlock,
@@ -165,7 +165,6 @@ export {
 export {
   FrameMeter,
   PerformanceProfiler,
-  SpectrogramProfiler,
 } from "./performance";
 export { attachPlayheadOverlay, PlayheadOverlay } from "./playhead";
 export { isSonoscope, Sonoscope } from "./sonoscope";
@@ -194,11 +193,11 @@ export { StreamingMp3Source } from "./sources/streaming-mp3-source";
 export { StreamingWavSource } from "./sources/streaming-wav-source";
 export { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
 export {
-  BoxesFrequencyRulerProgram,
+  BoxesFrequencyRulerRenderer,
   computeFrequencyTicks,
   FrequencyRulerViewer,
   formatFrequencyLabel,
-  TicksFrequencyRulerProgram,
+  TicksFrequencyRulerRenderer,
 } from "./viewers/frequency-ruler";
 // Compute Backends & Renderers
 export { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
@@ -221,21 +220,21 @@ export {
   scaleToHz,
   timeFrequencyToCanvas,
 } from "./viewers/spectrogram/frequency-scale";
+export { SpectrogramProfiler } from "./viewers/spectrogram/profiler";
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
 export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";
 export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-halftone-program";
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
 export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
-export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-sobel-program";
 export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 export {
-  BoxesTimeRulerProgram,
+  BoxesTimeRulerRenderer,
   computeTimeTicks,
   formatTimeLabel,
-  TicksTimeRulerProgram,
+  TicksTimeRulerRenderer,
   TimeRulerViewer,
 } from "./viewers/time-ruler";
 export { BarsWaveformRenderer } from "./viewers/waveform/renderers/bars";

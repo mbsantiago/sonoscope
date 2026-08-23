@@ -1,11 +1,11 @@
 import type {
   TimeRulerFrame,
-  TimeRulerProgram,
+  TimeRulerRenderer,
   TimeRulerRenderInput,
 } from "../types";
 import { computeTimeTicks, formatTimeLabel } from "../ticks";
 
-export class TicksTimeRulerProgram implements TimeRulerProgram {
+export class TicksTimeRulerRenderer implements TimeRulerRenderer {
   readonly name = "ticks" as const;
 
   draw(

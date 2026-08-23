@@ -1,6 +1,3 @@
-import type { NavigationOptions } from "./navigation";
-import type { PlayheadOverlayOptions } from "./playhead";
-
 export type Rgba = [number, number, number, number];
 
 export type BuiltInColorMap =
@@ -94,6 +91,106 @@ export type ColorMapConfig =
     };
 
 export type AudioRange = { startTime: number; endTime: number };
+
+// ---------------------------------------------------------------------------
+// Navigation option types (pure data; implemented in ./navigation)
+// ---------------------------------------------------------------------------
+
+export type NavigationAxis = "time" | "frequency" | "both" | "auto";
+
+export type ModifierKey = "ctrl" | "shift" | "alt" | "meta" | "none";
+
+export interface WheelNavigationOptions {
+  axis?: NavigationAxis | undefined;
+  panSensitivity?: number | undefined;
+  zoomSensitivity?: number | undefined;
+  frequencyPanSensitivity?: number | undefined;
+  frequencyZoomSensitivity?: number | undefined;
+  zoomModifier?: ModifierKey | undefined;
+  frequencyModifier?: ModifierKey | undefined;
+  onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
+}
+
+export interface DragNavigationOptions {
+  axis?: NavigationAxis | undefined;
+  button?: number | undefined;
+  modifier?: ModifierKey | undefined;
+  frequencyModifier?: ModifierKey | undefined;
+  dragThreshold?: number | undefined;
+  cursor?: boolean | undefined;
+  onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
+  onDragStart?: ((event: PointerEvent | MouseEvent) => void) | undefined;
+  onDragEnd?: ((event: PointerEvent | MouseEvent) => void) | undefined;
+}
+
+export interface NavigationOptions {
+  axis?: NavigationAxis | undefined;
+  wheel?: boolean | WheelNavigationOptions | undefined;
+  drag?: boolean | DragNavigationOptions | undefined;
+  onNavigate?: ((viewport: ViewportConfig) => void) | undefined;
+}
+
+export type TimeBounds = {
+  startTime: number;
+  endTime: number;
+  minDurationSeconds?: number;
+  maxDurationSeconds?: number;
+};
+
+export type FrequencyBounds = {
+  minFrequency: number;
+  maxFrequency: number;
+  minSpanHz?: number;
+};
+
+/**
+ * Minimal adapter surface required for attaching navigation gestures.
+ */
+export interface NavigableViewer {
+  setViewport(viewport: Partial<ViewportConfig>): void;
+  requestRender(): void;
+  getViewport(): {
+    startTime: number;
+    endTime: number;
+    minFrequency?: number | undefined;
+    maxFrequency?: number | undefined;
+    frequencyScale?: string | undefined;
+  };
+  getCanvas?(): HTMLElement;
+  getScope?(): {
+    getDuration(): number;
+    getSampleRate?(): number | undefined;
+  };
+  getConfig(): {
+    minViewportDuration?: number | undefined;
+    maxViewportDuration?: number | undefined;
+    minFrequency?: number | undefined;
+    maxFrequency?: number | undefined;
+    [key: string]: unknown;
+  };
+  getTimeBounds?: () => TimeBounds;
+  getFrequencyBounds?: () => FrequencyBounds;
+  canvasToTimeFrequency?: (
+    x: number,
+    y: number,
+  ) => { time: number; frequency: number };
+  canvasToTime?: (x: number) => number;
+  canvasToFrequency?: (y: number) => number;
+}
+
+// ---------------------------------------------------------------------------
+// Playhead overlay options (pure data; implemented in ./playhead)
+// ---------------------------------------------------------------------------
+
+/** Visual styling for the playback playhead overlay. */
+export interface PlayheadOverlayOptions {
+  className?: string | undefined;
+  style?: Partial<CSSStyleDeclaration> | undefined;
+  color?: string | undefined;
+  width?: number | undefined;
+  zIndex?: number | undefined;
+  snapToPixels?: boolean | undefined;
+}
 
 /**
  * Audio source that supplies PCM samples on demand.
@@ -427,15 +524,3 @@ export interface ISonoscope {
   /** Disposes the coordinator, audio listeners, and animation loops. */
   destroy(): void;
 }
-
-export type {
-  DragNavigationOptions,
-  FrequencyBounds,
-  ModifierKey,
-  NavigableViewer,
-  NavigationAxis,
-  NavigationOptions,
-  TimeBounds,
-  WheelNavigationOptions,
-} from "./navigation";
-export type { IPlayheadOverlay, PlayheadOverlayOptions } from "./playhead";

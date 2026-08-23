@@ -6,21 +6,22 @@ import {
   type SeekableByteSource,
 } from "./byte-source";
 import {
+  addDecodedRange,
+  type DecodedRange,
+  emitRange,
+  isRangeDecoded,
+  type PendingRead,
+  rejectPending,
+  requestFrames,
+  resolveReadyPending,
+  waitForDemand,
+} from "./shared/streaming-source-state";
+import {
   decodeWavPcm,
   parseWavHeader,
   type WavInfo,
   wavTimeToByteRange,
 } from "./wav";
-
-type PendingRead = {
-  channel: number;
-  startFrame: number;
-  endFrame: number;
-  resolve: (samples: Float32Array) => void;
-  reject: (error: Error) => void;
-};
-
-type DecodedRange = { startFrame: number; endFrame: number };
 
 const HEADER_READ_LIMIT = 4096;
 
@@ -63,7 +64,8 @@ export class StreamingWavSource implements AudioSource {
     );
 
     void this.decodeSequentially(initialDataBytes).catch((error) =>
-      this.rejectPending(
+      rejectPending(
+        this.pending,
         error instanceof Error ? error : new Error(String(error)),
       ),
     );
@@ -161,7 +163,7 @@ export class StreamingWavSource implements AudioSource {
 
     this.requestFrames(endFrame);
 
-    if (this.isRangeDecoded(startFrame, endFrame))
+    if (isRangeDecoded(this.decodedRanges, startFrame, endFrame))
       return channelData.slice(startFrame, endFrame);
     if (this.isStreamDone)
       return channelData.slice(
@@ -197,27 +199,29 @@ export class StreamingWavSource implements AudioSource {
   }
 
   private waitForDemand(): Promise<void> {
-    if (
-      this.decodedUntilFrame < this.requestedUntilFrame ||
-      this.isStreamDone
-    ) {
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => {
-      this.demandResolver = resolve;
-    });
+    return waitForDemand(
+      () => this.decodedUntilFrame,
+      () => this.requestedUntilFrame,
+      () => this.isStreamDone,
+      (resolver) => {
+        this.demandResolver = resolver;
+      },
+    );
   }
 
   private requestFrames(endFrame: number): void {
-    const target = endFrame + this.sampleRate * 15;
-    if (target > this.requestedUntilFrame) {
-      this.requestedUntilFrame = target;
-      if (this.demandResolver) {
-        const resolve = this.demandResolver;
+    requestFrames(
+      endFrame,
+      this.sampleRate,
+      () => this.requestedUntilFrame,
+      (requestedUntilFrame) => {
+        this.requestedUntilFrame = requestedUntilFrame;
+      },
+      () => this.demandResolver,
+      () => {
         this.demandResolver = undefined;
-        resolve();
-      }
-    }
+      },
+    );
   }
 
   private async decodeSequentially(
@@ -257,7 +261,8 @@ export class StreamingWavSource implements AudioSource {
     this.isStreamDone = true;
     this.resolveReadyPending();
     if (this.pending.length > 0) {
-      this.rejectPending(
+      rejectPending(
+        this.pending,
         new Error("WAV stream ended before requested samples were available"),
       );
     }
@@ -284,7 +289,11 @@ export class StreamingWavSource implements AudioSource {
       const startFrame = this.decodedUntilFrame;
       const endFrame = startFrame + framesToDecode;
       this.addDecodedRange(startFrame, endFrame);
-      this.emitRange(startFrame / this.sampleRate, endFrame / this.sampleRate);
+      emitRange(
+        this.handlers,
+        startFrame / this.sampleRate,
+        endFrame / this.sampleRate,
+      );
       this.resolveReadyPending();
     }
     const remainder = bytes.subarray(framesToDecode * this.info.blockAlign);
@@ -310,14 +319,15 @@ export class StreamingWavSource implements AudioSource {
     const decodedEndFrame = startFrame + expectedFrames;
     this.addDecodedRange(startFrame, decodedEndFrame);
     if (decodedEndFrame > startFrame) {
-      this.emitRange(
+      emitRange(
+        this.handlers,
         startFrame / this.sampleRate,
         decodedEndFrame / this.sampleRate,
       );
     }
     this.resolveReadyPending();
 
-    if (!this.isRangeDecoded(startFrame, endFrame))
+    if (!isRangeDecoded(this.decodedRanges, startFrame, endFrame))
       throw new Error(
         "Seekable WAV range ended before requested samples were available",
       );
@@ -327,69 +337,22 @@ export class StreamingWavSource implements AudioSource {
   }
 
   private resolveReadyPending(): void {
-    for (let index = this.pending.length - 1; index >= 0; index--) {
-      const pending = this.pending[index]!;
-      if (this.isRangeDecoded(pending.startFrame, pending.endFrame)) {
-        this.pending.splice(index, 1);
-        const channelData = this.decoded[pending.channel];
-        if (channelData) {
-          pending.resolve(
-            channelData.slice(pending.startFrame, pending.endFrame),
-          );
-        }
-      } else if (this.isStreamDone) {
-        this.pending.splice(index, 1);
-        const channelData = this.decoded[pending.channel];
-        if (channelData) {
-          pending.resolve(
-            channelData.slice(
-              pending.startFrame,
-              Math.min(channelData.length, pending.endFrame),
-            ),
-          );
-        }
-      }
-    }
+    resolveReadyPending(
+      this.pending,
+      this.decodedRanges,
+      this.isStreamDone,
+      (channel) => this.decoded[channel],
+      (read, data) => Math.min(data.length, read.endFrame),
+    );
   }
 
   private addDecodedRange(startFrame: number, endFrame: number): void {
-    if (endFrame <= startFrame) return;
-    this.decodedRanges.push({ startFrame, endFrame });
-    this.decodedRanges.sort(
-      (left, right) => left.startFrame - right.startFrame,
-    );
-
-    const merged: DecodedRange[] = [];
-    for (const range of this.decodedRanges) {
-      const previous = merged[merged.length - 1];
-      if (!previous || range.startFrame > previous.endFrame) {
-        merged.push({ ...range });
-      } else {
-        previous.endFrame = Math.max(previous.endFrame, range.endFrame);
-      }
-    }
-
-    this.decodedRanges.splice(0, this.decodedRanges.length, ...merged);
+    addDecodedRange(this.decodedRanges, startFrame, endFrame);
+    // WAV-specific: track the contiguous decoded frontier from frame 0
     this.decodedUntilFrame =
       this.decodedRanges[0]?.startFrame === 0
         ? this.decodedRanges[0].endFrame
         : 0;
-  }
-
-  private isRangeDecoded(startFrame: number, endFrame: number): boolean {
-    if (endFrame <= startFrame) return true;
-    return this.decodedRanges.some(
-      (range) => range.startFrame <= startFrame && range.endFrame >= endFrame,
-    );
-  }
-
-  private rejectPending(error: Error): void {
-    while (this.pending.length > 0) this.pending.pop()?.reject(error);
-  }
-
-  private emitRange(startTime: number, endTime: number): void {
-    const range = { startTime, endTime };
-    for (const handler of this.handlers) handler(range);
   }
 }
 

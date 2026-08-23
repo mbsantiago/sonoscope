@@ -8,8 +8,14 @@ import type {
 import { TypedEventEmitter } from "./events";
 import {
   attachNavigation,
+  type FrequencyBounds,
   type NavigableViewer,
   type NavigationOptions,
+  panViewportFrequency,
+  panViewportTime,
+  type TimeBounds,
+  zoomViewportFrequency,
+  zoomViewportTime,
 } from "./navigation";
 import { clampViewportTimes } from "./viewport-math";
 
@@ -209,14 +215,8 @@ export class ViewportController implements IViewportController {
 
   panTime(deltaSeconds: number, source?: string): void {
     if (!Number.isFinite(deltaSeconds)) return;
-    const duration = this.endTime - this.startTime;
-    const newStart = clamp(
-      this.startTime + deltaSeconds,
-      this.minTime,
-      Math.max(this.minTime, this.maxTime - duration),
-    );
     this.setViewport(
-      { startTime: newStart, endTime: newStart + duration },
+      panViewportTime(this.viewportConfig(), this.timeBounds(), deltaSeconds),
       source,
     );
   }
@@ -227,47 +227,26 @@ export class ViewportController implements IViewportController {
 
   panTo(startTime: number, source?: string): void {
     if (!Number.isFinite(startTime)) return;
-    const duration = this.endTime - this.startTime;
-    const newStart = clamp(
-      startTime,
-      this.minTime,
-      Math.max(this.minTime, this.maxTime - duration),
-    );
+    const viewport = this.viewportConfig();
     this.setViewport(
-      { startTime: newStart, endTime: newStart + duration },
+      panViewportTime(
+        viewport,
+        this.timeBounds(),
+        startTime - viewport.startTime,
+      ),
       source,
     );
   }
 
   zoomTime(factor: number, centerTime?: number, source?: string): void {
     if (!Number.isFinite(factor) || factor <= 0) return;
-    const currentDuration = this.endTime - this.startTime;
+    const viewport = this.viewportConfig();
     const center =
       centerTime !== undefined && Number.isFinite(centerTime)
         ? centerTime
-        : this.startTime + currentDuration / 2;
-    const maxAllowed = Number.isFinite(this.maxTime)
-      ? Math.min(this.maxDuration, this.maxTime - this.minTime)
-      : this.maxDuration;
-    const targetDuration = clamp(
-      currentDuration * factor,
-      this.minDuration,
-      maxAllowed,
-    );
-
-    if (Math.abs(targetDuration - currentDuration) < 1e-9) return;
-
-    const ratio =
-      currentDuration <= 0 ? 0.5 : (center - this.startTime) / currentDuration;
-
-    const newStart = clamp(
-      center - targetDuration * ratio,
-      this.minTime,
-      Math.max(this.minTime, this.maxTime - targetDuration),
-    );
-
+        : viewport.startTime + (viewport.endTime - viewport.startTime) / 2;
     this.setViewport(
-      { startTime: newStart, endTime: newStart + targetDuration },
+      zoomViewportTime(viewport, this.timeBounds(), center, factor),
       source,
     );
   }
@@ -278,14 +257,12 @@ export class ViewportController implements IViewportController {
 
   panFrequency(deltaHz: number, source?: string): void {
     if (!Number.isFinite(deltaHz)) return;
-    const span = this.maxFrequency - this.minFrequency;
-    const newMin = clamp(
-      this.minFrequency + deltaHz,
-      this.baseMinFrequency,
-      Math.max(this.baseMinFrequency, this.baseMaxFrequency - span),
-    );
     this.setViewport(
-      { minFrequency: newMin, maxFrequency: newMin + span },
+      panViewportFrequency(
+        this.viewportConfig(),
+        this.frequencyBounds(),
+        deltaHz,
+      ),
       source,
     );
   }
@@ -296,30 +273,14 @@ export class ViewportController implements IViewportController {
     source?: string,
   ): void {
     if (!Number.isFinite(factor) || factor <= 0) return;
-    const currentSpan = this.maxFrequency - this.minFrequency;
+    const viewport = this.viewportConfig();
     const center =
       centerFrequency !== undefined && Number.isFinite(centerFrequency)
         ? centerFrequency
-        : this.minFrequency + currentSpan / 2;
-    const targetSpan = clamp(
-      currentSpan * factor,
-      10,
-      this.baseMaxFrequency - this.baseMinFrequency,
-    );
-
-    if (Math.abs(targetSpan - currentSpan) < 1e-9) return;
-
-    const ratio =
-      currentSpan <= 0 ? 0.5 : (center - this.minFrequency) / currentSpan;
-
-    const newMin = clamp(
-      center - targetSpan * ratio,
-      this.baseMinFrequency,
-      Math.max(this.baseMinFrequency, this.baseMaxFrequency - targetSpan),
-    );
-
+        : viewport.minFrequency +
+          (viewport.maxFrequency - viewport.minFrequency) / 2;
     this.setViewport(
-      { minFrequency: newMin, maxFrequency: newMin + targetSpan },
+      zoomViewportFrequency(viewport, this.frequencyBounds(), center, factor),
       source,
     );
   }
@@ -345,45 +306,32 @@ export class ViewportController implements IViewportController {
       return;
     }
 
-    const currentDuration = this.endTime - this.startTime;
-    const centerT = center?.time ?? this.startTime + currentDuration / 2;
-    const maxAllowed = Number.isFinite(this.maxTime)
-      ? Math.min(this.maxDuration, this.maxTime - this.minTime)
-      : this.maxDuration;
-    const targetDuration = clamp(
-      currentDuration * timeFactor,
-      this.minDuration,
-      maxAllowed,
-    );
-    const ratioT =
-      currentDuration <= 0 ? 0.5 : (centerT - this.startTime) / currentDuration;
-    const newStart = clamp(
-      centerT - targetDuration * ratioT,
-      this.minTime,
-      Math.max(this.minTime, this.maxTime - targetDuration),
-    );
+    const viewport = this.viewportConfig();
+    const currentDuration = viewport.endTime - viewport.startTime;
+    const currentSpan = viewport.maxFrequency - viewport.minFrequency;
+    const centerT = center?.time ?? viewport.startTime + currentDuration / 2;
+    const centerF =
+      center?.frequency ?? viewport.minFrequency + currentSpan / 2;
 
-    const currentSpan = this.maxFrequency - this.minFrequency;
-    const centerF = center?.frequency ?? this.minFrequency + currentSpan / 2;
-    const targetSpan = clamp(
-      currentSpan * freqFactor,
-      10,
-      this.baseMaxFrequency - this.baseMinFrequency,
+    const afterTime = zoomViewportTime(
+      viewport,
+      this.timeBounds(),
+      centerT,
+      timeFactor,
     );
-    const ratioF =
-      currentSpan <= 0 ? 0.5 : (centerF - this.minFrequency) / currentSpan;
-    const newMin = clamp(
-      centerF - targetSpan * ratioF,
-      this.baseMinFrequency,
-      Math.max(this.baseMinFrequency, this.baseMaxFrequency - targetSpan),
+    const afterZoom = zoomViewportFrequency(
+      afterTime,
+      this.frequencyBounds(),
+      centerF,
+      freqFactor,
     );
 
     this.setViewport(
       {
-        startTime: newStart,
-        endTime: newStart + targetDuration,
-        minFrequency: newMin,
-        maxFrequency: newMin + targetSpan,
+        startTime: afterZoom.startTime,
+        endTime: afterZoom.endTime,
+        minFrequency: afterZoom.minFrequency,
+        maxFrequency: afterZoom.maxFrequency,
       },
       source,
     );
@@ -484,5 +432,39 @@ export class ViewportController implements IViewportController {
       viewport: this.getViewport(),
       source,
     });
+  }
+
+  private viewportConfig(): {
+    startTime: number;
+    endTime: number;
+    minFrequency: number;
+    maxFrequency: number;
+  } {
+    return {
+      startTime: this.startTime,
+      endTime: this.endTime,
+      minFrequency: this.minFrequency,
+      maxFrequency: this.maxFrequency,
+    };
+  }
+
+  private timeBounds(): TimeBounds {
+    const finite = Number.isFinite(this.maxTime);
+    return {
+      startTime: this.minTime,
+      endTime: finite ? this.maxTime : Number.MAX_VALUE,
+      minDurationSeconds: this.minDuration,
+      maxDurationSeconds: finite
+        ? Math.min(this.maxDuration, this.maxTime - this.minTime)
+        : this.maxDuration,
+    };
+  }
+
+  private frequencyBounds(): FrequencyBounds {
+    return {
+      minFrequency: this.baseMinFrequency,
+      maxFrequency: this.baseMaxFrequency,
+      minSpanHz: 10,
+    };
   }
 }

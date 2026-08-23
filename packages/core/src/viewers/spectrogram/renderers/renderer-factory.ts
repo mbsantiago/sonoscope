@@ -1,6 +1,7 @@
 import type { RendererMode } from "../types";
 import { CanvasSpectrogramRenderer, type SpectrogramRenderer } from "./canvas";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
+import { createShaderProgram } from "./webgl2-program-factory";
 
 function isCanvasMode(mode: RendererMode): boolean {
   return (
@@ -16,7 +17,6 @@ function isWebGLStrict(mode: RendererMode): boolean {
       mode === "webgl2" ||
       mode === "halftone" ||
       mode === "terrain" ||
-      mode === "sobel" ||
       mode === "normal"
     );
   }
@@ -26,7 +26,6 @@ function isWebGLStrict(mode: RendererMode): boolean {
       mode.type === "webgl2" ||
       mode.type === "halftone" ||
       mode.type === "terrain" ||
-      mode.type === "sobel" ||
       mode.type === "normal"
     );
   }
@@ -39,23 +38,21 @@ export function createSpectrogramRenderer(
 ): SpectrogramRenderer {
   if (isCanvasMode(mode)) return new CanvasSpectrogramRenderer();
 
-  const customProgram =
-    typeof mode === "object" &&
-    mode !== null &&
-    "program" in mode &&
-    typeof mode.program === "object"
-      ? mode.program
-      : undefined;
-
   const strict = isWebGLStrict(mode);
 
   try {
-    const renderer = WebGL2SpectrogramRenderer.create(canvas, customProgram);
+    const program = createShaderProgram(canvas, mode);
+    if (!program) {
+      if (strict) {
+        throw unavailableError(canvas);
+      }
+      return new CanvasSpectrogramRenderer();
+    }
+
+    const renderer = WebGL2SpectrogramRenderer.create(canvas, program);
     if (!renderer) {
       if (strict) {
-        throw new Error(
-          `WebGL renderer requested but WebGL2 is unavailable: ${WebGL2SpectrogramRenderer.diagnose(canvas) ?? "unknown reason"}`,
-        );
+        throw unavailableError(canvas);
       }
       return new CanvasSpectrogramRenderer();
     }
@@ -64,4 +61,10 @@ export function createSpectrogramRenderer(
     if (strict) throw error;
     return new CanvasSpectrogramRenderer();
   }
+}
+
+function unavailableError(canvas: HTMLCanvasElement): Error {
+  return new Error(
+    `WebGL renderer requested but WebGL2 is unavailable: ${WebGL2SpectrogramRenderer.diagnose(canvas) ?? "unknown reason"}`,
+  );
 }

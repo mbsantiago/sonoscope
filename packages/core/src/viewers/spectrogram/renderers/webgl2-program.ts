@@ -1,8 +1,22 @@
 import type { FrequencyScale } from "../../../types";
-import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
-import type { RenderInput } from "./canvas";
+import type {
+  RenderInput,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "../model";
+import { createProgram } from "../../shared/webgl2-compile";
 
-export const WEBGL2_UNIFORMS = [
+// Data model and program contracts live in the dependency-free model module.
+export type {
+  RenderInput,
+  TextureEntry,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "../model";
+
+const WEBGL2_UNIFORMS = [
   "u_tile",
   "u_colormap",
   "u_viewport",
@@ -21,40 +35,7 @@ export const WEBGL2_UNIFORMS = [
   "u_minEnergyThreshold",
   "u_energyGamma",
 ] as const;
-export type UniformName = (typeof WEBGL2_UNIFORMS)[number];
-
-export type TextureEntry = {
-  texture: WebGLTexture;
-  width: number;
-  height: number;
-};
-
-export type WebGL2Frame = {
-  width: number;
-  height: number;
-  dpr: number;
-  deviceWidth: number;
-  deviceHeight: number;
-};
-
-export type WebGL2RenderResources = {
-  colorMapTexture: WebGLTexture;
-  tiles: SpectrogramMatrix[];
-  textureForTile(
-    tile: SpectrogramMatrix,
-    valueScale: Required<ValueScaleConfig>,
-  ): TextureEntry;
-};
-
-export type WebGL2RenderProgram = {
-  readonly shader: WebGL2ShaderProgram;
-  paint(
-    input: RenderInput,
-    frame: WebGL2Frame,
-    resources: WebGL2RenderResources,
-  ): void;
-  delete(): void;
-};
+type UniformName = (typeof WEBGL2_UNIFORMS)[number];
 
 export class WebGL2ShaderProgram {
   readonly program: WebGLProgram;
@@ -67,20 +48,12 @@ export class WebGL2ShaderProgram {
     vertexSource: string,
     fragmentSource: string,
   ) {
-    const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
-    const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-    const program = gl.createProgram();
-    if (!program) throw new Error("Unable to create WebGL2 program");
-    gl.attachShader(program, vertex);
-    gl.attachShader(program, fragment);
-    gl.linkProgram(program);
-    gl.deleteShader(vertex);
-    gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const log = gl.getProgramInfoLog(program) ?? "unknown program error";
-      gl.deleteProgram(program);
-      throw new Error(`Unable to link WebGL2 program: ${log}`);
-    }
+    const program = createProgram(
+      gl,
+      vertexSource,
+      fragmentSource,
+      "spectrogram",
+    );
     this.program = program;
     this.position = gl.getAttribLocation(program, "a_position");
     this.tileUv = gl.getAttribLocation(program, "a_tileUv");
@@ -128,40 +101,186 @@ export class WebGL2ShaderProgram {
   }
 }
 
-export function compileShader(
-  gl: WebGL2RenderingContext,
-  type: number,
-  source: string,
-): WebGLShader {
-  const shader = gl.createShader(type);
-  if (!shader) throw new Error("Unable to create WebGL2 shader");
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(shader)?.trim() || "unknown shader error";
-    const kind =
-      type === gl.VERTEX_SHADER
-        ? "vertex"
-        : type === gl.FRAGMENT_SHADER
-          ? "fragment"
-          : "unknown";
-    gl.deleteShader(shader);
-    throw new Error(
-      `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`,
-    );
-  }
-  return shader;
-}
-
-export function numberedSource(source: string): string {
-  return source
-    .split("\n")
-    .map((line, index) => `${String(index + 1).padStart(3, " ")}: ${line}`)
-    .join("\n");
-}
-
 export function frequencyScaleCode(scale: FrequencyScale | undefined): number {
   if (scale === "log") return 1;
   if (scale === "mel") return 2;
   return 0;
+}
+
+export const WEBGL2_FRAGMENT_UNIFORMS = `uniform sampler2D u_tile;
+uniform sampler2D u_colormap;
+uniform vec4 u_viewport;
+uniform vec2 u_tileTimeRange;
+uniform vec2 u_tileFrequencyRange;
+uniform vec2 u_tileSize;
+uniform vec2 u_canvasSize;
+uniform vec4 u_valueScale;
+uniform float u_frequencyScale;
+uniform float u_overlayMode;`;
+
+export const WEBGL2_SCALE_HELPERS = `float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
+float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
+float hzToScale(float hz, float scale) {
+  if (scale == 1.0) return log(max(1.0, hz)) / log(10.0);
+  if (scale == 2.0) return hzToMel(hz);
+  return hz;
+}
+float scaleToHz(float value, float scale) {
+  if (scale == 1.0) return pow(10.0, value);
+  if (scale == 2.0) return melToHz(value);
+  return value;
+}`;
+
+export const WEBGL2_OVERLAY_CHECK = `if (u_overlayMode == 1.0) {
+    float hatch = step(0.84, fract((gl_FragCoord.x + gl_FragCoord.y) / 12.0));
+    outColor = mix(vec4(0.059, 0.09, 0.165, 1.0), vec4(0.278, 0.333, 0.412, 1.0), hatch);
+    return;
+  }
+
+  if (u_overlayMode == 2.0) {
+    outColor = vec4(1.0, 1.0, 1.0, 0.9);
+    return;
+  }`;
+
+export abstract class WebGL2TileProgramBase implements WebGL2RenderProgram {
+  readonly name: string;
+  readonly shader: WebGL2ShaderProgram;
+  protected readonly gl: WebGL2RenderingContext;
+  protected readonly vertexBuffer: WebGLBuffer;
+  private readonly vao: WebGLVertexArrayObject | null;
+
+  protected constructor(
+    gl: WebGL2RenderingContext,
+    vertexSource: string,
+    fragmentSource: string,
+    label: string,
+    fillQuad: boolean,
+  ) {
+    this.name = label;
+    this.gl = gl;
+    this.shader = new WebGL2ShaderProgram(gl, vertexSource, fragmentSource);
+    const vertexBuffer = gl.createBuffer();
+    if (!vertexBuffer)
+      throw new Error(`Unable to initialize WebGL2 ${label} resources`);
+    this.vertexBuffer = vertexBuffer;
+
+    this.vao =
+      typeof gl.createVertexArray === "function"
+        ? gl.createVertexArray()
+        : null;
+
+    if (fillQuad) {
+      this.setFullViewportQuad();
+    }
+    if (this.vao) {
+      this.setupVao();
+    }
+  }
+
+  abstract paint(
+    input: RenderInput,
+    frame: WebGL2Frame,
+    resources: WebGL2RenderResources,
+  ): void;
+
+  delete(): void {
+    if (this.vao) {
+      this.gl.deleteVertexArray(this.vao);
+    }
+    this.gl.deleteBuffer(this.vertexBuffer);
+    this.shader.delete();
+  }
+
+  protected beginPaint(
+    clearColor: [number, number, number, number],
+    clearMask: number,
+    enableDepthTest: boolean,
+  ): void {
+    const gl = this.gl;
+    if (enableDepthTest) {
+      gl.enable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+    }
+    gl.disable(gl.BLEND);
+    gl.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+    gl.clear(clearMask);
+    this.shader.use();
+    if (this.vao) {
+      gl.bindVertexArray(this.vao);
+    } else {
+      this.bindAttributes();
+    }
+  }
+
+  protected bindCommonUniforms(
+    input: RenderInput,
+    frame: WebGL2Frame,
+    resources: WebGL2RenderResources,
+  ): void {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, resources.colorMapTexture);
+    this.shader.uniform1i("u_colormap", 1);
+    this.shader.uniform4f(
+      "u_viewport",
+      input.viewport.startTime,
+      input.viewport.endTime,
+      input.viewport.minFrequency ?? 0,
+      input.viewport.maxFrequency ?? 24000,
+    );
+    this.shader.uniform2f(
+      "u_canvasSize",
+      frame.deviceWidth,
+      frame.deviceHeight,
+    );
+    this.shader.uniform1f(
+      "u_frequencyScale",
+      frequencyScaleCode(input.frequencyScale),
+    );
+  }
+
+  protected endPaint(disableDepthTest: boolean): void {
+    const gl = this.gl;
+    if (disableDepthTest) {
+      gl.disable(gl.DEPTH_TEST);
+    }
+    if (this.vao) {
+      gl.bindVertexArray(null);
+    }
+  }
+
+  protected drawQuad(): void {
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  private setupVao(): void {
+    if (!this.vao) return;
+    this.gl.bindVertexArray(this.vao);
+    this.bindAttributes();
+    this.gl.bindVertexArray(null);
+  }
+
+  private bindAttributes(): void {
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    if (this.shader.position >= 0) {
+      gl.enableVertexAttribArray(this.shader.position);
+      gl.vertexAttribPointer(this.shader.position, 2, gl.FLOAT, false, 16, 0);
+    }
+    if (this.shader.tileUv >= 0) {
+      gl.enableVertexAttribArray(this.shader.tileUv);
+      gl.vertexAttribPointer(this.shader.tileUv, 2, gl.FLOAT, false, 16, 8);
+    }
+  }
+
+  private setFullViewportQuad(): void {
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1, 1, 1, 1, 1]),
+      gl.STATIC_DRAW,
+    );
+  }
 }

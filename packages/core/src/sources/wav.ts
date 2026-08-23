@@ -100,6 +100,31 @@ export function wavTimeToByteRange(
   };
 }
 
+type AlignedConstructor = {
+  readonly BYTES_PER_ELEMENT: number;
+  new (
+    buffer: ArrayBufferLike,
+    byteOffset?: number,
+    length?: number,
+  ): Int16Array | Int32Array | Float32Array;
+};
+
+function alignedSamples(
+  Ctor: AlignedConstructor,
+  bytes: Uint8Array,
+  skipBytes: number,
+  startByte: number,
+  count: number,
+): Int16Array | Int32Array | Float32Array {
+  const isAligned = startByte % Ctor.BYTES_PER_ELEMENT === 0;
+  return isAligned
+    ? new Ctor(bytes.buffer, startByte, count)
+    : new Ctor(
+        bytes.slice(skipBytes, skipBytes + count * Ctor.BYTES_PER_ELEMENT)
+          .buffer,
+      );
+}
+
 export function decodeWavPcm(
   bytes: Uint8Array,
   info: WavInfo,
@@ -125,176 +150,61 @@ export function decodeWavPcm(
     );
 
   const startByte = bytes.byteOffset + skipBytes;
-  const buffer = bytes.buffer;
+  const { channelCount } = info;
+  let sampleAt: (index: number) => number;
 
-  // Format 1: PCM Integer
-  if (info.format === PCM_FORMAT) {
-    if (info.bitsPerSample === 16) {
-      const isAligned = startByte % 2 === 0;
-      const int16 = isAligned
-        ? new Int16Array(buffer, startByte, frameCount * info.channelCount)
-        : new Int16Array(
-            bytes.slice(skipBytes, skipBytes + frameCount * info.blockAlign)
-              .buffer,
-          );
-      const factor = 1 / 32768;
-
-      if (info.channelCount === 1) {
-        const out = channels[0]!;
-        for (let i = 0; i < frameCount; i++) {
-          out[targetOffset + i] = int16[i]! * factor;
-        }
-      } else if (info.channelCount === 2) {
-        const left = channels[0]!;
-        const right = channels[1]!;
-        let srcIdx = 0;
-        for (let i = 0; i < frameCount; i++) {
-          left[targetOffset + i] = int16[srcIdx++]! * factor;
-          right[targetOffset + i] = int16[srcIdx++]! * factor;
-        }
-      } else {
-        let srcIdx = 0;
-        for (let f = 0; f < frameCount; f++) {
-          for (let ch = 0; ch < info.channelCount; ch++) {
-            channels[ch]![targetOffset + f] = int16[srcIdx++]! * factor;
-          }
-        }
-      }
-      return channels;
-    }
-
-    if (info.bitsPerSample === 24) {
-      const factor = 1 / 8388608;
-      let b = skipBytes;
-      if (info.channelCount === 1) {
-        const out = channels[0]!;
-        for (let f = 0; f < frameCount; f++) {
-          let val = bytes[b]! | (bytes[b + 1]! << 8) | (bytes[b + 2]! << 16);
-          if (val & 0x800000) val |= 0xff000000;
-          out[targetOffset + f] = val * factor;
-          b += 3;
-        }
-      } else if (info.channelCount === 2) {
-        const left = channels[0]!;
-        const right = channels[1]!;
-        for (let f = 0; f < frameCount; f++) {
-          let val0 = bytes[b]! | (bytes[b + 1]! << 8) | (bytes[b + 2]! << 16);
-          if (val0 & 0x800000) val0 |= 0xff000000;
-          left[targetOffset + f] = val0 * factor;
-          b += 3;
-
-          let val1 = bytes[b]! | (bytes[b + 1]! << 8) | (bytes[b + 2]! << 16);
-          if (val1 & 0x800000) val1 |= 0xff000000;
-          right[targetOffset + f] = val1 * factor;
-          b += 3;
-        }
-      } else {
-        for (let f = 0; f < frameCount; f++) {
-          for (let ch = 0; ch < info.channelCount; ch++) {
-            let val = bytes[b]! | (bytes[b + 1]! << 8) | (bytes[b + 2]! << 16);
-            if (val & 0x800000) val |= 0xff000000;
-            channels[ch]![targetOffset + f] = val * factor;
-            b += 3;
-          }
-        }
-      }
-      return channels;
-    }
-
-    if (info.bitsPerSample === 32) {
-      const isAligned = startByte % 4 === 0;
-      const int32 = isAligned
-        ? new Int32Array(buffer, startByte, frameCount * info.channelCount)
-        : new Int32Array(
-            bytes.slice(skipBytes, skipBytes + frameCount * info.blockAlign)
-              .buffer,
-          );
-      const factor = 1 / 2147483648;
-
-      if (info.channelCount === 1) {
-        const out = channels[0]!;
-        for (let i = 0; i < frameCount; i++) {
-          out[targetOffset + i] = int32[i]! * factor;
-        }
-      } else if (info.channelCount === 2) {
-        const left = channels[0]!;
-        const right = channels[1]!;
-        let srcIdx = 0;
-        for (let i = 0; i < frameCount; i++) {
-          left[targetOffset + i] = int32[srcIdx++]! * factor;
-          right[targetOffset + i] = int32[srcIdx++]! * factor;
-        }
-      } else {
-        let srcIdx = 0;
-        for (let f = 0; f < frameCount; f++) {
-          for (let ch = 0; ch < info.channelCount; ch++) {
-            channels[ch]![targetOffset + f] = int32[srcIdx++]! * factor;
-          }
-        }
-      }
-      return channels;
-    }
-
-    if (info.bitsPerSample === 8) {
-      const factor = 1 / 128;
-      let b = skipBytes;
-      if (info.channelCount === 1) {
-        const out = channels[0]!;
-        for (let f = 0; f < frameCount; f++) {
-          out[targetOffset + f] = (bytes[b++]! - 128) * factor;
-        }
-      } else if (info.channelCount === 2) {
-        const left = channels[0]!;
-        const right = channels[1]!;
-        for (let f = 0; f < frameCount; f++) {
-          left[targetOffset + f] = (bytes[b++]! - 128) * factor;
-          right[targetOffset + f] = (bytes[b++]! - 128) * factor;
-        }
-      } else {
-        for (let f = 0; f < frameCount; f++) {
-          for (let ch = 0; ch < info.channelCount; ch++) {
-            channels[ch]![targetOffset + f] = (bytes[b++]! - 128) * factor;
-          }
-        }
-      }
-      return channels;
-    }
+  if (info.format === PCM_FORMAT && info.bitsPerSample === 16) {
+    const pcm = alignedSamples(
+      Int16Array,
+      bytes,
+      skipBytes,
+      startByte,
+      frameCount * channelCount,
+    );
+    const factor = 1 / 32768;
+    sampleAt = (index) => pcm[index]! * factor;
+  } else if (info.format === PCM_FORMAT && info.bitsPerSample === 32) {
+    const pcm = alignedSamples(
+      Int32Array,
+      bytes,
+      skipBytes,
+      startByte,
+      frameCount * channelCount,
+    );
+    const factor = 1 / 2147483648;
+    sampleAt = (index) => pcm[index]! * factor;
+  } else if (info.format === FLOAT_FORMAT && info.bitsPerSample === 32) {
+    const f32 = alignedSamples(
+      Float32Array,
+      bytes,
+      skipBytes,
+      startByte,
+      frameCount * channelCount,
+    );
+    sampleAt = (index) => f32[index]!;
+  } else if (info.format === PCM_FORMAT && info.bitsPerSample === 8) {
+    const factor = 1 / 128;
+    sampleAt = (index) => (bytes[skipBytes + index]! - 128) * factor;
+  } else if (info.format === PCM_FORMAT && info.bitsPerSample === 24) {
+    const factor = 1 / 8388608;
+    sampleAt = (index) => {
+      const b = skipBytes + index * 3;
+      let val = bytes[b]! | (bytes[b + 1]! << 8) | (bytes[b + 2]! << 16);
+      if (val & 0x800000) val |= 0xff000000;
+      return val * factor;
+    };
+  } else {
+    throw new Error(
+      `Unsupported WAV format ${info.format} with ${info.bitsPerSample} bits per sample`,
+    );
   }
 
-  // Format 3: 32-bit Float
-  if (info.format === FLOAT_FORMAT && info.bitsPerSample === 32) {
-    const isAligned = startByte % 4 === 0;
-    const f32 = isAligned
-      ? new Float32Array(buffer, startByte, frameCount * info.channelCount)
-      : new Float32Array(
-          bytes.slice(skipBytes, skipBytes + frameCount * info.blockAlign)
-            .buffer,
-        );
-
-    if (info.channelCount === 1) {
-      channels[0]!.set(f32, targetOffset);
-    } else if (info.channelCount === 2) {
-      const left = channels[0]!;
-      const right = channels[1]!;
-      let srcIdx = 0;
-      for (let i = 0; i < frameCount; i++) {
-        left[targetOffset + i] = f32[srcIdx++]!;
-        right[targetOffset + i] = f32[srcIdx++]!;
-      }
-    } else {
-      let srcIdx = 0;
-      for (let f = 0; f < frameCount; f++) {
-        for (let ch = 0; ch < info.channelCount; ch++) {
-          channels[ch]![targetOffset + f] = f32[srcIdx++]!;
-        }
-      }
+  for (let f = 0; f < frameCount; f++) {
+    for (let ch = 0; ch < channelCount; ch++) {
+      channels[ch]![targetOffset + f] = sampleAt(f * channelCount + ch);
     }
-    return channels;
   }
-
-  throw new Error(
-    `Unsupported WAV format ${info.format} with ${info.bitsPerSample} bits per sample`,
-  );
+  return channels;
 }
 
 function viewFor(bytes: Uint8Array): DataView {

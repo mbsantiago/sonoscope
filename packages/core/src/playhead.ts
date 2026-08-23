@@ -1,13 +1,6 @@
-import type { ISonoscope } from "./types";
+import type { ISonoscope, PlayheadOverlayOptions } from "./types";
 
-export interface PlayheadOverlayOptions {
-  className?: string | undefined;
-  style?: Partial<CSSStyleDeclaration> | undefined;
-  color?: string | undefined;
-  width?: number | undefined;
-  zIndex?: number | undefined;
-  snapToPixels?: boolean | undefined;
-}
+export type { PlayheadOverlayOptions } from "./types";
 
 export interface IPlayheadOverlay {
   getElement(): HTMLDivElement;

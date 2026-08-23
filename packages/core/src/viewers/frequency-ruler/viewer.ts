@@ -2,8 +2,8 @@ import type { IViewportController, ViewportConfig } from "../../types";
 import type {
   FrequencyRulerEvents,
   FrequencyRulerOptions,
-  FrequencyRulerProgram,
-  FrequencyRulerProgramName,
+  FrequencyRulerRenderer,
+  FrequencyRulerRendererName,
   FrequencyRulerStatus,
   FrequencyRulerViewport,
   IFrequencyRulerViewer,
@@ -12,19 +12,19 @@ import type {
 import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
 import { hzToScale, scaleToHz } from "../spectrogram/frequency-scale";
-import { BoxesFrequencyRulerProgram } from "./programs/boxes-program";
-import { TicksFrequencyRulerProgram } from "./programs/ticks-program";
+import { BoxesFrequencyRulerRenderer } from "./renderers/boxes-renderer";
+import { TicksFrequencyRulerRenderer } from "./renderers/ticks-renderer";
 
-function resolveFrequencyRulerProgram(
-  program: FrequencyRulerProgramName | FrequencyRulerProgram | undefined,
-): FrequencyRulerProgram {
-  if (typeof program === "object" && program !== null && "draw" in program) {
-    return program;
+function resolveFrequencyRulerRenderer(
+  renderer: FrequencyRulerRendererName | FrequencyRulerRenderer | undefined,
+): FrequencyRulerRenderer {
+  if (typeof renderer === "object" && renderer !== null && "draw" in renderer) {
+    return renderer;
   }
-  if (program === "boxes") {
-    return new BoxesFrequencyRulerProgram();
+  if (renderer === "boxes") {
+    return new BoxesFrequencyRulerRenderer();
   }
-  return new TicksFrequencyRulerProgram();
+  return new TicksFrequencyRulerRenderer();
 }
 
 function resolveFrequencyRulerConfig(
@@ -43,7 +43,7 @@ function resolveFrequencyRulerConfig(
     tickPosition: input.tickPosition ?? "right",
     frequencyFormat: input.frequencyFormat ?? "auto",
     minMajorPixelSpacing: input.minMajorPixelSpacing ?? 45,
-    program: input.program ?? "ticks",
+    renderer: input.renderer ?? "ticks",
   };
 }
 
@@ -52,7 +52,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   private readonly canvas: HTMLCanvasElement;
   private readonly viewport: IViewportController;
   private config: ResolvedFrequencyRulerConfig;
-  private programInstance: FrequencyRulerProgram;
+  private rendererInstance: FrequencyRulerRenderer;
   private viewportCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
@@ -81,7 +81,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     const initialViewport = viewport.getViewport();
     this.lastViewportMinFrequency = initialViewport.minFrequency;
     this.lastViewportMaxFrequency = initialViewport.maxFrequency;
-    this.programInstance = resolveFrequencyRulerProgram(this.config.program);
+    this.rendererInstance = resolveFrequencyRulerRenderer(this.config.renderer);
 
     this.bindViewport();
     if (options?.autoResize !== false) {
@@ -157,7 +157,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
   updateConfig(input: Partial<FrequencyRulerOptions>): void {
     const baseConfig = { ...this.config, ...input };
     this.config = resolveFrequencyRulerConfig(baseConfig);
-    this.programInstance = resolveFrequencyRulerProgram(this.config.program);
+    this.rendererInstance = resolveFrequencyRulerRenderer(this.config.renderer);
 
     this.events.emit("configchange", { config: this.getConfig() });
     this.requestRender();
@@ -211,7 +211,7 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     const height = Math.max(1, this.canvas.height || 1);
     const viewport = this.getViewport();
 
-    this.programInstance.draw(
+    this.rendererInstance.draw(
       ctx,
       {
         canvas: this.canvas,

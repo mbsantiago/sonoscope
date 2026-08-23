@@ -1345,6 +1345,25 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getCacheStats().tiles).toBe(before);
   });
 
+  it("preserves cached tiles when only the renderer changes", async () => {
+    const viewer = createViewer({
+      canvas: canvas(),
+      source,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
+    });
+    await viewer.render();
+    const before = viewer.getCacheStats().tiles;
+    expect(before).toBeGreaterThan(0);
+
+    viewer.setConfig({ renderer: "canvas2d" });
+
+    expect(viewer.getRendererKind()).toBe("canvas2d");
+    expect(viewer.getCacheStats().tiles).toBe(before);
+  });
+
   it("clears cached tiles when tile-generating config changes", async () => {
     const viewer = createViewer({
       canvas: canvas(),

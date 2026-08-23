@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { BoxesFrequencyRulerProgram } from "./boxes-program";
-import { TicksFrequencyRulerProgram } from "./ticks-program";
+import { BoxesFrequencyRulerRenderer } from "./boxes-renderer";
+import { TicksFrequencyRulerRenderer } from "./ticks-renderer";
 
 function createMockCanvas(): HTMLCanvasElement {
   return {
@@ -24,13 +24,13 @@ function createMockCanvas(): HTMLCanvasElement {
 }
 
 describe("FrequencyRuler Drawing Programs", () => {
-  it("Ticks program executes draw without error across linear, mel, and log scales", () => {
-    const program = new TicksFrequencyRulerProgram();
+  it("Ticks renderer executes draw without error across linear, mel, and log scales", () => {
+    const renderer = new TicksFrequencyRulerRenderer();
     const canvas = createMockCanvas();
     const ctx = canvas.getContext("2d")!;
     for (const scale of ["linear", "mel", "log"] as const) {
       expect(() =>
-        program.draw(
+        renderer.draw(
           ctx,
           {
             canvas,
@@ -45,12 +45,12 @@ describe("FrequencyRuler Drawing Programs", () => {
     }
   });
 
-  it("Boxes program executes draw without error", () => {
-    const program = new BoxesFrequencyRulerProgram();
+  it("Boxes renderer executes draw without error", () => {
+    const renderer = new BoxesFrequencyRulerRenderer();
     const canvas = createMockCanvas();
     const ctx = canvas.getContext("2d")!;
     expect(() =>
-      program.draw(
+      renderer.draw(
         ctx,
         {
           canvas,

@@ -3,6 +3,7 @@ import type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
 import { getWasmStftEngine, type WasmStftEngine } from "./wasm-stft";
 import { WASM_STFT_BASE64 } from "./wasm-stft-binary";
 import {
+  createBlobWorker,
   type SpectrogramWorkerLike,
   WorkerComputeBackend,
   type WorkerComputeBackendOptions,
@@ -186,19 +187,7 @@ export function createDefaultWasmWorker(
   if (workerUrl) {
     return new Worker(workerUrl, { type: "module" });
   }
-  if (
-    typeof Blob !== "undefined" &&
-    typeof URL?.createObjectURL === "function"
-  ) {
-    const blob = new Blob([getWasmWorkerScript()], {
-      type: "application/javascript",
-    });
-    const blobUrl = URL.createObjectURL(blob);
-    return new Worker(blobUrl);
-  }
-  throw new Error(
-    "Web Workers with Blob URLs are not supported in this environment",
-  );
+  return createBlobWorker(getWasmWorkerScript());
 }
 
 export class WasmComputeBackend implements SpectrogramComputeBackend {

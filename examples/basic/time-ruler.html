@@ -167,7 +167,7 @@
         <h1>TimeRuler Coordinate Scale Demo</h1>
         <p style="color: var(--text-muted); margin-top: 0.25rem;">
           Modular 2D Canvas TimeRuler viewers showing adaptive tick subdivisions
-          (<strong>Ticks program</strong> on top) and framed interval segment blocks (<strong>Boxes program</strong> on bottom), synchronized with Waveform and Spectrogram.
+          (<strong>Ticks renderer</strong> on top) and framed interval segment blocks (<strong>Boxes renderer</strong> on bottom), synchronized with Waveform and Spectrogram.
         </p>
       </header>
 
@@ -189,7 +189,7 @@
 
         <label>
           Top Ruler:
-          <select id="top-program-select">
+          <select id="top-renderer-select">
             <option value="ticks" selected>Ticks Program</option>
             <option value="boxes">Boxes Program</option>
           </select>
@@ -197,7 +197,7 @@
 
         <label>
           Bottom Ruler:
-          <select id="bottom-program-select">
+          <select id="bottom-renderer-select">
             <option value="boxes" selected>Boxes Program</option>
             <option value="ticks">Ticks Program</option>
           </select>
@@ -262,8 +262,8 @@
       } from "@sonoscope/core";
 
       const presetSelect = document.getElementById("preset-select");
-      const topProgramSelect = document.getElementById("top-program-select");
-      const bottomProgramSelect = document.getElementById("bottom-program-select");
+      const topProgramSelect = document.getElementById("top-renderer-select");
+      const bottomProgramSelect = document.getElementById("bottom-renderer-select");
       const timeFormatSelect = document.getElementById("time-format-select");
       const followSelect = document.getElementById("follow-select");
       const audio = document.getElementById("audio-player");
@@ -308,7 +308,7 @@
         });
 
         rulerTopViewer = scope.createTimeRuler(canvasRulerTop, {
-          program: topProgramSelect.value,
+          renderer: topProgramSelect.value,
           timeFormat: timeFormatSelect.value,
           tickPosition: "top",
           color: "#cbd5e1",
@@ -329,7 +329,7 @@
         });
 
         rulerBottomViewer = scope.createTimeRuler(canvasRulerBottom, {
-          program: bottomProgramSelect.value,
+          renderer: bottomProgramSelect.value,
           timeFormat: timeFormatSelect.value,
           color: "#f8fafc",
           backgroundColor: "#070b12",
@@ -349,11 +349,11 @@
       presetSelect.addEventListener("change", () => loadTrack(presetSelect.value));
 
       topProgramSelect.addEventListener("change", () => {
-        rulerTopViewer?.updateConfig({ program: topProgramSelect.value });
+        rulerTopViewer?.updateConfig({ renderer: topProgramSelect.value });
       });
 
       bottomProgramSelect.addEventListener("change", () => {
-        rulerBottomViewer?.updateConfig({ program: bottomProgramSelect.value });
+        rulerBottomViewer?.updateConfig({ renderer: bottomProgramSelect.value });
       });
 
       timeFormatSelect.addEventListener("change", () => {

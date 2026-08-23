@@ -4,6 +4,7 @@ import { computeStftMatrix } from "../backends/stft";
 import { computeWasmStftMatrix } from "../backends/wasm-stft";
 import { CanvasSpectrogramRenderer } from "./canvas";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
+import { createSpectrogramProgram } from "./webgl2-program-factory";
 
 interface BenchmarkStats {
   name: string;
@@ -212,7 +213,10 @@ describe("Comprehensive Performance Benchmark (Browser / Chromium)", () => {
         value: () => ({ width: res.width, height: res.height }),
       });
       const gl = cGl.getContext("webgl2")!;
-      const webglRenderer = new WebGL2SpectrogramRenderer(gl);
+      const webglRenderer = new WebGL2SpectrogramRenderer(
+        gl,
+        createSpectrogramProgram(gl, "normal"),
+      );
 
       const renderInput = {
         viewport: {

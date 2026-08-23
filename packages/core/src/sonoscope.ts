@@ -233,16 +233,7 @@ export class Sonoscope implements ISonoscope {
     url: string,
     options?: Omit<SonoscopeOptions, "source">,
   ): Promise<Sonoscope> {
-    const sourceOptions =
-      options?.preferStreaming !== undefined ||
-      options?.preferDecoded !== undefined ||
-      options?.sampleRate !== undefined
-        ? {
-            preferStreaming: options.preferStreaming,
-            preferDecoded: options.preferDecoded,
-            sampleRate: options.sampleRate,
-          }
-        : undefined;
+    const sourceOptions = pickSourceOptions(options);
     const source = sourceOptions
       ? await createAudioSourceFromUrl(url, sourceOptions)
       : await createAudioSourceFromUrl(url);
@@ -265,16 +256,7 @@ export class Sonoscope implements ISonoscope {
     if (!url) {
       throw new Error("Audio element has no src or currentSrc");
     }
-    const sourceOptions =
-      options?.preferStreaming !== undefined ||
-      options?.preferDecoded !== undefined ||
-      options?.sampleRate !== undefined
-        ? {
-            preferStreaming: options.preferStreaming,
-            preferDecoded: options.preferDecoded,
-            sampleRate: options.sampleRate,
-          }
-        : undefined;
+    const sourceOptions = pickSourceOptions(options);
     const source = sourceOptions
       ? await createAudioSourceFromUrl(url, sourceOptions)
       : await createAudioSourceFromUrl(url);
@@ -315,38 +297,14 @@ export class Sonoscope implements ISonoscope {
     blob: Blob,
     options?: Omit<SonoscopeOptions, "source">,
   ): Promise<Sonoscope> {
-    const sourceOptions =
-      options?.preferStreaming !== undefined ||
-      options?.preferDecoded !== undefined ||
-      options?.sampleRate !== undefined
-        ? {
-            preferStreaming: options.preferStreaming,
-            preferDecoded: options.preferDecoded,
-            sampleRate: options.sampleRate,
-          }
-        : undefined;
+    const sourceOptions = pickSourceOptions(options);
     const source = sourceOptions
       ? await createAudioSourceFromBlob(blob, sourceOptions)
       : await createAudioSourceFromBlob(blob);
 
-    let createdUrl: string | undefined;
     const audio = options?.audio;
-    if (
-      audio &&
-      !audio.src &&
-      typeof URL !== "undefined" &&
-      typeof URL.createObjectURL === "function"
-    ) {
-      createdUrl = URL.createObjectURL(blob);
-      audio.src = createdUrl;
-    }
-
     const scope = new Sonoscope({ ...options, source, audio });
-    if (createdUrl) {
-      scope.audioCleanup.push(() => {
-        URL.revokeObjectURL(createdUrl!);
-      });
-    }
+    Sonoscope.attachAudioObjectUrl(scope, audio, () => blob);
     return scope;
   }
 
@@ -354,41 +312,18 @@ export class Sonoscope implements ISonoscope {
     buffer: ArrayBuffer | Uint8Array,
     options?: Omit<SonoscopeOptions, "source">,
   ): Promise<Sonoscope> {
-    const sourceOptions =
-      options?.preferStreaming !== undefined ||
-      options?.preferDecoded !== undefined ||
-      options?.sampleRate !== undefined
-        ? {
-            preferStreaming: options.preferStreaming,
-            preferDecoded: options.preferDecoded,
-            sampleRate: options.sampleRate,
-          }
-        : undefined;
+    const sourceOptions = pickSourceOptions(options);
     const source = sourceOptions
       ? await createAudioSourceFromBuffer(buffer, sourceOptions)
       : await createAudioSourceFromBuffer(buffer);
 
-    let createdUrl: string | undefined;
     const audio = options?.audio;
-    if (
-      audio &&
-      !audio.src &&
-      typeof URL !== "undefined" &&
-      typeof URL.createObjectURL === "function"
-    ) {
+    const scope = new Sonoscope({ ...options, source, audio });
+    Sonoscope.attachAudioObjectUrl(scope, audio, () => {
       const uint8 =
         buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-      const blob = new Blob([uint8 as unknown as BlobPart]);
-      createdUrl = URL.createObjectURL(blob);
-      audio.src = createdUrl;
-    }
-
-    const scope = new Sonoscope({ ...options, source, audio });
-    if (createdUrl) {
-      scope.audioCleanup.push(() => {
-        URL.revokeObjectURL(createdUrl!);
-      });
-    }
+      return new Blob([uint8 as unknown as BlobPart]);
+    });
     return scope;
   }
 
@@ -398,27 +333,32 @@ export class Sonoscope implements ISonoscope {
     options?: Omit<SonoscopeOptions, "source">,
   ): Sonoscope {
     const source = new ArrayAudioSource(data, sampleRate);
-    let createdUrl: string | undefined;
     const audio = options?.audio;
-
-    if (
-      audio &&
-      !audio.src &&
-      typeof URL !== "undefined" &&
-      typeof URL.createObjectURL === "function"
-    ) {
-      const wavBlob = encodeWavBlob(data, sampleRate);
-      createdUrl = URL.createObjectURL(wavBlob);
-      audio.src = createdUrl;
-    }
-
     const scope = new Sonoscope({ ...options, source, audio });
-    if (createdUrl) {
-      scope.audioCleanup.push(() => {
-        URL.revokeObjectURL(createdUrl!);
-      });
-    }
+    Sonoscope.attachAudioObjectUrl(scope, audio, () =>
+      encodeWavBlob(data, sampleRate),
+    );
     return scope;
+  }
+
+  private static attachAudioObjectUrl(
+    scope: Sonoscope,
+    audio: HTMLAudioElement | undefined,
+    createBlob: () => Blob,
+  ): void {
+    if (
+      !audio ||
+      audio.src ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      return;
+    }
+    const url = URL.createObjectURL(createBlob());
+    audio.src = url;
+    scope.audioCleanup.push(() => {
+      URL.revokeObjectURL(url);
+    });
   }
 
   getViewport(): ViewportState {
@@ -960,4 +900,22 @@ export class Sonoscope implements ISonoscope {
     this.events.emit("destroy", undefined);
     this.events.clear();
   }
+}
+
+function pickSourceOptions(options?: Partial<SonoscopeOptions>):
+  | {
+      preferStreaming?: boolean | undefined;
+      preferDecoded?: boolean | undefined;
+      sampleRate?: number | undefined;
+    }
+  | undefined {
+  return options?.preferStreaming !== undefined ||
+    options?.preferDecoded !== undefined ||
+    options?.sampleRate !== undefined
+    ? {
+        preferStreaming: options.preferStreaming,
+        preferDecoded: options.preferDecoded,
+        sampleRate: options.sampleRate,
+      }
+    : undefined;
 }

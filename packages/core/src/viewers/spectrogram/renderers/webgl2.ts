@@ -1,60 +1,43 @@
 import type { ColorMapConfig } from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
+import type { RenderInput, SpectrogramRenderer } from "./canvas";
+import type {
+  TextureEntry,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
+import {
+  compileShader,
+  isUsableWebGL2Context,
+} from "../../shared/webgl2-compile";
 import { valueDataForMode } from "../spectrogram-sampling";
 import { valueScaleBounds } from "../value-scale";
+import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "./webgl2-halftone-program";
 import {
-  CanvasSpectrogramRenderer,
-  type RenderInput,
-  type SpectrogramRenderer,
-} from "./canvas";
-import {
-  HalftoneSpectrogramProgram,
-  WEBGL2_HALFTONE_FRAGMENT_SHADER,
-} from "./webgl2-halftone-program";
-import {
-  NormalSpectrogramProgram,
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
 import {
-  numberedSource,
-  type TextureEntry,
-  type WebGL2Frame,
-  type WebGL2RenderProgram,
-  type WebGL2RenderResources,
-} from "./webgl2-program";
-import {
-  SobelSpectrogramProgram,
-  WEBGL2_SOBEL_FRAGMENT_SHADER,
-} from "./webgl2-sobel-program";
-import {
-  TerrainSpectrogramProgram,
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
 } from "./webgl2-terrain-program";
 
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
-  private readonly fallback = new CanvasSpectrogramRenderer();
-  private readonly normalProgram: WebGL2RenderProgram;
-  private readonly halftoneProgram: WebGL2RenderProgram;
-  private readonly sobelProgram: WebGL2RenderProgram;
-  private readonly terrainProgram: WebGL2RenderProgram;
-  private readonly customProgram: WebGL2RenderProgram | undefined;
+  private program: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
+  private readonly matrixIds = new WeakMap<SpectrogramMatrix, number>();
+  private nextMatrixId = 1;
   private colorMapKey = "";
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
-    customProgram?: WebGL2RenderProgram,
+    program: WebGL2RenderProgram,
   ) {
-    this.normalProgram = new NormalSpectrogramProgram(gl);
-    this.halftoneProgram = new HalftoneSpectrogramProgram(gl);
-    this.sobelProgram = new SobelSpectrogramProgram(gl);
-    this.terrainProgram = new TerrainSpectrogramProgram(gl);
-    this.customProgram = customProgram;
+    this.program = program;
     const colorMapTexture = gl.createTexture();
     if (!colorMapTexture)
       throw new Error("Unable to initialize WebGL2 renderer resources");
@@ -63,11 +46,11 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   static create(
     canvas: HTMLCanvasElement,
-    customProgram?: WebGL2RenderProgram,
+    program: WebGL2RenderProgram,
   ): WebGL2SpectrogramRenderer | undefined {
     const gl = canvas.getContext("webgl2");
     return gl && isUsableWebGL2Context(gl)
-      ? new WebGL2SpectrogramRenderer(gl, customProgram)
+      ? new WebGL2SpectrogramRenderer(gl, program)
       : undefined;
   }
 
@@ -86,11 +69,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       ) ??
       compileShaderDiagnostic(
         gl,
-        gl.FRAGMENT_SHADER,
-        WEBGL2_SOBEL_FRAGMENT_SHADER,
-      ) ??
-      compileShaderDiagnostic(
-        gl,
         gl.VERTEX_SHADER,
         WEBGL2_TERRAIN_VERTEX_SHADER,
       ) ??
@@ -103,16 +81,33 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   invalidate(): void {
-    this.fallback.invalidate();
     for (const entry of this.tileTextures.values())
       this.gl.deleteTexture(entry.texture);
     this.tileTextures.clear();
   }
 
+  /**
+   * Swaps the active shader program in place, preserving cached GPU tile
+   * textures. The renderer takes ownership of the program it is given and
+   * disposes it when replaced or destroyed. If an equivalent built-in
+   * program (same name) is already active, the incoming duplicate is
+   * disposed and the existing program is kept.
+   */
+  setProgram(program: WebGL2RenderProgram): void {
+    if (this.program === program) return;
+    if (program.name !== undefined && this.program?.name === program.name) {
+      program.delete();
+      return;
+    }
+    this.program?.delete();
+    this.program = program;
+  }
+
   render(input: RenderInput): void {
     if (this.gl.isContextLost()) {
-      this.fallback.render(input);
-      return;
+      throw new Error(
+        "WebGL2 context is lost; create a new renderer to recover",
+      );
     }
     const paint = () => this.paint(input, this.programFor(input));
     if (input.profile) {
@@ -129,11 +124,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   destroy(): void {
     this.invalidate();
     this.gl.deleteTexture(this.colorMapTexture);
-    this.normalProgram.delete();
-    this.halftoneProgram.delete();
-    this.sobelProgram.delete();
-    this.terrainProgram.delete();
-    this.customProgram?.delete();
+    this.program?.delete();
+    this.program = undefined;
   }
 
   private paint(input: RenderInput, program: WebGL2RenderProgram): void {
@@ -146,13 +138,14 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   private programFor(input: RenderInput): WebGL2RenderProgram {
-    if (typeof input.webglProgram === "object") return input.webglProgram;
-    if (input.webglProgram === "terrain") return this.terrainProgram;
-    if (input.webglProgram === "sobel") return this.sobelProgram;
-    if (input.webglProgram === "halftone") return this.halftoneProgram;
-    if (input.webglProgram === "normal") return this.normalProgram;
-    if (this.customProgram) return this.customProgram;
-    return this.normalProgram;
+    return input.webglProgram ?? this.requireProgram();
+  }
+
+  private requireProgram(): WebGL2RenderProgram {
+    if (!this.program) {
+      throw new Error("WebGL2 renderer has been destroyed");
+    }
+    return this.program;
   }
 
   private renderResources(input: RenderInput): WebGL2RenderResources {
@@ -164,11 +157,20 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     };
   }
 
+  private matrixId(tile: SpectrogramMatrix): number {
+    let id = this.matrixIds.get(tile);
+    if (id === undefined) {
+      id = this.nextMatrixId++;
+      this.matrixIds.set(tile, id);
+    }
+    return id;
+  }
+
   private textureForTile(
     tile: SpectrogramMatrix,
     valueScale: Required<ValueScaleConfig>,
   ): TextureEntry {
-    const key = `${tile.channel}:${tile.timeStart}:${tile.timeEnd}:${valueScale.mode}:${valueScale.min}:${valueScale.max}:${valueScale.gamma}:${valueScale.clamp}`;
+    const key = `${this.matrixId(tile)}:${valueScale.mode}:${valueScale.min}:${valueScale.max}:${valueScale.gamma}:${valueScale.clamp}`;
     const existing = this.tileTextures.get(key);
     if (existing) return existing;
 
@@ -241,14 +243,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 }
 
-function isUsableWebGL2Context(context: WebGL2RenderingContext): boolean {
-  return (
-    typeof context.createShader === "function" &&
-    typeof context.createProgram === "function" &&
-    typeof context.texImage2D === "function"
-  );
-}
-
 function canvasSize(canvas: HTMLCanvasElement): WebGL2Frame {
   const width = Math.max(1, canvas.width || 1);
   const height = Math.max(1, canvas.height || 1);
@@ -266,22 +260,13 @@ function compileShaderDiagnostic(
   type: number,
   source: string,
 ): string | undefined {
-  const shader = gl.createShader(type);
-  const kind =
-    type === gl.VERTEX_SHADER
-      ? "vertex"
-      : type === gl.FRAGMENT_SHADER
-        ? "fragment"
-        : "unknown";
-  if (!shader) return `Unable to create WebGL2 ${kind} shader`;
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  const ok = gl.getShaderParameter(shader, gl.COMPILE_STATUS) as boolean;
-  const log = gl.getShaderInfoLog(shader)?.trim() || "unknown shader error";
-  gl.deleteShader(shader);
-  return ok
-    ? undefined
-    : `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`;
+  try {
+    const shader = compileShader(gl, type, source, "spectrogram");
+    gl.deleteShader(shader);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 export function textureValuesForTile(

@@ -1,12 +1,12 @@
 import type {
   FrequencyRulerFrame,
-  FrequencyRulerProgram,
+  FrequencyRulerRenderer,
   FrequencyRulerRenderInput,
 } from "../types";
 import { hzToScale } from "../../spectrogram/frequency-scale";
 import { computeFrequencyTicks, formatFrequencyLabel } from "../ticks";
 
-export class TicksFrequencyRulerProgram implements FrequencyRulerProgram {
+export class TicksFrequencyRulerRenderer implements FrequencyRulerRenderer {
   readonly name = "ticks" as const;
 
   draw(

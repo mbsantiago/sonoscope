@@ -779,7 +779,7 @@ describe("React Components and Hooks", () => {
           React.createElement(
             SonoscopeProvider,
             { value: scope },
-            React.createElement(TimeRuler, { ref, program: "ticks" }),
+            React.createElement(TimeRuler, { ref, renderer: "ticks" }),
           ),
         );
       });
@@ -834,7 +834,7 @@ describe("React Components and Hooks", () => {
             { value: scope },
             React.createElement(FrequencyRuler, {
               ref,
-              program: "ticks",
+              renderer: "ticks",
               frequencyScale: "mel",
             }),
           ),

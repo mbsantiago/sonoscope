@@ -4,26 +4,26 @@ import type {
   ResolvedTimeRulerConfig,
   TimeRulerEvents,
   TimeRulerOptions,
-  TimeRulerProgram,
-  TimeRulerProgramName,
+  TimeRulerRenderer,
+  TimeRulerRendererName,
   TimeRulerStatus,
   TimeRulerViewport,
 } from "./types";
 import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
-import { BoxesTimeRulerProgram } from "./programs/boxes-program";
-import { TicksTimeRulerProgram } from "./programs/ticks-program";
+import { BoxesTimeRulerRenderer } from "./renderers/boxes-renderer";
+import { TicksTimeRulerRenderer } from "./renderers/ticks-renderer";
 
-function resolveTimeRulerProgram(
-  program: TimeRulerProgramName | TimeRulerProgram | undefined,
-): TimeRulerProgram {
-  if (typeof program === "object" && program !== null && "draw" in program) {
-    return program;
+function resolveTimeRulerRenderer(
+  renderer: TimeRulerRendererName | TimeRulerRenderer | undefined,
+): TimeRulerRenderer {
+  if (typeof renderer === "object" && renderer !== null && "draw" in renderer) {
+    return renderer;
   }
-  if (program === "boxes") {
-    return new BoxesTimeRulerProgram();
+  if (renderer === "boxes") {
+    return new BoxesTimeRulerRenderer();
   }
-  return new TicksTimeRulerProgram();
+  return new TicksTimeRulerRenderer();
 }
 
 function resolveTimeRulerConfig(
@@ -41,7 +41,7 @@ function resolveTimeRulerConfig(
     tickPosition: input.tickPosition ?? "bottom",
     timeFormat: input.timeFormat ?? "auto",
     minMajorPixelSpacing: input.minMajorPixelSpacing ?? 75,
-    program: input.program ?? "ticks",
+    renderer: input.renderer ?? "ticks",
   };
 }
 
@@ -50,7 +50,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   private readonly canvas: HTMLCanvasElement;
   private readonly viewport: IViewportController;
   private config: ResolvedTimeRulerConfig;
-  private programInstance: TimeRulerProgram;
+  private rendererInstance: TimeRulerRenderer;
   private viewportCleanup: Array<() => void> = [];
   private resizeCleanup: (() => void) | undefined;
   private renderQueued = false;
@@ -79,7 +79,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     const initialViewport = viewport.getViewport();
     this.lastViewportStartTime = initialViewport.startTime;
     this.lastViewportEndTime = initialViewport.endTime;
-    this.programInstance = resolveTimeRulerProgram(this.config.program);
+    this.rendererInstance = resolveTimeRulerRenderer(this.config.renderer);
 
     this.bindViewport();
     if (options?.autoResize !== false) {
@@ -145,7 +145,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
   updateConfig(input: Partial<TimeRulerOptions>): void {
     const baseConfig = { ...this.config, ...input };
     this.config = resolveTimeRulerConfig(baseConfig);
-    this.programInstance = resolveTimeRulerProgram(this.config.program);
+    this.rendererInstance = resolveTimeRulerRenderer(this.config.renderer);
 
     this.events.emit("configchange", { config: this.getConfig() });
     this.requestRender();
@@ -188,7 +188,7 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     const height = Math.max(1, this.canvas.height || 1);
     const vp = this.viewport.getViewport();
 
-    this.programInstance.draw(
+    this.rendererInstance.draw(
       ctx,
       {
         canvas: this.canvas,

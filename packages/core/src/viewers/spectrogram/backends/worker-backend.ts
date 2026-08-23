@@ -1,13 +1,12 @@
 import type { PerformanceProfiler } from "../../../performance";
+import type {
+  ComputeTileRequest,
+  SpectrogramComputeBackend,
+  SpectrogramWorkerLike,
+} from "../model";
 import type { SpectrogramMatrix, StftConfig } from "../types";
-import type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
 
-export type SpectrogramWorkerLike = {
-  onmessage: ((event: MessageEvent) => void) | null;
-  onerror: ((event: ErrorEvent) => void) | null;
-  postMessage(message: unknown, transfer?: Transferable[]): void;
-  terminate(): void;
-};
+export type { SpectrogramWorkerLike } from "../model";
 
 export type WorkerComputeBackendOptions = {
   workerCount?: number;
@@ -176,25 +175,27 @@ self.onmessage = (event) => {
 `;
 }
 
-export function createDefaultWorker(
-  workerUrl?: URL | string,
-): SpectrogramWorkerLike {
-  if (workerUrl) {
-    return new Worker(workerUrl, { type: "module" });
-  }
+export function createBlobWorker(script: string): SpectrogramWorkerLike {
   if (
     typeof Blob !== "undefined" &&
     typeof URL?.createObjectURL === "function"
   ) {
-    const blob = new Blob([getStftWorkerScript()], {
-      type: "application/javascript",
-    });
+    const blob = new Blob([script], { type: "application/javascript" });
     const blobUrl = URL.createObjectURL(blob);
     return new Worker(blobUrl);
   }
   throw new Error(
     "Web Workers with Blob URLs are not supported in this environment",
   );
+}
+
+export function createDefaultWorker(
+  workerUrl?: URL | string,
+): SpectrogramWorkerLike {
+  if (workerUrl) {
+    return new Worker(workerUrl, { type: "module" });
+  }
+  return createBlobWorker(getStftWorkerScript());
 }
 
 function defaultWorkerCount(): number {

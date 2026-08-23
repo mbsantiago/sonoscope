@@ -188,7 +188,6 @@ export function ControlPanel(props: ControlPanelProps): React.ReactElement {
           <option value="auto">auto</option>
           <option value="normal">normal</option>
           <option value="halftone">halftone</option>
-          <option value="sobel">sobel</option>
           <option value="terrain">terrain</option>
         </select>
       </ControlField>

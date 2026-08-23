@@ -94,11 +94,11 @@ Replaces standard tick lines with segmented blocks:
 
 ```ts
 scope.createTimeRuler(timeCanvas, {
-  program: "boxes",
+  renderer: "boxes",
 });
 ```
 
-<RulerPreview config={{ program: "boxes" }} />
+<RulerPreview config={{ renderer: "boxes" }} />
 
 ### 6. Timecode formatting (`mm:ss.ms`)
 Formats timestamps in standard media timecode notation:
