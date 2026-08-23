@@ -74,13 +74,7 @@ describe("loading and profiler backends in browser", () => {
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
 
-    const programs = [
-      "normal",
-      "halftone",
-      "sobel",
-      "terrain",
-      "normal",
-    ] as const;
+    const programs = ["normal", "halftone", "terrain", "normal"] as const;
     for (const program of programs) {
       viewer.updateConfig({ renderer: { type: "webgl", program } });
       await viewer.render();

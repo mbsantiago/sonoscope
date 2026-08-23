@@ -16,7 +16,6 @@ function isWebGLStrict(mode: RendererMode): boolean {
       mode === "webgl2" ||
       mode === "halftone" ||
       mode === "terrain" ||
-      mode === "sobel" ||
       mode === "normal"
     );
   }
@@ -26,7 +25,6 @@ function isWebGLStrict(mode: RendererMode): boolean {
       mode.type === "webgl2" ||
       mode.type === "halftone" ||
       mode.type === "terrain" ||
-      mode.type === "sobel" ||
       mode.type === "normal"
     );
   }

@@ -12,11 +12,7 @@ import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 
 export type ValueMode = "magnitude" | "power" | "db";
 
-export type WebGLRendererProgramName =
-  | "normal"
-  | "halftone"
-  | "sobel"
-  | "terrain";
+export type WebGLRendererProgramName = "normal" | "halftone" | "terrain";
 
 export type WebGLRendererProgram =
   | WebGLRendererProgramName
@@ -252,7 +248,7 @@ export type SpectrogramConfig = {
    * - "auto": Uses WebGL2 if supported, falling back to Canvas 2D.
    * - "webgl" / "webgl2": Hardware-accelerated GPU shader renderer.
    * - "canvas2d": CPU Canvas 2D fallback renderer.
-   * - Custom object with shader program (`{ type: "webgl", program: "normal" | "halftone" | "sobel" | "terrain" }`).
+   * - Custom object with shader program (`{ type: "webgl", program: "normal" | "halftone" | "terrain" }`).
    * @default "auto"
    */
   renderer?: RendererMode | undefined;

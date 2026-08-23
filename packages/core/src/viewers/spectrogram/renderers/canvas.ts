@@ -31,12 +31,7 @@ export type RenderInput = {
   tiles: SpectrogramMatrix[];
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
-  webglProgram?:
-    | "normal"
-    | "halftone"
-    | "sobel"
-    | "terrain"
-    | WebGL2RenderProgram;
+  webglProgram?: "normal" | "halftone" | "terrain" | WebGL2RenderProgram;
   halftone?: HalftoneRenderOptions | undefined;
   profile?: PerformanceProfiler;
 };

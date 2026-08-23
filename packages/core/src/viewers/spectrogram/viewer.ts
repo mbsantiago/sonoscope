@@ -874,7 +874,6 @@ function webglProgramRenderInput(
     if (
       renderer === "halftone" ||
       renderer === "terrain" ||
-      renderer === "sobel" ||
       renderer === "normal"
     ) {
       return { webglProgram: renderer };
@@ -902,7 +901,6 @@ function webglProgramRenderInput(
     if (
       renderer.type === "halftone" ||
       renderer.type === "terrain" ||
-      renderer.type === "sobel" ||
       renderer.type === "normal"
     ) {
       return {

@@ -10,7 +10,6 @@ import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
-import { WEBGL2_SOBEL_FRAGMENT_SHADER } from "./webgl2-sobel-program";
 import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
@@ -45,9 +44,6 @@ describe("WebGL2 shaders", () => {
     ).toBeUndefined();
     expect(
       compileShader(gl, gl.FRAGMENT_SHADER, WEBGL2_HALFTONE_FRAGMENT_SHADER),
-    ).toBeUndefined();
-    expect(
-      compileShader(gl, gl.FRAGMENT_SHADER, WEBGL2_SOBEL_FRAGMENT_SHADER),
     ).toBeUndefined();
     expect(
       compileShader(gl, gl.VERTEX_SHADER, WEBGL2_TERRAIN_VERTEX_SHADER),
@@ -156,50 +152,6 @@ describe("WebGL2 shaders", () => {
       colorMap: "gray",
       tiles: [brightBandTile()],
       webglProgram: "halftone",
-    });
-
-    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
-    gl.readPixels(
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      pixels,
-    );
-    expect(pixels.some((value) => value > 64)).toBe(true);
-    renderer.destroy();
-  });
-
-  it("renders visible sobel edge pixels", () => {
-    const canvas = document.createElement("canvas");
-    Object.defineProperty(canvas, "getBoundingClientRect", {
-      value: () => ({ width: 32, height: 16 }),
-    });
-    const gl = canvas.getContext("webgl2");
-    if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
-
-    renderer.render({
-      canvas,
-      viewport: {
-        startTime: 0,
-        endTime: 1,
-        minFrequency: 0,
-        maxFrequency: 100,
-      },
-      frequencyScale: "linear",
-      valueScale: {
-        mode: "magnitude",
-        min: -100,
-        max: 0,
-        gamma: 1,
-        clamp: true,
-      },
-      colorMap: "gray",
-      tiles: [brightBandTile()],
-      webglProgram: "sobel",
     });
 
     const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -529,7 +481,7 @@ describe("WebGL2 shaders", () => {
     }
   });
 
-  it("renders all shader programs (normal, halftone, sobel, terrain) without WebGL errors or warnings", () => {
+  it("renders all shader programs (normal, halftone, terrain) without WebGL errors or warnings", () => {
     const canvas = document.createElement("canvas");
     Object.defineProperty(canvas, "getBoundingClientRect", {
       value: () => ({ width: 64, height: 48 }),
@@ -538,13 +490,7 @@ describe("WebGL2 shaders", () => {
     if (!gl) return;
     const renderer = new WebGL2SpectrogramRenderer(gl);
 
-    const programs = [
-      "normal",
-      "halftone",
-      "sobel",
-      "terrain",
-      "normal",
-    ] as const;
+    const programs = ["normal", "halftone", "terrain", "normal"] as const;
     for (const program of programs) {
       renderer.render({
         canvas,

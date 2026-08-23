@@ -227,7 +227,6 @@ export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl
 export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-halftone-program";
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
 export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
-export { SobelSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-sobel-program";
 export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";

@@ -25,10 +25,6 @@ import {
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
 import {
-  SobelSpectrogramProgram,
-  WEBGL2_SOBEL_FRAGMENT_SHADER,
-} from "./webgl2-sobel-program";
-import {
   TerrainSpectrogramProgram,
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
@@ -39,7 +35,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private readonly fallback = new CanvasSpectrogramRenderer();
   private readonly normalProgram: WebGL2RenderProgram;
   private readonly halftoneProgram: WebGL2RenderProgram;
-  private readonly sobelProgram: WebGL2RenderProgram;
   private readonly terrainProgram: WebGL2RenderProgram;
   private readonly customProgram: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
@@ -52,7 +47,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   ) {
     this.normalProgram = new NormalSpectrogramProgram(gl);
     this.halftoneProgram = new HalftoneSpectrogramProgram(gl);
-    this.sobelProgram = new SobelSpectrogramProgram(gl);
     this.terrainProgram = new TerrainSpectrogramProgram(gl);
     this.customProgram = customProgram;
     const colorMapTexture = gl.createTexture();
@@ -83,11 +77,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
         gl,
         gl.FRAGMENT_SHADER,
         WEBGL2_HALFTONE_FRAGMENT_SHADER,
-      ) ??
-      compileShaderDiagnostic(
-        gl,
-        gl.FRAGMENT_SHADER,
-        WEBGL2_SOBEL_FRAGMENT_SHADER,
       ) ??
       compileShaderDiagnostic(
         gl,
@@ -131,7 +120,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.gl.deleteTexture(this.colorMapTexture);
     this.normalProgram.delete();
     this.halftoneProgram.delete();
-    this.sobelProgram.delete();
     this.terrainProgram.delete();
     this.customProgram?.delete();
   }
@@ -148,7 +136,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private programFor(input: RenderInput): WebGL2RenderProgram {
     if (typeof input.webglProgram === "object") return input.webglProgram;
     if (input.webglProgram === "terrain") return this.terrainProgram;
-    if (input.webglProgram === "sobel") return this.sobelProgram;
     if (input.webglProgram === "halftone") return this.halftoneProgram;
     if (input.webglProgram === "normal") return this.normalProgram;
     if (this.customProgram) return this.customProgram;

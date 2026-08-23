@@ -39,7 +39,7 @@ The web audio ecosystem contains several categories of tools, each optimized for
 
 ### 1. Rendering pipeline and GPU utilization
 
-- **WebGL2 GPU rendering (Sonoscope)**: Color mapping, dynamic range normalization (dB scaling), and visual filters (such as Sobel edge enhancement and 2.5D terrain relief) execute directly in fragment shaders on the GPU. Changing colormaps, gain, or thresholds updates immediately without re-rasterizing pixel buffers on the CPU.
+- **WebGL2 GPU rendering (Sonoscope)**: Color mapping, dynamic range normalization (dB scaling), and visual filters (such as halftone dithering and 2.5D terrain relief) execute directly in fragment shaders on the GPU. Changing colormaps, gain, or thresholds updates immediately without re-rasterizing pixel buffers on the CPU.
 - **Canvas 2D rendering (`wavesurfer.js`, `waveform-playlist`, `Spectrolipi`, `audioMotion-analyzer`)**: Generates pixel data in JavaScript arrays and draws them to a `<canvas>` context using `putImageData` or 2D image drawing routines. This works well for standard audio tracks, spectrogram previews, and animated spectrum meters.
 - **WebGL 1.0 real-time rendering (`gl-spectrogram`, `Chrome Music Lab`)**: Uses WebGL textures to scroll real-time frequency data across a rolling display.
 - **Headless libraries (`Essentia.js`, `Meyda`, `fft.js`)**: Pure mathematical engines that do not include a graphical rendering pipeline.
