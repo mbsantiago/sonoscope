@@ -99,7 +99,7 @@ export type FrequencyRulerConfig = {
   minMajorPixelSpacing?: number | undefined;
 
   /**
-   * Visual renderer renderer: standard tick lines or segmented boxes.
+   * Visual renderer: standard tick lines or segmented boxes.
    * @default "ticks"
    */
   renderer?: FrequencyRulerRendererName | FrequencyRulerRenderer | undefined;
