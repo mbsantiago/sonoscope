@@ -4,6 +4,7 @@ import type {
   ValueScaleConfig,
   WebGLRendererProgram,
 } from "../types";
+import type { RenderInput, SpectrogramRenderer } from "./canvas";
 import type {
   TextureEntry,
   WebGL2Frame,
@@ -14,17 +15,15 @@ import { buildColorMap } from "../../../colormap";
 import { compileShader } from "../../shared/webgl2-compile";
 import { valueDataForMode } from "../spectrogram-sampling";
 import { valueScaleBounds } from "../value-scale";
-import {
-  CanvasSpectrogramRenderer,
-  type RenderInput,
-  type SpectrogramRenderer,
-} from "./canvas";
 import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "./webgl2-halftone-program";
 import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
-import { createSpectrogramProgram } from "./webgl2-program-factory";
+import {
+  createSpectrogramProgram,
+  isUsableWebGL2Context,
+} from "./webgl2-program-factory";
 import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
@@ -32,7 +31,6 @@ import {
 
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
-  private readonly fallback = new CanvasSpectrogramRenderer();
   private program: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
@@ -88,7 +86,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   invalidate(): void {
-    this.fallback.invalidate();
     for (const entry of this.tileTextures.values())
       this.gl.deleteTexture(entry.texture);
     this.tileTextures.clear();
@@ -116,8 +113,9 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   render(input: RenderInput): void {
     if (this.gl.isContextLost()) {
-      this.fallback.render(input);
-      return;
+      throw new Error(
+        "WebGL2 context is lost; create a new renderer to recover",
+      );
     }
     const paint = () => this.paint(input, this.programFor(input));
     if (input.profile) {
@@ -257,14 +255,6 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
         `WebGL2 renderer ${phase} failed with GL error 0x${error.toString(16)}`,
       );
   }
-}
-
-function isUsableWebGL2Context(context: WebGL2RenderingContext): boolean {
-  return (
-    typeof context.createShader === "function" &&
-    typeof context.createProgram === "function" &&
-    typeof context.texImage2D === "function"
-  );
 }
 
 function canvasSize(canvas: HTMLCanvasElement): WebGL2Frame {

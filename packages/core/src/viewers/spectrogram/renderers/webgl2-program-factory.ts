@@ -18,7 +18,9 @@ export function createSpectrogramProgram(
   }
 }
 
-function isUsableWebGL2Context(context: WebGL2RenderingContext): boolean {
+export function isUsableWebGL2Context(
+  context: WebGL2RenderingContext,
+): boolean {
   return (
     typeof context.createShader === "function" &&
     typeof context.createProgram === "function" &&
