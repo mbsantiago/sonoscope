@@ -51,6 +51,9 @@ export function createShaderProgram(
 }
 
 function resolveProgramName(mode: RendererMode): WebGLRendererProgramName {
+  if (mode === "halftone" || mode === "terrain" || mode === "normal") {
+    return mode;
+  }
   if (
     typeof mode === "object" &&
     mode !== null &&
