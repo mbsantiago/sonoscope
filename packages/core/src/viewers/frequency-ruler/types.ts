@@ -1,7 +1,7 @@
 import type { FrequencyScale, IViewportController } from "../../types";
 import type { FrequencyFormatMode } from "./ticks";
 
-export type FrequencyRulerProgramName = "ticks" | "boxes";
+export type FrequencyRulerRendererName = "ticks" | "boxes";
 
 export type FrequencyRulerFrame = {
   width: number;
@@ -24,7 +24,7 @@ export type FrequencyRulerRenderInput = {
   minMajorPixelSpacing?: number | undefined;
 };
 
-export interface FrequencyRulerProgram {
+export interface FrequencyRulerRenderer {
   readonly name: string;
   draw(
     ctx: CanvasRenderingContext2D,
@@ -99,10 +99,10 @@ export type FrequencyRulerConfig = {
   minMajorPixelSpacing?: number | undefined;
 
   /**
-   * Visual renderer program: standard tick lines or segmented boxes.
+   * Visual renderer renderer: standard tick lines or segmented boxes.
    * @default "ticks"
    */
-  program?: FrequencyRulerProgramName | FrequencyRulerProgram | undefined;
+  renderer?: FrequencyRulerRendererName | FrequencyRulerRenderer | undefined;
 
   /**
    * Whether to automatically resize canvas pixel resolution when container dimensions change.
@@ -130,7 +130,7 @@ export type ResolvedFrequencyRulerConfig = {
   tickPosition: "left" | "right" | "both" | "inside";
   frequencyFormat: FrequencyFormatMode;
   minMajorPixelSpacing: number;
-  program: FrequencyRulerProgramName | FrequencyRulerProgram;
+  renderer: FrequencyRulerRendererName | FrequencyRulerRenderer;
 };
 
 export type FrequencyRulerViewport = {

@@ -1,7 +1,7 @@
 import type { IViewportController } from "../../types";
 import type { TimeFormatMode } from "./ticks";
 
-export type TimeRulerProgramName = "ticks" | "boxes";
+export type TimeRulerRendererName = "ticks" | "boxes";
 
 export type TimeRulerFrame = {
   width: number;
@@ -24,7 +24,7 @@ export type TimeRulerRenderInput = {
   minMajorPixelSpacing?: number | undefined;
 };
 
-export interface TimeRulerProgram {
+export interface TimeRulerRenderer {
   readonly name: string;
   draw(
     ctx: CanvasRenderingContext2D,
@@ -94,10 +94,10 @@ export type TimeRulerConfig = {
   minMajorPixelSpacing?: number | undefined;
 
   /**
-   * Visual renderer program: standard tick lines or segmented boxes.
+   * Visual renderer renderer: standard tick lines or segmented boxes.
    * @default "ticks"
    */
-  program?: TimeRulerProgramName | TimeRulerProgram | undefined;
+  renderer?: TimeRulerRendererName | TimeRulerRenderer | undefined;
 
   /**
    * Whether to automatically resize canvas pixel resolution when container dimensions change.
@@ -124,7 +124,7 @@ export type ResolvedTimeRulerConfig = {
   tickPosition: "top" | "bottom" | "both" | "inside";
   timeFormat: TimeFormatMode;
   minMajorPixelSpacing: number;
-  program: TimeRulerProgramName | TimeRulerProgram;
+  renderer: TimeRulerRendererName | TimeRulerRenderer;
 };
 
 export type TimeRulerViewport = {

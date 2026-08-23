@@ -36,7 +36,7 @@ describe("FrequencyRulerViewer", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createMockCanvas();
     const viewer = scope.createFrequencyRuler(canvas, {
-      program: "ticks",
+      renderer: "ticks",
       frequencyScale: "mel",
       color: "#ffffff",
     });

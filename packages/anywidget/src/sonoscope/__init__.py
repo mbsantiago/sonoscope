@@ -139,12 +139,12 @@ class Sonoscope(anywidget.AnyWidget):
 
     # Frequency Ruler traitlets
     show_frequency_ruler = traitlets.Bool(default_value=True).tag(sync=True)
-    freq_ruler_program = traitlets.Unicode(default_value="ticks").tag(sync=True)
+    freq_ruler_renderer = traitlets.Unicode(default_value="ticks").tag(sync=True)
     freq_ruler_width = traitlets.CInt(default_value=56).tag(sync=True)
 
     # Time Ruler traitlets
     show_time_ruler = traitlets.Bool(default_value=True).tag(sync=True)
-    time_ruler_program = traitlets.Unicode(default_value="ticks").tag(sync=True)
+    time_ruler_renderer = traitlets.Unicode(default_value="ticks").tag(sync=True)
     time_ruler_height = traitlets.CInt(default_value=24).tag(sync=True)
 
     # Waveform traitlets

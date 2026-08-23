@@ -50,8 +50,8 @@ export type {
   FrequencyRulerEvents,
   FrequencyRulerFrame,
   FrequencyRulerOptions,
-  FrequencyRulerProgram,
-  FrequencyRulerProgramName,
+  FrequencyRulerRenderer,
+  FrequencyRulerRendererName,
   FrequencyRulerRenderInput,
   FrequencyRulerStatus,
   FrequencyRulerViewport,
@@ -116,8 +116,8 @@ export type {
   TimeRulerEvents,
   TimeRulerFrame,
   TimeRulerOptions,
-  TimeRulerProgram,
-  TimeRulerProgramName,
+  TimeRulerRenderer,
+  TimeRulerRendererName,
   TimeRulerRenderInput,
   TimeRulerStatus,
   TimeRulerViewport,
@@ -193,11 +193,11 @@ export { StreamingMp3Source } from "./sources/streaming-mp3-source";
 export { StreamingWavSource } from "./sources/streaming-wav-source";
 export { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
 export {
-  BoxesFrequencyRulerProgram,
+  BoxesFrequencyRulerRenderer,
   computeFrequencyTicks,
   FrequencyRulerViewer,
   formatFrequencyLabel,
-  TicksFrequencyRulerProgram,
+  TicksFrequencyRulerRenderer,
 } from "./viewers/frequency-ruler";
 // Compute Backends & Renderers
 export { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
@@ -231,10 +231,10 @@ export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 export {
-  BoxesTimeRulerProgram,
+  BoxesTimeRulerRenderer,
   computeTimeTicks,
   formatTimeLabel,
-  TicksTimeRulerProgram,
+  TicksTimeRulerRenderer,
   TimeRulerViewer,
 } from "./viewers/time-ruler";
 export { BarsWaveformRenderer } from "./viewers/waveform/renderers/bars";

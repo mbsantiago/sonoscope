@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { BoxesTimeRulerProgram } from "./boxes-program";
-import { TicksTimeRulerProgram } from "./ticks-program";
+import { BoxesTimeRulerRenderer } from "./boxes-renderer";
+import { TicksTimeRulerRenderer } from "./ticks-renderer";
 
 function createMockCanvas(): HTMLCanvasElement {
   return {
@@ -24,12 +24,12 @@ function createMockCanvas(): HTMLCanvasElement {
 }
 
 describe("TimeRuler Drawing Programs", () => {
-  it("Ticks program executes draw without error", () => {
-    const program = new TicksTimeRulerProgram();
+  it("Ticks renderer executes draw without error", () => {
+    const renderer = new TicksTimeRulerRenderer();
     const canvas = createMockCanvas();
     const ctx = canvas.getContext("2d")!;
     expect(() =>
-      program.draw(
+      renderer.draw(
         ctx,
         {
           canvas,
@@ -44,12 +44,12 @@ describe("TimeRuler Drawing Programs", () => {
     ).not.toThrow();
   });
 
-  it("Boxes program executes draw without error", () => {
-    const program = new BoxesTimeRulerProgram();
+  it("Boxes renderer executes draw without error", () => {
+    const renderer = new BoxesTimeRulerRenderer();
     const canvas = createMockCanvas();
     const ctx = canvas.getContext("2d")!;
     expect(() =>
-      program.draw(
+      renderer.draw(
         ctx,
         {
           canvas,

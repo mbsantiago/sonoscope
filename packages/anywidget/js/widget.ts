@@ -3,10 +3,10 @@ import "./widget.css";
 import {
   attachPlayheadOverlay,
   type FollowPlaybackMode,
-  type FrequencyRulerProgramName,
+  type FrequencyRulerRendererName,
   type FrequencyScale,
   Sonoscope,
-  type TimeRulerProgramName,
+  type TimeRulerRendererName,
 } from "@sonoscope/core";
 
 interface WidgetModel {
@@ -34,10 +34,10 @@ interface WidgetModel {
   window_size: number;
   hop_size: number;
   show_frequency_ruler: boolean;
-  freq_ruler_program: FrequencyRulerProgramName;
+  freq_ruler_renderer: FrequencyRulerRendererName;
   freq_ruler_width: number;
   show_time_ruler: boolean;
-  time_ruler_program: TimeRulerProgramName;
+  time_ruler_renderer: TimeRulerRendererName;
   time_ruler_height: number;
   show_waveform: boolean;
   waveform_height: number;
@@ -121,10 +121,10 @@ async function render({
   const maxDb = model.get("max_db") ?? 0;
   const windowSize = model.get("window_size") || 512;
   const hopSize = model.get("hop_size") || 128;
-  const timeRulerProg: TimeRulerProgramName =
-    model.get("time_ruler_program") || "ticks";
-  const freqRulerProg: FrequencyRulerProgramName =
-    model.get("freq_ruler_program") || "ticks";
+  const timeRulerRenderer: TimeRulerRendererName =
+    model.get("time_ruler_renderer") || "ticks";
+  const freqRulerRenderer: FrequencyRulerRendererName =
+    model.get("freq_ruler_renderer") || "ticks";
   const followPlayback: FollowPlaybackMode =
     model.get("follow_playback") || "page";
 
@@ -254,7 +254,7 @@ async function render({
   let timeRuler: ReturnType<typeof scope.createTimeRuler> | null = null;
   if (timeRulerCanvas && timeRulerContainer) {
     timeRuler = scope.createTimeRuler(timeRulerCanvas, {
-      program: timeRulerProg,
+      renderer: timeRulerRenderer,
       tickPosition: "top",
       color: "rgba(128, 128, 128, 0.75)",
       tickColor: "rgba(128, 128, 128, 0.35)",
@@ -276,7 +276,7 @@ async function render({
   let freqRuler: ReturnType<typeof scope.createFrequencyRuler> | null = null;
   if (freqRulerCanvas) {
     freqRuler = scope.createFrequencyRuler(freqRulerCanvas, {
-      program: freqRulerProg,
+      renderer: freqRulerRenderer,
       frequencyScale,
       color: "rgba(128, 128, 128, 0.75)",
       tickColor: "rgba(128, 128, 128, 0.35)",
@@ -366,20 +366,20 @@ async function render({
   model.on("change:program", onProgramChange);
   modelUnsubs.push(() => model.off("change:program", onProgramChange));
 
-  const onTimeProgChange = () => {
-    timeRuler?.updateConfig({ program: model.get("time_ruler_program") });
+  const onTimeRendererChange = () => {
+    timeRuler?.updateConfig({ renderer: model.get("time_ruler_renderer") });
   };
-  model.on("change:time_ruler_program", onTimeProgChange);
+  model.on("change:time_ruler_renderer", onTimeRendererChange);
   modelUnsubs.push(() =>
-    model.off("change:time_ruler_program", onTimeProgChange),
+    model.off("change:time_ruler_renderer", onTimeRendererChange),
   );
 
-  const onFreqProgChange = () => {
-    freqRuler?.updateConfig({ program: model.get("freq_ruler_program") });
+  const onFreqRendererChange = () => {
+    freqRuler?.updateConfig({ renderer: model.get("freq_ruler_renderer") });
   };
-  model.on("change:freq_ruler_program", onFreqProgChange);
+  model.on("change:freq_ruler_renderer", onFreqRendererChange);
   modelUnsubs.push(() =>
-    model.off("change:freq_ruler_program", onFreqProgChange),
+    model.off("change:freq_ruler_renderer", onFreqRendererChange),
   );
 
   const onFollowChange = () => {

@@ -36,12 +36,12 @@ describe("TimeRulerViewer", () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createMockCanvas();
     const viewer = scope.createTimeRuler(canvas, {
-      program: "ticks",
+      renderer: "ticks",
       color: "#ffffff",
     });
 
     expect(viewer).toBeInstanceOf(TimeRulerViewer);
-    expect(viewer.getConfig().program).toBe("ticks");
+    expect(viewer.getConfig().renderer).toBe("ticks");
 
     await viewer.render();
     expect(viewer.getStatus().state).toBe("ready");
@@ -77,8 +77,8 @@ describe("TimeRulerViewer", () => {
     const canvas = createMockCanvas();
     const viewer = scope.createTimeRuler(canvas);
 
-    viewer.updateConfig({ program: "boxes", color: "#38bdf8" });
-    expect(viewer.getConfig().program).toBe("boxes");
+    viewer.updateConfig({ renderer: "boxes", color: "#38bdf8" });
+    expect(viewer.getConfig().renderer).toBe("boxes");
     expect(viewer.getConfig().color).toBe("#38bdf8");
 
     await viewer.render();
