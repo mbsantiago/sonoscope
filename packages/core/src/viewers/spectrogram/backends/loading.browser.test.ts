@@ -75,11 +75,30 @@ describe("loading and profiler backends in browser", () => {
     expect(viewer.getStatus().state).toBe("ready");
 
     const programs = ["normal", "halftone", "terrain", "normal"] as const;
+    const tileLoads: Array<{ cacheHit: boolean }> = [];
+    const unsubscribe = viewer.on("tileload", (event) => {
+      tileLoads.push({ cacheHit: event.cacheHit });
+    });
+
+    let cacheTilesBeforeSwitch: number | undefined;
     for (const program of programs) {
       viewer.updateConfig({ renderer: { type: "webgl", program } });
       await viewer.render();
       expect(viewer.getStatus().state).toBe("ready");
+      expect(viewer.getRendererKind()).toBe("webgl2");
+      if (cacheTilesBeforeSwitch === undefined) {
+        cacheTilesBeforeSwitch = viewer.getCacheStats().tiles;
+      } else {
+        expect(viewer.getCacheStats().tiles).toBeGreaterThanOrEqual(
+          cacheTilesBeforeSwitch,
+        );
+      }
     }
+    unsubscribe();
+
+    // After the initial warm-up render every program switch must be served
+    // from the STFT cache — switching programs must never recompute tiles.
+    expect(tileLoads.every((load) => load.cacheHit)).toBe(true);
 
     viewer.destroy();
     scope.destroy();

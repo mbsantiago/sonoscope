@@ -10,6 +10,7 @@ import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
+import { createSpectrogramProgram } from "./webgl2-program-factory";
 import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
@@ -61,7 +62,10 @@ describe("WebGL2 shaders", () => {
     });
     const gl = canvas.getContext("webgl2");
     if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
 
     renderer.render({
       canvas,
@@ -99,7 +103,10 @@ describe("WebGL2 shaders", () => {
     });
     const gl = canvas.getContext("webgl2");
     if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
     const tile = brightBandTile();
 
     renderer.render({
@@ -137,7 +144,10 @@ describe("WebGL2 shaders", () => {
     });
     const gl = canvas.getContext("webgl2");
     if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
 
     renderer.render({
       canvas,
@@ -175,7 +185,10 @@ describe("WebGL2 shaders", () => {
     });
     const gl = canvas.getContext("webgl2");
     if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
 
     const input: RenderInput = {
       canvas,
@@ -236,7 +249,10 @@ describe("WebGL2 shaders", () => {
       });
       const gl = canvas.getContext("webgl2");
       if (!gl) return;
-      const renderer = new WebGL2SpectrogramRenderer(gl);
+      const renderer = new WebGL2SpectrogramRenderer(
+        gl,
+        createSpectrogramProgram(gl, "normal"),
+      );
 
       renderer.render({
         canvas,
@@ -281,7 +297,10 @@ describe("WebGL2 shaders", () => {
       });
       const gl = canvas.getContext("webgl2");
       if (!gl) return;
-      const renderer = new WebGL2SpectrogramRenderer(gl);
+      const renderer = new WebGL2SpectrogramRenderer(
+        gl,
+        createSpectrogramProgram(gl, "normal"),
+      );
 
       renderer.render({
         canvas,
@@ -326,7 +345,10 @@ describe("WebGL2 shaders", () => {
     });
     const gl = canvas.getContext("webgl2");
     if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
     const input: RenderInput = {
       canvas,
       viewport: {
@@ -367,7 +389,10 @@ describe("WebGL2 shaders", () => {
       });
       const gl = canvas.getContext("webgl2");
       if (!gl) return;
-      const renderer = new WebGL2SpectrogramRenderer(gl);
+      const renderer = new WebGL2SpectrogramRenderer(
+        gl,
+        createSpectrogramProgram(gl, "normal"),
+      );
       const input: RenderInput = {
         canvas,
         viewport: {
@@ -488,7 +513,10 @@ describe("WebGL2 shaders", () => {
     });
     const gl = canvas.getContext("webgl2");
     if (!gl) return;
-    const renderer = new WebGL2SpectrogramRenderer(gl);
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
 
     const programs = ["normal", "halftone", "terrain", "normal"] as const;
     for (const program of programs) {

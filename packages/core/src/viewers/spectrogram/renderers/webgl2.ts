@@ -2,7 +2,7 @@ import type { ColorMapConfig } from "../../../types";
 import type {
   SpectrogramMatrix,
   ValueScaleConfig,
-  WebGLRendererProgramName,
+  WebGLRendererProgram,
 } from "../types";
 import type {
   TextureEntry,
@@ -33,21 +33,18 @@ import {
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
   private readonly fallback = new CanvasSpectrogramRenderer();
-  private readonly customProgram: WebGL2RenderProgram | undefined;
-  private activeProgramName: "custom" | WebGLRendererProgramName | undefined;
-  private activeProgram: WebGL2RenderProgram | undefined;
+  private program: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
+  private readonly matrixIds = new WeakMap<SpectrogramMatrix, number>();
+  private nextMatrixId = 1;
   private colorMapKey = "";
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
-    customProgram?: WebGL2RenderProgram,
+    program: WebGL2RenderProgram,
   ) {
-    this.customProgram = customProgram;
-    this.activeProgramName = customProgram ? "custom" : "normal";
-    this.activeProgram =
-      customProgram ?? createSpectrogramProgram(gl, "normal");
+    this.program = program;
     const colorMapTexture = gl.createTexture();
     if (!colorMapTexture)
       throw new Error("Unable to initialize WebGL2 renderer resources");
@@ -56,11 +53,11 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
 
   static create(
     canvas: HTMLCanvasElement,
-    customProgram?: WebGL2RenderProgram,
+    program: WebGL2RenderProgram,
   ): WebGL2SpectrogramRenderer | undefined {
     const gl = canvas.getContext("webgl2");
     return gl && isUsableWebGL2Context(gl)
-      ? new WebGL2SpectrogramRenderer(gl, customProgram)
+      ? new WebGL2SpectrogramRenderer(gl, program)
       : undefined;
   }
 
@@ -97,6 +94,26 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.tileTextures.clear();
   }
 
+  /**
+   * Swaps the active shader program in place, preserving cached GPU tile
+   * textures. The renderer takes ownership of the program it is given and
+   * disposes it when replaced or destroyed.
+   */
+  setProgram(program: WebGLRendererProgram): void {
+    if (
+      typeof program === "object"
+        ? this.program === program
+        : program === this.program?.name
+    ) {
+      return;
+    }
+    this.program?.delete();
+    this.program =
+      typeof program === "object"
+        ? program
+        : createSpectrogramProgram(this.gl, program);
+  }
+
   render(input: RenderInput): void {
     if (this.gl.isContextLost()) {
       this.fallback.render(input);
@@ -117,12 +134,8 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   destroy(): void {
     this.invalidate();
     this.gl.deleteTexture(this.colorMapTexture);
-    if (this.activeProgram && this.activeProgram !== this.customProgram) {
-      this.activeProgram.delete();
-    }
-    this.customProgram?.delete();
-    this.activeProgram = undefined;
-    this.activeProgramName = undefined;
+    this.program?.delete();
+    this.program = undefined;
   }
 
   private paint(input: RenderInput, program: WebGL2RenderProgram): void {
@@ -137,22 +150,18 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private programFor(input: RenderInput): WebGL2RenderProgram {
     const requested = input.webglProgram;
     if (typeof requested === "object") return requested;
-    if (requested === undefined) return this.requireActiveProgram();
-    if (requested !== this.activeProgramName) {
-      if (this.activeProgram && this.activeProgram !== this.customProgram) {
-        this.activeProgram.delete();
-      }
-      this.activeProgram = createSpectrogramProgram(this.gl, requested);
-      this.activeProgramName = requested;
+    if (requested === undefined || requested === this.program?.name) {
+      return this.requireProgram();
     }
-    return this.requireActiveProgram();
+    this.setProgram(requested);
+    return this.requireProgram();
   }
 
-  private requireActiveProgram(): WebGL2RenderProgram {
-    if (!this.activeProgram || !this.activeProgramName) {
+  private requireProgram(): WebGL2RenderProgram {
+    if (!this.program) {
       throw new Error("WebGL2 renderer has been destroyed");
     }
-    return this.activeProgram;
+    return this.program;
   }
 
   private renderResources(input: RenderInput): WebGL2RenderResources {
@@ -164,11 +173,20 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     };
   }
 
+  private matrixId(tile: SpectrogramMatrix): number {
+    let id = this.matrixIds.get(tile);
+    if (id === undefined) {
+      id = this.nextMatrixId++;
+      this.matrixIds.set(tile, id);
+    }
+    return id;
+  }
+
   private textureForTile(
     tile: SpectrogramMatrix,
     valueScale: Required<ValueScaleConfig>,
   ): TextureEntry {
-    const key = `${tile.channel}:${tile.timeStart}:${tile.timeEnd}:${valueScale.mode}:${valueScale.min}:${valueScale.max}:${valueScale.gamma}:${valueScale.clamp}`;
+    const key = `${this.matrixId(tile)}:${valueScale.mode}:${valueScale.min}:${valueScale.max}:${valueScale.gamma}:${valueScale.clamp}`;
     const existing = this.tileTextures.get(key);
     if (existing) return existing;
 

@@ -48,6 +48,8 @@ export type WebGL2RenderResources = {
 };
 
 export type WebGL2RenderProgram = {
+  /** Canonical program name for built-in programs; custom programs may omit it. */
+  readonly name?: string;
   readonly shader: WebGL2ShaderProgram;
   paint(
     input: RenderInput,
@@ -163,6 +165,7 @@ export const WEBGL2_OVERLAY_CHECK = `if (u_overlayMode == 1.0) {
   }`;
 
 export abstract class WebGL2TileProgramBase implements WebGL2RenderProgram {
+  readonly name: string;
   readonly shader: WebGL2ShaderProgram;
   protected readonly gl: WebGL2RenderingContext;
   protected readonly vertexBuffer: WebGLBuffer;
@@ -175,6 +178,7 @@ export abstract class WebGL2TileProgramBase implements WebGL2RenderProgram {
     label: string,
     fillQuad: boolean,
   ) {
+    this.name = label;
     this.gl = gl;
     this.shader = new WebGL2ShaderProgram(gl, vertexSource, fragmentSource);
     const vertexBuffer = gl.createBuffer();

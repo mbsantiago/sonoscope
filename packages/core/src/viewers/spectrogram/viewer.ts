@@ -157,20 +157,32 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       ...cleanInput,
     });
     this.renderGeneration += 1;
-    if (this.tileConfigHash() !== previousTileConfigHash) {
+    const tilesChanged = this.tileConfigHash() !== previousTileConfigHash;
+    if (tilesChanged) {
       this.cache.clear();
       this.pendingTiles.clear();
     }
-    if (
+
+    const rendererChanged =
       input.renderer !== undefined &&
-      stableHash(this.config.renderer) !== stableHash(previousRenderer)
-    ) {
+      stableHash(this.config.renderer) !== stableHash(previousRenderer);
+    const canSwapInPlace =
+      rendererChanged &&
+      this.renderer.kind === "webgl2" &&
+      typeof this.renderer.setProgram === "function" &&
+      isWebGLProgramMode(this.config.renderer);
+
+    if (canSwapInPlace) {
+      const requested =
+        webglProgramRenderInput(this.config.renderer).webglProgram ?? "normal";
+      this.renderer.setProgram?.(requested);
+    } else if (rendererChanged) {
       this.renderer.destroy?.();
       this.renderer = createSpectrogramRenderer(
         this.canvas,
         this.config.renderer,
       );
-    } else {
+    } else if (tilesChanged) {
       this.renderer.invalidate();
     }
     this.attachSourceRangeSync();
@@ -865,6 +877,17 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       })),
     });
   }
+}
+
+function isWebGLProgramMode(mode: RendererMode): boolean {
+  return (
+    mode === "webgl" ||
+    mode === "webgl2" ||
+    mode === "normal" ||
+    mode === "halftone" ||
+    mode === "terrain" ||
+    (typeof mode === "object" && mode !== null && mode.type !== "canvas2d")
+  );
 }
 
 function webglProgramRenderInput(

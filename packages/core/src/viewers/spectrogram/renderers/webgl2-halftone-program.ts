@@ -132,6 +132,8 @@ void main() {
 }`;
 
 export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
+  override readonly name = "halftone";
+
   constructor(gl: WebGL2RenderingContext) {
     super(gl, WEBGL2_HALFTONE_FRAGMENT_SHADER);
   }

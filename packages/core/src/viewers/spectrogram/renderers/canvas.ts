@@ -5,7 +5,11 @@ import type {
   Rgba,
   ViewportConfig,
 } from "../../../types";
-import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
+import type {
+  SpectrogramMatrix,
+  ValueScaleConfig,
+  WebGLRendererProgram,
+} from "../types";
 import type { WebGL2RenderProgram } from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
 import { canvasToTimeFrequency } from "../frequency-scale";
@@ -43,6 +47,7 @@ export interface SpectrogramRenderer {
   invalidate(): void;
   render(input: RenderInput): void;
   destroy?(): void;
+  setProgram?(program: WebGLRendererProgram): void;
 }
 
 export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
