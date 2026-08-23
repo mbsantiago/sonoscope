@@ -1,5 +1,9 @@
 import type { ColorMapConfig } from "../../../types";
-import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
+import type {
+  SpectrogramMatrix,
+  ValueScaleConfig,
+  WebGLRendererProgramName,
+} from "../types";
 import type {
   TextureEntry,
   WebGL2Frame,
@@ -15,17 +19,13 @@ import {
   type RenderInput,
   type SpectrogramRenderer,
 } from "./canvas";
+import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "./webgl2-halftone-program";
 import {
-  HalftoneSpectrogramProgram,
-  WEBGL2_HALFTONE_FRAGMENT_SHADER,
-} from "./webgl2-halftone-program";
-import {
-  NormalSpectrogramProgram,
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
+import { createSpectrogramProgram } from "./webgl2-program-factory";
 import {
-  TerrainSpectrogramProgram,
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
 } from "./webgl2-terrain-program";
@@ -33,10 +33,9 @@ import {
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
   private readonly fallback = new CanvasSpectrogramRenderer();
-  private readonly normalProgram: WebGL2RenderProgram;
-  private readonly halftoneProgram: WebGL2RenderProgram;
-  private readonly terrainProgram: WebGL2RenderProgram;
   private readonly customProgram: WebGL2RenderProgram | undefined;
+  private activeProgramName: "custom" | WebGLRendererProgramName | undefined;
+  private activeProgram: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
   private colorMapKey = "";
@@ -45,10 +44,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     private readonly gl: WebGL2RenderingContext,
     customProgram?: WebGL2RenderProgram,
   ) {
-    this.normalProgram = new NormalSpectrogramProgram(gl);
-    this.halftoneProgram = new HalftoneSpectrogramProgram(gl);
-    this.terrainProgram = new TerrainSpectrogramProgram(gl);
     this.customProgram = customProgram;
+    this.activeProgramName = customProgram ? "custom" : "normal";
+    this.activeProgram =
+      customProgram ?? createSpectrogramProgram(gl, "normal");
     const colorMapTexture = gl.createTexture();
     if (!colorMapTexture)
       throw new Error("Unable to initialize WebGL2 renderer resources");
@@ -118,10 +117,12 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   destroy(): void {
     this.invalidate();
     this.gl.deleteTexture(this.colorMapTexture);
-    this.normalProgram.delete();
-    this.halftoneProgram.delete();
-    this.terrainProgram.delete();
+    if (this.activeProgram && this.activeProgram !== this.customProgram) {
+      this.activeProgram.delete();
+    }
     this.customProgram?.delete();
+    this.activeProgram = undefined;
+    this.activeProgramName = undefined;
   }
 
   private paint(input: RenderInput, program: WebGL2RenderProgram): void {
@@ -134,12 +135,24 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   private programFor(input: RenderInput): WebGL2RenderProgram {
-    if (typeof input.webglProgram === "object") return input.webglProgram;
-    if (input.webglProgram === "terrain") return this.terrainProgram;
-    if (input.webglProgram === "halftone") return this.halftoneProgram;
-    if (input.webglProgram === "normal") return this.normalProgram;
-    if (this.customProgram) return this.customProgram;
-    return this.normalProgram;
+    const requested = input.webglProgram;
+    if (typeof requested === "object") return requested;
+    if (requested === undefined) return this.requireActiveProgram();
+    if (requested !== this.activeProgramName) {
+      if (this.activeProgram && this.activeProgram !== this.customProgram) {
+        this.activeProgram.delete();
+      }
+      this.activeProgram = createSpectrogramProgram(this.gl, requested);
+      this.activeProgramName = requested;
+    }
+    return this.requireActiveProgram();
+  }
+
+  private requireActiveProgram(): WebGL2RenderProgram {
+    if (!this.activeProgram || !this.activeProgramName) {
+      throw new Error("WebGL2 renderer has been destroyed");
+    }
+    return this.activeProgram;
   }
 
   private renderResources(input: RenderInput): WebGL2RenderResources {
