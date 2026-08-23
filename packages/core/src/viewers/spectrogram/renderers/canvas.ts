@@ -1,12 +1,10 @@
-import type { PerformanceProfiler } from "../../../performance";
+import type { Rgba, ViewportConfig } from "../../../types";
 import type {
-  ColorMapConfig,
-  FrequencyScale,
-  Rgba,
-  ViewportConfig,
-} from "../../../types";
-import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
-import type { WebGL2RenderProgram } from "./webgl2-program";
+  RenderInput,
+  SpectrogramMatrix,
+  ValueScaleConfig,
+  WebGL2RenderProgram,
+} from "../types";
 import { buildColorMap } from "../../../colormap";
 import { canvasToTimeFrequency } from "../frequency-scale";
 import {
@@ -16,25 +14,10 @@ import {
 } from "../spectrogram-sampling";
 import { normalizeValue } from "../value-scale";
 
-export type HalftoneRenderOptions = {
-  dotFrequency?: number | undefined;
-  minEnergyThreshold?: number | undefined;
-  energyGamma?: number | undefined;
-};
-
-export type RenderInput = {
-  canvas: HTMLCanvasElement;
-  viewport: ViewportConfig;
-  frequencyScale?: FrequencyScale;
-  valueScale: Required<ValueScaleConfig>;
-  colorMap: ColorMapConfig;
-  tiles: SpectrogramMatrix[];
-  placeholders?: Array<{ timeStart: number; timeEnd: number }>;
-  playheadTime?: number;
-  webglProgram?: WebGL2RenderProgram;
-  halftone?: HalftoneRenderOptions | undefined;
-  profile?: PerformanceProfiler;
-};
+export type {
+  HalftoneRenderOptions,
+  RenderInput,
+} from "../model";
 
 export type RendererKind = "webgl2" | "canvas2d";
 

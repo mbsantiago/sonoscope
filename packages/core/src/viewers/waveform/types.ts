@@ -3,8 +3,6 @@ import type {
   ColorMapConfig,
   IViewportController,
 } from "../../types";
-import type { BarsWaveformRendererOptions } from "./renderers/bars";
-
 export type PeakBlock = {
   min: Float32Array;
   max: Float32Array;
@@ -22,6 +20,56 @@ export type WaveformViewport = {
   startTime: number;
   endTime: number;
 };
+
+export interface BarsWaveformRendererOptions {
+  /**
+   * Width of each bar in CSS pixels.
+   * @default 3
+   */
+  barWidth?: number | undefined;
+
+  /**
+   * Gap between adjacent bars in CSS pixels.
+   * @default 2
+   */
+  barGap?: number | undefined;
+
+  /**
+   * Corner radius for bars in CSS pixels.
+   * If undefined and rounded is true, pill/capsule shapes are rendered (radius = barWidth / 2).
+   * If 0, flat rectangular bars are rendered.
+   * @default undefined
+   */
+  barRadius?: number | undefined;
+
+  /**
+   * Whether bar ends are rounded (pill/capsule shape).
+   * @default true
+   */
+  rounded?: boolean | undefined;
+
+  /**
+   * Alignment of bars relative to the canvas height:
+   * - "center": Bars expand vertically from the horizontal centerline.
+   * - "bottom": Bars grow upwards from the bottom edge.
+   * - "top": Bars grow downwards from the top edge.
+   * @default "center"
+   */
+  barAlign?: "center" | "bottom" | "top" | undefined;
+
+  /**
+   * Whether to mirror amplitude symmetrically around center in "center" mode.
+   * @default true
+   */
+  symmetric?: boolean | undefined;
+
+  /**
+   * Minimum height of a bar in CSS pixels.
+   * If 0, bars taper down to a circle of diameter barWidth during silence.
+   * @default 0
+   */
+  minBarHeight?: number | undefined;
+}
 
 export type BarsWaveformRendererConfig = BarsWaveformRendererOptions & {
   type: "bars";

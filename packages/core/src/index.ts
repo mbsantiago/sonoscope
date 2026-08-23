@@ -124,10 +124,10 @@ export type {
   TimeTicksResult,
 } from "./viewers/time-ruler";
 // Waveform Types
-export type { BarsWaveformRendererOptions } from "./viewers/waveform/renderers/bars";
 export type {
   BarPeakBlock,
   BarsWaveformRendererConfig,
+  BarsWaveformRendererOptions,
   Canvas2DWaveformRendererConfig,
   IWaveformViewer,
   PeakBlock,
@@ -165,7 +165,6 @@ export {
 export {
   FrameMeter,
   PerformanceProfiler,
-  SpectrogramProfiler,
 } from "./performance";
 export { attachPlayheadOverlay, PlayheadOverlay } from "./playhead";
 export { isSonoscope, Sonoscope } from "./sonoscope";
@@ -221,6 +220,7 @@ export {
   scaleToHz,
   timeFrequencyToCanvas,
 } from "./viewers/spectrogram/frequency-scale";
+export { SpectrogramProfiler } from "./viewers/spectrogram/profiler";
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
 export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";

@@ -6,23 +6,51 @@ import type {
   IViewportController,
   ViewportConfig,
 } from "../../types";
-import type { SpectrogramComputeBackend } from "./backends/backend";
-import type { SpectrogramWorkerLike } from "./backends/worker-backend";
-import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
+import type {
+  CacheStats,
+  HalftoneOptions,
+  SpectrogramComputeBackend,
+  SpectrogramTransform,
+  SpectrogramWorkerLike,
+  SpectrumPoint,
+  SpectrumSlice,
+  TileStateInfo,
+  ValueMode,
+  WebGL2RenderProgram,
+  WebGLRendererProgramName,
+  WindowName,
+} from "./model";
 
-export type ValueMode = "magnitude" | "power" | "db";
-
-export type WebGLRendererProgramName = "normal" | "halftone" | "terrain";
+// Re-export the dependency-free data model and contracts.
+export type {
+  CacheStats,
+  ComputeTileRequest,
+  HalftoneOptions,
+  HalftoneRenderOptions,
+  RenderInput,
+  SpectrogramComputeBackend,
+  SpectrogramMatrix,
+  SpectrogramTransform,
+  SpectrogramWorkerLike,
+  SpectrumPoint,
+  SpectrumSlice,
+  StftConfig,
+  TextureEntry,
+  TileState,
+  TileStateInfo,
+  TransformContext,
+  ValueMode,
+  ValueScaleConfig,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+  WebGLRendererProgramName,
+  WindowName,
+} from "./model";
 
 export type WebGLRendererProgram =
   | WebGLRendererProgramName
   | WebGL2RenderProgram;
-
-export type HalftoneOptions = {
-  dotFrequency?: number | undefined;
-  minEnergyThreshold?: number | undefined;
-  energyGamma?: number | undefined;
-};
 
 export type HalftoneRendererConfig = {
   type: "halftone";
@@ -86,74 +114,6 @@ export type BackendMode =
   | WorkerBackendConfig
   | MainThreadBackendConfig
   | SpectrogramComputeBackend;
-
-export type WindowName = "hann" | "hamming" | "blackman" | "rectangular";
-
-export type StftConfig = {
-  windowSize: number;
-  fftSize: number;
-  hopSize: number;
-  window: WindowName;
-};
-
-export type ValueScaleConfig = {
-  mode: ValueMode;
-  min?: number;
-  max?: number;
-  gamma?: number;
-  clamp?: boolean;
-};
-
-export type CacheStats = {
-  tiles: number;
-  bytes: number;
-  peakTiles: number;
-  peakBytes: number;
-};
-
-export type SpectrogramMatrix = {
-  channel: number;
-  timeStart: number;
-  timeEnd: number;
-  frameStart: number;
-  frameCount: number;
-  binCount: number;
-  sampleRate: number;
-  times: Float32Array;
-  frequencies: Float32Array;
-  magnitude: Float32Array;
-  power?: Float32Array;
-  db?: Float32Array;
-  normalized?: Uint8Array | Float32Array;
-};
-
-export type TileState = "computed" | "computing" | "uncomputed";
-
-export type TileStateInfo = {
-  channel: number;
-  timeStart: number;
-  timeEnd: number;
-  state: TileState;
-};
-
-export type TransformContext = {
-  readonly requestedTimeStart: number;
-  readonly requestedTimeEnd: number;
-  readonly sampleRate: number;
-  readonly stft: StftConfig;
-};
-
-export type SpectrogramTransform = {
-  name: string;
-  version: string;
-  config?: unknown;
-  timePaddingSeconds?: number;
-  frequencyPaddingBins?: number;
-  apply(
-    matrix: SpectrogramMatrix,
-    context: TransformContext,
-  ): SpectrogramMatrix | Promise<SpectrogramMatrix>;
-};
 
 export type SpectrogramStatus =
   | {
@@ -418,26 +378,6 @@ export type ResolvedSpectrogramConfig = {
 };
 
 export type SpectrogramOptions = SpectrogramConfig;
-
-export type SpectrumSlice = {
-  time: number;
-  frameIndex: number;
-  channel: number;
-  mode: ValueMode;
-  frequencyScale: FrequencyScale;
-  frequencies: Float32Array;
-  values: Float32Array;
-};
-
-export type SpectrumPoint = {
-  time: number;
-  frequency: number;
-  frameIndex: number;
-  binIndex: number;
-  channel: number;
-  mode: ValueMode;
-  value: number;
-};
 
 /**
  * Spectrogram viewer canvas controller and inspector.

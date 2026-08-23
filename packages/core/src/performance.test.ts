@@ -4,11 +4,8 @@ import type {
   SpectrogramProfileEvent,
 } from "./viewers/spectrogram/types";
 import { describe, expect, it } from "vitest";
-import {
-  FrameMeter,
-  PerformanceProfiler,
-  SpectrogramProfiler,
-} from "./performance";
+import { FrameMeter, PerformanceProfiler } from "./performance";
+import { SpectrogramProfiler } from "./viewers/spectrogram/profiler";
 
 describe("PerformanceProfiler", () => {
   it("records measured synchronous work", () => {

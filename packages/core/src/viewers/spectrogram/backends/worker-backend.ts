@@ -1,13 +1,12 @@
 import type { PerformanceProfiler } from "../../../performance";
+import type {
+  ComputeTileRequest,
+  SpectrogramComputeBackend,
+  SpectrogramWorkerLike,
+} from "../model";
 import type { SpectrogramMatrix, StftConfig } from "../types";
-import type { ComputeTileRequest, SpectrogramComputeBackend } from "./backend";
 
-export type SpectrogramWorkerLike = {
-  onmessage: ((event: MessageEvent) => void) | null;
-  onerror: ((event: ErrorEvent) => void) | null;
-  postMessage(message: unknown, transfer?: Transferable[]): void;
-  terminate(): void;
-};
+export type { SpectrogramWorkerLike } from "../model";
 
 export type WorkerComputeBackendOptions = {
   workerCount?: number;

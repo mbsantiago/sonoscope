@@ -1,7 +1,20 @@
 import type { FrequencyScale } from "../../../types";
-import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
-import type { RenderInput } from "./canvas";
+import type {
+  RenderInput,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "../model";
 import { createProgram } from "../../shared/webgl2-compile";
+
+// Data model and program contracts live in the dependency-free model module.
+export type {
+  RenderInput,
+  TextureEntry,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "../model";
 
 const WEBGL2_UNIFORMS = [
   "u_tile",
@@ -23,41 +36,6 @@ const WEBGL2_UNIFORMS = [
   "u_energyGamma",
 ] as const;
 type UniformName = (typeof WEBGL2_UNIFORMS)[number];
-
-export type TextureEntry = {
-  texture: WebGLTexture;
-  width: number;
-  height: number;
-};
-
-export type WebGL2Frame = {
-  width: number;
-  height: number;
-  dpr: number;
-  deviceWidth: number;
-  deviceHeight: number;
-};
-
-export type WebGL2RenderResources = {
-  colorMapTexture: WebGLTexture;
-  tiles: SpectrogramMatrix[];
-  textureForTile(
-    tile: SpectrogramMatrix,
-    valueScale: Required<ValueScaleConfig>,
-  ): TextureEntry;
-};
-
-export type WebGL2RenderProgram = {
-  /** Canonical program name for built-in programs; custom programs may omit it. */
-  readonly name?: string;
-  readonly shader: WebGL2ShaderProgram;
-  paint(
-    input: RenderInput,
-    frame: WebGL2Frame,
-    resources: WebGL2RenderResources,
-  ): void;
-  delete(): void;
-};
 
 export class WebGL2ShaderProgram {
   readonly program: WebGLProgram;

@@ -1,21 +1,11 @@
-import type { PerformanceProfiler } from "../../../performance";
-import type { AudioSource } from "../../../types";
-import type { SpectrogramMatrix, StftConfig } from "../types";
+import type {
+  ComputeTileRequest,
+  SpectrogramComputeBackend,
+  SpectrogramMatrix,
+} from "../model";
 import { computeStftMatrix } from "./stft";
 
-export type ComputeTileRequest = {
-  source: AudioSource;
-  channel: number;
-  timeStart: number;
-  timeEnd: number;
-  stft: StftConfig;
-  profile?: PerformanceProfiler;
-};
-
-export interface SpectrogramComputeBackend {
-  computeTile(request: ComputeTileRequest): Promise<SpectrogramMatrix>;
-  destroy?(): void;
-}
+export type { ComputeTileRequest, SpectrogramComputeBackend } from "../model";
 
 export class MainThreadComputeBackend implements SpectrogramComputeBackend {
   async computeTile(request: ComputeTileRequest): Promise<SpectrogramMatrix> {
