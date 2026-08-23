@@ -2,7 +2,7 @@ import type { FrequencyScale } from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput } from "./canvas";
 
-export const WEBGL2_UNIFORMS = [
+const WEBGL2_UNIFORMS = [
   "u_tile",
   "u_colormap",
   "u_viewport",
@@ -21,7 +21,7 @@ export const WEBGL2_UNIFORMS = [
   "u_minEnergyThreshold",
   "u_energyGamma",
 ] as const;
-export type UniformName = (typeof WEBGL2_UNIFORMS)[number];
+type UniformName = (typeof WEBGL2_UNIFORMS)[number];
 
 export type TextureEntry = {
   texture: WebGLTexture;
@@ -128,7 +128,7 @@ export class WebGL2ShaderProgram {
   }
 }
 
-export function compileShader(
+function compileShader(
   gl: WebGL2RenderingContext,
   type: number,
   source: string,

@@ -11,21 +11,21 @@ import {
   parseMp3Info,
 } from "./mp3";
 import {
+  addDecodedRange,
+  type DecodedRange,
+  emitRange,
+  isRangeDecoded,
+  type PendingRead,
+  rejectPending,
+  requestFrames,
+  waitForDemand,
+} from "./shared/streaming-source-state";
+import {
   createWebCodecsMp3Decoder,
   isWebCodecsMp3Supported,
   type Mp3Decoder,
   type Mp3DecoderFactory,
 } from "./webcodecs-mp3-decoder";
-
-type PendingRead = {
-  channel: number;
-  startFrame: number;
-  endFrame: number;
-  resolve: (samples: Float32Array) => void;
-  reject: (error: Error) => void;
-};
-
-type DecodedRange = { startFrame: number; endFrame: number };
 
 const INITIAL_READ_LIMIT = 65536;
 
@@ -75,7 +75,8 @@ export class StreamingMp3Source implements AudioSource {
 
     const decoderFactory = options?.decoderFactory ?? createWebCodecsMp3Decoder;
     void this.initAndDecode(decoderFactory).catch((error) =>
-      this.rejectPending(
+      rejectPending(
+        this.pending,
         error instanceof Error ? error : new Error(String(error)),
       ),
     );
@@ -150,7 +151,7 @@ export class StreamingMp3Source implements AudioSource {
 
     this.requestFrames(endFrame);
 
-    if (this.isRangeDecoded(startFrame, endFrame)) {
+    if (isRangeDecoded(this.decodedRanges, startFrame, endFrame)) {
       const channelData = this.decoded[options.channel];
       if (!channelData) throw new Error(`Channel ${options.channel} not found`);
       return channelData.slice(startFrame, endFrame);
@@ -183,27 +184,29 @@ export class StreamingMp3Source implements AudioSource {
   }
 
   private waitForDemand(): Promise<void> {
-    if (
-      this.decodedFrameCount < this.requestedUntilFrame ||
-      this.isStreamDone
-    ) {
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => {
-      this.demandResolver = resolve;
-    });
+    return waitForDemand(
+      () => this.decodedFrameCount,
+      () => this.requestedUntilFrame,
+      () => this.isStreamDone,
+      (resolver) => {
+        this.demandResolver = resolver;
+      },
+    );
   }
 
   private requestFrames(endFrame: number): void {
-    const target = endFrame + this.sampleRate * 15;
-    if (target > this.requestedUntilFrame) {
-      this.requestedUntilFrame = target;
-      if (this.demandResolver) {
-        const resolve = this.demandResolver;
+    requestFrames(
+      endFrame,
+      this.sampleRate,
+      () => this.requestedUntilFrame,
+      (requestedUntilFrame) => {
+        this.requestedUntilFrame = requestedUntilFrame;
+      },
+      () => this.demandResolver,
+      () => {
         this.demandResolver = undefined;
-        resolve();
-      }
-    }
+      },
+    );
   }
 
   private async initAndDecode(
@@ -251,7 +254,8 @@ export class StreamingMp3Source implements AudioSource {
     this.resolveReadyPending();
 
     if (this.pending.length > 0) {
-      this.rejectPending(
+      rejectPending(
+        this.pending,
         new Error("MP3 stream ended before requested samples were available"),
       );
     }
@@ -326,10 +330,14 @@ export class StreamingMp3Source implements AudioSource {
     }
 
     this.decodedFrameCount = endFrame;
-    this.addDecodedRange(startFrame, endFrame);
+    addDecodedRange(this.decodedRanges, startFrame, endFrame);
 
     if (endFrame > startFrame) {
-      this.emitRange(startFrame / this.sampleRate, endFrame / this.sampleRate);
+      emitRange(
+        this.handlers,
+        startFrame / this.sampleRate,
+        endFrame / this.sampleRate,
+      );
     }
 
     this.resolveReadyPending();
@@ -349,37 +357,12 @@ export class StreamingMp3Source implements AudioSource {
     }
   }
 
-  private addDecodedRange(startFrame: number, endFrame: number): void {
-    if (endFrame <= startFrame) return;
-    this.decodedRanges.push({ startFrame, endFrame });
-    this.decodedRanges.sort(
-      (left, right) => left.startFrame - right.startFrame,
-    );
-
-    const merged: DecodedRange[] = [];
-    for (const range of this.decodedRanges) {
-      const previous = merged[merged.length - 1];
-      if (!previous || range.startFrame > previous.endFrame) {
-        merged.push({ ...range });
-      } else {
-        previous.endFrame = Math.max(previous.endFrame, range.endFrame);
-      }
-    }
-
-    this.decodedRanges.splice(0, this.decodedRanges.length, ...merged);
-  }
-
-  private isRangeDecoded(startFrame: number, endFrame: number): boolean {
-    if (endFrame <= startFrame) return true;
-    return this.decodedRanges.some(
-      (range) => range.startFrame <= startFrame && range.endFrame >= endFrame,
-    );
-  }
-
   private resolveReadyPending(): void {
     for (let index = this.pending.length - 1; index >= 0; index--) {
       const pending = this.pending[index]!;
-      if (this.isRangeDecoded(pending.startFrame, pending.endFrame)) {
+      if (
+        isRangeDecoded(this.decodedRanges, pending.startFrame, pending.endFrame)
+      ) {
         this.pending.splice(index, 1);
         const channelData = this.decoded[pending.channel];
         if (channelData) {
@@ -398,20 +381,6 @@ export class StreamingMp3Source implements AudioSource {
           pending.resolve(channelData.slice(pending.startFrame, availableEnd));
         }
       }
-    }
-  }
-
-  private rejectPending(error: Error): void {
-    while (this.pending.length > 0) {
-      const pending = this.pending.pop();
-      pending?.reject(error);
-    }
-  }
-
-  private emitRange(startTime: number, endTime: number): void {
-    const range: AudioRange = { startTime, endTime };
-    for (const handler of this.handlers) {
-      handler(range);
     }
   }
 }
