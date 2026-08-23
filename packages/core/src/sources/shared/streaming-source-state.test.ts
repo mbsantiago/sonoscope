@@ -1,3 +1,5 @@
+import type { AudioRange } from "../../types";
+import type { DecodedRange, PendingRead } from "./streaming-source-state";
 import { describe, expect, it } from "vitest";
 import {
   addDecodedRange,
@@ -7,8 +9,6 @@ import {
   requestFrames,
   waitForDemand,
 } from "./streaming-source-state";
-import type { AudioRange } from "../../types";
-import type { DecodedRange, PendingRead } from "./streaming-source-state";
 
 describe("addDecodedRange", () => {
   it("adds a range to an empty array", () => {
@@ -118,10 +118,12 @@ describe("waitForDemand", () => {
   it("resolves immediately when decoded < requested", async () => {
     let resolverSet = false;
     const p = waitForDemand(
-      () => 50,   // decodedCount
-      () => 100,  // requestedUntil
+      () => 50, // decodedCount
+      () => 100, // requestedUntil
       () => false,
-      () => { resolverSet = true; },
+      () => {
+        resolverSet = true;
+      },
     );
     await expect(p).resolves.toBeUndefined();
     expect(resolverSet).toBe(false);
@@ -143,7 +145,9 @@ describe("waitForDemand", () => {
       () => 100,
       () => 100,
       () => false,
-      (r) => { savedResolver = r; },
+      (r) => {
+        savedResolver = r;
+      },
     );
     expect(savedResolver).toBeTypeOf("function");
     savedResolver!();
@@ -155,13 +159,17 @@ describe("requestFrames", () => {
   it("advances requestedUntil and wakes the resolver", () => {
     let requested = 1000;
     let resolved = false;
-    const resolver = () => { resolved = true; };
+    const resolver = () => {
+      resolved = true;
+    };
 
     requestFrames(
-      500,              // endFrame
-      44100,            // sampleRate (target = 500 + 44100*15 = 662000)
+      500, // endFrame
+      44100, // sampleRate (target = 500 + 44100*15 = 662000)
       () => requested,
-      (n) => { requested = n; },
+      (n) => {
+        requested = n;
+      },
       () => resolver,
       () => {},
     );
@@ -178,8 +186,12 @@ describe("requestFrames", () => {
       0,
       44100,
       () => requested,
-      (n) => { requested = n; },
-      () => () => { resolved = true; },
+      (n) => {
+        requested = n;
+      },
+      () => () => {
+        resolved = true;
+      },
       () => {},
     );
 

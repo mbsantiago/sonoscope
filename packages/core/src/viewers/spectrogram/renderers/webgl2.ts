@@ -1,6 +1,13 @@
 import type { ColorMapConfig } from "../../../types";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
+import type {
+  TextureEntry,
+  WebGL2Frame,
+  WebGL2RenderProgram,
+  WebGL2RenderResources,
+} from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
+import { compileShader } from "../../shared/webgl2-compile";
 import { valueDataForMode } from "../spectrogram-sampling";
 import { valueScaleBounds } from "../value-scale";
 import {
@@ -17,13 +24,6 @@ import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
-import {
-  numberedSource,
-  type TextureEntry,
-  type WebGL2Frame,
-  type WebGL2RenderProgram,
-  type WebGL2RenderResources,
-} from "./webgl2-program";
 import {
   SobelSpectrogramProgram,
   WEBGL2_SOBEL_FRAGMENT_SHADER,
@@ -266,22 +266,13 @@ function compileShaderDiagnostic(
   type: number,
   source: string,
 ): string | undefined {
-  const shader = gl.createShader(type);
-  const kind =
-    type === gl.VERTEX_SHADER
-      ? "vertex"
-      : type === gl.FRAGMENT_SHADER
-        ? "fragment"
-        : "unknown";
-  if (!shader) return `Unable to create WebGL2 ${kind} shader`;
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  const ok = gl.getShaderParameter(shader, gl.COMPILE_STATUS) as boolean;
-  const log = gl.getShaderInfoLog(shader)?.trim() || "unknown shader error";
-  gl.deleteShader(shader);
-  return ok
-    ? undefined
-    : `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`;
+  try {
+    const shader = compileShader(gl, type, source, "spectrogram");
+    gl.deleteShader(shader);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 export function textureValuesForTile(

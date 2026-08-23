@@ -18,6 +18,7 @@ import {
   type PendingRead,
   rejectPending,
   requestFrames,
+  resolveReadyPending,
   waitForDemand,
 } from "./shared/streaming-source-state";
 import {
@@ -358,29 +359,12 @@ export class StreamingMp3Source implements AudioSource {
   }
 
   private resolveReadyPending(): void {
-    for (let index = this.pending.length - 1; index >= 0; index--) {
-      const pending = this.pending[index]!;
-      if (
-        isRangeDecoded(this.decodedRanges, pending.startFrame, pending.endFrame)
-      ) {
-        this.pending.splice(index, 1);
-        const channelData = this.decoded[pending.channel];
-        if (channelData) {
-          pending.resolve(
-            channelData.slice(pending.startFrame, pending.endFrame),
-          );
-        }
-      } else if (this.isStreamDone) {
-        this.pending.splice(index, 1);
-        const channelData = this.decoded[pending.channel];
-        if (channelData) {
-          const availableEnd = Math.min(
-            this.decodedFrameCount,
-            pending.endFrame,
-          );
-          pending.resolve(channelData.slice(pending.startFrame, availableEnd));
-        }
-      }
-    }
+    resolveReadyPending(
+      this.pending,
+      this.decodedRanges,
+      this.isStreamDone,
+      (channel) => this.decoded[channel],
+      (read) => Math.min(this.decodedFrameCount, read.endFrame),
+    );
   }
 }

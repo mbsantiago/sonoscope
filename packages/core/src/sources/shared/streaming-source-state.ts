@@ -48,6 +48,31 @@ export function rejectPending(pending: PendingRead[], error: Error): void {
   while (pending.length > 0) pending.pop()?.reject(error);
 }
 
+/**
+ * Settles pending reads whose ranges have been decoded, or — once the stream
+ * has ended — resolves them with whatever partial data is available using
+ * `partialEnd` to compute the last resolvable frame.
+ */
+export function resolveReadyPending(
+  pending: PendingRead[],
+  decodedRanges: DecodedRange[],
+  isStreamDone: boolean,
+  getChannelData: (channel: number) => Float32Array | undefined,
+  partialEnd: (read: PendingRead, data: Float32Array) => number,
+): void {
+  for (let index = pending.length - 1; index >= 0; index--) {
+    const read = pending[index]!;
+    const data = getChannelData(read.channel);
+    if (isRangeDecoded(decodedRanges, read.startFrame, read.endFrame)) {
+      pending.splice(index, 1);
+      if (data) read.resolve(data.slice(read.startFrame, read.endFrame));
+    } else if (isStreamDone && data) {
+      pending.splice(index, 1);
+      read.resolve(data.slice(read.startFrame, partialEnd(read, data)));
+    }
+  }
+}
+
 /** Emits a range-available event to all registered handlers. */
 export function emitRange(
   handlers: Set<(range: AudioRange) => void>,

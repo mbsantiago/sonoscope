@@ -1,42 +1,23 @@
 import type { RenderInput } from "./canvas";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
+import {
+  WEBGL2_FRAGMENT_UNIFORMS,
+  WEBGL2_OVERLAY_CHECK,
+  WEBGL2_SCALE_HELPERS,
+} from "./webgl2-program";
 
 export const WEBGL2_HALFTONE_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
-in vec2 v_globalUv;
-in vec2 v_tileUv;
 out vec4 outColor;
 
-uniform sampler2D u_tile;
-uniform sampler2D u_colormap;
-uniform vec4 u_viewport;
-uniform vec2 u_tileTimeRange;
-uniform vec2 u_tileFrequencyRange;
-uniform vec2 u_tileSize;
-uniform vec2 u_canvasSize;
-uniform vec4 u_valueScale;
-uniform float u_frequencyScale;
-uniform float u_overlayMode;
+${WEBGL2_FRAGMENT_UNIFORMS}
 
 uniform float u_dotFrequency;
 uniform float u_minEnergyThreshold;
 uniform float u_energyGamma;
 
-float hzToMel(float hz) { return 1127.01048 * log(1.0 + hz / 700.0); }
-float melToHz(float mel) { return 700.0 * (pow(10.0, mel / 2595.0) - 1.0); }
-
-float hzToScale(float hz, float scale) {
-  if (scale == 1.0) return log(max(1.0, hz)) / log(10.0);
-  if (scale == 2.0) return hzToMel(hz);
-  return hz;
-}
-
-float scaleToHz(float value, float scale) {
-  if (scale == 1.0) return pow(10.0, value);
-  if (scale == 2.0) return melToHz(value);
-  return value;
-}
+${WEBGL2_SCALE_HELPERS}
 
 // Samples spectrogram tile data at arbitrary screen-space coordinates
 float sampleSpectrogram(vec2 screenCoord) {
@@ -99,17 +80,7 @@ float sampleCellArea(vec2 cellIndex, float cellSize, mat2 invRot, float timeOffs
 }
 
 void main() {
-  if (u_overlayMode == 1.0) {
-    float hatch = step(0.84, fract((gl_FragCoord.x + gl_FragCoord.y) / 12.0));
-    outColor = mix(vec4(0.059, 0.09, 0.165, 1.0), vec4(0.278, 0.333, 0.412, 1.0), hatch);
-    return;
-  }
-
-  if (u_overlayMode == 2.0) {
-    outColor = vec4(1.0, 1.0, 1.0, 0.9);
-    return;
-  }
-
+  ${WEBGL2_OVERLAY_CHECK}
   // Viewport time boundary clipping
   float globalX = gl_FragCoord.x / max(1.0, u_canvasSize.x);
   float time = mix(u_viewport.x, u_viewport.y, globalX);

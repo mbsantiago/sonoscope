@@ -6,12 +6,6 @@ import {
   type SeekableByteSource,
 } from "./byte-source";
 import {
-  decodeWavPcm,
-  parseWavHeader,
-  type WavInfo,
-  wavTimeToByteRange,
-} from "./wav";
-import {
   addDecodedRange,
   type DecodedRange,
   emitRange,
@@ -19,8 +13,15 @@ import {
   type PendingRead,
   rejectPending,
   requestFrames,
+  resolveReadyPending,
   waitForDemand,
 } from "./shared/streaming-source-state";
+import {
+  decodeWavPcm,
+  parseWavHeader,
+  type WavInfo,
+  wavTimeToByteRange,
+} from "./wav";
 
 const HEADER_READ_LIMIT = 4096;
 
@@ -336,31 +337,13 @@ export class StreamingWavSource implements AudioSource {
   }
 
   private resolveReadyPending(): void {
-    for (let index = this.pending.length - 1; index >= 0; index--) {
-      const pending = this.pending[index]!;
-      if (
-        isRangeDecoded(this.decodedRanges, pending.startFrame, pending.endFrame)
-      ) {
-        this.pending.splice(index, 1);
-        const channelData = this.decoded[pending.channel];
-        if (channelData) {
-          pending.resolve(
-            channelData.slice(pending.startFrame, pending.endFrame),
-          );
-        }
-      } else if (this.isStreamDone) {
-        this.pending.splice(index, 1);
-        const channelData = this.decoded[pending.channel];
-        if (channelData) {
-          pending.resolve(
-            channelData.slice(
-              pending.startFrame,
-              Math.min(channelData.length, pending.endFrame),
-            ),
-          );
-        }
-      }
-    }
+    resolveReadyPending(
+      this.pending,
+      this.decodedRanges,
+      this.isStreamDone,
+      (channel) => this.decoded[channel],
+      (read, data) => Math.min(data.length, read.endFrame),
+    );
   }
 
   private addDecodedRange(startFrame: number, endFrame: number): void {
