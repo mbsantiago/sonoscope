@@ -486,7 +486,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     mode?: ValueMode;
   }): Promise<SpectrumSlice> {
     const time =
-      (input.frameIndex * this.config.hopSize) / this.source.sampleRate;
+      (input.frameIndex * this.config.hopSize + this.config.windowSize / 2) /
+      this.source.sampleRate;
     return this.querySpectrum({
       time,
       ...(input.channel === undefined ? {} : { channel: input.channel }),
@@ -662,11 +663,14 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
     const startFrame = Math.max(
       0,
-      Math.floor((startTime * sampleRate) / hopSize),
+      Math.floor((startTime * sampleRate - windowSize / 2) / hopSize),
     );
     const endFrame = Math.min(
       totalFrames,
-      Math.max(startFrame + 1, Math.ceil((endTime * sampleRate) / hopSize)),
+      Math.max(
+        startFrame + 1,
+        Math.ceil((endTime * sampleRate - windowSize / 2) / hopSize),
+      ),
     );
 
     const firstTileIndex = Math.floor(startFrame / framesPerTile);
@@ -722,7 +726,10 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     const framesPerTile = this.framesPerTile;
     const targetFrame = Math.max(
       0,
-      Math.min(totalFrames - 1, Math.floor((time * sampleRate) / hopSize)),
+      Math.min(
+        totalFrames - 1,
+        Math.round((time * sampleRate - windowSize / 2) / hopSize),
+      ),
     );
     const tileIdx = Math.floor(targetFrame / framesPerTile);
     const globalFrameStart = tileIdx * framesPerTile;

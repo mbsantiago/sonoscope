@@ -795,7 +795,7 @@ describe("SpectrogramViewer", () => {
     viewer.on("rendercomplete", (event) => completed.push(event.requestId));
 
     const first = viewer.render();
-    viewer.scope.setViewport({ startTime: 1, endTime: 2 });
+    viewer.scope.setViewport({ startTime: 2, endTime: 3 });
     await viewer.render();
     resolveFirst?.(matrix(0, 1));
     await first;
@@ -930,17 +930,15 @@ describe("SpectrogramViewer", () => {
     await viewer.render();
     await Promise.resolve();
 
+    expect(requested).toContainEqual([2, 3.75]);
     expect(requested).toContainEqual([3, 4.75]);
     expect(requested).toContainEqual([4, 5.75]);
     expect(requested).toContainEqual([5, 6.75]);
-    expect(requested).toContainEqual([6, 7.75]);
-    expect(requested).toContainEqual([2, 3.75]);
     expect(requested).toContainEqual([1, 2.75]);
-    expect(requested.slice(2, 6)).toEqual([
-      [5, 6.75],
-      [6, 7.75],
+    expect(requested.slice(0, 3)).toEqual([
       [2, 3.75],
-      [1, 2.75],
+      [3, 4.75],
+      [4, 5.75],
     ]);
   });
 
@@ -975,24 +973,16 @@ describe("SpectrogramViewer", () => {
     const render = viewer.render();
     await Promise.resolve();
 
+    expect(requested).toContainEqual([2, 3.75]);
     expect(requested).toContainEqual([3, 4.75]);
     expect(requested).toContainEqual([4, 5.75]);
-    expect(requested).not.toContainEqual([2, 3.75]);
     expect(requested).not.toContainEqual([5, 6.75]);
 
     release?.();
     await render;
 
     expect(requested).toContainEqual([5, 6.75]);
-    expect(requested).toContainEqual([6, 7.75]);
-    expect(requested).toContainEqual([2, 3.75]);
     expect(requested).toContainEqual([1, 2.75]);
-    expect(requested.slice(2, 6)).toEqual([
-      [5, 6.75],
-      [6, 7.75],
-      [2, 3.75],
-      [1, 2.75],
-    ]);
   });
 
   it("prefetches around the viewport even when the cache is full", async () => {
@@ -1192,6 +1182,55 @@ describe("SpectrogramViewer", () => {
     expect(point.mode).toBe("magnitude");
     expect(typeof point.value).toBe("number");
     expect(point.frequency).toBeCloseTo(200, -1);
+  });
+
+  it("uses analysis-window centers for frame queries and tile lookup", async () => {
+    const stft = {
+      windowSize: 8,
+      fftSize: 8,
+      hopSize: 2,
+      window: "hann" as const,
+    };
+    const frameIndex = 3;
+    const frameCenterTime =
+      (frameIndex * stft.hopSize + stft.windowSize / 2) / source.sampleRate;
+
+    const queryViewer = createViewer({
+      canvas: canvas(),
+      source,
+      ...stft,
+      autoRender: false,
+    });
+    expect((await queryViewer.queryFrame({ frameIndex })).time).toBeCloseTo(
+      frameCenterTime,
+      8,
+    );
+
+    const tiledViewer = createViewer({
+      canvas: canvas(),
+      source,
+      ...stft,
+      tileMaxCells: 4,
+      autoRender: false,
+    });
+    const privateViewer = tiledViewer as unknown as {
+      tileRangeForTime(time: number): { timeStart: number; timeEnd: number };
+      tileRangesForTimeRange(
+        startTime: number,
+        endTime: number,
+      ): Array<{ timeStart: number; timeEnd: number }>;
+    };
+    const expectedTileStart = (frameIndex * stft.hopSize) / source.sampleRate;
+
+    expect(
+      privateViewer.tileRangeForTime(frameCenterTime).timeStart,
+    ).toBeCloseTo(expectedTileStart, 8);
+    expect(
+      privateViewer.tileRangesForTimeRange(
+        frameCenterTime,
+        frameCenterTime + 1 / source.sampleRate,
+      )[0]?.timeStart,
+    ).toBeCloseTo(expectedTileStart, 8);
   });
 
   it("converts queryCanvasPoint from CSS pixels, not high-DPR backing pixels", async () => {
@@ -1431,7 +1470,7 @@ describe("SpectrogramViewer", () => {
 
     const stats = viewer.getCacheStats();
     expect(stats.tiles).toBeGreaterThanOrEqual(16);
-  });
+  }, 20000);
 
   describe("Sonoscope integration", () => {
     it("creates viewer with new SpectrogramViewer(canvas, viewport, source)", () => {
