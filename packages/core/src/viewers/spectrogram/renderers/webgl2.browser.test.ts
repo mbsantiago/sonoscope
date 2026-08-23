@@ -64,7 +64,7 @@ describe("WebGL2 shaders", () => {
     if (!gl) return;
     const renderer = new WebGL2SpectrogramRenderer(
       gl,
-      createSpectrogramProgram(gl, "normal"),
+      createSpectrogramProgram(gl, "terrain"),
     );
 
     renderer.render({
@@ -79,7 +79,6 @@ describe("WebGL2 shaders", () => {
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [brightBandTile()],
-      webglProgram: "terrain",
     });
 
     const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -146,7 +145,7 @@ describe("WebGL2 shaders", () => {
     if (!gl) return;
     const renderer = new WebGL2SpectrogramRenderer(
       gl,
-      createSpectrogramProgram(gl, "normal"),
+      createSpectrogramProgram(gl, "halftone"),
     );
 
     renderer.render({
@@ -161,7 +160,6 @@ describe("WebGL2 shaders", () => {
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [brightBandTile()],
-      webglProgram: "halftone",
     });
 
     const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -251,7 +249,7 @@ describe("WebGL2 shaders", () => {
       if (!gl) return;
       const renderer = new WebGL2SpectrogramRenderer(
         gl,
-        createSpectrogramProgram(gl, "normal"),
+        createSpectrogramProgram(gl, "terrain"),
       );
 
       renderer.render({
@@ -299,7 +297,7 @@ describe("WebGL2 shaders", () => {
       if (!gl) return;
       const renderer = new WebGL2SpectrogramRenderer(
         gl,
-        createSpectrogramProgram(gl, "normal"),
+        createSpectrogramProgram(gl, "terrain"),
       );
 
       renderer.render({
@@ -320,7 +318,6 @@ describe("WebGL2 shaders", () => {
         },
         colorMap: "gray",
         tiles: [brightBandTile()],
-        webglProgram: "terrain",
       });
 
       const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -347,7 +344,7 @@ describe("WebGL2 shaders", () => {
     if (!gl) return;
     const renderer = new WebGL2SpectrogramRenderer(
       gl,
-      createSpectrogramProgram(gl, "normal"),
+      createSpectrogramProgram(gl, "terrain"),
     );
     const input: RenderInput = {
       canvas,
@@ -361,7 +358,6 @@ describe("WebGL2 shaders", () => {
       valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
       colorMap: "gray",
       tiles: [brightBandTile()],
-      webglProgram: "terrain",
     };
 
     renderer.render(input);
@@ -520,6 +516,7 @@ describe("WebGL2 shaders", () => {
 
     const programs = ["normal", "halftone", "terrain", "normal"] as const;
     for (const program of programs) {
+      renderer.setProgram(createSpectrogramProgram(gl, program));
       renderer.render({
         canvas,
         viewport: {
@@ -538,7 +535,6 @@ describe("WebGL2 shaders", () => {
         },
         colorMap: "viridis",
         tiles: [brightBandTile()],
-        webglProgram: program,
       });
 
       expect(gl.getError()).toBe(gl.NO_ERROR);

@@ -6,6 +6,7 @@ import type {
 } from "../../types";
 import type { SpectrogramComputeBackend } from "./backends/backend";
 import type { RenderInput, SpectrogramRenderer } from "./renderers/canvas";
+import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 import type {
   CacheStats,
   ISpectrogramViewer,
@@ -35,6 +36,10 @@ import {
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
 import { createSpectrogramRenderer } from "./renderers/renderer-factory";
+import {
+  createSpectrogramProgram,
+  programSpecForMode,
+} from "./renderers/webgl2-program-factory";
 import { applyTransforms } from "./transforms";
 import { deriveDb, derivePower } from "./value-scale";
 
@@ -173,9 +178,16 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       isWebGLProgramMode(this.config.renderer);
 
     if (canSwapInPlace) {
-      const requested =
-        webglProgramRenderInput(this.config.renderer).webglProgram ?? "normal";
-      this.renderer.setProgram?.(requested);
+      const nextProgram = this.resolveRendererProgram(this.config.renderer);
+      if (nextProgram) {
+        this.renderer.setProgram?.(nextProgram);
+      } else {
+        this.renderer.destroy?.();
+        this.renderer = createSpectrogramRenderer(
+          this.canvas,
+          this.config.renderer,
+        );
+      }
     } else if (rendererChanged) {
       this.renderer.destroy?.();
       this.renderer = createSpectrogramRenderer(
@@ -361,6 +373,16 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     void Promise.resolve().then(() => this.renderRequested());
   }
 
+  private resolveRendererProgram(
+    mode: RendererMode,
+  ): WebGL2RenderProgram | undefined {
+    const spec = programSpecForMode(mode);
+    if (spec.program) return spec.program;
+    if (spec.name === undefined) return undefined;
+    const gl = this.canvas.getContext("webgl2");
+    return gl ? createSpectrogramProgram(gl, spec.name) : undefined;
+  }
+
   private paintPartial(
     matrices: SpectrogramMatrix[],
     placeholders: Array<{ timeStart: number; timeEnd: number }>,
@@ -383,7 +405,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       ...(this.playheadTime !== undefined
         ? { playheadTime: this.playheadTime }
         : {}),
-      ...webglProgramRenderInput(this.config.renderer),
+      ...halftoneRenderInput(this.config.renderer),
     });
   }
 
@@ -890,50 +912,20 @@ function isWebGLProgramMode(mode: RendererMode): boolean {
   );
 }
 
-function webglProgramRenderInput(
+function halftoneRenderInput(
   renderer: RendererMode,
-): Pick<RenderInput, "webglProgram" | "halftone"> {
-  if (typeof renderer === "string") {
-    if (
-      renderer === "halftone" ||
-      renderer === "terrain" ||
-      renderer === "normal"
-    ) {
-      return { webglProgram: renderer };
-    }
-    return {};
-  }
-  if (typeof renderer === "object" && renderer !== null) {
-    const halftone =
-      "dotFrequency" in renderer ||
-      "minEnergyThreshold" in renderer ||
-      "energyGamma" in renderer
-        ? {
-            dotFrequency: renderer.dotFrequency,
-            minEnergyThreshold: renderer.minEnergyThreshold,
-            energyGamma: renderer.energyGamma,
-          }
-        : undefined;
-
-    if ("program" in renderer && renderer.program) {
-      return {
-        webglProgram: renderer.program,
-        ...(halftone ? { halftone } : {}),
-      };
-    }
-    if (
-      renderer.type === "halftone" ||
-      renderer.type === "terrain" ||
-      renderer.type === "normal"
-    ) {
-      return {
-        webglProgram: renderer.type,
-        ...(halftone ? { halftone } : {}),
-      };
-    }
-    if (halftone) {
-      return { halftone };
-    }
-  }
-  return {};
+): Pick<RenderInput, "halftone"> {
+  if (typeof renderer !== "object" || renderer === null) return {};
+  const hasHalftoneOptions =
+    "dotFrequency" in renderer ||
+    "minEnergyThreshold" in renderer ||
+    "energyGamma" in renderer;
+  if (!hasHalftoneOptions) return {};
+  return {
+    halftone: {
+      dotFrequency: renderer.dotFrequency,
+      minEnergyThreshold: renderer.minEnergyThreshold,
+      energyGamma: renderer.energyGamma,
+    },
+  };
 }

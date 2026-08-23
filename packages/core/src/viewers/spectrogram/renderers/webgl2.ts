@@ -1,9 +1,5 @@
 import type { ColorMapConfig } from "../../../types";
-import type {
-  SpectrogramMatrix,
-  ValueScaleConfig,
-  WebGLRendererProgram,
-} from "../types";
+import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput, SpectrogramRenderer } from "./canvas";
 import type {
   TextureEntry,
@@ -12,7 +8,10 @@ import type {
   WebGL2RenderResources,
 } from "./webgl2-program";
 import { buildColorMap } from "../../../colormap";
-import { compileShader } from "../../shared/webgl2-compile";
+import {
+  compileShader,
+  isUsableWebGL2Context,
+} from "../../shared/webgl2-compile";
 import { valueDataForMode } from "../spectrogram-sampling";
 import { valueScaleBounds } from "../value-scale";
 import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "./webgl2-halftone-program";
@@ -20,10 +19,6 @@ import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
-import {
-  createSpectrogramProgram,
-  isUsableWebGL2Context,
-} from "./webgl2-program-factory";
 import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
@@ -94,21 +89,18 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   /**
    * Swaps the active shader program in place, preserving cached GPU tile
    * textures. The renderer takes ownership of the program it is given and
-   * disposes it when replaced or destroyed.
+   * disposes it when replaced or destroyed. If an equivalent built-in
+   * program (same name) is already active, the incoming duplicate is
+   * disposed and the existing program is kept.
    */
-  setProgram(program: WebGLRendererProgram): void {
-    if (
-      typeof program === "object"
-        ? this.program === program
-        : program === this.program?.name
-    ) {
+  setProgram(program: WebGL2RenderProgram): void {
+    if (this.program === program) return;
+    if (program.name !== undefined && this.program?.name === program.name) {
+      program.delete();
       return;
     }
     this.program?.delete();
-    this.program =
-      typeof program === "object"
-        ? program
-        : createSpectrogramProgram(this.gl, program);
+    this.program = program;
   }
 
   render(input: RenderInput): void {
@@ -146,13 +138,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   }
 
   private programFor(input: RenderInput): WebGL2RenderProgram {
-    const requested = input.webglProgram;
-    if (typeof requested === "object") return requested;
-    if (requested === undefined || requested === this.program?.name) {
-      return this.requireProgram();
-    }
-    this.setProgram(requested);
-    return this.requireProgram();
+    return input.webglProgram ?? this.requireProgram();
   }
 
   private requireProgram(): WebGL2RenderProgram {

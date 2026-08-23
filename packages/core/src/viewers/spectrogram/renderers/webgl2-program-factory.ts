@@ -1,5 +1,6 @@
 import type { RendererMode, WebGLRendererProgramName } from "../types";
 import type { WebGL2RenderProgram } from "./webgl2-program";
+import { isUsableWebGL2Context } from "../../shared/webgl2-compile";
 import { HalftoneSpectrogramProgram } from "./webgl2-halftone-program";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import { TerrainSpectrogramProgram } from "./webgl2-terrain-program";
@@ -18,14 +19,19 @@ export function createSpectrogramProgram(
   }
 }
 
-export function isUsableWebGL2Context(
-  context: WebGL2RenderingContext,
-): boolean {
-  return (
-    typeof context.createShader === "function" &&
-    typeof context.createProgram === "function" &&
-    typeof context.texImage2D === "function"
-  );
+/**
+ * Resolves a renderer mode into a program spec: either an explicit program
+ * instance or the name of a built-in program to construct.
+ */
+export function programSpecForMode(mode: RendererMode): {
+  program?: WebGL2RenderProgram;
+  name?: WebGLRendererProgramName;
+} {
+  if (typeof mode === "object" && mode !== null && "program" in mode) {
+    if (typeof mode.program === "object") return { program: mode.program };
+    if (mode.program !== undefined) return { name: mode.program };
+  }
+  return { name: resolveProgramName(mode) };
 }
 
 /**
@@ -39,14 +45,9 @@ export function createShaderProgram(
   const gl = canvas.getContext("webgl2");
   if (!gl || !isUsableWebGL2Context(gl)) return undefined;
 
-  if (typeof mode === "object" && mode !== null && "program" in mode) {
-    const program = mode.program;
-    if (typeof program === "object") return program;
-    if (program !== undefined) return createSpectrogramProgram(gl, program);
-  }
-
-  const name = resolveProgramName(mode);
-  return createSpectrogramProgram(gl, name);
+  const spec = programSpecForMode(mode);
+  if (spec.program) return spec.program;
+  return createSpectrogramProgram(gl, spec.name ?? "normal");
 }
 
 function resolveProgramName(mode: RendererMode): WebGLRendererProgramName {

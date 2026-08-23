@@ -1,5 +1,16 @@
 type WebGL2ErrorStyle = "spectrogram" | "waveform";
 
+/** Returns true when the context exposes the WebGL2 entry points we rely on. */
+export function isUsableWebGL2Context(
+  context: WebGL2RenderingContext,
+): boolean {
+  return (
+    typeof context.createShader === "function" &&
+    typeof context.createProgram === "function" &&
+    typeof context.texImage2D === "function"
+  );
+}
+
 export function numberedSource(source: string): string {
   return source
     .split("\n")
