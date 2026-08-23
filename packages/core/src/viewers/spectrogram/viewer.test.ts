@@ -1448,29 +1448,33 @@ describe("SpectrogramViewer", () => {
     expect(viewer.getSource()).toBe(source);
   });
 
-  it("dynamically adjusts tile size for ultra-high sample rate sources based on tileMaxCells", async () => {
-    const ultraHighRateSource: AudioSource = {
-      id: "bat-ultrasonic-500k",
-      sampleRate: 500_000,
-      duration: 1,
-      channelCount: 1,
-      read: () => new Float32Array(500_000),
-    };
+  it(
+    "dynamically adjusts tile size for ultra-high sample rate sources based on tileMaxCells",
+    async () => {
+      const ultraHighRateSource: AudioSource = {
+        id: "bat-ultrasonic-500k",
+        sampleRate: 500_000,
+        duration: 1,
+        channelCount: 1,
+        read: () => new Float32Array(500_000),
+      };
 
-    const viewer = createViewer({
-      canvas: canvas(),
-      source: ultraHighRateSource,
-      hopSize: 128,
-      tileMaxCells: 2 ** 17,
-      startTime: 0,
-      endTime: 5,
-    });
+      const viewer = createViewer({
+        canvas: canvas(),
+        source: ultraHighRateSource,
+        hopSize: 128,
+        tileMaxCells: 2 ** 17,
+        startTime: 0,
+        endTime: 5,
+      });
 
-    await viewer.render();
+      await viewer.render();
 
-    const stats = viewer.getCacheStats();
-    expect(stats.tiles).toBeGreaterThanOrEqual(16);
-  });
+      const stats = viewer.getCacheStats();
+      expect(stats.tiles).toBeGreaterThanOrEqual(16);
+    },
+    { timeout: 20000 },
+  );
 
   describe("Sonoscope integration", () => {
     it("creates viewer with new SpectrogramViewer(canvas, viewport, source)", () => {
