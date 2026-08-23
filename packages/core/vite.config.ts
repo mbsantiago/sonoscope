@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
   build: {
@@ -25,12 +24,5 @@ export default defineConfig({
         toplevel: true,
       },
     },
-    rollupOptions: {plugins: [visualizer({ 
-      filename: "dist/stats.html",
-          open: true,
-          gzipSize: true,
-          brotliSize: true,
-          template: "treemap",
-      })]}
   },
 });
