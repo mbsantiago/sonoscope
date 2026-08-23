@@ -30,6 +30,8 @@ const WEBGL2_UNIFORMS = [
   "u_terrainHeight",
   "u_terrainPlayhead",
   "u_terrainTimeRange",
+  "u_viewProjection",
+  "u_cameraPosition",
   // Halftone shader parameters
   "u_dotFrequency",
   "u_minEnergyThreshold",
@@ -87,6 +89,16 @@ export class WebGL2ShaderProgram {
   uniform2f(name: UniformName, x: number, y: number): void {
     const location = this.uniforms[name];
     if (location) this.gl.uniform2f(location, x, y);
+  }
+
+  uniform3f(name: UniformName, x: number, y: number, z: number): void {
+    const location = this.uniforms[name];
+    if (location) this.gl.uniform3f(location, x, y, z);
+  }
+
+  uniformMat4(name: UniformName, value: Float32Array): void {
+    const location = this.uniforms[name];
+    if (location) this.gl.uniformMatrix4fv(location, false, value);
   }
 
   uniform4f(
