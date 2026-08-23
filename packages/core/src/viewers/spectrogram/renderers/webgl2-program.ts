@@ -1,4 +1,6 @@
 import type { FrequencyScale } from "../../../types";
+import { createProgram } from "../../shared/webgl2-compile";
+export { numberedSource } from "../../shared/webgl2-compile";
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput } from "./canvas";
 
@@ -67,20 +69,12 @@ export class WebGL2ShaderProgram {
     vertexSource: string,
     fragmentSource: string,
   ) {
-    const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
-    const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-    const program = gl.createProgram();
-    if (!program) throw new Error("Unable to create WebGL2 program");
-    gl.attachShader(program, vertex);
-    gl.attachShader(program, fragment);
-    gl.linkProgram(program);
-    gl.deleteShader(vertex);
-    gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const log = gl.getProgramInfoLog(program) ?? "unknown program error";
-      gl.deleteProgram(program);
-      throw new Error(`Unable to link WebGL2 program: ${log}`);
-    }
+    const program = createProgram(
+      gl,
+      vertexSource,
+      fragmentSource,
+      "spectrogram",
+    );
     this.program = program;
     this.position = gl.getAttribLocation(program, "a_position");
     this.tileUv = gl.getAttribLocation(program, "a_tileUv");
@@ -126,38 +120,6 @@ export class WebGL2ShaderProgram {
     const location = this.uniforms[name];
     if (location) this.gl.uniform4f(location, x, y, z, w);
   }
-}
-
-function compileShader(
-  gl: WebGL2RenderingContext,
-  type: number,
-  source: string,
-): WebGLShader {
-  const shader = gl.createShader(type);
-  if (!shader) throw new Error("Unable to create WebGL2 shader");
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(shader)?.trim() || "unknown shader error";
-    const kind =
-      type === gl.VERTEX_SHADER
-        ? "vertex"
-        : type === gl.FRAGMENT_SHADER
-          ? "fragment"
-          : "unknown";
-    gl.deleteShader(shader);
-    throw new Error(
-      `Unable to compile WebGL2 ${kind} shader: ${log}\n${numberedSource(source)}`,
-    );
-  }
-  return shader;
-}
-
-export function numberedSource(source: string): string {
-  return source
-    .split("\n")
-    .map((line, index) => `${String(index + 1).padStart(3, " ")}: ${line}`)
-    .join("\n");
 }
 
 export function frequencyScaleCode(scale: FrequencyScale | undefined): number {
