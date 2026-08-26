@@ -27,7 +27,7 @@
         margin: 0 auto;
       }
       h1 {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         margin-top: 0;
         color: var(--accent);
         display: flex;
@@ -35,13 +35,13 @@
         gap: 0.5rem;
       }
       h1 span {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         color: #64748b;
         font-weight: normal;
       }
       .controls {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 0.75rem;
         background: var(--surface);
         border: 1px solid var(--border);
@@ -52,20 +52,34 @@
       .control-group {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
+        gap: 0.35rem;
+      }
+      .control-group.span-2 {
+        grid-column: span 2;
+      }
+      @media (max-width: 640px) {
+        .control-group.span-2 {
+          grid-column: span 1;
+        }
       }
       label {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         color: #94a3b8;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        display: flex;
+        justify-content: space-between;
       }
-      select, input[type="range"], input[type="text"] {
+      label span {
+        color: var(--accent);
+        font-weight: bold;
+      }
+      select, input[type="range"] {
         background: #0d1117;
         color: var(--text);
         border: 1px solid var(--border);
         border-radius: 4px;
-        padding: 0.4rem 0.6rem;
+        padding: 0.4rem 0.5rem;
         font-family: inherit;
         font-size: 0.85rem;
       }
@@ -73,11 +87,66 @@
         outline: 1px solid var(--accent);
         border-color: var(--accent);
       }
+      .dual-slider-wrap {
+        position: relative;
+        height: 30px;
+        display: flex;
+        align-items: center;
+      }
+      .dual-slider-track {
+        position: absolute;
+        width: 100%;
+        height: 6px;
+        background: #0d1117;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+      }
+      .dual-slider-highlight {
+        position: absolute;
+        height: 6px;
+        background: var(--accent);
+        border-radius: 3px;
+        z-index: 1;
+      }
+      .dual-slider-wrap input[type="range"] {
+        position: absolute;
+        width: 100%;
+        pointer-events: none;
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        z-index: 2;
+      }
+      .dual-slider-wrap input[type="range"]::-webkit-slider-thumb {
+        pointer-events: auto;
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        border: 2px solid #090a0f;
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+      }
+      .dual-slider-wrap input[type="range"]::-moz-range-thumb {
+        pointer-events: auto;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        border: 2px solid #090a0f;
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+      }
       .checkbox-group {
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
-        padding-top: 1rem;
+        padding-top: 0.5rem;
       }
       .checkbox-group input {
         accent-color: var(--accent);
@@ -143,13 +212,32 @@
         </div>
 
         <div class="control-group">
-          <label for="font-size">Font Size: <span id="font-size-val">10px</span></label>
+          <label for="freq-scale">Frequency Scale</label>
+          <select id="freq-scale">
+            <option value="mel" selected>Mel Scale</option>
+            <option value="linear">Linear</option>
+            <option value="log">Logarithmic</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="font-size">Font Size <span id="font-size-val">10px</span></label>
           <input type="range" id="font-size" min="6" max="24" step="1" value="10" />
+        </div>
+
+        <div class="control-group span-2">
+          <label for="min-db">dB Dynamic Range <span id="db-range-val">[-70 dB, -10 dB]</span></label>
+          <div class="dual-slider-wrap">
+            <div class="dual-slider-track"></div>
+            <div class="dual-slider-highlight" id="db-highlight"></div>
+            <input type="range" id="min-db" min="-120" max="0" step="1" value="-70" />
+            <input type="range" id="max-db" min="-120" max="0" step="1" value="-10" />
+          </div>
         </div>
 
         <div class="control-group checkbox-group">
           <input type="checkbox" id="invert" />
-          <label for="invert" style="cursor: pointer;">Invert Intensity</label>
+          <label for="invert" style="cursor: pointer; text-transform: none;">Invert Intensity</label>
         </div>
       </div>
 
@@ -176,10 +264,18 @@
       const colorModeSelect = document.getElementById("color-mode");
       const charSetSelect = document.getElementById("charset");
       const colormapSelect = document.getElementById("colormap");
+      const freqScaleSelect = document.getElementById("freq-scale");
       const fontSizeSlider = document.getElementById("font-size");
       const fontSizeVal = document.getElementById("font-size-val");
+      const minDbSlider = document.getElementById("min-db");
+      const maxDbSlider = document.getElementById("max-db");
+      const dbRangeVal = document.getElementById("db-range-val");
+      const dbHighlight = document.getElementById("db-highlight");
       const invertCheckbox = document.getElementById("invert");
       const statusEl = document.getElementById("status");
+
+      const DB_MIN_LIMIT = -120;
+      const DB_MAX_LIMIT = 0;
 
       let renderer = new AsciiSpectrogramRenderer({
         colorMode: colorModeSelect.value,
@@ -192,7 +288,25 @@
       let scope;
       let spectrogram;
 
+      function updateSliderTrack() {
+        let minDb = parseInt(minDbSlider.value, 10);
+        let maxDb = parseInt(maxDbSlider.value, 10);
+
+        if (minDb > maxDb - 2) {
+          minDb = maxDb - 2;
+          minDbSlider.value = minDb.toString();
+        }
+
+        const leftPercent = ((minDb - DB_MIN_LIMIT) / (DB_MAX_LIMIT - DB_MIN_LIMIT)) * 100;
+        const rightPercent = ((maxDb - DB_MIN_LIMIT) / (DB_MAX_LIMIT - DB_MIN_LIMIT)) * 100;
+
+        dbHighlight.style.left = `${leftPercent}%`;
+        dbHighlight.style.width = `${Math.max(2, rightPercent - leftPercent)}%`;
+        dbRangeVal.textContent = `[${minDb} dB, ${maxDb} dB]`;
+      }
+
       async function init() {
+        updateSliderTrack();
         statusEl.textContent = "Loading audio and initializing Sonoscope...";
         scope = await Sonoscope.fromAudio(audio, {
           followPlayback: "page",
@@ -201,9 +315,10 @@
         spectrogram = scope.createSpectrogram(canvas, {
           renderer,
           colorMap: colormapSelect.value,
-          frequencyScale: "mel",
-          minDb: -70,
-          maxDb: -10,
+          frequencyScale: freqScaleSelect.value,
+          valueMode: "db",
+          minDb: parseInt(minDbSlider.value, 10),
+          maxDb: parseInt(maxDbSlider.value, 10),
         });
 
         scope.attachNavigation(canvas);
@@ -216,6 +331,11 @@
         const fontSize = parseInt(fontSizeSlider.value, 10);
         fontSizeVal.textContent = `${fontSize}px`;
 
+        updateSliderTrack();
+
+        const minDb = parseInt(minDbSlider.value, 10);
+        const maxDb = parseInt(maxDbSlider.value, 10);
+
         renderer.updateOptions({
           colorMode: colorModeSelect.value,
           charSet: charSetSelect.value,
@@ -227,14 +347,32 @@
         if (spectrogram) {
           spectrogram.updateConfig({
             colorMap: colormapSelect.value,
+            frequencyScale: freqScaleSelect.value,
+            minDb,
+            maxDb,
           });
           spectrogram.requestRender();
         }
       }
 
+      minDbSlider.addEventListener("input", () => {
+        if (parseInt(minDbSlider.value, 10) > parseInt(maxDbSlider.value, 10) - 2) {
+          minDbSlider.value = (parseInt(maxDbSlider.value, 10) - 2).toString();
+        }
+        updateRenderer();
+      });
+
+      maxDbSlider.addEventListener("input", () => {
+        if (parseInt(maxDbSlider.value, 10) < parseInt(minDbSlider.value, 10) + 2) {
+          maxDbSlider.value = (parseInt(minDbSlider.value, 10) + 2).toString();
+        }
+        updateRenderer();
+      });
+
       colorModeSelect.addEventListener("change", updateRenderer);
       charSetSelect.addEventListener("change", updateRenderer);
       colormapSelect.addEventListener("change", updateRenderer);
+      freqScaleSelect.addEventListener("change", updateRenderer);
       fontSizeSlider.addEventListener("input", updateRenderer);
       invertCheckbox.addEventListener("change", updateRenderer);
 

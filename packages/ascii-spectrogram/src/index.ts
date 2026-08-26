@@ -1,6 +1,7 @@
 import {
   buildColorMap,
   canvasToTimeFrequency,
+  type FrequencyScale,
   locateSamplePosition,
   normalizeValue,
   type RenderInput,
@@ -145,6 +146,7 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
         numChars,
         tile,
         input.viewport,
+        input.frequencyScale,
         input.valueScale,
         colors,
         colorMode,
@@ -163,6 +165,7 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
     numChars: number,
     tile: SpectrogramMatrix,
     viewport: ViewportConfig,
+    frequencyScale: FrequencyScale | undefined,
     valueScale: Required<ValueScaleConfig>,
     colors: Rgba[],
     colorMode: "colormap" | "monochrome" | "green" | "amber",
@@ -195,6 +198,7 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
         cols * charWidth,
         rows * charHeight,
         viewport,
+        frequencyScale ?? "linear",
       );
       return locateSamplePosition(tile.frequencies, frequency);
     });
