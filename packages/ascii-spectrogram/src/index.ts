@@ -130,7 +130,6 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
     context.font = `${fontSize}px ${fontFamily}`;
     context.textBaseline = "top";
 
-    const cols = Math.ceil(width / charWidth);
     const rows = Math.ceil(height / charHeight);
 
     const colors = buildColorMap(input.colorMap);
@@ -138,7 +137,8 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
     for (const tile of input.tiles) {
       this.paintTileAscii(
         context,
-        cols,
+        width,
+        height,
         rows,
         charWidth,
         charHeight,
@@ -157,7 +157,8 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
 
   private paintTileAscii(
     context: CanvasRenderingContext2D,
-    cols: number,
+    width: number,
+    height: number,
     rows: number,
     charWidth: number,
     charHeight: number,
@@ -187,6 +188,16 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
     const vpDuration = viewport.endTime - viewport.startTime;
     if (vpDuration <= 0) return;
 
+    const charDuration = (charWidth * vpDuration) / width;
+    if (charDuration <= 0) return;
+
+    // Anchor the column grid to absolute audio time (time = 0)
+    // so characters physically travel with the spectrogram during panning.
+    const firstCol = Math.floor(
+      (viewport.startTime - charDuration) / charDuration,
+    );
+    const lastCol = Math.ceil((viewport.endTime + charDuration) / charDuration);
+
     const valueData = valueDataForMode(tile, valueScale.mode);
 
     // Precalculate frequency row positions
@@ -195,25 +206,33 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
       const { frequency } = canvasToTimeFrequency(
         0,
         pixelY,
-        cols * charWidth,
-        rows * charHeight,
+        width,
+        height,
         viewport,
         frequencyScale ?? "linear",
       );
       return locateSamplePosition(tile.frequencies, frequency);
     });
 
-    for (let col = 0; col < cols; col++) {
-      const pixelX = (col + 0.5) * charWidth;
-      const time =
-        viewport.startTime + (pixelX / (cols * charWidth)) * vpDuration;
-      if (time < tileStartTime || time > tileEndTime) continue;
+    const pixelsPerSecond = width / vpDuration;
+
+    for (let col = firstCol; col <= lastCol; col++) {
+      const colStartTime = col * charDuration;
+      const colCenterTime = (col + 0.5) * charDuration;
+
+      // Check if this column's center time is within the tile bounds
+      if (colCenterTime < tileStartTime || colCenterTime > tileEndTime)
+        continue;
+
+      // Screen X coordinate anchored to absolute time
+      const screenX = (colStartTime - viewport.startTime) * pixelsPerSecond;
+      if (screenX + charWidth < 0 || screenX > width) continue;
 
       const framePosition = Math.max(
         0,
         Math.min(
           tile.frameCount - 1,
-          (time - tileStartTime) / Math.max(0.000001, hopDuration),
+          (colCenterTime - tileStartTime) / Math.max(0.000001, hopDuration),
         ),
       );
       const low = Math.floor(framePosition);
@@ -242,7 +261,7 @@ export class AsciiSpectrogramRenderer implements SpectrogramRenderer {
           colors,
           colorMode,
         );
-        context.fillText(char, col * charWidth, row * charHeight);
+        context.fillText(char, screenX, row * charHeight);
       }
     }
   }
