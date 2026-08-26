@@ -174,9 +174,42 @@ export interface NavigableViewer {
     x: number,
     y: number,
   ) => { time: number; frequency: number };
-  canvasToTime?: (x: number) => number;
-  canvasToFrequency?: (y: number) => number;
+  timeFrequencyToCanvas?: (
+    time: number,
+    frequency: number,
+  ) => { x: number; y: number };
 }
+
+/**
+ * Base viewer interface with lifecycle disposal.
+ */
+export interface ISonoscopeViewer {
+  destroy(): void;
+}
+
+/**
+ * Data-bound viewer that receives audio source updates.
+ */
+export interface IDataViewer extends ISonoscopeViewer {
+  setSource(source: AudioSource): void;
+}
+
+/**
+ * Viewport-only viewer (e.g. time rulers, frequency rulers, overlays).
+ */
+export interface IViewportViewer extends ISonoscopeViewer, NavigableViewer {}
+
+/**
+ * Factory function to construct a custom viewer instance.
+ */
+export type CustomViewerFactory<
+  TOptions = unknown,
+  TViewer extends ISonoscopeViewer = ISonoscopeViewer,
+> = (
+  scope: ISonoscope,
+  canvas: HTMLCanvasElement,
+  options?: TOptions,
+) => TViewer;
 
 // ---------------------------------------------------------------------------
 // Playhead overlay options (pure data; implemented in ./playhead)

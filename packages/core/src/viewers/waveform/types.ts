@@ -1,7 +1,9 @@
 import type {
   AudioSource,
   ColorMapConfig,
+  IDataViewer,
   IViewportController,
+  NavigableViewer,
 } from "../../types";
 export type PeakBlock = {
   min: Float32Array;
@@ -202,9 +204,17 @@ export type WaveformEvents = {
 };
 
 /**
+ * Factory function to construct a custom waveform renderer.
+ */
+export type WaveformRendererFactory = (
+  canvas: HTMLCanvasElement,
+  options?: Record<string, unknown>,
+) => WaveformRenderer;
+
+/**
  * Waveform viewer canvas controller and peak renderer.
  */
-export interface IWaveformViewer {
+export interface IWaveformViewer extends IDataViewer, NavigableViewer {
   /** Renders the current waveform viewport asynchronously. */
   render(): Promise<void>;
   /** Schedules a render on the next animation frame. */

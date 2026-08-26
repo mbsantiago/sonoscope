@@ -22,6 +22,8 @@ import {
   useSonoscope,
   useSonoscopeContext,
   useSpectrogram,
+  Viewer,
+  type ViewerHandle,
   Waveform,
   type WaveformHandle,
 } from "./index";
@@ -906,6 +908,44 @@ describe("React Components and Hooks", () => {
       );
       expect(canvas).toBeTruthy();
       expect(ref.current?.getViewer()).toBeInstanceOf(FrequencyRulerViewer);
+      scope.destroy();
+    });
+  });
+
+  describe("<Viewer /> and useViewer", () => {
+    it("renders custom viewer via factory function", async () => {
+      const source = createMockAudioSource(20);
+      const scope = new Sonoscope(source);
+
+      const mockDestroy = vi.fn();
+      const mockViewerInstance = {
+        destroy: mockDestroy,
+      };
+      const customFactory = vi.fn(() => mockViewerInstance);
+
+      const ref = createRef<ViewerHandle>();
+      const onReady = vi.fn();
+
+      await act(async () => {
+        root.render(
+          React.createElement(Viewer, {
+            ref,
+            scope,
+            viewer: customFactory,
+            onReady,
+          }),
+        );
+      });
+
+      expect(customFactory).toHaveBeenCalled();
+      expect(ref.current?.getViewer()).toBe(mockViewerInstance);
+      expect(onReady).toHaveBeenCalledWith(mockViewerInstance);
+
+      await act(async () => {
+        root.unmount();
+      });
+
+      expect(mockDestroy).toHaveBeenCalled();
       scope.destroy();
     });
   });

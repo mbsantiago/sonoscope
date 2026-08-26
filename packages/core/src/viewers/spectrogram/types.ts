@@ -3,7 +3,9 @@ import type {
   AudioSource,
   ColorMapConfig,
   FrequencyScale,
+  IDataViewer,
   IViewportController,
+  NavigableViewer,
   ViewportConfig,
 } from "../../types";
 import type {
@@ -386,12 +388,30 @@ export type ResolvedSpectrogramConfig = {
   transforms: SpectrogramTransform[];
 };
 
+import type { SpectrogramRenderer } from "./renderers/canvas";
+
 export type SpectrogramOptions = SpectrogramConfig;
+
+/**
+ * Factory function to construct a custom spectrogram renderer.
+ */
+export type SpectrogramRendererFactory = (
+  canvas: HTMLCanvasElement,
+  options?: Record<string, unknown>,
+) => SpectrogramRenderer;
+
+/**
+ * Factory function to construct a custom WebGL2 spectrogram shader program.
+ */
+export type WebGL2SpectrogramProgramFactory = (
+  gl: WebGL2RenderingContext,
+  options?: Record<string, unknown>,
+) => WebGL2RenderProgram;
 
 /**
  * Spectrogram viewer canvas controller and inspector.
  */
-export interface ISpectrogramViewer {
+export interface ISpectrogramViewer extends IDataViewer, NavigableViewer {
   /** Renders the current spectrogram viewport asynchronously. */
   render(): Promise<void>;
   /** Schedules a render on the next animation frame. */
