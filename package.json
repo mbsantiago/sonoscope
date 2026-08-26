@@ -13,6 +13,7 @@
     "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/ascii-spectrogram build && npm run --workspace=@sonoscope/halftone-spectrogram build && npm run --workspace=@sonoscope/terrain-spectrogram build && npm run --workspace=@sonoscope/topographic-spectrogram build && npm run --workspace=@sonoscope/react build && npm run --workspace=@sonoscope/anywidget build",
     "build:docs": "npm run --workspace=docs build",
     "build:examples": "vite build examples/basic --base=./",
+    "visualize:core": "node scripts/visualize-bundle.mjs",
     "dev:docs": "npm run --workspace=docs dev",
     "bench": "vitest bench",
     "fixtures:generate": "uv run scripts/generate_baseline_spectrograms.py",
@@ -25,10 +26,14 @@
     "check:types": "tsc --noEmit",
     "fix:format": "biome format --write",
     "fix:lint": "biome check --write",
-    "fix:unsafe": "biome check --write --unsafe"
+    "fix:unsafe": "biome check --write --unsafe",
+    "changeset": "changeset",
+    "version-packages": "changeset version && node scripts/sync-python-version.mjs",
+    "release": "npm run build && changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
+    "@changesets/cli": "^3.0.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
@@ -38,6 +43,7 @@
     "pngjs": "^7.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "rollup-plugin-visualizer": "^7.1.1",
     "terser": "^5.50.0",
     "typescript": "latest",
     "vite": "latest",

@@ -51,9 +51,9 @@ jobs:
         run: npm run build
 
       - name: Publish NPM Packages
-        run: |
-          npm publish --workspace=@sonoscope/core --access public
-          npm publish --workspace=@sonoscope/react --access public
+        run: npx changeset publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build Python Package (Wheel & SDist)
         working-directory: packages/anywidget

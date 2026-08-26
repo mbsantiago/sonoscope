@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@sonoscope/core",
+      "@sonoscope/react",
+      "@sonoscope/ascii-spectrogram",
+      "@sonoscope/halftone-spectrogram",
+      "@sonoscope/terrain-spectrogram",
+      "@sonoscope/topographic-spectrogram",
+      "@sonoscope/anywidget"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "docs"
+  ]
+}
