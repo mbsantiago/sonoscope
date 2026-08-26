@@ -10,14 +10,12 @@ import type {
 } from "../../types";
 import type {
   CacheStats,
-  HalftoneOptions,
   SpectrogramComputeBackend,
   SpectrogramTransform,
   SpectrogramWorkerLike,
   SpectrumPoint,
   SpectrumSlice,
   TileStateInfo,
-  TopographicOptions,
   ValueMode,
   WebGL2RenderProgram,
   WebGLRendererProgramName,
@@ -28,7 +26,6 @@ import type {
 export type {
   CacheStats,
   ComputeTileRequest,
-  HalftoneOptions,
   RenderInput,
   SpectrogramComputeBackend,
   SpectrogramMatrix,
@@ -40,7 +37,6 @@ export type {
   TextureEntry,
   TileState,
   TileStateInfo,
-  TopographicOptions,
   TransformContext,
   ValueMode,
   ValueScaleConfig,
@@ -55,21 +51,11 @@ export type WebGLRendererProgram =
   | WebGLRendererProgramName
   | WebGL2RenderProgram;
 
-export type HalftoneRendererConfig = {
-  type: "halftone";
-  program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions;
-
-export type TopographicRendererConfig = {
-  type: "topographic";
-  program?: WebGLRendererProgram | undefined;
-} & TopographicOptions;
-
 export type WebGLRendererConfig = {
   type: "webgl" | "webgl2" | WebGLRendererProgramName;
   program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions &
-  TopographicOptions;
+  [key: string]: unknown;
+};
 
 export type Canvas2DRendererConfig = {
   type: "canvas2d";
@@ -78,15 +64,14 @@ export type Canvas2DRendererConfig = {
 export type AutoRendererConfig = {
   type: "auto";
   program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions &
-  TopographicOptions;
+  [key: string]: unknown;
+};
 
 export type SpectrogramRendererConfig =
   | AutoRendererConfig
   | Canvas2DRendererConfig
   | WebGLRendererConfig
-  | HalftoneRendererConfig
-  | TopographicRendererConfig;
+  | { type: string; [key: string]: unknown };
 
 export type RendererMode =
   | "auto"

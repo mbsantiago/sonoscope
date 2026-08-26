@@ -1,0 +1,59 @@
+{
+  "name": "@sonoscope/terrain-spectrogram",
+  "version": "0.1.0",
+  "description": "3D Perspective contour terrain shader program plugin for Sonoscope WebGL2 spectrogram renderer.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbsantiago/sonoscope.git",
+    "directory": "packages/terrain-spectrogram"
+  },
+  "homepage": "https://mbsantiago.github.io/sonoscope/",
+  "type": "module",
+  "license": "MIT",
+  "author": "Santiago",
+  "keywords": [
+    "audio",
+    "spectrogram",
+    "sonoscope",
+    "terrain",
+    "3d",
+    "shader",
+    "webgl2",
+    "plugin"
+  ],
+  "sideEffects": [
+    "./dist/auto.js",
+    "./src/auto.ts",
+    "./dist/index.umd.js"
+  ],
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/index.umd.js",
+  "jsdelivr": "./dist/index.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.umd.js"
+    },
+    "./auto": {
+      "types": "./dist/auto.d.ts",
+      "import": "./dist/auto.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sonoscope/core": "^0.1.0"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "check:types": "tsc --noEmit"
+  }
+}

@@ -1,5 +1,8 @@
 import type { RenderProps } from "@anywidget/types";
 import "./widget.css";
+import "@sonoscope/halftone-spectrogram/auto";
+import "@sonoscope/terrain-spectrogram/auto";
+import "@sonoscope/topographic-spectrogram/auto";
 import {
   attachPlayheadOverlay,
   type FollowPlaybackMode,

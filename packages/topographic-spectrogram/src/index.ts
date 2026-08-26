@@ -1,11 +1,37 @@
-import type { TopographicOptions } from "../types";
-import type { RenderInput } from "./canvas";
-import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import {
+  NormalSpectrogramProgram,
+  type RenderInput,
+  registerSpectrogramProgram,
   WEBGL2_FRAGMENT_UNIFORMS,
   WEBGL2_OVERLAY_CHECK,
   WEBGL2_SCALE_HELPERS,
-} from "./webgl2-program";
+} from "@sonoscope/core";
+
+export interface TopographicOptions {
+  /**
+   * Energy spacing between adjacent elevation contour lines in normalized [0, 1] range.
+   * @default 0.15
+   */
+  contourInterval?: number | undefined;
+
+  /**
+   * Line thickness in screen-space pixels.
+   * @default 1.0
+   */
+  contourLineWidth?: number | undefined;
+
+  /**
+   * Opacity of the contour lines [0, 1].
+   * @default 0.9
+   */
+  contourLineOpacity?: number | undefined;
+
+  /**
+   * Minimum energy floor threshold below which contours are clipped to background.
+   * @default 0.14
+   */
+  minEnergyThreshold?: number | undefined;
+}
 
 export const WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
@@ -135,6 +161,10 @@ export class TopographicSpectrogramProgram extends NormalSpectrogramProgram {
     this.options = { ...this.options, ...options };
   }
 
+  getOptions(): TopographicOptions {
+    return { ...this.options };
+  }
+
   protected override setCustomUniforms(_input: RenderInput): void {
     const contourInterval = this.options.contourInterval ?? 0.15;
     const contourLineWidth = this.options.contourLineWidth ?? 1.0;
@@ -146,4 +176,21 @@ export class TopographicSpectrogramProgram extends NormalSpectrogramProgram {
     this.shader.uniform1f("u_contourLineOpacity", contourLineOpacity);
     this.shader.uniform1f("u_minEnergyThreshold", minThreshold);
   }
+}
+
+/**
+ * Registers the Topographic WebGL2 shader program under the given name.
+ * @param name Program name identifier (default: "topographic").
+ * @param defaultOptions Default options applied when instantiating.
+ */
+export function registerTopographicProgram(
+  name = "topographic",
+  defaultOptions?: TopographicOptions,
+): void {
+  registerSpectrogramProgram(name, (gl, options) => {
+    return new TopographicSpectrogramProgram(gl, {
+      ...defaultOptions,
+      ...(options as TopographicOptions),
+    });
+  });
 }

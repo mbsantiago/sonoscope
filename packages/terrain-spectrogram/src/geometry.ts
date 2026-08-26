@@ -1,0 +1,68 @@
+import type { SpectrogramMatrix } from "@sonoscope/core";
+
+export function terrainVerticesForTile(
+  tile: Pick<SpectrogramMatrix, "frameCount" | "binCount">,
+  maxColumns = 96,
+  maxRows = 96,
+): Float32Array {
+  const columns = Math.max(2, Math.min(maxColumns, tile.frameCount));
+  const rows = Math.max(2, Math.min(maxRows, tile.binCount));
+  const vertices = new Float32Array((columns - 1) * (rows - 1) * 6 * 4);
+  let offset = 0;
+  for (let row = 0; row < rows - 1; row++) {
+    const v0 = row / (rows - 1);
+    const v1 = (row + 1) / (rows - 1);
+    for (let column = 0; column < columns - 1; column++) {
+      const u0 = column / (columns - 1);
+      const u1 = (column + 1) / (columns - 1);
+      offset = writeTerrainVertex(vertices, offset, u0, v0);
+      offset = writeTerrainVertex(vertices, offset, u1, v0);
+      offset = writeTerrainVertex(vertices, offset, u0, v1);
+      offset = writeTerrainVertex(vertices, offset, u1, v0);
+      offset = writeTerrainVertex(vertices, offset, u1, v1);
+      offset = writeTerrainVertex(vertices, offset, u0, v1);
+    }
+  }
+  return vertices;
+}
+
+function writeTerrainVertex(
+  vertices: Float32Array,
+  offset: number,
+  u: number,
+  v: number,
+): number {
+  vertices[offset] = u;
+  vertices[offset + 1] = v;
+  vertices[offset + 2] = u;
+  vertices[offset + 3] = v;
+  return offset + 4;
+}
+
+export function tileFrequencyRange(
+  tile: Pick<SpectrogramMatrix, "frequencies" | "sampleRate">,
+): { min: number; max: number } {
+  return {
+    min: tile.frequencies[0] ?? 0,
+    max:
+      tile.frequencies[tile.frequencies.length - 1] ??
+      Math.max(1, tile.sampleRate / 2),
+  };
+}
+
+export function tileTimeRange(
+  tile: Pick<
+    SpectrogramMatrix,
+    "times" | "sampleRate" | "timeStart" | "timeEnd" | "frameCount"
+  >,
+): { startTime: number; endTime: number } {
+  const hopDuration =
+    tile.times.length > 1
+      ? (tile.times[tile.times.length - 1]! - tile.times[0]!) /
+        Math.max(1, tile.frameCount - 1)
+      : tile.sampleRate > 0
+        ? (tile.timeEnd - tile.timeStart) / tile.frameCount
+        : 0;
+  const startTime = tile.times.length > 0 ? tile.times[0]! : tile.timeStart;
+  return { startTime, endTime: startTime + tile.frameCount * hopDuration };
+}

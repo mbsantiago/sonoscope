@@ -10,8 +10,13 @@ import type {
 } from "./backends/backend";
 import type { SpectrogramMatrix, SpectrogramOptions } from "./types";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  registerSpectrogramProgram,
+  unregisterSpectrogramProgram,
+} from "../../plugins/program-registry";
 import { Sonoscope } from "../../sonoscope";
 import * as sourceModule from "../../sources/source";
+import { NormalSpectrogramProgram } from "./renderers/webgl2-normal-program";
 import { SpectrogramViewer } from "./viewer";
 
 afterEach(() => {
@@ -1740,69 +1745,35 @@ describe("SpectrogramViewer", () => {
         getContext: (type: string) => (type === "webgl2" ? gl : null),
       } as unknown as HTMLCanvasElement;
 
+      registerSpectrogramProgram(
+        "custom-shader",
+        (gl) => new NormalSpectrogramProgram(gl),
+      );
+
       const scope = new Sonoscope({ source, startTime: 0, endTime: 1 });
       const v1 = scope.createSpectrogram(mockCanvas, {
-        renderer: "halftone",
+        renderer: "normal",
       });
-      expect(v1.getConfig().renderer).toBe("halftone");
+      expect(v1.getConfig().renderer).toBe("normal");
       v1.destroy();
 
       const v2 = scope.createSpectrogram(mockCanvas, {
-        renderer: "terrain",
+        renderer: { type: "webgl", program: "custom-shader" },
       });
-      expect(v2.getConfig().renderer).toBe("terrain");
-      v2.destroy();
-
-      const v3 = scope.createSpectrogram(mockCanvas, {
-        renderer: { type: "halftone" },
-      });
-      expect(v3.getConfig().renderer).toEqual({ type: "halftone" });
-      v3.destroy();
-
-      const v4 = scope.createSpectrogram(mockCanvas, {
-        renderer: {
-          type: "halftone",
-          dotFrequency: 0.25,
-          minEnergyThreshold: 0.1,
-          energyGamma: 3.5,
-        },
-      });
-      expect(v4.getConfig().renderer).toEqual({
-        type: "halftone",
-        dotFrequency: 0.25,
-        minEnergyThreshold: 0.1,
-        energyGamma: 3.5,
-      });
-      v4.destroy();
-
-      const v5 = scope.createSpectrogram(mockCanvas, {
-        renderer: { type: "webgl", program: "topographic" },
-      });
-      expect(v5.getConfig().renderer).toEqual({
+      expect(v2.getConfig().renderer).toEqual({
         type: "webgl",
-        program: "topographic",
+        program: "custom-shader",
       });
 
       // Test in-place program swapping on existing viewer
-      v5.setConfig({ renderer: { type: "webgl", program: "halftone" } });
-      expect(v5.getConfig().renderer).toEqual({
-        type: "webgl",
-        program: "halftone",
-      });
-
-      v5.setConfig({ renderer: { type: "webgl", program: "terrain" } });
-      expect(v5.getConfig().renderer).toEqual({
-        type: "webgl",
-        program: "terrain",
-      });
-
-      v5.setConfig({ renderer: { type: "webgl", program: "normal" } });
-      expect(v5.getConfig().renderer).toEqual({
+      v2.setConfig({ renderer: { type: "webgl", program: "normal" } });
+      expect(v2.getConfig().renderer).toEqual({
         type: "webgl",
         program: "normal",
       });
-      v5.destroy();
+      v2.destroy();
 
+      unregisterSpectrogramProgram("custom-shader");
       scope.destroy();
     });
   });

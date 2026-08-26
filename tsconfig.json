@@ -15,8 +15,31 @@
       "@sonoscope/ascii-spectrogram": [
         "./packages/ascii-spectrogram/src/index.ts"
       ],
+      "@sonoscope/ascii-spectrogram/*": [
+        "./packages/ascii-spectrogram/src/*"
+      ],
       "@sonoscope/core": ["./packages/core/src/index.ts"],
-      "@sonoscope/react": ["./packages/react/src/index.ts"]
+      "@sonoscope/core/*": ["./packages/core/src/*"],
+      "@sonoscope/halftone-spectrogram": [
+        "./packages/halftone-spectrogram/src/index.ts"
+      ],
+      "@sonoscope/halftone-spectrogram/*": [
+        "./packages/halftone-spectrogram/src/*"
+      ],
+      "@sonoscope/react": ["./packages/react/src/index.ts"],
+      "@sonoscope/react/*": ["./packages/react/src/*"],
+      "@sonoscope/terrain-spectrogram": [
+        "./packages/terrain-spectrogram/src/index.ts"
+      ],
+      "@sonoscope/terrain-spectrogram/*": [
+        "./packages/terrain-spectrogram/src/*"
+      ],
+      "@sonoscope/topographic-spectrogram": [
+        "./packages/topographic-spectrogram/src/index.ts"
+      ],
+      "@sonoscope/topographic-spectrogram/*": [
+        "./packages/topographic-spectrogram/src/*"
+      ]
     }
   },
   "include": [

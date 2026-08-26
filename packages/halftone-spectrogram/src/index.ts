@@ -1,11 +1,31 @@
-import type { HalftoneOptions } from "../types";
-import type { RenderInput } from "./canvas";
-import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import {
+  NormalSpectrogramProgram,
+  type RenderInput,
+  registerSpectrogramProgram,
   WEBGL2_FRAGMENT_UNIFORMS,
   WEBGL2_OVERLAY_CHECK,
   WEBGL2_SCALE_HELPERS,
-} from "./webgl2-program";
+} from "@sonoscope/core";
+
+export interface HalftoneOptions {
+  /**
+   * Spatial frequency of the halftone dot matrix (dots per CSS pixel).
+   * @default 0.24
+   */
+  dotFrequency?: number | undefined;
+
+  /**
+   * Energy floor below which no dots are rendered.
+   * @default 0
+   */
+  minEnergyThreshold?: number | undefined;
+
+  /**
+   * Gamma exponent applied to the energy to shape dot size falloff.
+   * @default 1.4
+   */
+  energyGamma?: number | undefined;
+}
 
 export const WEBGL2_HALFTONE_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
@@ -145,6 +165,10 @@ export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
     this.options = { ...this.options, ...options };
   }
 
+  getOptions(): HalftoneOptions {
+    return { ...this.options };
+  }
+
   protected override setCustomUniforms(_input: RenderInput): void {
     const dotFrequency = this.options.dotFrequency ?? 0.24;
     const minEnergyThreshold = this.options.minEnergyThreshold ?? 0;
@@ -154,4 +178,21 @@ export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
     this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);
     this.shader.uniform1f("u_energyGamma", energyGamma);
   }
+}
+
+/**
+ * Registers the Halftone WebGL2 shader program under the given name.
+ * @param name Program name identifier (default: "halftone").
+ * @param defaultOptions Default options applied when instantiating.
+ */
+export function registerHalftoneProgram(
+  name = "halftone",
+  defaultOptions?: HalftoneOptions,
+): void {
+  registerSpectrogramProgram(name, (gl, options) => {
+    return new HalftoneSpectrogramProgram(gl, {
+      ...defaultOptions,
+      ...(options as HalftoneOptions),
+    });
+  });
 }

@@ -1,22 +1,22 @@
-/**
- * Terrain spectrogram program.
- *
- * Visual treatment inspired by Chrome Music Lab's 3D sonogram shaders:
- * https://github.com/googlecreativelab/chrome-music-lab/tree/master/spectrogram/src/bin/shaders
- * Chrome Music Lab is Copyright 2016 Google Inc. and licensed under Apache-2.0.
- * This shader is an original WebGL2 implementation adapted to sonoscope's tile texture layout.
- */
-
-import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
-import type { RenderInput } from "./canvas";
-import { lookAt, multiplyMat4, perspective, type Vec3 } from "./webgl2-camera";
-import { tileTimeRange } from "./webgl2-geometry";
 import {
+  type RenderInput,
+  registerSpectrogramProgram,
+  type SpectrogramMatrix,
+  type ValueScaleConfig,
   WEBGL2_SCALE_HELPERS,
   type WebGL2Frame,
   type WebGL2RenderResources,
   WebGL2TileProgramBase,
-} from "./webgl2-program";
+} from "@sonoscope/core";
+import { lookAt, multiplyMat4, perspective, type Vec3 } from "./camera";
+import { tileTimeRange } from "./geometry";
+
+export { lookAt, multiplyMat4, perspective, type Vec3 } from "./camera";
+export {
+  terrainVerticesForTile,
+  tileFrequencyRange,
+  tileTimeRange,
+} from "./geometry";
 
 const TERRAIN_CAMERA_EYE: Vec3 = [0, 1.5, 0];
 const TERRAIN_CAMERA_TARGET: Vec3 = [0, 0, 0];
@@ -194,4 +194,14 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
     this.shader.uniform2f("u_tileSize", entry.width, entry.height);
     this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertexCount);
   }
+}
+
+/**
+ * Registers the Terrain 3D WebGL2 shader program under the given name.
+ * @param name Program name identifier (default: "terrain").
+ */
+export function registerTerrainProgram(name = "terrain"): void {
+  registerSpectrogramProgram(name, (gl) => {
+    return new TerrainSpectrogramProgram(gl);
+  });
 }

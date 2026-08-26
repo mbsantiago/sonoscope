@@ -81,8 +81,6 @@ export type {
   BackendMode,
   CacheStats,
   Canvas2DRendererConfig,
-  HalftoneOptions,
-  HalftoneRendererConfig,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -102,8 +100,6 @@ export type {
   StftConfig,
   TileState,
   TileStateInfo,
-  TopographicOptions,
-  TopographicRendererConfig,
   TransformContext,
   ValueMode,
   ValueScaleConfig,
@@ -254,11 +250,23 @@ export { SpectrogramProfiler } from "./viewers/spectrogram/profiler";
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
 export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";
-export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-halftone-program";
+export {
+  tileFrequencyRange,
+  tileTimeRange,
+} from "./viewers/spectrogram/renderers/webgl2-geometry";
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
-export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
-export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
-export { TopographicSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-topography-program";
+export {
+  frequencyScaleCode,
+  WEBGL2_FRAGMENT_UNIFORMS,
+  WEBGL2_OVERLAY_CHECK,
+  WEBGL2_SCALE_HELPERS,
+  WebGL2ShaderProgram,
+  WebGL2TileProgramBase,
+} from "./viewers/spectrogram/renderers/webgl2-program";
+export {
+  createShaderProgram,
+  createSpectrogramProgram,
+} from "./viewers/spectrogram/renderers/webgl2-program-factory";
 export {
   locateSamplePosition,
   sampleValueDataPosition,

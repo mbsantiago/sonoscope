@@ -13,7 +13,6 @@ export function perspective(
 ): Float32Array {
   const f = 1 / Math.tan(fovyRadians / 2);
   const nf = 1 / (near - far);
-  // prettier-ignore
   return new Float32Array([
     f / aspect,
     0,
@@ -55,7 +54,6 @@ export function lookAt(eye: Vec3, center: Vec3, up: Vec3): Float32Array {
   const y1 = z2 * x0 - z0 * x2;
   const y2 = z0 * x1 - z1 * x0;
 
-  // prettier-ignore
   return new Float32Array([
     x0,
     y0,

@@ -1,22 +1,25 @@
 import type { ComputeTileRequest } from "../backends/backend";
 import type { SpectrogramMatrix } from "../types";
+import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "@sonoscope/halftone-spectrogram";
 import { describe, expect, it } from "vitest";
 import { Sonoscope } from "../../../sonoscope";
 import { ArrayAudioSource } from "../../../sources/array-source";
 import { SpectrogramViewer } from "../viewer";
 import { CanvasSpectrogramRenderer, type RenderInput } from "./canvas";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
-import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "./webgl2-halftone-program";
+import "@sonoscope/halftone-spectrogram/auto";
+import {
+  WEBGL2_TERRAIN_FRAGMENT_SHADER,
+  WEBGL2_TERRAIN_VERTEX_SHADER,
+} from "@sonoscope/terrain-spectrogram";
+import "@sonoscope/terrain-spectrogram/auto";
+import { WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER } from "@sonoscope/topographic-spectrogram";
+import "@sonoscope/topographic-spectrogram/auto";
 import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
 import { createSpectrogramProgram } from "./webgl2-program-factory";
-import {
-  WEBGL2_TERRAIN_FRAGMENT_SHADER,
-  WEBGL2_TERRAIN_VERTEX_SHADER,
-} from "./webgl2-terrain-program";
-import { WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER } from "./webgl2-topography-program";
 
 function compileShader(
   gl: WebGL2RenderingContext,

@@ -112,24 +112,7 @@ export type SpectrumPoint = {
 // Shader program contracts
 // ---------------------------------------------------------------------------
 
-export type WebGLRendererProgramName =
-  | "normal"
-  | "halftone"
-  | "terrain"
-  | "topographic";
-
-export type HalftoneOptions = {
-  dotFrequency?: number | undefined;
-  minEnergyThreshold?: number | undefined;
-  energyGamma?: number | undefined;
-};
-
-export type TopographicOptions = {
-  contourInterval?: number | undefined;
-  contourLineWidth?: number | undefined;
-  contourLineOpacity?: number | undefined;
-  minEnergyThreshold?: number | undefined;
-};
+export type WebGLRendererProgramName = "normal" | string;
 
 export type WebGL2Frame = {
   width: number;

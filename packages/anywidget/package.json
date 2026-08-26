@@ -8,7 +8,10 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@sonoscope/core": "^0.1.0"
+		"@sonoscope/core": "^0.1.0",
+		"@sonoscope/halftone-spectrogram": "^0.1.0",
+		"@sonoscope/terrain-spectrogram": "^0.1.0",
+		"@sonoscope/topographic-spectrogram": "^0.1.0"
 	},
 	"devDependencies": {
 		"@anywidget/types": "^0.3.0",
