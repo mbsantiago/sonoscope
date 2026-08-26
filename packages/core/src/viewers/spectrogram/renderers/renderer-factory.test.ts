@@ -122,7 +122,25 @@ describe("createSpectrogramRenderer", () => {
     const r3 = createSpectrogramRenderer(canvas(gl), "terrain");
     expect(r3.kind).toBe("webgl2");
 
-    const r4 = createSpectrogramRenderer(canvas(gl), { type: "halftone" });
+    const r4 = createSpectrogramRenderer(canvas(gl), "topographic");
     expect(r4.kind).toBe("webgl2");
+
+    const r5 = createSpectrogramRenderer(canvas(gl), { type: "halftone" });
+    expect(r5.kind).toBe("webgl2");
+
+    const r6 = createSpectrogramRenderer(canvas(gl), { type: "topographic" });
+    expect(r6.kind).toBe("webgl2");
+
+    const r7 = createSpectrogramRenderer(canvas(gl), {
+      type: "webgl",
+      program: "topographic",
+    });
+    expect(r7.kind).toBe("webgl2");
+
+    const r8 = createSpectrogramRenderer(canvas(gl), {
+      type: "webgl",
+      program: "terrain",
+    });
+    expect(r8.kind).toBe("webgl2");
   });
 });

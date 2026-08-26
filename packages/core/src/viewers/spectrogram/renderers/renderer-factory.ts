@@ -11,27 +11,14 @@ function isCanvasMode(mode: RendererMode): boolean {
 }
 
 function isWebGLStrict(mode: RendererMode): boolean {
-  if (typeof mode === "string") {
-    return (
-      mode === "webgl" ||
-      mode === "webgl2" ||
-      mode === "halftone" ||
-      mode === "terrain" ||
-      mode === "topographic" ||
-      mode === "normal"
-    );
+  if (isCanvasMode(mode)) return false;
+  if (
+    mode === "auto" ||
+    (typeof mode === "object" && mode !== null && mode.type === "auto")
+  ) {
+    return false;
   }
-  if (typeof mode === "object" && mode !== null) {
-    return (
-      mode.type === "webgl" ||
-      mode.type === "webgl2" ||
-      mode.type === "halftone" ||
-      mode.type === "terrain" ||
-      mode.type === "topographic" ||
-      mode.type === "normal"
-    );
-  }
-  return false;
+  return true;
 }
 
 export function createSpectrogramRenderer(

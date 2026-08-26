@@ -1,3 +1,4 @@
+import type { TopographicOptions } from "../types";
 import type { RenderInput } from "./canvas";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import {
@@ -123,16 +124,22 @@ void main() {
 
 export class TopographicSpectrogramProgram extends NormalSpectrogramProgram {
   override readonly name = "topographic";
+  private options: TopographicOptions;
 
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(gl: WebGL2RenderingContext, options: TopographicOptions = {}) {
     super(gl, WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER);
+    this.options = options;
   }
 
-  protected override setCustomUniforms(input: RenderInput): void {
-    const contourInterval = input.topographic?.contourInterval ?? 0.15;
-    const contourLineWidth = input.topographic?.contourLineWidth ?? 1.0;
-    const contourLineOpacity = input.topographic?.contourLineOpacity ?? 0.9;
-    const minThreshold = input.topographic?.minEnergyThreshold ?? 0.14;
+  setOptions(options: TopographicOptions): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  protected override setCustomUniforms(_input: RenderInput): void {
+    const contourInterval = this.options.contourInterval ?? 0.15;
+    const contourLineWidth = this.options.contourLineWidth ?? 1.0;
+    const contourLineOpacity = this.options.contourLineOpacity ?? 0.9;
+    const minThreshold = this.options.minEnergyThreshold ?? 0.14;
 
     this.shader.uniform1f("u_contourInterval", contourInterval);
     this.shader.uniform1f("u_contourLineWidth", contourLineWidth);

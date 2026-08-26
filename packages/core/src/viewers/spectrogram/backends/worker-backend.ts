@@ -1,4 +1,3 @@
-import type { PerformanceProfiler } from "../../../performance";
 import type {
   ComputeTileRequest,
   SpectrogramComputeBackend,
@@ -234,29 +233,16 @@ export class WorkerComputeBackend implements SpectrogramComputeBackend {
         new Error("WorkerComputeBackend has been destroyed"),
       );
 
-    const enqueue = () =>
-      new Promise<SpectrogramMatrix>((resolve, reject) => {
-        this.queue.push({
-          id: this.nextId++,
-          request,
-          queuedAt: performance.now(),
-          resolve,
-          reject,
-        });
-        void this.pump();
+    return new Promise<SpectrogramMatrix>((resolve, reject) => {
+      this.queue.push({
+        id: this.nextId++,
+        request,
+        queuedAt: performance.now(),
+        resolve,
+        reject,
       });
-
-    return request.profile
-      ? request.profile.measureAsync(
-          "tile.total",
-          {
-            channel: request.channel,
-            timeStart: request.timeStart,
-            timeEnd: request.timeEnd,
-          },
-          enqueue,
-        )
-      : enqueue();
+      void this.pump();
+    });
   }
 
   destroy(): void {
@@ -293,14 +279,8 @@ export class WorkerComputeBackend implements SpectrogramComputeBackend {
   }
 
   private async startJob(slot: WorkerSlot, job: Job): Promise<void> {
-    const profile = job.request.profile;
-    const start = performance.now();
-    profile?.record("tile.queue.wait", job.queuedAt, start - job.queuedAt, {
-      channel: job.request.channel,
-    });
-
     try {
-      const samples = await readSamples(job.request, profile);
+      const samples = await readSamples(job.request);
       if (this.destroyed || slot.job !== job) return;
       const message: WorkerRequest = {
         id: job.id,
@@ -327,23 +307,17 @@ export class WorkerComputeBackend implements SpectrogramComputeBackend {
 
   private handleMessage(slot: WorkerSlot, response: WorkerResponse): void {
     const job = slot.job;
-    if (!job || job.id !== response.id) return;
-
     slot.job = undefined;
+    if (!job) return;
+
+    if (response.id !== job.id) return;
+
     if ("error" in response) {
       job.reject(new Error(response.error));
     } else {
-      job.request.profile?.record(
-        "tile.stft.compute",
-        performance.now() - response.computeDuration,
-        response.computeDuration,
-        {
-          channel: job.request.channel,
-          fftSize: job.request.stft.fftSize,
-        },
-      );
       job.resolve(response.matrix);
     }
+
     void this.pump();
   }
 
@@ -355,24 +329,10 @@ export class WorkerComputeBackend implements SpectrogramComputeBackend {
   }
 }
 
-async function readSamples(
-  request: ComputeTileRequest,
-  profile: PerformanceProfiler | undefined,
-): Promise<Float32Array> {
-  const readOptions = {
+async function readSamples(request: ComputeTileRequest): Promise<Float32Array> {
+  return await request.source.read({
     channel: request.channel,
     startTime: request.timeStart,
     endTime: request.timeEnd,
-  };
-  return profile
-    ? await profile.measureAsync(
-        "tile.source.read",
-        {
-          channel: request.channel,
-          timeStart: request.timeStart,
-          timeEnd: request.timeEnd,
-        },
-        async () => await request.source.read(readOptions),
-      )
-    : await request.source.read(readOptions);
+  });
 }

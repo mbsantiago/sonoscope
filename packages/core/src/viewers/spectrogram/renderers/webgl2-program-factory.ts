@@ -1,4 +1,9 @@
-import type { RendererMode, WebGLRendererProgramName } from "../types";
+import type {
+  HalftoneOptions,
+  RendererMode,
+  TopographicOptions,
+  WebGLRendererProgramName,
+} from "../types";
 import type { WebGL2RenderProgram } from "./webgl2-program";
 import { isUsableWebGL2Context } from "../../shared/webgl2-compile";
 import { HalftoneSpectrogramProgram } from "./webgl2-halftone-program";
@@ -8,17 +13,30 @@ import { TopographicSpectrogramProgram } from "./webgl2-topography-program";
 
 export function createSpectrogramProgram(
   gl: WebGL2RenderingContext,
-  name: WebGLRendererProgramName,
+  mode: WebGLRendererProgramName | RendererMode,
 ): WebGL2RenderProgram {
+  if (typeof mode === "object" && mode !== null && "program" in mode) {
+    if (typeof mode.program === "object") return mode.program;
+  }
+  const spec =
+    typeof mode === "string" ? { name: mode } : programSpecForMode(mode);
+  const name = spec.name ?? "normal";
+  const options = typeof mode === "object" && mode !== null ? mode : {};
+
   switch (name) {
     case "halftone":
-      return new HalftoneSpectrogramProgram(gl);
+      return new HalftoneSpectrogramProgram(gl, options as HalftoneOptions);
     case "terrain":
       return new TerrainSpectrogramProgram(gl);
     case "normal":
       return new NormalSpectrogramProgram(gl);
     case "topographic":
-      return new TopographicSpectrogramProgram(gl);
+      return new TopographicSpectrogramProgram(
+        gl,
+        options as TopographicOptions,
+      );
+    default:
+      return new NormalSpectrogramProgram(gl);
   }
 }
 
@@ -32,7 +50,8 @@ export function programSpecForMode(mode: RendererMode): {
 } {
   if (typeof mode === "object" && mode !== null && "program" in mode) {
     if (typeof mode.program === "object") return { program: mode.program };
-    if (mode.program !== undefined) return { name: mode.program };
+    if (typeof mode.program === "string")
+      return { name: resolveProgramName(mode.program) };
   }
   return { name: resolveProgramName(mode) };
 }
@@ -50,22 +69,34 @@ export function createShaderProgram(
 
   const spec = programSpecForMode(mode);
   if (spec.program) return spec.program;
-  return createSpectrogramProgram(gl, spec.name ?? "normal");
+  return createSpectrogramProgram(
+    gl,
+    typeof mode === "object" ? mode : (spec.name ?? "normal"),
+  );
 }
 
 function resolveProgramName(mode: RendererMode): WebGLRendererProgramName {
-  if (mode === "halftone" || mode === "terrain" || mode === "normal") {
+  if (
+    mode === "halftone" ||
+    mode === "terrain" ||
+    mode === "normal" ||
+    mode === "topographic"
+  ) {
     return mode;
   }
-  if (
-    typeof mode === "object" &&
-    mode !== null &&
-    "type" in mode &&
-    (mode.type === "normal" ||
-      mode.type === "halftone" ||
-      mode.type === "terrain")
-  ) {
-    return mode.type;
+  if (typeof mode === "object" && mode !== null) {
+    if ("program" in mode && typeof mode.program === "string") {
+      return resolveProgramName(mode.program);
+    }
+    if (
+      "type" in mode &&
+      (mode.type === "normal" ||
+        mode.type === "halftone" ||
+        mode.type === "terrain" ||
+        mode.type === "topographic")
+    ) {
+      return mode.type;
+    }
   }
   return "normal";
 }

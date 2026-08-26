@@ -5,11 +5,10 @@ import type {
   ViewportConfig,
 } from "../../types";
 import type { SpectrogramComputeBackend } from "./backends/backend";
-import type { RenderInput, SpectrogramRenderer } from "./renderers/canvas";
+import type { SpectrogramRenderer } from "./renderers/canvas";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 import type {
   CacheStats,
-  HalftoneOptions,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -22,7 +21,6 @@ import type {
   SpectrumSlice,
   StftConfig,
   TileStateInfo,
-  TopographicOptions,
   ValueMode,
 } from "./types";
 import { attachAutoResize } from "../../auto-resize";
@@ -38,10 +36,7 @@ import {
   timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
 } from "./frequency-scale";
 import { createSpectrogramRenderer } from "./renderers/renderer-factory";
-import {
-  createSpectrogramProgram,
-  programSpecForMode,
-} from "./renderers/webgl2-program-factory";
+import { createSpectrogramProgram } from "./renderers/webgl2-program-factory";
 import { applyTransforms } from "./transforms";
 import { deriveDb, derivePower } from "./value-scale";
 
@@ -378,11 +373,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private resolveRendererProgram(
     mode: RendererMode,
   ): WebGL2RenderProgram | undefined {
-    const spec = programSpecForMode(mode);
-    if (spec.program) return spec.program;
-    if (spec.name === undefined) return undefined;
     const gl = this.canvas.getContext("webgl2");
-    return gl ? createSpectrogramProgram(gl, spec.name) : undefined;
+    return gl ? createSpectrogramProgram(gl, mode) : undefined;
   }
 
   private paintPartial(
@@ -407,8 +399,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       ...(this.playheadTime !== undefined
         ? { playheadTime: this.playheadTime }
         : {}),
-      ...halftoneRenderInput(this.config.renderer),
-      ...topographicRenderInput(this.config.renderer),
     });
   }
 
@@ -905,53 +895,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 }
 
 function isWebGLProgramMode(mode: RendererMode): boolean {
-  return (
-    mode === "webgl" ||
-    mode === "webgl2" ||
-    mode === "normal" ||
-    mode === "halftone" ||
-    mode === "terrain" ||
-    mode === "topographic" ||
-    (typeof mode === "object" && mode !== null && mode.type !== "canvas2d")
-  );
-}
-
-function halftoneRenderInput(
-  renderer: RendererMode,
-): Pick<RenderInput, "halftone"> {
-  if (typeof renderer !== "object" || renderer === null) return {};
-  const r = renderer as HalftoneOptions;
-  const hasHalftoneOptions =
-    ("dotFrequency" in renderer && r.dotFrequency !== undefined) ||
-    ("minEnergyThreshold" in renderer && r.minEnergyThreshold !== undefined) ||
-    ("energyGamma" in renderer && r.energyGamma !== undefined);
-  if (!hasHalftoneOptions) return {};
-  return {
-    halftone: {
-      dotFrequency: r.dotFrequency,
-      minEnergyThreshold: r.minEnergyThreshold,
-      energyGamma: r.energyGamma,
-    },
-  };
-}
-
-function topographicRenderInput(
-  renderer: RendererMode,
-): Pick<RenderInput, "topographic"> {
-  if (typeof renderer !== "object" || renderer === null) return {};
-  const r = renderer as TopographicOptions;
-  const hasTopographicOptions =
-    ("contourInterval" in renderer && r.contourInterval !== undefined) ||
-    ("contourLineWidth" in renderer && r.contourLineWidth !== undefined) ||
-    ("contourLineOpacity" in renderer && r.contourLineOpacity !== undefined) ||
-    ("minEnergyThreshold" in renderer && r.minEnergyThreshold !== undefined);
-  if (!hasTopographicOptions) return {};
-  return {
-    topographic: {
-      contourInterval: r.contourInterval,
-      contourLineWidth: r.contourLineWidth,
-      contourLineOpacity: r.contourLineOpacity,
-      minEnergyThreshold: r.minEnergyThreshold,
-    },
-  };
+  if (typeof mode === "string") {
+    return mode !== "canvas2d" && mode !== "auto";
+  }
+  if (typeof mode === "object" && mode !== null) {
+    return mode.type !== "canvas2d";
+  }
+  return false;
 }

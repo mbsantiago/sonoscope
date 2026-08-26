@@ -1,3 +1,4 @@
+import type { HalftoneOptions } from "../types";
 import type { RenderInput } from "./canvas";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import {
@@ -133,15 +134,21 @@ void main() {
 
 export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
   override readonly name = "halftone";
+  private options: HalftoneOptions;
 
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(gl: WebGL2RenderingContext, options: HalftoneOptions = {}) {
     super(gl, WEBGL2_HALFTONE_FRAGMENT_SHADER);
+    this.options = options;
   }
 
-  protected override setCustomUniforms(input: RenderInput): void {
-    const dotFrequency = input.halftone?.dotFrequency ?? 0.24;
-    const minEnergyThreshold = input.halftone?.minEnergyThreshold ?? 0;
-    const energyGamma = input.halftone?.energyGamma ?? 1.4;
+  setOptions(options: HalftoneOptions): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  protected override setCustomUniforms(_input: RenderInput): void {
+    const dotFrequency = this.options.dotFrequency ?? 0.24;
+    const minEnergyThreshold = this.options.minEnergyThreshold ?? 0;
+    const energyGamma = this.options.energyGamma ?? 1.4;
 
     this.shader.uniform1f("u_dotFrequency", dotFrequency);
     this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);

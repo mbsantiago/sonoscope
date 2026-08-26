@@ -7,7 +7,6 @@
  * without introducing cycles.
  */
 
-import type { PerformanceProfiler } from "../../performance";
 import type {
   AudioSource,
   ColorMapConfig,
@@ -156,9 +155,6 @@ export type RenderInput = {
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
   webglProgram?: WebGL2RenderProgram;
-  halftone?: HalftoneOptions | undefined;
-  topographic?: TopographicOptions | undefined;
-  profile?: PerformanceProfiler;
 };
 
 export type WebGL2RenderResources = {
@@ -195,7 +191,6 @@ export type ComputeTileRequest = {
   timeStart: number;
   timeEnd: number;
   stft: StftConfig;
-  profile?: PerformanceProfiler;
 };
 
 export interface SpectrogramComputeBackend {

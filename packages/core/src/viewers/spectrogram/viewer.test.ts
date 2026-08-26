@@ -1775,6 +1775,34 @@ describe("SpectrogramViewer", () => {
       });
       v4.destroy();
 
+      const v5 = scope.createSpectrogram(mockCanvas, {
+        renderer: { type: "webgl", program: "topographic" },
+      });
+      expect(v5.getConfig().renderer).toEqual({
+        type: "webgl",
+        program: "topographic",
+      });
+
+      // Test in-place program swapping on existing viewer
+      v5.setConfig({ renderer: { type: "webgl", program: "halftone" } });
+      expect(v5.getConfig().renderer).toEqual({
+        type: "webgl",
+        program: "halftone",
+      });
+
+      v5.setConfig({ renderer: { type: "webgl", program: "terrain" } });
+      expect(v5.getConfig().renderer).toEqual({
+        type: "webgl",
+        program: "terrain",
+      });
+
+      v5.setConfig({ renderer: { type: "webgl", program: "normal" } });
+      expect(v5.getConfig().renderer).toEqual({
+        type: "webgl",
+        program: "normal",
+      });
+      v5.destroy();
+
       scope.destroy();
     });
   });

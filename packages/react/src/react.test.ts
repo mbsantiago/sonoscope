@@ -684,6 +684,66 @@ describe("React Components and Hooks", () => {
       scope.destroy();
     });
 
+    it("reactively updates renderer when renderer prop changes", async () => {
+      const source = createMockAudioSource(10);
+      const scope = new Sonoscope(source);
+      const ref = createRef<SpectrogramHandle>();
+
+      function TestApp({
+        renderer,
+      }: {
+        renderer: "auto" | "canvas2d" | { type: "canvas2d" };
+      }) {
+        return React.createElement(Spectrogram, {
+          ref,
+          scope,
+          renderer,
+        });
+      }
+
+      await act(async () => {
+        root.render(
+          React.createElement(TestApp, {
+            renderer: "auto",
+          }),
+        );
+      });
+
+      const viewer = ref.current?.getViewer();
+      expect(viewer).toBeTruthy();
+      const updateSpy = vi.spyOn(viewer!, "updateConfig");
+
+      await act(async () => {
+        root.render(
+          React.createElement(TestApp, {
+            renderer: "canvas2d",
+          }),
+        );
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          renderer: "canvas2d",
+        }),
+      );
+
+      await act(async () => {
+        root.render(
+          React.createElement(TestApp, {
+            renderer: { type: "canvas2d" },
+          }),
+        );
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          renderer: { type: "canvas2d" },
+        }),
+      );
+
+      scope.destroy();
+    });
+
     it("destroys SpectrogramViewer on unmount", async () => {
       const source = createMockAudioSource(10);
       const scope = new Sonoscope(source);

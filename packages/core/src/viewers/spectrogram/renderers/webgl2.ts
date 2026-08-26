@@ -14,16 +14,10 @@ import {
 } from "../../shared/webgl2-compile";
 import { valueDataForMode } from "../spectrogram-sampling";
 import { valueScaleBounds } from "../value-scale";
-import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "./webgl2-halftone-program";
 import {
   WEBGL2_FRAGMENT_SHADER,
   WEBGL2_VERTEX_SHADER,
 } from "./webgl2-normal-program";
-import {
-  WEBGL2_TERRAIN_FRAGMENT_SHADER,
-  WEBGL2_TERRAIN_VERTEX_SHADER,
-} from "./webgl2-terrain-program";
-import { WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER } from "./webgl2-topography-program";
 
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
@@ -62,27 +56,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
       return 'canvas.getContext("webgl2") did not return a usable WebGL2RenderingContext';
     return (
       compileShaderDiagnostic(gl, gl.VERTEX_SHADER, WEBGL2_VERTEX_SHADER) ??
-      compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER) ??
-      compileShaderDiagnostic(
-        gl,
-        gl.FRAGMENT_SHADER,
-        WEBGL2_HALFTONE_FRAGMENT_SHADER,
-      ) ??
-      compileShaderDiagnostic(
-        gl,
-        gl.VERTEX_SHADER,
-        WEBGL2_TERRAIN_VERTEX_SHADER,
-      ) ??
-      compileShaderDiagnostic(
-        gl,
-        gl.FRAGMENT_SHADER,
-        WEBGL2_TERRAIN_FRAGMENT_SHADER,
-      ) ??
-      compileShaderDiagnostic(
-        gl,
-        gl.FRAGMENT_SHADER,
-        WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER,
-      )
+      compileShaderDiagnostic(gl, gl.FRAGMENT_SHADER, WEBGL2_FRAGMENT_SHADER)
     );
   }
 
@@ -95,16 +69,10 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   /**
    * Swaps the active shader program in place, preserving cached GPU tile
    * textures. The renderer takes ownership of the program it is given and
-   * disposes it when replaced or destroyed. If an equivalent built-in
-   * program (same name) is already active, the incoming duplicate is
-   * disposed and the existing program is kept.
+   * disposes it when replaced or destroyed.
    */
   setProgram(program: WebGL2RenderProgram): void {
     if (this.program === program) return;
-    if (program.name !== undefined && this.program?.name === program.name) {
-      program.delete();
-      return;
-    }
     this.program?.delete();
     this.program = program;
   }
@@ -115,16 +83,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
         "WebGL2 context is lost; create a new renderer to recover",
       );
     }
-    const paint = () => this.paint(input, this.programFor(input));
-    if (input.profile) {
-      input.profile.measure(
-        "renderer.paint",
-        { tiles: input.tiles.length, renderer: this.kind },
-        paint,
-      );
-      return;
-    }
-    paint();
+    this.paint(input, this.programFor(input));
   }
 
   destroy(): void {

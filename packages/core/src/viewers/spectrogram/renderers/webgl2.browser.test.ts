@@ -2,6 +2,7 @@ import type { ComputeTileRequest } from "../backends/backend";
 import type { SpectrogramMatrix } from "../types";
 import { describe, expect, it } from "vitest";
 import { Sonoscope } from "../../../sonoscope";
+import { ArrayAudioSource } from "../../../sources/array-source";
 import { SpectrogramViewer } from "../viewer";
 import { CanvasSpectrogramRenderer, type RenderInput } from "./canvas";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
@@ -602,6 +603,52 @@ describe("WebGL2 shaders", () => {
       expect(pixels.some((v) => v > 0)).toBe(true);
     }
     renderer.destroy();
+  });
+
+  it("swaps shader programs on the fly on an active SpectrogramViewer", async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 48;
+    Object.defineProperty(canvas, "getBoundingClientRect", {
+      value: () => ({ width: 64, height: 48 }),
+    });
+
+    const samples = new Float32Array(44100);
+    for (let i = 0; i < samples.length; i++) {
+      samples[i] = Math.sin((2 * Math.PI * 440 * i) / 44100);
+    }
+    const source = new ArrayAudioSource(samples, 44100);
+
+    const scope = new Sonoscope(source);
+    const viewer = scope.createSpectrogram(canvas, {
+      renderer: { type: "webgl", program: "normal" },
+    });
+
+    // Verify swapping to halftone
+    viewer.updateConfig({ renderer: { type: "webgl", program: "halftone" } });
+    expect(viewer.getConfig().renderer).toEqual({
+      type: "webgl",
+      program: "halftone",
+    });
+
+    // Verify swapping to topographic
+    viewer.updateConfig({
+      renderer: { type: "webgl", program: "topographic" },
+    });
+    expect(viewer.getConfig().renderer).toEqual({
+      type: "webgl",
+      program: "topographic",
+    });
+
+    // Verify swapping to terrain
+    viewer.updateConfig({ renderer: { type: "webgl", program: "terrain" } });
+    expect(viewer.getConfig().renderer).toEqual({
+      type: "webgl",
+      program: "terrain",
+    });
+
+    viewer.destroy();
+    scope.destroy();
   });
 });
 
