@@ -10,38 +10,125 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write # Required for NPM Provenance and PyPI Trusted Publishing (OIDC)
-
 jobs:
-  publish:
-    name: Build & Publish Packages
+  rust-tests:
+    name: Rust Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
+          toolchain: stable
           targets: wasm32-unknown-unknown
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+      - name: Run Rust tests
+        run: cargo test --manifest-path wasm/stft/Cargo.toml
+
+  js-tests:
+    name: Unit & Browser Tests
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          workspaces: wasm/stft
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: "npm"
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Unit Tests
+        run: npm test
+
+      - name: Run Browser / WebGL Tests
+        run: npm run test:browser
+
+  python-tests:
+    name: Python Anywidget Tests (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install JS dependencies & build packages
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "latest-known"
+          enable-cache: false
+
+      - name: Setup Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Run pytest
+        working-directory: packages/anywidget
+        run: uv run --python ${{ matrix.python-version }} --group dev pytest tests
+
+  build:
+    name: Build Release Artifacts
+    needs: [rust-tests, js-tests, python-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "latest"
-          enable-cache: true
+          version: "latest-known"
+          enable-cache: false
 
       - name: Install dependencies
         run: npm ci
@@ -49,22 +136,85 @@ jobs:
       - name: Build Monorepo Packages
         run: npm run build
 
-      - name: Publish NPM Packages
-        run: npx changeset publish
+      - name: Pack NPM Packages
+        run: |
+          mkdir -p release/npm
+          npm pack --workspace=@sonoscope/core --workspace=@sonoscope/react --workspace=@sonoscope/ascii-spectrogram --workspace=@sonoscope/halftone-spectrogram --workspace=@sonoscope/terrain-spectrogram --workspace=@sonoscope/topographic-spectrogram --pack-destination release/npm
 
-      - name: Build Python Package (Wheel & SDist)
+      - name: Build Python Package
         working-directory: packages/anywidget
         run: uv build
 
-      - name: Publish to PyPI (Trusted Publishing via OIDC)
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Upload NPM Packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          packages-dir: packages/anywidget/dist/
+          name: npm-packages
+          path: release/npm/*.tgz
+          if-no-files-found: error
+
+      - name: Upload Python Package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: python-package
+          path: packages/anywidget/dist/*
+          if-no-files-found: error
+
+  publish-npm:
+    name: Publish NPM Packages
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download NPM Packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: npm-packages
+          path: npm-packages
+
+      - name: Publish NPM Packages
+        run: |
+          for package in npm-packages/*.tgz; do
+            npm publish "$package"
+          done
+
+  publish-pypi:
+    name: Publish Python Package
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Python Package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: python-package
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist/
           skip-existing: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-npm, publish-pypi]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Download Python Package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          files: |
-            packages/anywidget/dist/*
-          generate_release_notes: true
+          name: python-package
+          path: dist
+
+      - name: Create GitHub Release
+        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
