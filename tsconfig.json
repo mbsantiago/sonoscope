@@ -12,6 +12,9 @@
     "exactOptionalPropertyTypes": true,
     "jsx": "react-jsx",
     "paths": {
+      "@sonoscope/ascii-spectrogram": [
+        "./packages/ascii-spectrogram/src/index.ts"
+      ],
       "@sonoscope/core": ["./packages/core/src/index.ts"],
       "@sonoscope/react": ["./packages/react/src/index.ts"]
     }

@@ -259,6 +259,12 @@ export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2
 export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
 export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
 export { TopographicSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-topography-program";
+export {
+  locateSamplePosition,
+  sampleValueDataPosition,
+  valueDataForMode,
+} from "./viewers/spectrogram/spectrogram-sampling";
+export { normalizeValue } from "./viewers/spectrogram/value-scale";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 export {

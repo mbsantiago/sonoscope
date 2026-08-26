@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
-    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/react build && npm run --workspace=@sonoscope/anywidget build",
+    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/ascii-spectrogram build && npm run --workspace=@sonoscope/react build && npm run --workspace=@sonoscope/anywidget build",
     "build:docs": "npm run --workspace=docs build",
     "build:examples": "vite build examples/basic --base=./",
     "dev:docs": "npm run --workspace=docs dev",
