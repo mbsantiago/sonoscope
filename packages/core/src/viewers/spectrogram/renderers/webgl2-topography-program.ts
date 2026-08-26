@@ -55,7 +55,7 @@ float sampleSpectrogram(vec2 screenCoord) {
     (framePosition + 0.5) / max(1.0, u_tileSize.x),
     (binPosition + 0.5) / max(1.0, u_tileSize.y)
   );
-  vec2 texel = 2.0 / max(vec2(1.0), u_tileSize);
+  vec2 texel = 1.0 / max(vec2(1.0), u_tileSize);
 
   // 9-tap Gaussian blur over a 2-texel radius to eliminate noise floor speckles
   float c = texture(u_tile, uv).r;
@@ -90,7 +90,7 @@ void main() {
   }
 
   // Smooth fade-in near noise threshold to prevent broken jagged ring edges
-  float noiseFade = smoothstep(u_minEnergyThreshold, u_minEnergyThreshold + 0.08, raw);
+  float noiseFade = smoothstep(u_minEnergyThreshold, u_minEnergyThreshold + 0.15, raw);
 
   // Normalized distance in screen-space pixel units
   float level = raw / max(0.0001, u_contourInterval);
