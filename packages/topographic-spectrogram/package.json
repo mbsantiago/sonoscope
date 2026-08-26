@@ -1,6 +1,6 @@
 {
   "name": "@sonoscope/topographic-spectrogram",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Topographic elevation contour line shader program plugin for Sonoscope WebGL2 spectrogram renderer.",
   "repository": {
     "type": "git",
@@ -50,7 +50,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sonoscope/core": "^0.1.0"
+    "@sonoscope/core": "^0.2.0"
   },
   "scripts": {
     "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",

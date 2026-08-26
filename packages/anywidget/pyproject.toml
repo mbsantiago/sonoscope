@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sonoscope"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = ["anywidget"]
 requires-python = ">=3.12"
 readme = "README.md"

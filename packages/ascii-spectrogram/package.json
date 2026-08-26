@@ -1,6 +1,6 @@
 {
   "name": "@sonoscope/ascii-spectrogram",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ASCII art spectrogram renderer plugin for Sonoscope.",
   "repository": {
     "type": "git",
@@ -48,7 +48,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sonoscope/core": "^0.1.0"
+    "@sonoscope/core": "^0.2.0"
   },
   "scripts": {
     "dev": "vite demo",
