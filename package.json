@@ -18,6 +18,7 @@
     "fixtures:generate": "uv run scripts/generate_baseline_spectrograms.py",
     "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
+    "dev:ascii": "vite packages/ascii-spectrogram/demo",
     "test": "vitest run",
     "test:browser": "vitest run --config vite.browser.config.ts",
     "check:biome": "biome check",

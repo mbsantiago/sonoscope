@@ -51,6 +51,7 @@
     "@sonoscope/core": "^0.1.0"
   },
   "scripts": {
+    "dev": "vite demo",
     "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "check:types": "tsc --noEmit"
   }

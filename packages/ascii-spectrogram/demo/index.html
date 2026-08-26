@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sonoscope ASCII Spectrogram Demo</title>
+    <style>
+      :root {
+        --bg: #090a0f;
+        --surface: #131722;
+        --border: #232a3b;
+        --text: #e2e8f0;
+        --accent: #22c55e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-top: 0;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      h1 span {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: normal;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      label {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      select, input[type="range"], input[type="text"] {
+        background: #0d1117;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.4rem 0.6rem;
+        font-family: inherit;
+        font-size: 0.85rem;
+      }
+      select:focus, input:focus {
+        outline: 1px solid var(--accent);
+        border-color: var(--accent);
+      }
+      .checkbox-group {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding-top: 1rem;
+      }
+      .checkbox-group input {
+        accent-color: var(--accent);
+      }
+      .stage {
+        position: relative;
+        background: #000;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 480px;
+      }
+      audio {
+        width: 100%;
+        margin-top: 1rem;
+      }
+      .status {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>[ASCII] Spectrogram <span>@sonoscope/ascii-spectrogram</span></h1>
+
+      <div class="controls">
+        <div class="control-group">
+          <label for="color-mode">Color Mode</label>
+          <select id="color-mode">
+            <option value="green">CRT Green Phosphor</option>
+            <option value="amber">CRT Amber</option>
+            <option value="colormap" selected>Spectrogram Colormap</option>
+            <option value="monochrome">Monochrome White</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="charset">Character Set</label>
+          <select id="charset">
+            <option value=" .:-=+*#%@" selected>Standard ( .:-=+*#%@)</option>
+            <option value=" ░▒▓█">Blocks ( ░▒▓█)</option>
+            <option value=" .,:;i1tfLCG08@">Dense ( .,:;i1tfLCG08@)</option>
+            <option value=" 01">Binary ( 01)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="colormap">Colormap</label>
+          <select id="colormap">
+            <option value="viridis" selected>Viridis</option>
+            <option value="inferno">Inferno</option>
+            <option value="magma">Magma</option>
+            <option value="plasma">Plasma</option>
+            <option value="turbo">Turbo</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="font-size">Font Size: <span id="font-size-val">10px</span></label>
+          <input type="range" id="font-size" min="6" max="24" step="1" value="10" />
+        </div>
+
+        <div class="control-group checkbox-group">
+          <input type="checkbox" id="invert" />
+          <label for="invert" style="cursor: pointer;">Invert Intensity</label>
+        </div>
+      </div>
+
+      <div class="stage">
+        <canvas id="spectrogram-canvas"></canvas>
+      </div>
+
+      <audio
+        id="audio"
+        controls
+        crossorigin="anonymous"
+        src="https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav"
+      ></audio>
+
+      <div class="status" id="status">Ready • Drag to pan • Wheel to zoom</div>
+    </div>
+
+    <script type="module">
+      import { Sonoscope, attachPlayheadOverlay } from "@sonoscope/core";
+      import { AsciiSpectrogramRenderer } from "../src/index.ts";
+
+      const canvas = document.getElementById("spectrogram-canvas");
+      const audio = document.getElementById("audio");
+      const colorModeSelect = document.getElementById("color-mode");
+      const charSetSelect = document.getElementById("charset");
+      const colormapSelect = document.getElementById("colormap");
+      const fontSizeSlider = document.getElementById("font-size");
+      const fontSizeVal = document.getElementById("font-size-val");
+      const invertCheckbox = document.getElementById("invert");
+      const statusEl = document.getElementById("status");
+
+      let renderer = new AsciiSpectrogramRenderer({
+        colorMode: colorModeSelect.value,
+        charSet: charSetSelect.value,
+        fontSize: parseInt(fontSizeSlider.value, 10),
+        invert: invertCheckbox.checked,
+        textColor: "#ffffff",
+      });
+
+      let scope;
+      let spectrogram;
+
+      async function init() {
+        statusEl.textContent = "Loading audio and initializing Sonoscope...";
+        scope = await Sonoscope.fromAudio(audio, {
+          followPlayback: "page",
+        });
+
+        spectrogram = scope.createSpectrogram(canvas, {
+          renderer,
+          colorMap: colormapSelect.value,
+          frequencyScale: "mel",
+          minDb: -70,
+          maxDb: -10,
+        });
+
+        scope.attachNavigation(canvas);
+        attachPlayheadOverlay(canvas.parentElement, scope);
+
+        statusEl.textContent = "Playing/Ready • Drag to pan • Scroll to zoom";
+      }
+
+      function updateRenderer() {
+        const fontSize = parseInt(fontSizeSlider.value, 10);
+        fontSizeVal.textContent = `${fontSize}px`;
+
+        renderer.updateOptions({
+          colorMode: colorModeSelect.value,
+          charSet: charSetSelect.value,
+          fontSize,
+          invert: invertCheckbox.checked,
+          textColor: colorModeSelect.value === "monochrome" ? "#ffffff" : undefined,
+        });
+
+        if (spectrogram) {
+          spectrogram.updateConfig({
+            colorMap: colormapSelect.value,
+          });
+          spectrogram.requestRender();
+        }
+      }
+
+      colorModeSelect.addEventListener("change", updateRenderer);
+      charSetSelect.addEventListener("change", updateRenderer);
+      colormapSelect.addEventListener("change", updateRenderer);
+      fontSizeSlider.addEventListener("input", updateRenderer);
+      invertCheckbox.addEventListener("change", updateRenderer);
+
+      init().catch((err) => {
+        statusEl.textContent = `Error: ${err.message}`;
+        console.error(err);
+      });
+    </script>
+  </body>
+</html>
