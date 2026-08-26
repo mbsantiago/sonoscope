@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sonoscope ASCII Spectrogram (CDN Demo)</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0d1117;
+        color: #c9d1d9;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #58a6ff;
+      }
+      p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #8b949e;
+      }
+      .stage {
+        position: relative;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 600px;
+        height: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sonoscope ASCII Spectrogram</h1>
+    <p>Drag to pan, scroll to zoom in time/frequency.</p>
+
+    <div class="stage"><canvas id="spectrogram"></canvas></div>
+    <audio
+      id="audio"
+      controls
+      src="https://upload.wikimedia.org/wikipedia/commons/1/1d/BlueRondo.ogg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original"
+    ></audio>
+
+    <script type="module">
+      import { Sonoscope } from "https://esm.sh/@sonoscope/core@0.2.0";
+      import "https://esm.sh/@sonoscope/ascii-spectrogram@0.2.0/auto";
+
+      const canvas = document.getElementById("spectrogram");
+      const audio = document.getElementById("audio");
+      const scope = await Sonoscope.fromAudio(audio, {
+        playhead: true,
+      });
+
+      scope.createSpectrogram(canvas, {
+        renderer: "ascii",
+        colorMap: "rdpu",
+        frequencyScale: "mel",
+        rendererOptions: {
+          colorMode: "colormap",
+          fontSize: 8,
+        },
+      });
+      scope.attachNavigation(canvas);
+      scope.attachPlayhead(canvas.parentElement);
+    </script>
+  </body>
+</html>
