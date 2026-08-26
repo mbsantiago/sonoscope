@@ -6,6 +6,15 @@ import * as sourceModule from "./sources/source";
 import { DecodedAudioSource } from "./sources/source";
 import { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
 
+vi.mock("./navigation/raf-coalescer", () => ({
+  createFrameCoalescer: <T>(onFrame: (state: T) => void) => ({
+    push(state: T) {
+      onFrame(state);
+    },
+    cancel() {},
+  }),
+}));
+
 type AudioFixture = HTMLAudioElement & {
   paused: boolean;
   emit(name: string): void;

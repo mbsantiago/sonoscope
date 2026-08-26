@@ -42,7 +42,7 @@ float sampleSpectrogram(vec2 screenCoord) {
   float binPosition = clamp(
     (frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x) * max(1.0, u_tileSize.y - 1.0),
     0.0,
-    max(0.0, u_tileSize.x - 1.0)
+    max(0.0, u_tileSize.y - 1.0)
   );
 
   int frame0 = int(floor(framePosition));

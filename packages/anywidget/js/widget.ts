@@ -15,7 +15,7 @@ interface WidgetModel {
   mime_type?: string;
   width: number;
   height: number;
-  program: "halftone" | "normal" | "terrain";
+  program: "halftone" | "normal" | "terrain" | "topographic";
   cmap:
     | "viridis"
     | "plasma"

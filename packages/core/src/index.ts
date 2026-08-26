@@ -97,6 +97,8 @@ export type {
   StftConfig,
   TileState,
   TileStateInfo,
+  TopographicOptions,
+  TopographicRendererConfig,
   TransformContext,
   ValueMode,
   ValueScaleConfig,
@@ -226,6 +228,7 @@ export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webg
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
 export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
 export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
+export { TopographicSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-topography-program";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 export {

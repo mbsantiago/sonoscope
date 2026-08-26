@@ -4,6 +4,15 @@ import { Sonoscope } from "./sonoscope";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 
+vi.mock("./navigation/raf-coalescer", () => ({
+  createFrameCoalescer: <T>(onFrame: (state: T) => void) => ({
+    push(state: T) {
+      onFrame(state);
+    },
+    cancel() {},
+  }),
+}));
+
 type MockAudio = HTMLAudioElement & {
   paused: boolean;
   emit(name: string): void;

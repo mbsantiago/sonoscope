@@ -23,6 +23,7 @@ import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
 } from "./webgl2-terrain-program";
+import { WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER } from "./webgl2-topography-program";
 
 export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "webgl2" as const;
@@ -76,6 +77,11 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
         gl,
         gl.FRAGMENT_SHADER,
         WEBGL2_TERRAIN_FRAGMENT_SHADER,
+      ) ??
+      compileShaderDiagnostic(
+        gl,
+        gl.FRAGMENT_SHADER,
+        WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER,
       )
     );
   }

@@ -66,7 +66,8 @@ export type TopographicRendererConfig = {
 export type WebGLRendererConfig = {
   type: "webgl" | "webgl2" | WebGLRendererProgramName;
   program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions;
+} & HalftoneOptions &
+  TopographicOptions;
 
 export type Canvas2DRendererConfig = {
   type: "canvas2d";
@@ -83,7 +84,7 @@ export type SpectrogramRendererConfig =
   | Canvas2DRendererConfig
   | WebGLRendererConfig
   | HalftoneRendererConfig
-  | HalftoneRendererConfig;
+  | TopographicRendererConfig;
 
 export type RendererMode =
   | "auto"

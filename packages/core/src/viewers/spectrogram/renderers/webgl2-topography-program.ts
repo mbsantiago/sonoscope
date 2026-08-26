@@ -47,7 +47,7 @@ float sampleSpectrogram(vec2 screenCoord) {
   float binPosition = clamp(
     (frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x) * max(1.0, u_tileSize.y - 1.0),
     0.0,
-    max(0.0, u_tileSize.x - 1.0)
+    max(0.0, u_tileSize.y - 1.0)
   );
 
   // Convert to continuous UV coordinates and sample with hardware bilinear filter
@@ -81,9 +81,12 @@ void main() {
     discard;
   }
 
+  vec4 backgroundColor = texture(u_colormap, vec2(0.0, 0.5));
+
   float raw = sampleSpectrogram(gl_FragCoord.xy);
   if (raw < u_minEnergyThreshold) {
-    discard;
+    outColor = backgroundColor;
+    return;
   }
 
   // Smooth fade-in near noise threshold to prevent broken jagged ring edges
@@ -97,7 +100,8 @@ void main() {
 
   // Cull extreme spatial gradient spikes (speckle noise / sub-pixel islands)
   if (delta > 1.8) {
-    discard;
+    outColor = backgroundColor;
+    return;
   }
 
   float pixelDist = dist / max(0.0001, delta);
@@ -105,14 +109,16 @@ void main() {
   float contourMask = 1.0 - smoothstep(halfWidth - 0.75, halfWidth + 0.75, pixelDist);
 
   if (contourMask <= 0.0) {
-    discard;
+    outColor = backgroundColor;
+    return;
   }
 
   // Color lines according to their quantized contour ring level
   float contourLevel = floor(level + 0.5) * u_contourInterval;
   vec4 lineColor = texture(u_colormap, vec2(clamp(contourLevel, 0.0, 1.0), 0.5));
 
-  outColor = vec4(lineColor.rgb, contourMask * u_contourLineOpacity * noiseFade);
+  float alpha = contourMask * u_contourLineOpacity * noiseFade;
+  outColor = mix(backgroundColor, lineColor, alpha);
 }`;
 
 export class TopographicSpectrogramProgram extends NormalSpectrogramProgram {

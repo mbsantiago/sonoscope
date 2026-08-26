@@ -9,6 +9,7 @@ import type { RenderInput, SpectrogramRenderer } from "./renderers/canvas";
 import type { WebGL2RenderProgram } from "./renderers/webgl2-program";
 import type {
   CacheStats,
+  HalftoneOptions,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -21,6 +22,7 @@ import type {
   SpectrumSlice,
   StftConfig,
   TileStateInfo,
+  TopographicOptions,
   ValueMode,
 } from "./types";
 import { attachAutoResize } from "../../auto-resize";
@@ -406,6 +408,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         ? { playheadTime: this.playheadTime }
         : {}),
       ...halftoneRenderInput(this.config.renderer),
+      ...topographicRenderInput(this.config.renderer),
     });
   }
 
@@ -908,6 +911,7 @@ function isWebGLProgramMode(mode: RendererMode): boolean {
     mode === "normal" ||
     mode === "halftone" ||
     mode === "terrain" ||
+    mode === "topographic" ||
     (typeof mode === "object" && mode !== null && mode.type !== "canvas2d")
   );
 }
@@ -916,16 +920,38 @@ function halftoneRenderInput(
   renderer: RendererMode,
 ): Pick<RenderInput, "halftone"> {
   if (typeof renderer !== "object" || renderer === null) return {};
+  const r = renderer as HalftoneOptions;
   const hasHalftoneOptions =
-    "dotFrequency" in renderer ||
-    "minEnergyThreshold" in renderer ||
-    "energyGamma" in renderer;
+    ("dotFrequency" in renderer && r.dotFrequency !== undefined) ||
+    ("minEnergyThreshold" in renderer && r.minEnergyThreshold !== undefined) ||
+    ("energyGamma" in renderer && r.energyGamma !== undefined);
   if (!hasHalftoneOptions) return {};
   return {
     halftone: {
-      dotFrequency: renderer.dotFrequency,
-      minEnergyThreshold: renderer.minEnergyThreshold,
-      energyGamma: renderer.energyGamma,
+      dotFrequency: r.dotFrequency,
+      minEnergyThreshold: r.minEnergyThreshold,
+      energyGamma: r.energyGamma,
+    },
+  };
+}
+
+function topographicRenderInput(
+  renderer: RendererMode,
+): Pick<RenderInput, "topographic"> {
+  if (typeof renderer !== "object" || renderer === null) return {};
+  const r = renderer as TopographicOptions;
+  const hasTopographicOptions =
+    ("contourInterval" in renderer && r.contourInterval !== undefined) ||
+    ("contourLineWidth" in renderer && r.contourLineWidth !== undefined) ||
+    ("contourLineOpacity" in renderer && r.contourLineOpacity !== undefined) ||
+    ("minEnergyThreshold" in renderer && r.minEnergyThreshold !== undefined);
+  if (!hasTopographicOptions) return {};
+  return {
+    topographic: {
+      contourInterval: r.contourInterval,
+      contourLineWidth: r.contourLineWidth,
+      contourLineOpacity: r.contourLineOpacity,
+      minEnergyThreshold: r.minEnergyThreshold,
     },
   };
 }

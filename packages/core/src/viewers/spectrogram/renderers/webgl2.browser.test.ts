@@ -15,6 +15,7 @@ import {
   WEBGL2_TERRAIN_FRAGMENT_SHADER,
   WEBGL2_TERRAIN_VERTEX_SHADER,
 } from "./webgl2-terrain-program";
+import { WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER } from "./webgl2-topography-program";
 
 function compileShader(
   gl: WebGL2RenderingContext,
@@ -51,6 +52,9 @@ describe("WebGL2 shaders", () => {
     ).toBeUndefined();
     expect(
       compileShader(gl, gl.FRAGMENT_SHADER, WEBGL2_TERRAIN_FRAGMENT_SHADER),
+    ).toBeUndefined();
+    expect(
+      compileShader(gl, gl.FRAGMENT_SHADER, WEBGL2_TOPOGRAPHIC_FRAGMENT_SHADER),
     ).toBeUndefined();
     expect(WebGL2SpectrogramRenderer.diagnose(canvas)).toBeUndefined();
   });
@@ -173,6 +177,46 @@ describe("WebGL2 shaders", () => {
       pixels,
     );
     expect(pixels.some((value) => value > 64)).toBe(true);
+    renderer.destroy();
+  });
+
+  it("renders visible topographic spectrogram pixels", () => {
+    const canvas = document.createElement("canvas");
+    Object.defineProperty(canvas, "getBoundingClientRect", {
+      value: () => ({ width: 32, height: 16 }),
+    });
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return;
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "topographic"),
+    );
+
+    renderer.render({
+      canvas,
+      viewport: {
+        startTime: 0,
+        endTime: 1,
+        minFrequency: 0,
+        maxFrequency: 100,
+      },
+      frequencyScale: "linear",
+      valueScale: { mode: "magnitude", min: 0, max: 1, gamma: 1, clamp: true },
+      colorMap: "viridis",
+      tiles: [brightBandTile()],
+    });
+
+    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      pixels,
+    );
+    expect(pixels.some((value) => value > 0)).toBe(true);
     renderer.destroy();
   });
 
@@ -514,7 +558,13 @@ describe("WebGL2 shaders", () => {
       createSpectrogramProgram(gl, "normal"),
     );
 
-    const programs = ["normal", "halftone", "terrain", "normal"] as const;
+    const programs = [
+      "normal",
+      "halftone",
+      "terrain",
+      "topographic",
+      "normal",
+    ] as const;
     for (const program of programs) {
       renderer.setProgram(createSpectrogramProgram(gl, program));
       renderer.render({
