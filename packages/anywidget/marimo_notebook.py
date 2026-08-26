@@ -11,7 +11,7 @@ def _():
     import numpy as np
     import soundfile as sf
 
-    return Sonoscope, np, sf
+    return Sonoscope, np
 
 
 @app.cell
@@ -19,7 +19,7 @@ def _(np):
     def logarithmic_chirp(t, f0, t1, f1, phi0=0):
         """
         Generate a logarithmic (geometric/exponential) chirp signal using NumPy.
-    
+
         Parameters:
             t    : Array of time points (seconds)
             f0   : Start frequency at t=0 (Hz)
@@ -55,17 +55,22 @@ def _(Sonoscope, sample_rate, signal):
 
 
 @app.cell
-def _(Sonoscope, sf):
-    audio, sr = sf.read("my_audio.wav")
+def _(Sonoscope, sample_rate, signal):
+    def get_widget(min_db):
+        return Sonoscope.from_array(
+            audio=signal,
+            sample_rate=sample_rate,
+            frequency_scale="log",
+            min_db=min_db,
+            max_db=0,
+        )
 
-    Sonoscope.from_array(
-        audio=audio,
-        sample_rate=sr,
-        frequency_scale="mel",
-        hop_size=128,
-        min_db=-80,
-        max_db=-20,
-    )
+    return (get_widget,)
+
+
+@app.cell
+def _(get_widget):
+    get_widget(-20)
     return
 
 

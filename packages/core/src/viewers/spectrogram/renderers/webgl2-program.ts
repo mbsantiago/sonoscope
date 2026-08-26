@@ -36,6 +36,11 @@ const WEBGL2_UNIFORMS = [
   "u_dotFrequency",
   "u_minEnergyThreshold",
   "u_energyGamma",
+  // Topographic shader parameters
+  "u_contourInterval",
+  "u_contourLineWidth",
+  "u_contourLineOpacity",
+  "u_minEnergyThreshold",
 ] as const;
 type UniformName = (typeof WEBGL2_UNIFORMS)[number];
 

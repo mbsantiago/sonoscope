@@ -15,7 +15,7 @@ import {
 import { normalizeValue } from "../value-scale";
 
 export type {
-  HalftoneRenderOptions,
+  HalftoneOptions,
   RenderInput,
 } from "../model";
 

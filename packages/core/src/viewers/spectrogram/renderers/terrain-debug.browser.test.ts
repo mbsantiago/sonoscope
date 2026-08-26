@@ -1,6 +1,6 @@
+import type { SpectrogramMatrix } from "../types";
 import { page } from "@vitest/browser/context";
 import { expect, it } from "vitest";
-import type { SpectrogramMatrix } from "../types";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
 import { createSpectrogramProgram } from "./webgl2-program-factory";
 
@@ -13,13 +13,12 @@ function syntheticTile(): SpectrogramMatrix {
       const t = f / frameCount;
       const freq = b / binCount;
       const harmonic = Math.exp(
-        -Math.pow((freq - 0.12 - 0.1 * Math.sin(t * 6.0)) / 0.05, 2),
+        -(((freq - 0.12 - 0.1 * Math.sin(t * 6.0)) / 0.05) ** 2),
       );
       const harmonic2 =
-        0.8 * Math.exp(-Math.pow((freq - 0.35 + 0.15 * t) / 0.03, 2));
+        0.8 * Math.exp(-(((freq - 0.35 + 0.15 * t) / 0.03) ** 2));
       const harmonic3 =
-        0.6 *
-        Math.exp(-Math.pow((freq - 0.7 - 0.1 * Math.cos(t * 4.0)) / 0.02, 2));
+        0.6 * Math.exp(-(((freq - 0.7 - 0.1 * Math.cos(t * 4.0)) / 0.02) ** 2));
       const noise = 0.08 * Math.abs(Math.sin(f * 12.9898 + b * 78.233));
       magnitude[f * binCount + b] = Math.min(
         1,

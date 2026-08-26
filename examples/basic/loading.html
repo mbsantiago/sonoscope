@@ -78,7 +78,7 @@
       });
 
       let spectrogram = scope.createSpectrogram(canvas);
-      let playhead = attachPlayheadOverlay(canvas.parentElement, scope);
+      let playhead = scope.attachPlayhead(canvas.parentElement);
 
       scope.attachNavigation(canvas);
 
@@ -92,7 +92,7 @@
         scope.destroy();
         scope = nextScope;
         spectrogram = scope.createSpectrogram(canvas);
-        playhead = attachPlayheadOverlay(canvas.parentElement, scope);
+        playhead = scope.attachPlayhead(canvas.parentElement);
       });
     </script>
   </body>

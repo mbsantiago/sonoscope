@@ -4,6 +4,7 @@ import { isUsableWebGL2Context } from "../../shared/webgl2-compile";
 import { HalftoneSpectrogramProgram } from "./webgl2-halftone-program";
 import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import { TerrainSpectrogramProgram } from "./webgl2-terrain-program";
+import { TopographicSpectrogramProgram } from "./webgl2-topography-program";
 
 export function createSpectrogramProgram(
   gl: WebGL2RenderingContext,
@@ -16,6 +17,8 @@ export function createSpectrogramProgram(
       return new TerrainSpectrogramProgram(gl);
     case "normal":
       return new NormalSpectrogramProgram(gl);
+    case "topographic":
+      return new TopographicSpectrogramProgram(gl);
   }
 }
 

@@ -1,8 +1,8 @@
-import type { AudioSource } from "../../types";
+import type { AudioSource } from "./types";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Sonoscope } from "../../sonoscope";
-import { MainThreadComputeBackend } from "./backends/backend";
-import { SpectrogramViewer } from "./viewer";
+import { Sonoscope } from "./sonoscope";
+import { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
+import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 
 afterEach(() => {
   vi.restoreAllMocks();

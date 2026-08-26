@@ -1,16 +1,15 @@
-import type { ViewportConfig } from "./types";
+import type { NavigableViewer, ViewportConfig } from "../types";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Sonoscope } from "../sonoscope";
 import {
   attachDragNavigation,
   attachNavigation,
   attachWheelNavigation,
-  type NavigableViewer,
   panViewportFrequency,
   panViewportTime,
   zoomViewportFrequency,
   zoomViewportTime,
-} from "./navigation";
-import { Sonoscope } from "./sonoscope";
+} from "./index";
 
 const viewport: ViewportConfig = {
   startTime: 4,

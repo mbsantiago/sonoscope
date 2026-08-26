@@ -1,9 +1,9 @@
-import type { NavigationOptions } from "./navigation";
 import type {
   AudioSource,
   FollowPlaybackMode,
   ISonoscope,
   IViewportController,
+  NavigationOptions,
   SonoscopeEvents,
   SonoscopeOptions,
   ViewportConfig,

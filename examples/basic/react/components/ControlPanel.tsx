@@ -189,6 +189,7 @@ export function ControlPanel(props: ControlPanelProps): React.ReactElement {
           <option value="normal">normal</option>
           <option value="halftone">halftone</option>
           <option value="terrain">terrain</option>
+          <option value="topographic">topographic</option>
         </select>
       </ControlField>
 

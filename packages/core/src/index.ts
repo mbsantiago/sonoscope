@@ -2,16 +2,6 @@
 
 // Auto-Resize Utilities
 export type { AutoResizeOptions } from "./auto-resize";
-export type {
-  DragNavigationOptions,
-  FrequencyBounds,
-  ModifierKey,
-  NavigableViewer,
-  NavigationAxis,
-  NavigationOptions,
-  TimeBounds,
-  WheelNavigationOptions,
-} from "./navigation";
 // Performance Types
 export type {
   FrameStats,
@@ -30,18 +20,26 @@ export type {
   BuiltInColorMap,
   ColorMapConfig,
   ColorPoint,
+  DragNavigationOptions,
   FollowPlaybackMode,
+  FrequencyBounds,
   FrequencyScale,
   ISonoscope,
   IViewportController,
+  ModifierKey,
+  NavigableViewer,
+  NavigationAxis,
+  NavigationOptions,
   Rgba,
   SonoscopeEvents,
   SonoscopeOptions,
+  TimeBounds,
   ViewportConfig,
   ViewportConstraints,
   ViewportControllerOptions,
   ViewportEvents,
   ViewportState,
+  WheelNavigationOptions,
 } from "./types";
 // FrequencyRuler Types
 export type {
@@ -160,7 +158,7 @@ export {
   setViewerViewport,
   zoomViewportFrequency,
   zoomViewportTime,
-} from "./navigation";
+} from "./navigation/index";
 // Performance & Profiling
 export {
   FrameMeter,

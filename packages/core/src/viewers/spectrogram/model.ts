@@ -113,7 +113,11 @@ export type SpectrumPoint = {
 // Shader program contracts
 // ---------------------------------------------------------------------------
 
-export type WebGLRendererProgramName = "normal" | "halftone" | "terrain";
+export type WebGLRendererProgramName =
+  | "normal"
+  | "halftone"
+  | "terrain"
+  | "topographic";
 
 export type HalftoneOptions = {
   dotFrequency?: number | undefined;
@@ -121,10 +125,11 @@ export type HalftoneOptions = {
   energyGamma?: number | undefined;
 };
 
-export type HalftoneRenderOptions = {
-  dotFrequency?: number | undefined;
+export type TopographicOptions = {
+  contourInterval?: number | undefined;
+  contourLineWidth?: number | undefined;
+  contourLineOpacity?: number | undefined;
   minEnergyThreshold?: number | undefined;
-  energyGamma?: number | undefined;
 };
 
 export type WebGL2Frame = {
@@ -151,7 +156,8 @@ export type RenderInput = {
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
   webglProgram?: WebGL2RenderProgram;
-  halftone?: HalftoneRenderOptions | undefined;
+  halftone?: HalftoneOptions | undefined;
+  topographic?: TopographicOptions | undefined;
   profile?: PerformanceProfiler;
 };
 
