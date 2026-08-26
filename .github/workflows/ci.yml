@@ -71,12 +71,9 @@ jobs:
       - name: Build WASM Binary
         run: node scripts/build-wasm.mjs
 
-  js-tests:
-    name: Unit & Browser Tests
-    needs: [quick-checks, rust-wasm]
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,6 +91,26 @@ jobs:
 
       - name: Run Unit Tests
         run: npm test
+
+  browser-tests:
+    name: Browser / WebGL Tests
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: ${{ (inputs.cache == '' || inputs.cache) && 'npm' || '' }}
+          package-manager-cache: ${{ inputs.cache == '' || inputs.cache }}
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run Browser / WebGL Tests
         run: npm run test:browser
@@ -151,7 +168,7 @@ jobs:
 
   build-verification:
     name: Monorepo Build & Package Smoke Test
-    needs: [quick-checks, js-tests, python-tests]
+    needs: [quick-checks, unit-tests, browser-tests, python-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
