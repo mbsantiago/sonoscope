@@ -99,9 +99,11 @@ scope.createSpectrogram(spectrogramCanvas, {
 <SpectrogramPreview config={{ minDb: -60, maxDb: -10 }} />
 
 ### 7. Halftone shader effect
-Renders with a retro halftone shader program:
+Renders with a retro halftone shader program plugin (`@sonoscope/halftone-spectrogram`):
 
 ```ts
+import "@sonoscope/halftone-spectrogram/auto";
+
 scope.createSpectrogram(spectrogramCanvas, {
   renderer: "halftone",
   minDb: -120,

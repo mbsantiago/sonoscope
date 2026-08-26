@@ -14,10 +14,7 @@ import {
 } from "../spectrogram-sampling";
 import { normalizeValue } from "../value-scale";
 
-export type {
-  HalftoneRenderOptions,
-  RenderInput,
-} from "../model";
+export type { RenderInput } from "../model";
 
 export type RendererKind = "webgl2" | "canvas2d";
 
@@ -35,48 +32,36 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
   invalidate(): void {}
 
   render(input: RenderInput): void {
-    const paint = () => {
-      const width = Math.max(1, input.canvas.width || 1);
-      const height = Math.max(1, input.canvas.height || 1);
+    const width = Math.max(1, input.canvas.width || 1);
+    const height = Math.max(1, input.canvas.height || 1);
 
-      const context = input.canvas.getContext("2d");
-      if (!context) throw new Error("Unable to get 2D canvas context");
+    const context = input.canvas.getContext("2d");
+    if (!context) throw new Error("Unable to get 2D canvas context");
 
-      context.clearRect(0, 0, width, height);
+    context.clearRect(0, 0, width, height);
 
-      const colors = buildColorMap(input.colorMap);
-      const image = context.createImageData(width, height);
-      for (const placeholder of input.placeholders ?? [])
-        this.paintPlaceholder(
-          image,
-          width,
-          height,
-          input.viewport,
-          placeholder.timeStart,
-          placeholder.timeEnd,
-        );
-      for (const tile of input.tiles)
-        this.paintTile(
-          image,
-          width,
-          height,
-          tile,
-          input.viewport,
-          input.valueScale,
-          colors,
-        );
-      context.putImageData(image, 0, 0);
-    };
-
-    if (input.profile) {
-      input.profile.measure(
-        "renderer.paint",
-        { tiles: input.tiles.length },
-        paint,
+    const colors = buildColorMap(input.colorMap);
+    const image = context.createImageData(width, height);
+    for (const placeholder of input.placeholders ?? [])
+      this.paintPlaceholder(
+        image,
+        width,
+        height,
+        input.viewport,
+        placeholder.timeStart,
+        placeholder.timeEnd,
       );
-      return;
-    }
-    paint();
+    for (const tile of input.tiles)
+      this.paintTile(
+        image,
+        width,
+        height,
+        tile,
+        input.viewport,
+        input.valueScale,
+        colors,
+      );
+    context.putImageData(image, 0, 0);
   }
 
   private paintTile(

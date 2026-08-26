@@ -39,6 +39,16 @@ export {
   useTimeRuler,
 } from "./useTimeRuler";
 export {
+  type UseViewerOptions,
+  type UseViewerResult,
+  useViewer,
+} from "./useViewer";
+export {
+  Viewer,
+  type ViewerHandle,
+  type ViewerProps,
+} from "./Viewer";
+export {
   Waveform,
   type WaveformHandle,
   type WaveformProps,

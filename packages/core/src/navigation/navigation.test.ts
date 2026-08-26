@@ -1,16 +1,15 @@
-import type { ViewportConfig } from "./types";
+import type { NavigableViewer, ViewportConfig } from "../types";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Sonoscope } from "../sonoscope";
 import {
   attachDragNavigation,
   attachNavigation,
   attachWheelNavigation,
-  type NavigableViewer,
   panViewportFrequency,
   panViewportTime,
   zoomViewportFrequency,
   zoomViewportTime,
-} from "./navigation";
-import { Sonoscope } from "./sonoscope";
+} from "./index";
 
 const viewport: ViewportConfig = {
   startTime: 4,
@@ -19,8 +18,40 @@ const viewport: ViewportConfig = {
   maxFrequency: 1000,
 };
 
+let mockRafFlush: (() => void) | undefined;
+let syncCoalesce = true;
+
+vi.mock("./raf-coalescer", () => ({
+  createFrameCoalescer: <T>(onFrame: (state: T) => void) => {
+    let pending: T | undefined;
+    return {
+      push(state: T) {
+        pending = state;
+        if (syncCoalesce) {
+          const s = pending;
+          pending = undefined;
+          onFrame(s);
+        } else {
+          mockRafFlush = () => {
+            if (pending === undefined) return;
+            const s = pending;
+            pending = undefined;
+            onFrame(s);
+          };
+        }
+      },
+      cancel() {
+        pending = undefined;
+        mockRafFlush = undefined;
+      },
+    };
+  },
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
+  syncCoalesce = true;
+  mockRafFlush = undefined;
 });
 
 describe("navigation utilities", () => {
@@ -156,12 +187,7 @@ describe("navigation utilities", () => {
 
 describe("attachWheelNavigation", () => {
   it("coalesces wheel navigation to one viewport update per animation frame", () => {
-    let frame: FrameRequestCallback | undefined;
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-      frame = callback;
-      return 1;
-    });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    syncCoalesce = false;
     const listeners = new Map<string, EventListener>();
     const canvas = {
       addEventListener: vi.fn((name: string, listener: EventListener) =>
@@ -217,7 +243,7 @@ describe("attachWheelNavigation", () => {
     } as unknown as WheelEvent);
     expect(setViewport).not.toHaveBeenCalled();
 
-    frame?.(0);
+    mockRafFlush?.();
 
     expect(setViewport).toHaveBeenCalledTimes(1);
     expect(setViewport.mock.calls[0]?.[0].startTime).toBeGreaterThan(

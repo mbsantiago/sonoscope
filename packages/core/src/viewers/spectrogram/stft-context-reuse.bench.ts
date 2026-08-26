@@ -1,6 +1,6 @@
-import type { StftConfig } from "./viewers/spectrogram/types";
+import type { StftConfig } from "./types";
 import { bench, describe } from "vitest";
-import { createWasmStftEngine } from "./viewers/spectrogram/backends/wasm-stft";
+import { createWasmStftEngine } from "./backends/wasm-stft";
 
 const sampleRate = 48_000;
 const stft: StftConfig = {

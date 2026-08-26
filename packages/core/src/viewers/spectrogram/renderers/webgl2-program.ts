@@ -16,32 +16,14 @@ export type {
   WebGL2RenderResources,
 } from "../model";
 
-const WEBGL2_UNIFORMS = [
-  "u_tile",
-  "u_colormap",
-  "u_viewport",
-  "u_tileTimeRange",
-  "u_tileFrequencyRange",
-  "u_tileSize",
-  "u_canvasSize",
-  "u_valueScale",
-  "u_frequencyScale",
-  "u_overlayMode",
-  "u_terrainHeight",
-  "u_terrainPlayhead",
-  "u_terrainTimeRange",
-  // Halftone shader parameters
-  "u_dotFrequency",
-  "u_minEnergyThreshold",
-  "u_energyGamma",
-] as const;
-type UniformName = (typeof WEBGL2_UNIFORMS)[number];
-
 export class WebGL2ShaderProgram {
   readonly program: WebGLProgram;
   readonly position: number;
   readonly tileUv: number;
-  private readonly uniforms: Partial<Record<UniformName, WebGLUniformLocation>>;
+  private readonly uniformLocations = new Map<
+    string,
+    WebGLUniformLocation | null
+  >();
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
@@ -57,13 +39,6 @@ export class WebGL2ShaderProgram {
     this.program = program;
     this.position = gl.getAttribLocation(program, "a_position");
     this.tileUv = gl.getAttribLocation(program, "a_tileUv");
-    this.uniforms = Object.fromEntries(
-      WEBGL2_UNIFORMS.flatMap((name) => {
-        const location = gl.getUniformLocation(program, name);
-        if (!location) return [];
-        return [[name, location]];
-      }),
-    ) as WebGL2ShaderProgram["uniforms"];
   }
 
   use(): void {
@@ -72,32 +47,46 @@ export class WebGL2ShaderProgram {
 
   delete(): void {
     this.gl.deleteProgram(this.program);
+    this.uniformLocations.clear();
   }
 
-  uniform1i(name: UniformName, value: number): void {
-    const location = this.uniforms[name];
-    if (location) this.gl.uniform1i(location, value);
+  private location(name: string): WebGLUniformLocation | null {
+    let loc = this.uniformLocations.get(name);
+    if (loc === undefined) {
+      loc = this.gl.getUniformLocation(this.program, name);
+      this.uniformLocations.set(name, loc);
+    }
+    return loc;
   }
 
-  uniform1f(name: UniformName, value: number): void {
-    const location = this.uniforms[name];
-    if (location) this.gl.uniform1f(location, value);
+  uniform1i(name: string, value: number): void {
+    const loc = this.location(name);
+    if (loc) this.gl.uniform1i(loc, value);
   }
 
-  uniform2f(name: UniformName, x: number, y: number): void {
-    const location = this.uniforms[name];
-    if (location) this.gl.uniform2f(location, x, y);
+  uniform1f(name: string, value: number): void {
+    const loc = this.location(name);
+    if (loc) this.gl.uniform1f(loc, value);
   }
 
-  uniform4f(
-    name: UniformName,
-    x: number,
-    y: number,
-    z: number,
-    w: number,
-  ): void {
-    const location = this.uniforms[name];
-    if (location) this.gl.uniform4f(location, x, y, z, w);
+  uniform2f(name: string, x: number, y: number): void {
+    const loc = this.location(name);
+    if (loc) this.gl.uniform2f(loc, x, y);
+  }
+
+  uniform3f(name: string, x: number, y: number, z: number): void {
+    const loc = this.location(name);
+    if (loc) this.gl.uniform3f(loc, x, y, z);
+  }
+
+  uniformMat4(name: string, value: Float32Array): void {
+    const loc = this.location(name);
+    if (loc) this.gl.uniformMatrix4fv(loc, false, value);
+  }
+
+  uniform4f(name: string, x: number, y: number, z: number, w: number): void {
+    const loc = this.location(name);
+    if (loc) this.gl.uniform4f(loc, x, y, z, w);
   }
 }
 

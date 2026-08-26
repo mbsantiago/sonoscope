@@ -1,9 +1,12 @@
-import type { NavigationOptions } from "./navigation";
 import type {
   AudioSource,
+  CustomViewerFactory,
   FollowPlaybackMode,
+  IDataViewer,
   ISonoscope,
+  ISonoscopeViewer,
   IViewportController,
+  NavigationOptions,
   SonoscopeEvents,
   SonoscopeOptions,
   ViewportConfig,
@@ -17,6 +20,11 @@ import type { WaveformOptions } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
 import { attachPlayheadOverlay, type PlayheadOverlayOptions } from "./playhead";
+import {
+  getRegisteredViewer,
+  registerViewer as registerCustomViewer,
+  unregisterViewer as unregisterCustomViewer,
+} from "./plugins";
 import { ArrayAudioSource } from "./sources/array-source";
 import { ClippedAudioSource } from "./sources/clipped-source";
 import {
@@ -70,14 +78,16 @@ function safeCancelAnimationFrame(id: number): void {
 export class Sonoscope implements ISonoscope {
   private _source: AudioSource;
   private _viewport: IViewportController;
+  private readonly events = new TypedEventEmitter<SonoscopeEvents>();
+  private readonly viewers = new Set<
+    SpectrogramViewer | WaveformViewer | IDataViewer
+  >();
   private _clipStart: number | undefined;
   private _clipEnd: number | undefined;
   private audioElement: HTMLAudioElement | undefined;
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
   private playheadCleanups: Array<() => void> = [];
-  private readonly events = new TypedEventEmitter<SonoscopeEvents>();
-  private readonly viewers = new Set<SpectrogramViewer | WaveformViewer>();
   private animationFrame: number | undefined;
 
   private totalDuration: number;
@@ -836,6 +846,54 @@ export class Sonoscope implements ISonoscope {
       options?.viewport ?? this._viewport,
       options,
     );
+  }
+
+  /**
+   * Registers a custom viewer factory globally under a unique name.
+   */
+  static registerViewer<
+    TOptions = unknown,
+    TViewer extends ISonoscopeViewer = ISonoscopeViewer,
+  >(name: string, factory: CustomViewerFactory<TOptions, TViewer>): void {
+    registerCustomViewer(name, factory);
+  }
+
+  /**
+   * Unregisters a custom viewer factory.
+   */
+  static unregisterViewer(name: string): boolean {
+    return unregisterCustomViewer(name);
+  }
+
+  /**
+   * Creates a custom viewer instance (registered name or direct factory function)
+   * attached to this Sonoscope instance.
+   */
+  createViewer<
+    TOptions = unknown,
+    TViewer extends ISonoscopeViewer = ISonoscopeViewer,
+  >(
+    nameOrFactory: string | CustomViewerFactory<TOptions, TViewer>,
+    canvas: HTMLCanvasElement,
+    options?: TOptions,
+  ): TViewer {
+    const factory =
+      typeof nameOrFactory === "function"
+        ? nameOrFactory
+        : getRegisteredViewer<TOptions, TViewer>(nameOrFactory);
+    if (!factory) {
+      throw new Error(
+        `No viewer registered with name "${String(nameOrFactory)}"`,
+      );
+    }
+    const viewer = factory(this, canvas, options);
+    if (
+      viewer &&
+      typeof (viewer as unknown as IDataViewer).setSource === "function"
+    ) {
+      this.viewers.add(viewer as unknown as IDataViewer);
+    }
+    return viewer;
   }
 
   attachNavigation(

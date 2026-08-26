@@ -1,3 +1,5 @@
+import "@sonoscope/halftone-spectrogram/auto";
+import "@sonoscope/terrain-spectrogram/auto";
 import { describe, expect, it } from "vitest";
 import { Sonoscope } from "../../../sonoscope";
 import { SpectrogramViewer } from "../viewer";

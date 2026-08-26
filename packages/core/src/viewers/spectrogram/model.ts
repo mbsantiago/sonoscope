@@ -7,7 +7,6 @@
  * without introducing cycles.
  */
 
-import type { PerformanceProfiler } from "../../performance";
 import type {
   AudioSource,
   ColorMapConfig,
@@ -113,19 +112,7 @@ export type SpectrumPoint = {
 // Shader program contracts
 // ---------------------------------------------------------------------------
 
-export type WebGLRendererProgramName = "normal" | "halftone" | "terrain";
-
-export type HalftoneOptions = {
-  dotFrequency?: number | undefined;
-  minEnergyThreshold?: number | undefined;
-  energyGamma?: number | undefined;
-};
-
-export type HalftoneRenderOptions = {
-  dotFrequency?: number | undefined;
-  minEnergyThreshold?: number | undefined;
-  energyGamma?: number | undefined;
-};
+export type WebGLRendererProgramName = "normal" | string;
 
 export type WebGL2Frame = {
   width: number;
@@ -151,8 +138,6 @@ export type RenderInput = {
   placeholders?: Array<{ timeStart: number; timeEnd: number }>;
   playheadTime?: number;
   webglProgram?: WebGL2RenderProgram;
-  halftone?: HalftoneRenderOptions | undefined;
-  profile?: PerformanceProfiler;
 };
 
 export type WebGL2RenderResources = {
@@ -189,7 +174,6 @@ export type ComputeTileRequest = {
   timeStart: number;
   timeEnd: number;
   stft: StftConfig;
-  profile?: PerformanceProfiler;
 };
 
 export interface SpectrogramComputeBackend {

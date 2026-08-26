@@ -198,65 +198,20 @@ export class WasmComputeBackend implements SpectrogramComputeBackend {
   }
 
   async computeTile(request: ComputeTileRequest): Promise<SpectrogramMatrix> {
-    const compute = async () => {
-      const samples = request.profile
-        ? await request.profile.measureAsync(
-            "tile.source.read",
-            {
-              channel: request.channel,
-              timeStart: request.timeStart,
-              timeEnd: request.timeEnd,
-            },
-            async () =>
-              await request.source.read({
-                channel: request.channel,
-                startTime: request.timeStart,
-                endTime: request.timeEnd,
-              }),
-          )
-        : await request.source.read({
-            channel: request.channel,
-            startTime: request.timeStart,
-            endTime: request.timeEnd,
-          });
+    const samples = await request.source.read({
+      channel: request.channel,
+      startTime: request.timeStart,
+      endTime: request.timeEnd,
+    });
 
-      const engine = await this.enginePromise;
+    const engine = await this.enginePromise;
 
-      return request.profile
-        ? request.profile.measure(
-            "tile.stft.compute",
-            {
-              channel: request.channel,
-              samples: samples.length,
-              fftSize: request.stft.fftSize,
-            },
-            () =>
-              engine.computeMatrix(samples, {
-                channel: request.channel,
-                timeStart: request.timeStart,
-                sampleRate: request.source.sampleRate,
-                stft: request.stft,
-              }),
-          )
-        : engine.computeMatrix(samples, {
-            channel: request.channel,
-            timeStart: request.timeStart,
-            sampleRate: request.source.sampleRate,
-            stft: request.stft,
-          });
-    };
-
-    return request.profile
-      ? request.profile.measureAsync(
-          "tile.total",
-          {
-            channel: request.channel,
-            timeStart: request.timeStart,
-            timeEnd: request.timeEnd,
-          },
-          compute,
-        )
-      : compute();
+    return engine.computeMatrix(samples, {
+      channel: request.channel,
+      timeStart: request.timeStart,
+      sampleRate: request.source.sampleRate,
+      stft: request.stft,
+    });
   }
 }
 

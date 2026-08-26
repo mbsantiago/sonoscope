@@ -59,21 +59,13 @@ describe("createSpectrogramRenderer", () => {
     expect(() => createSpectrogramRenderer(canvas(null), "webgl")).toThrow(
       /returned null/,
     );
-    expect(() => createSpectrogramRenderer(canvas(null), "halftone")).toThrow(
-      /returned null/,
-    );
-    expect(() => createSpectrogramRenderer(canvas(null), "terrain")).toThrow(
+    expect(() => createSpectrogramRenderer(canvas(null), "normal")).toThrow(
       /returned null/,
     );
     expect(() =>
       createSpectrogramRenderer(canvas(null), {
         type: "webgl",
-        program: "halftone",
-      }),
-    ).toThrow(/returned null/);
-    expect(() =>
-      createSpectrogramRenderer(canvas(null), {
-        type: "halftone",
+        program: "normal",
       }),
     ).toThrow(/returned null/);
   });
@@ -103,7 +95,7 @@ describe("createSpectrogramRenderer", () => {
     expect(() => createSpectrogramRenderer(canvas(gl), "webgl")).toThrow(
       /Unable to compile WebGL2/,
     );
-    expect(() => createSpectrogramRenderer(canvas(gl), "halftone")).toThrow(
+    expect(() => createSpectrogramRenderer(canvas(gl), "normal")).toThrow(
       /Unable to compile WebGL2/,
     );
   });
@@ -112,17 +104,22 @@ describe("createSpectrogramRenderer", () => {
     const gl = webgl2();
     const r1 = createSpectrogramRenderer(canvas(gl), {
       type: "webgl",
-      program: "halftone",
+      program: "normal",
     });
     expect(r1.kind).toBe("webgl2");
 
-    const r2 = createSpectrogramRenderer(canvas(gl), "halftone");
+    const r2 = createSpectrogramRenderer(canvas(gl), "normal");
     expect(r2.kind).toBe("webgl2");
 
-    const r3 = createSpectrogramRenderer(canvas(gl), "terrain");
+    const r3 = createSpectrogramRenderer(canvas(gl), "webgl");
     expect(r3.kind).toBe("webgl2");
 
-    const r4 = createSpectrogramRenderer(canvas(gl), { type: "halftone" });
+    const r4 = createSpectrogramRenderer(canvas(gl), "webgl2");
     expect(r4.kind).toBe("webgl2");
+
+    const r5 = createSpectrogramRenderer(canvas(gl), {
+      type: "webgl",
+    });
+    expect(r5.kind).toBe("webgl2");
   });
 });

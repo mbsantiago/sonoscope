@@ -22,6 +22,8 @@ import {
   useSonoscope,
   useSonoscopeContext,
   useSpectrogram,
+  Viewer,
+  type ViewerHandle,
   Waveform,
   type WaveformHandle,
 } from "./index";
@@ -684,6 +686,66 @@ describe("React Components and Hooks", () => {
       scope.destroy();
     });
 
+    it("reactively updates renderer when renderer prop changes", async () => {
+      const source = createMockAudioSource(10);
+      const scope = new Sonoscope(source);
+      const ref = createRef<SpectrogramHandle>();
+
+      function TestApp({
+        renderer,
+      }: {
+        renderer: "auto" | "canvas2d" | { type: "canvas2d" };
+      }) {
+        return React.createElement(Spectrogram, {
+          ref,
+          scope,
+          renderer,
+        });
+      }
+
+      await act(async () => {
+        root.render(
+          React.createElement(TestApp, {
+            renderer: "auto",
+          }),
+        );
+      });
+
+      const viewer = ref.current?.getViewer();
+      expect(viewer).toBeTruthy();
+      const updateSpy = vi.spyOn(viewer!, "updateConfig");
+
+      await act(async () => {
+        root.render(
+          React.createElement(TestApp, {
+            renderer: "canvas2d",
+          }),
+        );
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          renderer: "canvas2d",
+        }),
+      );
+
+      await act(async () => {
+        root.render(
+          React.createElement(TestApp, {
+            renderer: { type: "canvas2d" },
+          }),
+        );
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          renderer: { type: "canvas2d" },
+        }),
+      );
+
+      scope.destroy();
+    });
+
     it("destroys SpectrogramViewer on unmount", async () => {
       const source = createMockAudioSource(10);
       const scope = new Sonoscope(source);
@@ -846,6 +908,44 @@ describe("React Components and Hooks", () => {
       );
       expect(canvas).toBeTruthy();
       expect(ref.current?.getViewer()).toBeInstanceOf(FrequencyRulerViewer);
+      scope.destroy();
+    });
+  });
+
+  describe("<Viewer /> and useViewer", () => {
+    it("renders custom viewer via factory function", async () => {
+      const source = createMockAudioSource(20);
+      const scope = new Sonoscope(source);
+
+      const mockDestroy = vi.fn();
+      const mockViewerInstance = {
+        destroy: mockDestroy,
+      };
+      const customFactory = vi.fn(() => mockViewerInstance);
+
+      const ref = createRef<ViewerHandle>();
+      const onReady = vi.fn();
+
+      await act(async () => {
+        root.render(
+          React.createElement(Viewer, {
+            ref,
+            scope,
+            viewer: customFactory,
+            onReady,
+          }),
+        );
+      });
+
+      expect(customFactory).toHaveBeenCalled();
+      expect(ref.current?.getViewer()).toBe(mockViewerInstance);
+      expect(onReady).toHaveBeenCalledWith(mockViewerInstance);
+
+      await act(async () => {
+        root.unmount();
+      });
+
+      expect(mockDestroy).toHaveBeenCalled();
       scope.destroy();
     });
   });

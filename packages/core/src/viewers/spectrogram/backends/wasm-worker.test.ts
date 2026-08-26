@@ -1,7 +1,6 @@
 import type { AudioSource } from "../../../types";
 import type { SpectrogramWorkerLike } from "./worker-backend";
 import { describe, expect, it } from "vitest";
-import { PerformanceProfiler } from "../../../performance";
 import { WasmComputeBackend, WasmWorkerComputeBackend } from "./wasm-backend";
 import { computeWasmStftMatrix } from "./wasm-stft";
 
@@ -76,26 +75,6 @@ describe("WasmComputeBackend (Main Thread)", () => {
     expect(matrix.binCount).toBe(64);
     expect(matrix.frameCount).toBeGreaterThan(0);
     expect(matrix.magnitude.length).toBe(matrix.frameCount * matrix.binCount);
-  });
-
-  it("profiles WASM main thread tile compute", async () => {
-    const backend = new WasmComputeBackend();
-    const source = createAudioSource();
-    const profiler = new PerformanceProfiler(() => 50);
-
-    await backend.computeTile({
-      source,
-      channel: 0,
-      timeStart: 0,
-      timeEnd: 1,
-      stft: { windowSize: 128, fftSize: 128, hopSize: 64, window: "hann" },
-      profile: profiler,
-    });
-
-    const names = profiler.measures().map((m) => m.name);
-    expect(names).toContain("tile.source.read");
-    expect(names).toContain("tile.stft.compute");
-    expect(names).toContain("tile.total");
   });
 });
 

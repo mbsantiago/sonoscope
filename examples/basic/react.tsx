@@ -1,3 +1,6 @@
+import "@sonoscope/halftone-spectrogram/auto";
+import "@sonoscope/terrain-spectrogram/auto";
+import "@sonoscope/topographic-spectrogram/auto";
 import type { SpectrogramHandle, SpectrogramReadyInfo } from "@sonoscope/react";
 import type React from "react";
 import type { SpectrogramSettings, ViewportState } from "./react/types";

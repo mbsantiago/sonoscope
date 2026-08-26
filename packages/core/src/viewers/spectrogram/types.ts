@@ -3,12 +3,13 @@ import type {
   AudioSource,
   ColorMapConfig,
   FrequencyScale,
+  IDataViewer,
   IViewportController,
+  NavigableViewer,
   ViewportConfig,
 } from "../../types";
 import type {
   CacheStats,
-  HalftoneOptions,
   SpectrogramComputeBackend,
   SpectrogramTransform,
   SpectrogramWorkerLike,
@@ -25,8 +26,6 @@ import type {
 export type {
   CacheStats,
   ComputeTileRequest,
-  HalftoneOptions,
-  HalftoneRenderOptions,
   RenderInput,
   SpectrogramComputeBackend,
   SpectrogramMatrix,
@@ -52,15 +51,11 @@ export type WebGLRendererProgram =
   | WebGLRendererProgramName
   | WebGL2RenderProgram;
 
-export type HalftoneRendererConfig = {
-  type: "halftone";
-  program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions;
-
 export type WebGLRendererConfig = {
   type: "webgl" | "webgl2" | WebGLRendererProgramName;
   program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions;
+  [key: string]: unknown;
+};
 
 export type Canvas2DRendererConfig = {
   type: "canvas2d";
@@ -69,13 +64,14 @@ export type Canvas2DRendererConfig = {
 export type AutoRendererConfig = {
   type: "auto";
   program?: WebGLRendererProgram | undefined;
-} & HalftoneOptions;
+  [key: string]: unknown;
+};
 
 export type SpectrogramRendererConfig =
   | AutoRendererConfig
   | Canvas2DRendererConfig
   | WebGLRendererConfig
-  | HalftoneRendererConfig;
+  | { type: string; [key: string]: unknown };
 
 export type RendererMode =
   | "auto"
@@ -377,12 +373,30 @@ export type ResolvedSpectrogramConfig = {
   transforms: SpectrogramTransform[];
 };
 
+import type { SpectrogramRenderer } from "./renderers/canvas";
+
 export type SpectrogramOptions = SpectrogramConfig;
+
+/**
+ * Factory function to construct a custom spectrogram renderer.
+ */
+export type SpectrogramRendererFactory = (
+  canvas: HTMLCanvasElement,
+  options?: Record<string, unknown>,
+) => SpectrogramRenderer;
+
+/**
+ * Factory function to construct a custom WebGL2 spectrogram shader program.
+ */
+export type WebGL2SpectrogramProgramFactory = (
+  gl: WebGL2RenderingContext,
+  options?: Record<string, unknown>,
+) => WebGL2RenderProgram;
 
 /**
  * Spectrogram viewer canvas controller and inspector.
  */
-export interface ISpectrogramViewer {
+export interface ISpectrogramViewer extends IDataViewer, NavigableViewer {
   /** Renders the current spectrogram viewport asynchronously. */
   render(): Promise<void>;
   /** Schedules a render on the next animation frame. */

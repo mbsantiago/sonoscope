@@ -1,5 +1,8 @@
 import type { RenderProps } from "@anywidget/types";
 import "./widget.css";
+import "@sonoscope/halftone-spectrogram/auto";
+import "@sonoscope/terrain-spectrogram/auto";
+import "@sonoscope/topographic-spectrogram/auto";
 import {
   attachPlayheadOverlay,
   type FollowPlaybackMode,
@@ -15,7 +18,7 @@ interface WidgetModel {
   mime_type?: string;
   width: number;
   height: number;
-  program: "halftone" | "normal" | "terrain";
+  program: "halftone" | "normal" | "terrain" | "topographic";
   cmap:
     | "viridis"
     | "plasma"

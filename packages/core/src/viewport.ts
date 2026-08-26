@@ -1,5 +1,9 @@
 import type {
+  FrequencyBounds,
   IViewportController,
+  NavigableViewer,
+  NavigationOptions,
+  TimeBounds,
   ViewportConfig,
   ViewportControllerOptions,
   ViewportEvents,
@@ -8,15 +12,11 @@ import type {
 import { TypedEventEmitter } from "./events";
 import {
   attachNavigation,
-  type FrequencyBounds,
-  type NavigableViewer,
-  type NavigationOptions,
   panViewportFrequency,
   panViewportTime,
-  type TimeBounds,
   zoomViewportFrequency,
   zoomViewportTime,
-} from "./navigation";
+} from "./navigation/index";
 import { clampViewportTimes } from "./viewport-math";
 
 function clamp(value: number, min: number, max: number): number {

@@ -60,6 +60,7 @@
           <option value="normal">normal</option>
           <option value="terrain">terrain</option>
           <option value="halftone">half-tone</option>
+          <option value="topographic">topographic</option>
         </select>
       </label>
     </form>
@@ -72,6 +73,9 @@
     <p data-status></p>
 
     <script type="module">
+      import "@sonoscope/halftone-spectrogram/auto";
+      import "@sonoscope/terrain-spectrogram/auto";
+      import "@sonoscope/topographic-spectrogram/auto";
       import {
         attachPlayheadOverlay,
         Sonoscope,

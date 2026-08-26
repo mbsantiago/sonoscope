@@ -2,16 +2,6 @@
 
 // Auto-Resize Utilities
 export type { AutoResizeOptions } from "./auto-resize";
-export type {
-  DragNavigationOptions,
-  FrequencyBounds,
-  ModifierKey,
-  NavigableViewer,
-  NavigationAxis,
-  NavigationOptions,
-  TimeBounds,
-  WheelNavigationOptions,
-} from "./navigation";
 // Performance Types
 export type {
   FrameStats,
@@ -30,18 +20,30 @@ export type {
   BuiltInColorMap,
   ColorMapConfig,
   ColorPoint,
+  CustomViewerFactory,
+  DragNavigationOptions,
   FollowPlaybackMode,
+  FrequencyBounds,
   FrequencyScale,
+  IDataViewer,
   ISonoscope,
+  ISonoscopeViewer,
   IViewportController,
+  IViewportViewer,
+  ModifierKey,
+  NavigableViewer,
+  NavigationAxis,
+  NavigationOptions,
   Rgba,
   SonoscopeEvents,
   SonoscopeOptions,
+  TimeBounds,
   ViewportConfig,
   ViewportConstraints,
   ViewportControllerOptions,
   ViewportEvents,
   ViewportState,
+  WheelNavigationOptions,
 } from "./types";
 // FrequencyRuler Types
 export type {
@@ -79,8 +81,6 @@ export type {
   BackendMode,
   CacheStats,
   Canvas2DRendererConfig,
-  HalftoneOptions,
-  HalftoneRendererConfig,
   ISpectrogramViewer,
   RendererMode,
   ResolvedSpectrogramConfig,
@@ -92,6 +92,7 @@ export type {
   SpectrogramProfilerOptions,
   SpectrogramProfileStats,
   SpectrogramRendererConfig,
+  SpectrogramRendererFactory,
   SpectrogramStatus,
   SpectrogramTransform,
   SpectrumPoint,
@@ -102,6 +103,7 @@ export type {
   TransformContext,
   ValueMode,
   ValueScaleConfig,
+  WebGL2SpectrogramProgramFactory,
   WebGLRendererConfig,
   WebGLRendererProgram,
   WebGLRendererProgramName,
@@ -136,6 +138,7 @@ export type {
   WaveformEvents,
   WaveformOptions,
   WaveformRenderer,
+  WaveformRendererFactory,
   WaveformRendererKind,
   WaveformRendererMode,
   WaveformRenderInput,
@@ -160,13 +163,36 @@ export {
   setViewerViewport,
   zoomViewportFrequency,
   zoomViewportTime,
-} from "./navigation";
+} from "./navigation/index";
 // Performance & Profiling
 export {
   FrameMeter,
   PerformanceProfiler,
 } from "./performance";
 export { attachPlayheadOverlay, PlayheadOverlay } from "./playhead";
+// Plugins & Registries
+export {
+  clearRegisteredSpectrogramPrograms,
+  clearRegisteredSpectrogramRenderers,
+  clearRegisteredViewers,
+  clearRegisteredWaveformRenderers,
+  getRegisteredSpectrogramProgram,
+  getRegisteredSpectrogramRenderer,
+  getRegisteredViewer,
+  getRegisteredWaveformRenderer,
+  hasRegisteredSpectrogramProgram,
+  hasRegisteredSpectrogramRenderer,
+  hasRegisteredViewer,
+  hasRegisteredWaveformRenderer,
+  registerSpectrogramProgram,
+  registerSpectrogramRenderer,
+  registerViewer,
+  registerWaveformRenderer,
+  unregisterSpectrogramProgram,
+  unregisterSpectrogramRenderer,
+  unregisterViewer,
+  unregisterWaveformRenderer,
+} from "./plugins";
 export { isSonoscope, Sonoscope } from "./sonoscope";
 // Audio Sources & Byte Sources
 export { ArrayAudioSource } from "./sources/array-source";
@@ -224,10 +250,29 @@ export { SpectrogramProfiler } from "./viewers/spectrogram/profiler";
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
 export { WebGL2SpectrogramRenderer } from "./viewers/spectrogram/renderers/webgl2";
-export { HalftoneSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-halftone-program";
+export {
+  tileFrequencyRange,
+  tileTimeRange,
+} from "./viewers/spectrogram/renderers/webgl2-geometry";
 export { NormalSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-normal-program";
-export { WebGL2ShaderProgram } from "./viewers/spectrogram/renderers/webgl2-program";
-export { TerrainSpectrogramProgram } from "./viewers/spectrogram/renderers/webgl2-terrain-program";
+export {
+  frequencyScaleCode,
+  WEBGL2_FRAGMENT_UNIFORMS,
+  WEBGL2_OVERLAY_CHECK,
+  WEBGL2_SCALE_HELPERS,
+  WebGL2ShaderProgram,
+  WebGL2TileProgramBase,
+} from "./viewers/spectrogram/renderers/webgl2-program";
+export {
+  createShaderProgram,
+  createSpectrogramProgram,
+} from "./viewers/spectrogram/renderers/webgl2-program-factory";
+export {
+  locateSamplePosition,
+  sampleValueDataPosition,
+  valueDataForMode,
+} from "./viewers/spectrogram/spectrogram-sampling";
+export { normalizeValue } from "./viewers/spectrogram/value-scale";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
 export {

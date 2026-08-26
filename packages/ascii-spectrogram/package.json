@@ -1,0 +1,58 @@
+{
+  "name": "@sonoscope/ascii-spectrogram",
+  "version": "0.1.0",
+  "description": "ASCII art spectrogram renderer plugin for Sonoscope.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbsantiago/sonoscope.git",
+    "directory": "packages/ascii-spectrogram"
+  },
+  "homepage": "https://mbsantiago.github.io/sonoscope/",
+  "type": "module",
+  "license": "MIT",
+  "author": "Santiago",
+  "keywords": [
+    "audio",
+    "spectrogram",
+    "sonoscope",
+    "ascii",
+    "renderer",
+    "plugin"
+  ],
+  "sideEffects": [
+    "./dist/auto.js",
+    "./src/auto.ts",
+    "./dist/index.umd.js"
+  ],
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/index.umd.js",
+  "jsdelivr": "./dist/index.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.umd.js"
+    },
+    "./auto": {
+      "types": "./dist/auto.d.ts",
+      "import": "./dist/auto.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sonoscope/core": "^0.1.0"
+  },
+  "scripts": {
+    "dev": "vite demo",
+    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "check:types": "tsc --noEmit"
+  }
+}

@@ -1,7 +1,6 @@
 import type { AudioSource } from "../../../types";
 import type { SpectrogramMatrix } from "../types";
 import { describe, expect, it } from "vitest";
-import { PerformanceProfiler } from "../../../performance";
 import {
   type SpectrogramWorkerLike,
   WorkerComputeBackend,
@@ -79,29 +78,6 @@ describe("WorkerComputeBackend", () => {
 
     expect(matrix.magnitude[0]).toBe(1);
     expect(workers[0]?.posted).toHaveLength(1);
-  });
-
-  it("records queue, source read, worker compute, and total timings", async () => {
-    const profiler = new PerformanceProfiler(() => 100);
-    const backend = new WorkerComputeBackend({
-      workerCount: 1,
-      createWorker: () => new FakeWorker(),
-    });
-
-    await backend.computeTile({
-      source: source(),
-      channel: 0,
-      timeStart: 0,
-      timeEnd: 1,
-      stft: { windowSize: 4, fftSize: 4, hopSize: 2, window: "hann" },
-      profile: profiler,
-    });
-
-    const names = profiler.measures().map((measure) => measure.name);
-    expect(names).toContain("tile.queue.wait");
-    expect(names).toContain("tile.source.read");
-    expect(names).toContain("tile.stft.compute");
-    expect(names).toContain("tile.total");
   });
 
   it("rejects queued jobs when destroyed", async () => {

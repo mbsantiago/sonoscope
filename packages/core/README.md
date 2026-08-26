@@ -60,7 +60,7 @@ const viewer = scope.createSpectrogram(document.querySelector<HTMLCanvasElement>
 
 - **Unified viewport coordinator (`Sonoscope`).** Single source of truth for time bounds, playback position, follow modes (`page`, `smooth`, `off`), and multi-canvas synchronization.
 - **WASM STFT acceleration.** Rust WebAssembly STFT compute backend with multi-worker pool and pure TypeScript fallback.
-- **WebGL2 shaders and 35+ colormaps.** Hardware-accelerated tile rasterization (normal, dither/halftone, 3D terrain) and 35+ Matplotlib colormaps (Viridis, Magma, Inferno, Turbo, Cividis, and more).
+- **WebGL2 shaders, plugins, and 35+ colormaps.** Lean, hardware-accelerated tile rasterization, extensible shader plugin architecture (with `@sonoscope/halftone-spectrogram`, `@sonoscope/terrain-spectrogram`, `@sonoscope/topographic-spectrogram`), and 35+ Matplotlib colormaps (Viridis, Magma, Inferno, Turbo, Cividis, and more).
 - **Multi-scale waveform peak decimation.** Multi-resolution pyramid peak decimation for instant waveform envelope rendering.
 - **Adaptive streaming decoders.** On-demand HTTP range-request WAV decoders and WebCodecs streaming MP3 pipelines.
 - **Canvas navigation.** Built-in cursor-centered wheel zoom and drag panning utilities.

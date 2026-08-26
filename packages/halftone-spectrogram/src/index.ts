@@ -1,10 +1,31 @@
-import type { RenderInput } from "./canvas";
-import { NormalSpectrogramProgram } from "./webgl2-normal-program";
 import {
+  NormalSpectrogramProgram,
+  type RenderInput,
+  registerSpectrogramProgram,
   WEBGL2_FRAGMENT_UNIFORMS,
   WEBGL2_OVERLAY_CHECK,
   WEBGL2_SCALE_HELPERS,
-} from "./webgl2-program";
+} from "@sonoscope/core";
+
+export interface HalftoneOptions {
+  /**
+   * Spatial frequency of the halftone dot matrix (dots per CSS pixel).
+   * @default 0.24
+   */
+  dotFrequency?: number | undefined;
+
+  /**
+   * Energy floor below which no dots are rendered.
+   * @default 0
+   */
+  minEnergyThreshold?: number | undefined;
+
+  /**
+   * Gamma exponent applied to the energy to shape dot size falloff.
+   * @default 1.4
+   */
+  energyGamma?: number | undefined;
+}
 
 export const WEBGL2_HALFTONE_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
@@ -42,7 +63,7 @@ float sampleSpectrogram(vec2 screenCoord) {
   float binPosition = clamp(
     (frequency - u_tileFrequencyRange.x) / max(0.000001, u_tileFrequencyRange.y - u_tileFrequencyRange.x) * max(1.0, u_tileSize.y - 1.0),
     0.0,
-    max(0.0, u_tileSize.x - 1.0)
+    max(0.0, u_tileSize.y - 1.0)
   );
 
   int frame0 = int(floor(framePosition));
@@ -133,18 +154,45 @@ void main() {
 
 export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
   override readonly name = "halftone";
+  private options: HalftoneOptions;
 
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(gl: WebGL2RenderingContext, options: HalftoneOptions = {}) {
     super(gl, WEBGL2_HALFTONE_FRAGMENT_SHADER);
+    this.options = options;
   }
 
-  protected override setCustomUniforms(input: RenderInput): void {
-    const dotFrequency = input.halftone?.dotFrequency ?? 0.24;
-    const minEnergyThreshold = input.halftone?.minEnergyThreshold ?? 0;
-    const energyGamma = input.halftone?.energyGamma ?? 1.4;
+  setOptions(options: HalftoneOptions): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  getOptions(): HalftoneOptions {
+    return { ...this.options };
+  }
+
+  protected override setCustomUniforms(_input: RenderInput): void {
+    const dotFrequency = this.options.dotFrequency ?? 0.24;
+    const minEnergyThreshold = this.options.minEnergyThreshold ?? 0;
+    const energyGamma = this.options.energyGamma ?? 1.4;
 
     this.shader.uniform1f("u_dotFrequency", dotFrequency);
     this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);
     this.shader.uniform1f("u_energyGamma", energyGamma);
   }
+}
+
+/**
+ * Registers the Halftone WebGL2 shader program under the given name.
+ * @param name Program name identifier (default: "halftone").
+ * @param defaultOptions Default options applied when instantiating.
+ */
+export function registerHalftoneProgram(
+  name = "halftone",
+  defaultOptions?: HalftoneOptions,
+): void {
+  registerSpectrogramProgram(name, (gl, options) => {
+    return new HalftoneSpectrogramProgram(gl, {
+      ...defaultOptions,
+      ...(options as HalftoneOptions),
+    });
+  });
 }
