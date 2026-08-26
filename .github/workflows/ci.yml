@@ -1,6 +1,13 @@
 name: CI
 
 on:
+  workflow_call:
+    inputs:
+      cache:
+        description: Enable dependency caches for the calling workflow.
+        required: false
+        type: boolean
+        default: true
   push:
     branches: [main]
   pull_request:
@@ -25,8 +32,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          cache: "npm"
+          node-version: 24
+          cache: ${{ (inputs.cache == '' || inputs.cache) && 'npm' || '' }}
+          package-manager-cache: ${{ inputs.cache == '' || inputs.cache }}
 
       - name: Install dependencies
         run: npm ci
@@ -52,6 +60,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Rust Cache
+        if: inputs.cache == '' || inputs.cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: wasm/stft
@@ -76,8 +85,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          cache: "npm"
+          node-version: 24
+          cache: ${{ (inputs.cache == '' || inputs.cache) && 'npm' || '' }}
+          package-manager-cache: ${{ inputs.cache == '' || inputs.cache }}
 
       - name: Install dependencies
         run: npm ci
@@ -108,6 +118,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Rust Cache
+        if: inputs.cache == '' || inputs.cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: wasm/stft
@@ -115,8 +126,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          cache: "npm"
+          node-version: 24
+          cache: ${{ (inputs.cache == '' || inputs.cache) && 'npm' || '' }}
+          package-manager-cache: ${{ inputs.cache == '' || inputs.cache }}
 
       - name: Install JS dependencies & build packages
         run: |
@@ -127,7 +139,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "latest-known"
-          enable-cache: true
+          enable-cache: ${{ inputs.cache == '' || inputs.cache }}
 
       - name: Setup Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -153,6 +165,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Rust Cache
+        if: inputs.cache == '' || inputs.cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: wasm/stft
@@ -160,14 +173,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          cache: "npm"
+          node-version: 24
+          cache: ${{ (inputs.cache == '' || inputs.cache) && 'npm' || '' }}
+          package-manager-cache: ${{ inputs.cache == '' || inputs.cache }}
 
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "latest-known"
-          enable-cache: true
+          enable-cache: ${{ inputs.cache == '' || inputs.cache }}
 
       - name: Install dependencies
         run: npm ci

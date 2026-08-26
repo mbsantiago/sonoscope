@@ -11,99 +11,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  rust-tests:
-    name: Rust Tests
-    runs-on: ubuntu-latest
+  test-gate:
+    name: CI Test Gate
+    uses: ./.github/workflows/ci.yml
+    with:
+      cache: false
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
-        with:
-          toolchain: stable
-          targets: wasm32-unknown-unknown
-
-      - name: Run Rust tests
-        run: cargo test --manifest-path wasm/stft/Cargo.toml
-
-  js-tests:
-    name: Unit & Browser Tests
-    runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Unit Tests
-        run: npm test
-
-      - name: Run Browser / WebGL Tests
-        run: npm run test:browser
-
-  python-tests:
-    name: Python Anywidget Tests (${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: true
-      matrix:
-        python-version: ["3.12", "3.13", "3.14"]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
-        with:
-          toolchain: stable
-          targets: wasm32-unknown-unknown
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: Install JS dependencies & build packages
-        run: |
-          npm ci
-          npm run build
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version: "latest-known"
-          enable-cache: false
-
-      - name: Setup Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
-      - name: Run pytest
-        working-directory: packages/anywidget
-        run: uv run --python ${{ matrix.python-version }} --group dev pytest tests
 
   build:
     name: Build Release Artifacts
-    needs: [rust-tests, js-tests, python-tests]
+    needs: test-gate
     runs-on: ubuntu-latest
     permissions:
       contents: read
