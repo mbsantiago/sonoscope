@@ -13,7 +13,9 @@ on:
       - ".github/dependabot.yml"
 
 permissions:
+  actions: read
   contents: read
+  security-events: write
 
 jobs:
   lint:
