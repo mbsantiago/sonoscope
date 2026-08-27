@@ -46,6 +46,7 @@ uniform vec2 u_canvasSize;
 uniform vec4 u_viewport;
 uniform float u_frequencyScale;
 uniform float u_terrainHeight;
+uniform float u_aspect;
 uniform mat4 u_viewProjection;
 uniform vec2 u_tileSize;
 
@@ -66,12 +67,12 @@ void main() {
   float heightValue = (h0 * 0.4) + (h1 + h2 + h3 + h4) * 0.15;
   v_height = heightValue;
   float tileTime = mix(u_tileTimeRange.x, u_tileTimeRange.y, a_tileUv.x);
-  float viewportX = clamp((tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x), 0.0, 1.0);
+  float viewportX = (tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x);
   float liftedHeight = pow(heightValue, 1.0) * (u_terrainHeight * 0.5);
-  // The terrain lies in the X-Z plane: time recedes along X, low
-  // frequencies are closest to the camera, and energy lifts the Y axis.
+  // The terrain lies in the X-Z plane: time spans along X (scaled by aspect to fill the canvas),
+  // low frequencies are closest to the camera, and energy lifts the Y axis.
   vec3 worldPosition = vec3(
-    (viewportX * 2.0 - 1.0) * 1.8,
+    (viewportX * 2.0 - 1.0) * (u_aspect * 1.05),
     liftedHeight,
     (0.5 - a_tileUv.y) * 1.9
   );
@@ -152,6 +153,7 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
       input.viewport.endTime,
     );
     const aspect = frame.deviceWidth / Math.max(1, frame.deviceHeight);
+    this.shader.uniform1f("u_aspect", aspect);
     this.shader.uniformMat4("u_viewProjection", terrainViewProjection(aspect));
     this.shader.uniform3f(
       "u_cameraPosition",
