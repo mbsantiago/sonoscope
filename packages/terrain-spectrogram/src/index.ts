@@ -247,7 +247,7 @@ export interface TerrainOptions {
 
   /**
    * Direction vector of the light source [x, y, z].
-   * @default [0.15, 0.85, 0.45]
+   * @default [0.15, -0.35, 0.85]
    */
   lightDirection?: [number, number, number] | undefined;
 
@@ -269,7 +269,7 @@ export function computeTerrainCamera(options: TerrainOptions): {
     return {
       eye: options.cameraEye,
       target,
-      up: options.cameraUp ?? [0, 1, 0],
+      up: options.cameraUp ?? [0, 0, 1],
     };
   }
 
@@ -286,17 +286,18 @@ export function computeTerrainCamera(options: TerrainOptions): {
 
   const height =
     options.cameraHeight !== undefined ? options.cameraHeight : distance * cosP;
+  const dXy = distance * sinP;
 
   const eye: Vec3 = [
-    target[0] + distance * sinP * sinY || 0,
-    target[1] + height || 0,
-    target[2] + distance * sinP * cosY || 0,
+    target[0] + dXy * sinY || 0,
+    target[1] - dXy * cosY || 0,
+    target[2] + height || 0,
   ];
 
   const up: Vec3 = options.cameraUp ?? [
     -cosP * sinY || 0,
+    cosP * cosY || 0,
     sinP || 0,
-    -cosP * cosY || 0,
   ];
 
   return { eye, target, up };
@@ -358,12 +359,13 @@ void main() {
   float tileTime = mix(u_tileTimeRange.x, u_tileTimeRange.y, a_tileUv.x);
   float viewportX = (tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x);
   float liftedHeight = pow(clamp(heightValue, 0.0, 1.0), u_heightGamma) * (u_terrainHeight * 0.5);
-  // The terrain lies in the X-Z plane: time spans along X (scaled by aspect to fill the canvas),
-  // low frequencies are closest to the camera, and energy lifts the Y axis.
+  // Ground plane lies in X-Y: time spans along X (scaled by aspect to fill canvas),
+  // frequency spans along Y (low frequencies at foreground -Y, high frequencies at background +Y),
+  // and audio energy / amplitude lifts vertically along the Z axis.
   vec3 worldPosition = vec3(
     (viewportX * 2.0 - 1.0) * (u_aspect * 1.05),
-    liftedHeight,
-    (0.5 - a_tileUv.y) * 1.9
+    (a_tileUv.y - 0.5) * 1.9,
+    liftedHeight
   );
   gl_Position = u_viewProjection * vec4(worldPosition, 1.0);
 }`;
@@ -388,7 +390,7 @@ void main() {
   float right = texture(u_tile, clamp(v_tileUv + vec2(stepSize.x, 0.0), 0.0, 1.0)).r;
   float low = texture(u_tile, clamp(v_tileUv - vec2(0.0, stepSize.y), 0.0, 1.0)).r;
   float high = texture(u_tile, clamp(v_tileUv + vec2(0.0, stepSize.y), 0.0, 1.0)).r;
-  vec3 normal = normalize(vec3((left - right) * 1.0, 1.2, (low - high) * 1.0));
+  vec3 normal = normalize(vec3((left - right) * 1.0, (low - high) * 1.0, 1.2));
   vec3 localLight = normalize(u_lightDirection);
   float light = clamp(dot(normal, localLight), 0.0, 1.0);
   vec3 baseColor = texture(u_colormap, vec2(clamp(v_height, 0.0, 1.0), 0.5)).rgb;
@@ -462,7 +464,7 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
     const smoothing = this.options.smoothing ?? 0.6;
     const ambientLight = this.options.ambientLight ?? 0.75;
     const diffuseLight = this.options.diffuseLight ?? 0.25;
-    const lightDir = this.options.lightDirection ?? [0.15, 0.85, 0.45];
+    const lightDir = this.options.lightDirection ?? [0.15, -0.35, 0.85];
 
     const { eye, target, up } = computeTerrainCamera(this.options);
 

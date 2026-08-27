@@ -117,10 +117,10 @@ describe("TerrainSpectrogramProgram", () => {
   it("computes default camera looking top-down", () => {
     const { eye, target, up } = computeTerrainCamera({});
     expect(eye[0]).toBeCloseTo(0);
-    expect(eye[1]).toBeCloseTo(1.5);
-    expect(eye[2]).toBeCloseTo(0);
+    expect(eye[1]).toBeCloseTo(0);
+    expect(eye[2]).toBeCloseTo(1.5);
     expect(target).toEqual([0, 0, 0]);
-    expect(up).toEqual([0, 0, -1]);
+    expect(up).toEqual([0, 1, 0]);
   });
 
   it("computes pitched camera elevation", () => {
@@ -130,22 +130,22 @@ describe("TerrainSpectrogramProgram", () => {
     });
     expect(target).toEqual([0, 0, 0]);
     expect(eye[0]).toBeCloseTo(0);
-    expect(eye[1]).toBeCloseTo(2.0 * Math.cos((45 * Math.PI) / 180));
-    expect(eye[2]).toBeCloseTo(2.0 * Math.sin((45 * Math.PI) / 180));
+    expect(eye[1]).toBeCloseTo(-2.0 * Math.sin((45 * Math.PI) / 180));
+    expect(eye[2]).toBeCloseTo(2.0 * Math.cos((45 * Math.PI) / 180));
     expect(up[0]).toBeCloseTo(0);
-    expect(up[1]).toBeCloseTo(Math.sin((45 * Math.PI) / 180));
-    expect(up[2]).toBeCloseTo(-Math.cos((45 * Math.PI) / 180));
+    expect(up[1]).toBeCloseTo(Math.cos((45 * Math.PI) / 180));
+    expect(up[2]).toBeCloseTo(Math.sin((45 * Math.PI) / 180));
   });
 
   it("respects explicit camera overrides", () => {
     const { eye, target, up } = computeTerrainCamera({
       cameraEye: [1, 2, 3],
       cameraTarget: [0, 1, 0],
-      cameraUp: [0, 1, 0],
+      cameraUp: [0, 0, 1],
     });
     expect(eye).toEqual([1, 2, 3]);
     expect(target).toEqual([0, 1, 0]);
-    expect(up).toEqual([0, 1, 0]);
+    expect(up).toEqual([0, 0, 1]);
   });
 
   it("auto-registers when importing /auto", async () => {
