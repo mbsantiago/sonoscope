@@ -98,20 +98,20 @@ scope.createSpectrogram(spectrogramCanvas, {
 
 <SpectrogramPreview config={{ minDb: -60, maxDb: -10 }} />
 
-### 7. Halftone shader effect
-Renders with a retro halftone shader program plugin (`@sonoscope/halftone-spectrogram`):
+### 7. Plasma colormap
+Applies the perceptually uniform Plasma palette:
 
 ```ts
-import "@sonoscope/halftone-spectrogram/auto";
-
 scope.createSpectrogram(spectrogramCanvas, {
-  renderer: "halftone",
-  minDb: -120,
-  maxDb: -40,
+  colorMap: "plasma",
+  minDb: -85,
+  maxDb: 0,
 });
 ```
 
-<SpectrogramPreview config={{ renderer: "halftone", minDb: -120, maxDb: -40 }} />
+<SpectrogramPreview config={{ colorMap: "plasma", minDb: -85, maxDb: 0 }} />
+
+> For stylized shader programs and alternative renderers (Halftone, 3D Terrain, Topographic, ASCII), see the [Plugins](/sonoscope/plugins/) section.
 
 ---
 

@@ -1,0 +1,23 @@
+---
+import type { SpectrogramOptions } from "@sonoscope/core";
+import SpectrogramPreview from "./SpectrogramPreview.astro";
+
+export interface Props {
+  config?: SpectrogramOptions;
+  height?: number | string;
+  width?: number | string;
+  class?: string;
+}
+
+const props = Astro.props;
+---
+
+<SpectrogramPreview {...props} />
+
+<script>
+  // Dynamically load all official plugins for pages rendering plugin previews
+  import "@sonoscope/ascii-spectrogram/auto";
+  import "@sonoscope/halftone-spectrogram/auto";
+  import "@sonoscope/terrain-spectrogram/auto";
+  import "@sonoscope/topographic-spectrogram/auto";
+</script>

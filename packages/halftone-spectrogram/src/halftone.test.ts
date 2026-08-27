@@ -50,14 +50,23 @@ describe("HalftoneSpectrogramProgram", () => {
     const gl = createMockGl();
     const program = new HalftoneSpectrogramProgram(gl, {
       dotFrequency: 0.3,
+      dotAngle: 30,
       energyGamma: 1.5,
+      maxDotRadius: 0.6,
+      dotSoftness: 0.5,
+      backgroundOpacity: 0.8,
     });
     expect(program.name).toBe("halftone");
     expect(program.getOptions().dotFrequency).toBe(0.3);
+    expect(program.getOptions().dotAngle).toBe(30);
     expect(program.getOptions().energyGamma).toBe(1.5);
+    expect(program.getOptions().maxDotRadius).toBe(0.6);
+    expect(program.getOptions().dotSoftness).toBe(0.5);
+    expect(program.getOptions().backgroundOpacity).toBe(0.8);
 
-    program.setOptions({ dotFrequency: 0.5 });
+    program.setOptions({ dotFrequency: 0.5, dotAngle: 60 });
     expect(program.getOptions().dotFrequency).toBe(0.5);
+    expect(program.getOptions().dotAngle).toBe(60);
   });
 
   it("registers globally when registerHalftoneProgram is called", () => {

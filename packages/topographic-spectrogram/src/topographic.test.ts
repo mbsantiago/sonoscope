@@ -54,13 +54,30 @@ describe("TopographicSpectrogramProgram", () => {
     const program = new TopographicSpectrogramProgram(gl, {
       contourInterval: 0.2,
       contourLineWidth: 1.5,
+      contourLineOpacity: 0.8,
+      minEnergyThreshold: 0.1,
+      smoothingRadius: 1.5,
+      noiseFadeWidth: 0.2,
+      lineFeather: 0.5,
+      speckleFilter: 2.0,
+      majorIntervalMultiplier: 5,
+      majorLineWidth: 3.0,
     });
     expect(program.name).toBe("topographic");
     expect(program.getOptions().contourInterval).toBe(0.2);
     expect(program.getOptions().contourLineWidth).toBe(1.5);
+    expect(program.getOptions().contourLineOpacity).toBe(0.8);
+    expect(program.getOptions().minEnergyThreshold).toBe(0.1);
+    expect(program.getOptions().smoothingRadius).toBe(1.5);
+    expect(program.getOptions().noiseFadeWidth).toBe(0.2);
+    expect(program.getOptions().lineFeather).toBe(0.5);
+    expect(program.getOptions().speckleFilter).toBe(2.0);
+    expect(program.getOptions().majorIntervalMultiplier).toBe(5);
+    expect(program.getOptions().majorLineWidth).toBe(3.0);
 
-    program.setOptions({ contourInterval: 0.1 });
+    program.setOptions({ contourInterval: 0.1, lineFeather: 1.0 });
     expect(program.getOptions().contourInterval).toBe(0.1);
+    expect(program.getOptions().lineFeather).toBe(1.0);
   });
 
   it("registers globally when registerTopographicProgram is called", () => {

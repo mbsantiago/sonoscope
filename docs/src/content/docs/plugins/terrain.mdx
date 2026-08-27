@@ -1,0 +1,87 @@
+---
+title: Terrain 3D Shader
+description: Turn your spectrogram into a 3D landscape of hills and valleys.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
+
+`@sonoscope/terrain-spectrogram` renders audio as a 3D landscape. Frequencies rise up into mountain ridges as sound plays, giving you an immediate sense of volume and depth.
+
+---
+
+## Interactive preview
+
+<PluginSpectrogramPreview config={{ renderer: "terrain" }} />
+
+:::caution[Visualization only]
+Because of the 3D perspective tilt, the spectrogram does not line up with flat frequency rulers. Use this for visual demos and creative projects, not for measuring exact frequencies.
+:::
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/terrain-spectrogram @sonoscope/core
+```
+
+---
+
+## Quick start
+
+Importing the `/auto` path automatically registers the `"terrain"` renderer keyword:
+
+```ts
+import "@sonoscope/terrain-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+scope.createSpectrogram(canvas, {
+  renderer: "terrain",
+});
+
+scope.attachNavigation(canvas);
+```
+
+---
+
+## Options
+
+| Option | Type | Default | What it does |
+| :--- | :--- | :--- | :--- |
+| `heightScale` | `number` | `0.55` | Mountain peak height multiplier |
+| `heightGamma` | `number` | `1.0` | Peak contrast curve (higher sharpens loud peaks) |
+| `meshResolution` | `number` \| `[number, number]` | `64` | Triangle grid density (lower is low-poly, higher is smooth) |
+| `fov` | `number` | `70` | Camera field of view in degrees |
+| `cameraPitch` | `number` | `0` | Camera tilt angle in degrees (0° = top-down 2D, 45° = isometric, 80° = horizon) |
+| `cameraYaw` | `number` | `0` | Camera horizontal orbit angle in degrees |
+| `cameraDistance` | `number` | `1.5` | Distance from the terrain center |
+| `cameraHeight` | `number` | `1.5` | Camera vertical altitude above terrain |
+| `cameraEye` | `[number, number, number]` | — | Exact 3D camera eye position (overrides pitch/yaw/distance) |
+| `cameraTarget` | `[number, number, number]` | `[0, 0, 0]` | 3D look-at center point |
+| `cameraUp` | `[number, number, number]` | — | 3D camera up vector |
+| `ambientLight` | `number` | `0.75` | Base fill light level (0 to 1) |
+| `diffuseLight` | `number` | `0.25` | Directional slope shading strength (0 to 1) |
+| `lightDirection` | `[number, number, number]` | `[0.15, 0.85, 0.45]` | 3D light direction vector |
+| `smoothing` | `number` | `0.6` | Height smoothing weight to soften jagged noise (0 to 1) |
+
+---
+
+## Try it yourself!
+
+Tweak height scaling, FOV angles, lighting, and mesh resolution in the live sandbox:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/terrain/index.ts"),
+    "index.html": loadFile("plugins/terrain/index.html"),
+    "styles.css": loadFile("plugins/terrain/styles.css"),
+  }}
+/>
+

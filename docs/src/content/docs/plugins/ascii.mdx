@@ -1,0 +1,78 @@
+---
+title: ASCII Spectrogram
+description: Render audio spectrograms as ASCII text art.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
+
+`@sonoscope/ascii-spectrogram` turns your audio into ASCII art. Louder frequencies show up as denser characters, creating a live terminal-style visualizer on a canvas.
+
+---
+
+## Interactive preview
+
+<PluginSpectrogramPreview config={{ renderer: "ascii", rendererOptions: { colorMode: "green", fontSize: 10 } }} />
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/ascii-spectrogram @sonoscope/core
+```
+
+---
+
+## Quick start
+
+Importing the `/auto` path automatically registers the `"ascii"` renderer keyword:
+
+```ts
+import "@sonoscope/ascii-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+scope.createSpectrogram(canvas, {
+  renderer: "ascii",
+  rendererOptions: {
+    colorMode: "green", // "colormap", "monochrome", "green", or "amber"
+    fontSize: 10,
+  },
+});
+
+scope.attachNavigation(canvas);
+```
+
+---
+
+## Options
+
+| Option | Type | Default | What it does |
+| :--- | :--- | :--- | :--- |
+| `colorMode` | `"colormap"` \| `"monochrome"` \| `"green"` \| `"amber"` | `"colormap"` | Color scheme for the text |
+| `charSet` | `string` | `" .:-=+*#%@"` | Characters used, from quiet to loud |
+| `fontSize` | `number` | `10` | Size of each character in pixels |
+| `fontFamily` | `string` | `"monospace"` | Font used for the text |
+| `textColor` | `string` | `"#00ff66"` | Text color when `colorMode` is `"monochrome"` |
+| `backgroundColor` | `string` | `"#0a0a0c"` | Background color behind the text |
+| `invert` | `boolean` | `false` | Flips bright and dark characters |
+
+---
+
+## Try it yourself!
+
+Experiment with different fonts, character sets, and color modes in the live editor:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/ascii/index.ts"),
+    "index.html": loadFile("plugins/ascii/index.html"),
+    "styles.css": loadFile("plugins/ascii/styles.css"),
+  }}
+/>

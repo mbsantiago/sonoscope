@@ -1,0 +1,80 @@
+---
+title: Topographic Shader
+description: Draw elevation contour lines across your spectrogram.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
+
+`@sonoscope/topographic-spectrogram` draws contour lines over your audio, making the spectrogram look like a topographic elevation map.
+
+---
+
+## Interactive preview
+
+<PluginSpectrogramPreview config={{ renderer: "topographic", minDb: -90, maxDb: 0 }} />
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/topographic-spectrogram @sonoscope/core
+```
+
+---
+
+## Quick start
+
+Importing the `/auto` path automatically registers the `"topographic"` renderer keyword:
+
+```ts
+import "@sonoscope/topographic-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+scope.createSpectrogram(canvas, {
+  renderer: "topographic",
+  minDb: -90,
+  maxDb: 0,
+});
+
+scope.attachNavigation(canvas);
+```
+
+---
+
+## Options
+
+| Option | Type | Default | What it does |
+| :--- | :--- | :--- | :--- |
+| `contourInterval` | `number` | `0.15` | Distance between contour rings |
+| `contourLineWidth` | `number` | `1.0` | Thickness of contour lines in pixels |
+| `contourLineOpacity` | `number` | `0.9` | Opacity of the contour lines (0 to 1) |
+| `minEnergyThreshold` | `number` | `0.14` | Noise floor cutoff threshold |
+| `smoothingRadius` | `number` | `1.0` | Blur radius to smooth out noise before drawing lines |
+| `noiseFadeWidth` | `number` | `0.15` | Fade-in width above the noise floor |
+| `lineFeather` | `number` | `0.75` | Line edge feathering (lower is sharper, higher is softer) |
+| `speckleFilter` | `number` | `1.8` | Threshold for suppressing subpixel noise dots |
+| `majorIntervalMultiplier` | `number` | `0` | Make every Nth line thicker (0 to disable) |
+| `majorLineWidth` | `number` | `2.0` | Thickness of major index lines in pixels |
+
+---
+
+## Try it yourself!
+
+Test different contour line widths, intervals, feathering, and major index lines live:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/topographic/index.ts"),
+    "index.html": loadFile("plugins/topographic/index.html"),
+    "styles.css": loadFile("plugins/topographic/styles.css"),
+  }}
+/>
+

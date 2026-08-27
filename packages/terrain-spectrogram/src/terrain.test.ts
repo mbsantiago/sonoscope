@@ -5,6 +5,7 @@ import {
 } from "@sonoscope/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  computeTerrainCamera,
   registerTerrainProgram,
   TerrainSpectrogramProgram,
   terrainVerticesForTile,
@@ -77,12 +78,74 @@ describe("TerrainSpectrogramProgram", () => {
   it("registers globally when registerTerrainProgram is called", () => {
     expect(hasRegisteredSpectrogramProgram("terrain")).toBe(false);
 
-    registerTerrainProgram("terrain");
+    registerTerrainProgram("terrain", {
+      heightScale: 0.8,
+      heightGamma: 1.2,
+      fov: 60,
+      ambientLight: 0.8,
+      diffuseLight: 0.3,
+      smoothing: 0.5,
+      meshResolution: 32,
+    });
     expect(hasRegisteredSpectrogramProgram("terrain")).toBe(true);
 
     const gl = createMockGl();
     const program = createSpectrogramProgram(gl, "terrain");
     expect(program).toBeInstanceOf(TerrainSpectrogramProgram);
+    const terrainProg = program as TerrainSpectrogramProgram;
+    expect(terrainProg.getOptions().heightScale).toBe(0.8);
+    expect(terrainProg.getOptions().fov).toBe(60);
+    expect(terrainProg.getOptions().heightGamma).toBe(1.2);
+    expect(terrainProg.getOptions().smoothing).toBe(0.5);
+
+    terrainProg.setOptions({
+      heightScale: 1.0,
+      fov: 75,
+      cameraPitch: 45,
+      cameraYaw: 15,
+      cameraDistance: 2.0,
+      cameraHeight: 1.8,
+    });
+    expect(terrainProg.getOptions().heightScale).toBe(1.0);
+    expect(terrainProg.getOptions().fov).toBe(75);
+    expect(terrainProg.getOptions().cameraPitch).toBe(45);
+    expect(terrainProg.getOptions().cameraYaw).toBe(15);
+    expect(terrainProg.getOptions().cameraDistance).toBe(2.0);
+    expect(terrainProg.getOptions().cameraHeight).toBe(1.8);
+  });
+
+  it("computes default camera looking top-down", () => {
+    const { eye, target, up } = computeTerrainCamera({});
+    expect(eye[0]).toBeCloseTo(0);
+    expect(eye[1]).toBeCloseTo(0);
+    expect(eye[2]).toBeCloseTo(2.5);
+    expect(target).toEqual([0, 0, 0]);
+    expect(up).toEqual([0, 1, 0]);
+  });
+
+  it("computes pitched camera elevation", () => {
+    const { eye, target, up } = computeTerrainCamera({
+      cameraPitch: 45,
+      cameraDistance: 2.0,
+    });
+    expect(target).toEqual([0, 0, 0]);
+    expect(eye[0]).toBeCloseTo(0);
+    expect(eye[1]).toBeCloseTo(-2.0 * Math.sin((45 * Math.PI) / 180));
+    expect(eye[2]).toBeCloseTo(2.0 * Math.cos((45 * Math.PI) / 180));
+    expect(up[0]).toBeCloseTo(0);
+    expect(up[1]).toBeCloseTo(Math.cos((45 * Math.PI) / 180));
+    expect(up[2]).toBeCloseTo(Math.sin((45 * Math.PI) / 180));
+  });
+
+  it("respects explicit camera overrides", () => {
+    const { eye, target, up } = computeTerrainCamera({
+      cameraEye: [1, 2, 3],
+      cameraTarget: [0, 1, 0],
+      cameraUp: [0, 0, 1],
+    });
+    expect(eye).toEqual([1, 2, 3]);
+    expect(target).toEqual([0, 1, 0]);
+    expect(up).toEqual([0, 0, 1]);
   });
 
   it("auto-registers when importing /auto", async () => {

@@ -4,6 +4,9 @@
 
 Visual treatment inspired by Chrome Music Lab's 3D sonogram shaders, adapted for real-time WebGL2 GPU audio spectrogram rendering.
 
+> [!NOTE]
+> **Visualization Only:** Due to the 3D perspective projection, the spectrogram does not align with standard 2D frequency axes. Attached frequency rulers and point coordinate queries will not return accurate frequency values. Use this shader for visual presentation rather than quantitative acoustic analysis.
+
 ## Installation
 
 ```bash
@@ -21,6 +24,26 @@ scope.createSpectrogram(canvas, {
   renderer: { type: "webgl", program: "terrain" },
 });
 ```
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `heightScale` | `number` | `0.55` | Mountain peak height multiplier |
+| `heightGamma` | `number` | `1.0` | Peak contrast curve exponent |
+| `meshResolution` | `number` \| `[number, number]` | `64` | Grid mesh resolution (columns/rows) |
+| `fov` | `number` | `70` | Camera field of view in degrees |
+| `cameraPitch` | `number` | `0` | Camera tilt angle in degrees (0 = top-down, 45 = isometric, 80 = horizon) |
+| `cameraYaw` | `number` | `0` | Camera horizontal orbit angle in degrees |
+| `cameraDistance` | `number` | `1.5` | Distance from the terrain center |
+| `cameraHeight` | `number` | `1.5` | Camera vertical altitude above terrain |
+| `cameraEye` | `[number, number, number]` | — | Exact 3D camera eye position (overrides pitch/yaw/distance) |
+| `cameraTarget` | `[number, number, number]` | `[0, 0, 0]` | 3D look-at center point |
+| `cameraUp` | `[number, number, number]` | — | 3D camera up vector |
+| `ambientLight` | `number` | `0.75` | Base ambient fill light [0, 1] |
+| `diffuseLight` | `number` | `0.25` | Directional slope shading strength [0, 1] |
+| `lightDirection` | `[number, number, number]` | `[0.15, 0.85, 0.45]` | 3D light direction vector |
+| `smoothing` | `number` | `0.6` | 5-tap neighbor height smoothing weight [0, 1] |
 
 ## License
 

@@ -1,0 +1,114 @@
+---
+title: Plugins
+description: Change how your spectrogram looks with official Sonoscope plugins.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+
+Sonoscope comes with plugins that let you change the visual style of your spectrogram. You can render audio as ASCII text, retro halftone print dots, 3D terrain ridges, or topographic contour lines.
+
+---
+
+## Showcase
+
+### ASCII art (`@sonoscope/ascii-spectrogram`)
+
+Draws your spectrogram using terminal characters and text.
+
+```bash
+npm install @sonoscope/ascii-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/ascii-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "ascii",
+  frequencyScale: "mel",
+  rendererOptions: {
+    colorMode: "green", // "colormap", "monochrome", "green", or "amber"
+    fontSize: 10,
+  },
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "ascii", rendererOptions: { colorMode: "green", fontSize: 10 }, frequencyScale: "mel" }} />
+
+---
+
+### Halftone dots (`@sonoscope/halftone-spectrogram`)
+
+Draws your spectrogram in a retro comic book print style with dots that grow larger for louder sounds.
+
+```bash
+npm install @sonoscope/halftone-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/halftone-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "halftone",
+  minDb: -100,
+  maxDb: -30,
+  frequencyScale: "mel",
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "halftone", minDb: -100, maxDb: -30, frequencyScale: "mel" }} />
+
+---
+
+### 3D terrain (`@sonoscope/terrain-spectrogram`)
+
+Draws your spectrogram as an illuminated 3D landscape with mountain ridges for sound peaks.
+
+```bash
+npm install @sonoscope/terrain-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/terrain-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "terrain",
+  frequencyScale: "mel",
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "terrain", frequencyScale: "mel" }} />
+
+:::caution[Visualization only]
+Because of the 3D perspective tilt, the spectrogram does not line up with flat frequency rulers. Use this for visual demos and creative projects, not for measuring exact frequencies.
+:::
+
+---
+
+### Topographic contours (`@sonoscope/topographic-spectrogram`)
+
+Draws elevation lines across your spectrogram, like a topographic map.
+
+```bash
+npm install @sonoscope/topographic-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/topographic-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "topographic",
+  minDb: -100,
+  maxDb: -30,
+  frequencyScale: "mel",
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "topographic", minDb: -100, maxDb: -30, frequencyScale: "mel" }} />
