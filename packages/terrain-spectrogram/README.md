@@ -4,6 +4,9 @@
 
 Visual treatment inspired by Chrome Music Lab's 3D sonogram shaders, adapted for real-time WebGL2 GPU audio spectrogram rendering.
 
+> [!NOTE]
+> **Visualization Only:** Due to the 3D perspective projection, the spectrogram does not align with standard 2D frequency axes. Attached frequency rulers and point coordinate queries will not return accurate frequency values. Use this shader for visual presentation rather than quantitative acoustic analysis.
+
 ## Installation
 
 ```bash

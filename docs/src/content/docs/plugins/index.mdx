@@ -83,6 +83,10 @@ scope.createSpectrogram(canvas, {
 
 <PluginSpectrogramPreview config={{ renderer: "terrain" }} />
 
+:::caution[Visualization Only]
+Due to the 3D perspective projection, the spectrogram does not align with the frequency axes. Frequency rulers and point coordinate queries will not return accurate values. Use for visual presentation rather than quantitative acoustic analysis.
+:::
+
 ---
 
 ### 4. Topographic Shader (`@sonoscope/topographic-spectrogram`)

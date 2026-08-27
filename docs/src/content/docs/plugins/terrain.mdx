@@ -7,6 +7,10 @@ import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPrevi
 
 `@sonoscope/terrain-spectrogram` renders audio spectrograms as 3D perspective terrain ridges and illuminated elevation ribbons on the GPU.
 
+:::caution[Visualization Only]
+Due to the 3D perspective projection, the spectrogram no longer aligns neatly with the frequency axes. Attached frequency rulers and canvas coordinate queries will not yield accurate frequency values. Use this shader for visualization and artistic presentation, not for quantitative acoustic analysis.
+:::
+
 ---
 
 ## Interactive Preview
