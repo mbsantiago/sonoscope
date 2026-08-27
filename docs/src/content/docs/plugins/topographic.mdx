@@ -1,15 +1,15 @@
 ---
 title: Topographic Shader
-description: Topographic elevation contour line WebGL2 shader program plugin for Sonoscope.
+description: Draw elevation contour lines across your spectrogram.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
 
-`@sonoscope/topographic-spectrogram` renders mathematical elevation contour lines and isolines across time and frequency.
+`@sonoscope/topographic-spectrogram` draws contour lines over your audio, making the spectrogram look like a topographic elevation map.
 
 ---
 
-## Interactive Preview
+## Interactive preview
 
 <PluginSpectrogramPreview config={{ renderer: "topographic", minDb: -90, maxDb: 0 }} />
 
@@ -23,11 +23,9 @@ npm install @sonoscope/topographic-spectrogram @sonoscope/core
 
 ---
 
-## Usage
+## Quick start
 
-### Auto-Registration
-
-Importing `@sonoscope/topographic-spectrogram/auto` registers `"topographic"` as a WebGL2 shader program:
+Importing the `/auto` path automatically registers the `"topographic"` renderer keyword:
 
 ```ts
 import "@sonoscope/topographic-spectrogram/auto";
@@ -35,7 +33,7 @@ import { Sonoscope } from "@sonoscope/core";
 
 const scope = await Sonoscope.fromUrl("/audio/sample.wav");
 
-const spectrogram = scope.createSpectrogram(canvas, {
+scope.createSpectrogram(canvas, {
   renderer: "topographic",
   minDb: -90,
   maxDb: 0,
@@ -46,11 +44,11 @@ scope.attachNavigation(canvas);
 
 ---
 
-## Configuration Options
+## Options
 
-| Option | Type | Default | Description |
+| Option | Type | Default | What it does |
 | :--- | :--- | :--- | :--- |
-| `contourInterval` | `number` | `0.15` | Energy spacing between adjacent contour rings |
-| `contourLineWidth` | `number` | `1.0` | Line thickness in screen pixels |
-| `contourLineOpacity` | `number` | `0.9` | Opacity of the contour lines [0, 1] |
+| `contourInterval` | `number` | `0.15` | Distance between contour rings |
+| `contourLineWidth` | `number` | `1.0` | Thickness of contour lines in pixels |
+| `contourLineOpacity` | `number` | `0.9` | Opacity of the contour lines (0 to 1) |
 | `minEnergyThreshold` | `number` | `0.14` | Noise floor cutoff threshold |

@@ -1,21 +1,21 @@
 ---
 title: Terrain 3D Shader
-description: 3D perspective contour terrain WebGL2 shader program plugin for Sonoscope.
+description: Turn your spectrogram into a 3D landscape of hills and valleys.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
 
-`@sonoscope/terrain-spectrogram` renders audio spectrograms as 3D perspective terrain ridges and illuminated elevation ribbons on the GPU.
-
-:::caution[Visualization Only]
-Due to the 3D perspective projection, the spectrogram no longer aligns neatly with the frequency axes. Attached frequency rulers and canvas coordinate queries will not yield accurate frequency values. Use this shader for visualization and artistic presentation, not for quantitative acoustic analysis.
-:::
+`@sonoscope/terrain-spectrogram` renders audio as a 3D landscape. Frequencies rise up into mountain ridges as sound plays, giving you an immediate sense of volume and depth.
 
 ---
 
-## Interactive Preview
+## Interactive preview
 
 <PluginSpectrogramPreview config={{ renderer: "terrain" }} />
+
+:::caution[Visualization only]
+Because of the 3D perspective tilt, the spectrogram does not line up with flat frequency rulers. Use this for visual demos and creative projects, not for measuring exact frequencies.
+:::
 
 ---
 
@@ -27,11 +27,9 @@ npm install @sonoscope/terrain-spectrogram @sonoscope/core
 
 ---
 
-## Usage
+## Quick start
 
-### Auto-Registration
-
-Importing `@sonoscope/terrain-spectrogram/auto` registers `"terrain"` as a WebGL2 shader program:
+Importing the `/auto` path automatically registers the `"terrain"` renderer keyword:
 
 ```ts
 import "@sonoscope/terrain-spectrogram/auto";
@@ -39,20 +37,9 @@ import { Sonoscope } from "@sonoscope/core";
 
 const scope = await Sonoscope.fromUrl("/audio/sample.wav");
 
-const spectrogram = scope.createSpectrogram(canvas, {
+scope.createSpectrogram(canvas, {
   renderer: "terrain",
 });
 
 scope.attachNavigation(canvas);
-```
-
-### Explicit Program Selection
-
-```ts
-scope.createSpectrogram(canvas, {
-  renderer: {
-    type: "webgl",
-    program: "terrain",
-  },
-});
 ```

@@ -1,15 +1,15 @@
 ---
 title: ASCII Spectrogram
-description: ASCII art and typography spectrogram canvas renderer plugin for Sonoscope.
+description: Render audio spectrograms as ASCII text art.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
 
-`@sonoscope/ascii-spectrogram` renders audio frequency data into text and terminal typography in real time on an HTML5 canvas.
+`@sonoscope/ascii-spectrogram` turns your audio into ASCII art. Louder frequencies show up as denser characters, creating a live terminal-style visualizer on a canvas.
 
 ---
 
-## Interactive Preview
+## Interactive preview
 
 <PluginSpectrogramPreview config={{ renderer: "ascii", rendererOptions: { colorMode: "green", fontSize: 10 } }} />
 
@@ -23,11 +23,9 @@ npm install @sonoscope/ascii-spectrogram @sonoscope/core
 
 ---
 
-## Usage
+## Quick start
 
-### Auto-Registration
-
-Importing `@sonoscope/ascii-spectrogram/auto` registers the `"ascii"` renderer keyword globally:
+Importing the `/auto` path automatically registers the `"ascii"` renderer keyword:
 
 ```ts
 import "@sonoscope/ascii-spectrogram/auto";
@@ -35,10 +33,10 @@ import { Sonoscope } from "@sonoscope/core";
 
 const scope = await Sonoscope.fromUrl("/audio/sample.wav");
 
-const spectrogram = scope.createSpectrogram(canvas, {
+scope.createSpectrogram(canvas, {
   renderer: "ascii",
   rendererOptions: {
-    colorMode: "green",
+    colorMode: "green", // "colormap", "monochrome", "green", or "amber"
     fontSize: 10,
   },
 });
@@ -46,36 +44,16 @@ const spectrogram = scope.createSpectrogram(canvas, {
 scope.attachNavigation(canvas);
 ```
 
-### Direct Instance Registration
-
-```ts
-import { AsciiSpectrogramRenderer } from "@sonoscope/ascii-spectrogram";
-import { Sonoscope } from "@sonoscope/core";
-
-const renderer = new AsciiSpectrogramRenderer({
-  colorMode: "amber",
-  fontSize: 12,
-  charSet: " ░▒▓█",
-  backgroundColor: "#0d1117",
-});
-
-scope.createSpectrogram(canvas, {
-  renderer,
-});
-```
-
 ---
 
-## Configuration Options
+## Options
 
-| Option | Type | Default | Description |
+| Option | Type | Default | What it does |
 | :--- | :--- | :--- | :--- |
-| `colorMode` | `"colormap"` \| `"monochrome"` \| `"green"` \| `"amber"` | `"colormap"` | Color styling mode |
-| `charSet` | `string` | `" .:-=+*#%@"` | Character gradient from quiet to peak energy |
-| `fontSize` | `number` | `10` | Font size in CSS pixels |
-| `fontFamily` | `string` | `"monospace"` | Monospace font family |
-| `textColor` | `string` | `"#00ff66"` | Text color for monochrome mode |
-| `backgroundColor` | `string` | `"#0a0a0c"` | Background fill color |
-| `invert` | `boolean` | `false` | Invert brightness mapping |
-| `charWidth` | `number` | `Math.ceil(fontSize * 0.6)` | Explicit cell width |
-| `charHeight` | `number` | `fontSize` | Explicit cell height |
+| `colorMode` | `"colormap"` \| `"monochrome"` \| `"green"` \| `"amber"` | `"colormap"` | Color scheme for the text |
+| `charSet` | `string` | `" .:-=+*#%@"` | Characters used, from quiet to loud |
+| `fontSize` | `number` | `10` | Size of each character in pixels |
+| `fontFamily` | `string` | `"monospace"` | Font used for the text |
+| `textColor` | `string` | `"#00ff66"` | Text color when `colorMode` is `"monochrome"` |
+| `backgroundColor` | `string` | `"#0a0a0c"` | Background color behind the text |
+| `invert` | `boolean` | `false` | Flips bright and dark characters |

@@ -1,15 +1,15 @@
 ---
 title: Halftone Shader
-description: WebGL2 halftone dot-matrix shader program plugin for Sonoscope.
+description: Give your spectrogram a retro comic book print look.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
 
-`@sonoscope/halftone-spectrogram` applies a GPU-accelerated halftone dot-matrix pattern across the spectrogram tiles in real time.
+`@sonoscope/halftone-spectrogram` renders your audio with a retro print style. Strong audio signals turn into larger dots, while quiet areas stay sparse.
 
 ---
 
-## Interactive Preview
+## Interactive preview
 
 <PluginSpectrogramPreview config={{ renderer: "halftone", minDb: -100, maxDb: -30 }} />
 
@@ -23,11 +23,9 @@ npm install @sonoscope/halftone-spectrogram @sonoscope/core
 
 ---
 
-## Usage
+## Quick start
 
-### Auto-Registration
-
-Importing `@sonoscope/halftone-spectrogram/auto` registers `"halftone"` as a WebGL2 shader program:
+Importing the `/auto` path automatically registers the `"halftone"` renderer keyword:
 
 ```ts
 import "@sonoscope/halftone-spectrogram/auto";
@@ -35,23 +33,12 @@ import { Sonoscope } from "@sonoscope/core";
 
 const scope = await Sonoscope.fromUrl("/audio/sample.wav");
 
-const spectrogram = scope.createSpectrogram(canvas, {
+scope.createSpectrogram(canvas, {
   renderer: "halftone",
+  colorMap: "plasma",
   minDb: -100,
   maxDb: -30,
 });
 
 scope.attachNavigation(canvas);
-```
-
-### Explicit Program Selection
-
-```ts
-scope.createSpectrogram(canvas, {
-  renderer: {
-    type: "webgl",
-    program: "halftone",
-  },
-  colorMap: "plasma",
-});
 ```
