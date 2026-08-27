@@ -188,13 +188,13 @@ export interface TerrainOptions {
   meshResolution?: number | [number, number] | undefined;
 
   /**
-   * Camera field of view in degrees.
-   * @default 70
+   * Camera field of view in degrees (lower creates cleaner perspective).
+   * @default 45
    */
   fov?: number | undefined;
 
   /**
-   * Camera tilt angle in degrees (0 = top-down 2D view, 45 = isometric, 80 = horizon view).
+   * Camera tilt angle in degrees (0 = top-down 2D view, 35 = angled perspective, 80 = horizon view).
    * @default 0
    */
   cameraPitch?: number | undefined;
@@ -207,7 +207,7 @@ export interface TerrainOptions {
 
   /**
    * Camera distance from the terrain center.
-   * @default 1.5
+   * @default 2.5
    */
   cameraDistance?: number | undefined;
 
@@ -275,7 +275,7 @@ export function computeTerrainCamera(options: TerrainOptions): {
 
   const pitchDeg = options.cameraPitch ?? 0;
   const yawDeg = options.cameraYaw ?? 0;
-  const distance = options.cameraDistance ?? 1.5;
+  const distance = options.cameraDistance ?? 2.5;
   const pitchRad = (pitchDeg * Math.PI) / 180;
   const yawRad = (yawDeg * Math.PI) / 180;
 
@@ -458,7 +458,7 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
       input.viewport.endTime,
     );
     const aspect = frame.deviceWidth / Math.max(1, frame.deviceHeight);
-    const fov = this.options.fov ?? 70;
+    const fov = this.options.fov ?? 45;
     const heightScale = this.options.heightScale ?? 0.55;
     const heightGamma = this.options.heightGamma ?? 1.0;
     const smoothing = this.options.smoothing ?? 0.6;

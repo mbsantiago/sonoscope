@@ -118,7 +118,7 @@ describe("TerrainSpectrogramProgram", () => {
     const { eye, target, up } = computeTerrainCamera({});
     expect(eye[0]).toBeCloseTo(0);
     expect(eye[1]).toBeCloseTo(0);
-    expect(eye[2]).toBeCloseTo(1.5);
+    expect(eye[2]).toBeCloseTo(2.5);
     expect(target).toEqual([0, 0, 0]);
     expect(up).toEqual([0, 1, 0]);
   });
