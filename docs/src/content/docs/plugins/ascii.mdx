@@ -1,0 +1,81 @@
+---
+title: ASCII Spectrogram
+description: ASCII art and typography spectrogram canvas renderer plugin for Sonoscope.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+
+`@sonoscope/ascii-spectrogram` renders audio frequency data into text and terminal typography in real time on an HTML5 canvas.
+
+---
+
+## Interactive Preview
+
+<PluginSpectrogramPreview config={{ renderer: "ascii", rendererOptions: { colorMode: "green", fontSize: 10 } }} />
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/ascii-spectrogram @sonoscope/core
+```
+
+---
+
+## Usage
+
+### Auto-Registration
+
+Importing `@sonoscope/ascii-spectrogram/auto` registers the `"ascii"` renderer keyword globally:
+
+```ts
+import "@sonoscope/ascii-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+const spectrogram = scope.createSpectrogram(canvas, {
+  renderer: "ascii",
+  rendererOptions: {
+    colorMode: "green",
+    fontSize: 10,
+  },
+});
+
+scope.attachNavigation(canvas);
+```
+
+### Direct Instance Registration
+
+```ts
+import { AsciiSpectrogramRenderer } from "@sonoscope/ascii-spectrogram";
+import { Sonoscope } from "@sonoscope/core";
+
+const renderer = new AsciiSpectrogramRenderer({
+  colorMode: "amber",
+  fontSize: 12,
+  charSet: " ░▒▓█",
+  backgroundColor: "#0d1117",
+});
+
+scope.createSpectrogram(canvas, {
+  renderer,
+});
+```
+
+---
+
+## Configuration Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `colorMode` | `"colormap"` \| `"monochrome"` \| `"green"` \| `"amber"` | `"colormap"` | Color styling mode |
+| `charSet` | `string` | `" .:-=+*#%@"` | Character gradient from quiet to peak energy |
+| `fontSize` | `number` | `10` | Font size in CSS pixels |
+| `fontFamily` | `string` | `"monospace"` | Monospace font family |
+| `textColor` | `string` | `"#00ff66"` | Text color for monochrome mode |
+| `backgroundColor` | `string` | `"#0a0a0c"` | Background fill color |
+| `invert` | `boolean` | `false` | Invert brightness mapping |
+| `charWidth` | `number` | `Math.ceil(fontSize * 0.6)` | Explicit cell width |
+| `charHeight` | `number` | `fontSize` | Explicit cell height |

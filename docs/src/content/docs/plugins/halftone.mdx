@@ -1,0 +1,57 @@
+---
+title: Halftone Shader
+description: WebGL2 halftone dot-matrix shader program plugin for Sonoscope.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+
+`@sonoscope/halftone-spectrogram` applies a GPU-accelerated halftone dot-matrix pattern across the spectrogram tiles in real time.
+
+---
+
+## Interactive Preview
+
+<PluginSpectrogramPreview config={{ renderer: "halftone", minDb: -100, maxDb: -30 }} />
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/halftone-spectrogram @sonoscope/core
+```
+
+---
+
+## Usage
+
+### Auto-Registration
+
+Importing `@sonoscope/halftone-spectrogram/auto` registers `"halftone"` as a WebGL2 shader program:
+
+```ts
+import "@sonoscope/halftone-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+const spectrogram = scope.createSpectrogram(canvas, {
+  renderer: "halftone",
+  minDb: -100,
+  maxDb: -30,
+});
+
+scope.attachNavigation(canvas);
+```
+
+### Explicit Program Selection
+
+```ts
+scope.createSpectrogram(canvas, {
+  renderer: {
+    type: "webgl",
+    program: "halftone",
+  },
+  colorMap: "plasma",
+});
+```

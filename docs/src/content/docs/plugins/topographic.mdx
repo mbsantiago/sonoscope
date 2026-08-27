@@ -1,0 +1,56 @@
+---
+title: Topographic Shader
+description: Topographic elevation contour line WebGL2 shader program plugin for Sonoscope.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+
+`@sonoscope/topographic-spectrogram` renders mathematical elevation contour lines and isolines across time and frequency.
+
+---
+
+## Interactive Preview
+
+<PluginSpectrogramPreview config={{ renderer: "topographic", minDb: -90, maxDb: 0 }} />
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/topographic-spectrogram @sonoscope/core
+```
+
+---
+
+## Usage
+
+### Auto-Registration
+
+Importing `@sonoscope/topographic-spectrogram/auto` registers `"topographic"` as a WebGL2 shader program:
+
+```ts
+import "@sonoscope/topographic-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+const spectrogram = scope.createSpectrogram(canvas, {
+  renderer: "topographic",
+  minDb: -90,
+  maxDb: 0,
+});
+
+scope.attachNavigation(canvas);
+```
+
+---
+
+## Configuration Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `contourInterval` | `number` | `0.15` | Energy spacing between adjacent contour rings |
+| `contourLineWidth` | `number` | `1.0` | Line thickness in screen pixels |
+| `contourLineOpacity` | `number` | `0.9` | Opacity of the contour lines [0, 1] |
+| `minEnergyThreshold` | `number` | `0.14` | Noise floor cutoff threshold |

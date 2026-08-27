@@ -1,0 +1,54 @@
+---
+title: Terrain 3D Shader
+description: 3D perspective contour terrain WebGL2 shader program plugin for Sonoscope.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+
+`@sonoscope/terrain-spectrogram` renders audio spectrograms as 3D perspective terrain ridges and illuminated elevation ribbons on the GPU.
+
+---
+
+## Interactive Preview
+
+<PluginSpectrogramPreview config={{ renderer: "terrain" }} />
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/terrain-spectrogram @sonoscope/core
+```
+
+---
+
+## Usage
+
+### Auto-Registration
+
+Importing `@sonoscope/terrain-spectrogram/auto` registers `"terrain"` as a WebGL2 shader program:
+
+```ts
+import "@sonoscope/terrain-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+
+const spectrogram = scope.createSpectrogram(canvas, {
+  renderer: "terrain",
+});
+
+scope.attachNavigation(canvas);
+```
+
+### Explicit Program Selection
+
+```ts
+scope.createSpectrogram(canvas, {
+  renderer: {
+    type: "webgl",
+    program: "terrain",
+  },
+});
+```

@@ -1,0 +1,118 @@
+---
+title: Plugins Overview
+description: Overview and showcase of official Sonoscope renderers and shader plugins.
+---
+
+import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+
+Sonoscope features an extensible 3-tier plugin architecture allowing custom viewers, custom canvas renderers, and custom WebGL2 shader programs.
+
+Official plugin packages provide alternative visual representations that integrate directly into the coordinated viewport and navigation engine.
+
+---
+
+## Plugin Showcase
+
+### 1. ASCII Spectrogram (`@sonoscope/ascii-spectrogram`)
+
+Renders the time-frequency spectrum into typography and terminal ASCII characters in real time on an HTML5 canvas.
+
+```bash
+npm install @sonoscope/ascii-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/ascii-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "ascii",
+  rendererOptions: {
+    colorMode: "green", // "colormap" | "monochrome" | "green" | "amber"
+    fontSize: 10,
+  },
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "ascii", rendererOptions: { colorMode: "green", fontSize: 10 } }} />
+
+---
+
+### 2. Halftone Shader (`@sonoscope/halftone-spectrogram`)
+
+A WebGL2 shader program plugin that transforms the frequency spectrum into a retro halftone dot-matrix print pattern directly on the GPU.
+
+```bash
+npm install @sonoscope/halftone-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/halftone-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "halftone",
+  minDb: -100,
+  maxDb: -30,
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "halftone", minDb: -100, maxDb: -30 }} />
+
+---
+
+### 3. Terrain 3D Shader (`@sonoscope/terrain-spectrogram`)
+
+A WebGL2 shader program plugin inspired by 3D perspective terrain models, projecting sound energy as illuminated terrain contours.
+
+```bash
+npm install @sonoscope/terrain-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/terrain-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "terrain",
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "terrain" }} />
+
+---
+
+### 4. Topographic Shader (`@sonoscope/topographic-spectrogram`)
+
+A WebGL2 shader program plugin that calculates and renders mathematical elevation isolines and topographic contour curves across frequency and time.
+
+```bash
+npm install @sonoscope/topographic-spectrogram @sonoscope/core
+```
+
+```ts
+import "@sonoscope/topographic-spectrogram/auto";
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/sample.wav");
+scope.createSpectrogram(canvas, {
+  renderer: "topographic",
+  minDb: -90,
+  maxDb: 0,
+});
+```
+
+<PluginSpectrogramPreview config={{ renderer: "topographic", minDb: -90, maxDb: 0 }} />
+
+---
+
+## Plugin Architecture
+
+Sonoscope's plugin system is structured into three extension tiers:
+
+1. **Custom WebGL2 Shader Programs (`registerSpectrogramProgram`)**: Run custom GLSL fragment shaders per tile on the GPU while reusing Sonoscope's tile pipeline, texture management, and coordinate projections.
+2. **Custom Spectrogram Renderers (`registerSpectrogramRenderer`)**: Full canvas renderers that receive precomputed STFT power matrices and render on 2D canvas, WebGPU, or custom contexts.
+3. **Custom Viewers (`registerViewer`)**: Complete viewer modules that subscribe to Sonoscope's shared viewport controller and audio source lifecycle.

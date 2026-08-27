@@ -15,6 +15,7 @@
     "@astrojs/starlight-tailwind": "^5.0.0",
     "@codesandbox/sandpack-react": "^2.20.0",
     "@codesandbox/sandpack-themes": "^2.0.21",
+    "@sonoscope/ascii-spectrogram": "^0.2.0",
     "@sonoscope/core": "^0.2.0",
     "@sonoscope/halftone-spectrogram": "^0.2.0",
     "@sonoscope/react": "^0.2.0",
