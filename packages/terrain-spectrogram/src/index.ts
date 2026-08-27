@@ -18,14 +18,64 @@ export {
   tileTimeRange,
 } from "./geometry";
 
+export interface TerrainOptions {
+  /**
+   * Peak vertical elevation multiplier.
+   * @default 0.55
+   */
+  heightScale?: number | undefined;
+
+  /**
+   * Peak contrast gamma curve exponent.
+   * @default 1.0
+   */
+  heightGamma?: number | undefined;
+
+  /**
+   * Grid mesh resolution [columns, rows] or single number.
+   * @default 64
+   */
+  meshResolution?: number | [number, number] | undefined;
+
+  /**
+   * Camera field of view in degrees.
+   * @default 70
+   */
+  fov?: number | undefined;
+
+  /**
+   * Base ambient fill light [0, 1].
+   * @default 0.75
+   */
+  ambientLight?: number | undefined;
+
+  /**
+   * Directional slope shading strength [0, 1].
+   * @default 0.25
+   */
+  diffuseLight?: number | undefined;
+
+  /**
+   * Direction vector of the light source [x, y, z].
+   * @default [0.15, 0.85, 0.45]
+   */
+  lightDirection?: [number, number, number] | undefined;
+
+  /**
+   * 5-tap neighbor blur weight for smoothing vertex heights [0, 1].
+   * @default 0.6
+   */
+  smoothing?: number | undefined;
+}
+
 const TERRAIN_CAMERA_EYE: Vec3 = [0, 1.5, 0];
 const TERRAIN_CAMERA_TARGET: Vec3 = [0, 0, 0];
 const TERRAIN_CAMERA_UP: Vec3 = [0, 0, -1];
-const TERRAIN_FOV_RADIANS = (70 * Math.PI) / 180;
 
-function terrainViewProjection(aspect: number): Float32Array {
+function terrainViewProjection(aspect: number, fovDegrees = 70): Float32Array {
+  const fovRad = (fovDegrees * Math.PI) / 180;
   return multiplyMat4(
-    perspective(TERRAIN_FOV_RADIANS, aspect, 0.1, 100),
+    perspective(fovRad, aspect, 0.1, 100),
     lookAt(TERRAIN_CAMERA_EYE, TERRAIN_CAMERA_TARGET, TERRAIN_CAMERA_UP),
   );
 }
@@ -46,6 +96,8 @@ uniform vec2 u_canvasSize;
 uniform vec4 u_viewport;
 uniform float u_frequencyScale;
 uniform float u_terrainHeight;
+uniform float u_heightGamma;
+uniform float u_smoothing;
 uniform float u_aspect;
 uniform mat4 u_viewProjection;
 uniform vec2 u_tileSize;
@@ -64,11 +116,12 @@ void main() {
   float h2 = texture(u_tile, clamp(v_tileUv - vec2(stepUv.x, 0.0), 0.0, 1.0)).r;
   float h3 = texture(u_tile, clamp(v_tileUv + vec2(0.0, stepUv.y), 0.0, 1.0)).r;
   float h4 = texture(u_tile, clamp(v_tileUv - vec2(0.0, stepUv.y), 0.0, 1.0)).r;
-  float heightValue = (h0 * 0.4) + (h1 + h2 + h3 + h4) * 0.15;
+  float neighbors = (h1 + h2 + h3 + h4) * 0.25;
+  float heightValue = mix(h0, neighbors, clamp(u_smoothing, 0.0, 1.0));
   v_height = heightValue;
   float tileTime = mix(u_tileTimeRange.x, u_tileTimeRange.y, a_tileUv.x);
   float viewportX = (tileTime - u_terrainTimeRange.x) / max(0.000001, u_terrainTimeRange.y - u_terrainTimeRange.x);
-  float liftedHeight = pow(heightValue, 1.0) * (u_terrainHeight * 0.5);
+  float liftedHeight = pow(clamp(heightValue, 0.0, 1.0), u_heightGamma) * (u_terrainHeight * 0.5);
   // The terrain lies in the X-Z plane: time spans along X (scaled by aspect to fill the canvas),
   // low frequencies are closest to the camera, and energy lifts the Y axis.
   vec3 worldPosition = vec3(
@@ -89,6 +142,9 @@ out vec4 outColor;
 uniform sampler2D u_tile;
 uniform sampler2D u_colormap;
 uniform vec2 u_tileSize;
+uniform float u_ambientLight;
+uniform float u_diffuseLight;
+uniform vec3 u_lightDirection;
 
 void main() {
   vec2 stepSize = 2.0 / max(vec2(1.0), u_tileSize - 1.0);
@@ -97,17 +153,18 @@ void main() {
   float low = texture(u_tile, clamp(v_tileUv - vec2(0.0, stepSize.y), 0.0, 1.0)).r;
   float high = texture(u_tile, clamp(v_tileUv + vec2(0.0, stepSize.y), 0.0, 1.0)).r;
   vec3 normal = normalize(vec3((left - right) * 1.0, 1.2, (low - high) * 1.0));
-  vec3 localLight = normalize(vec3(0.15, 0.85, 0.45));
+  vec3 localLight = normalize(u_lightDirection);
   float light = clamp(dot(normal, localLight), 0.0, 1.0);
   vec3 baseColor = texture(u_colormap, vec2(clamp(v_height, 0.0, 1.0), 0.5)).rgb;
-  vec3 color = baseColor * (0.75 + light * 0.25);
+  vec3 color = baseColor * (u_ambientLight + light * u_diffuseLight);
   outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }`;
 
 export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
   private readonly vertexCount: number;
+  private options: TerrainOptions;
 
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(gl: WebGL2RenderingContext, options: TerrainOptions = {}) {
     super(
       gl,
       WEBGL2_TERRAIN_VERTEX_SHADER,
@@ -115,9 +172,11 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
       "terrain",
       false,
     );
+    this.options = options;
 
-    const gridX = 64;
-    const gridY = 64;
+    const res = options.meshResolution ?? 64;
+    const gridX = Array.isArray(res) ? res[0] : res;
+    const gridY = Array.isArray(res) ? res[1] : res;
     const mesh = new Float32Array((gridX - 1) * (gridY - 1) * 6 * 4);
     let offset = 0;
     for (let y = 0; y < gridY - 1; y++) {
@@ -134,6 +193,14 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
     this.vertexCount = mesh.length / 4;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
+  }
+
+  setOptions(options: TerrainOptions): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  getOptions(): TerrainOptions {
+    return { ...this.options };
   }
 
   override paint(
@@ -153,15 +220,36 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
       input.viewport.endTime,
     );
     const aspect = frame.deviceWidth / Math.max(1, frame.deviceHeight);
+    const fov = this.options.fov ?? 70;
+    const heightScale = this.options.heightScale ?? 0.55;
+    const heightGamma = this.options.heightGamma ?? 1.0;
+    const smoothing = this.options.smoothing ?? 0.6;
+    const ambientLight = this.options.ambientLight ?? 0.75;
+    const diffuseLight = this.options.diffuseLight ?? 0.25;
+    const lightDir = this.options.lightDirection ?? [0.15, 0.85, 0.45];
+
     this.shader.uniform1f("u_aspect", aspect);
-    this.shader.uniformMat4("u_viewProjection", terrainViewProjection(aspect));
+    this.shader.uniformMat4(
+      "u_viewProjection",
+      terrainViewProjection(aspect, fov),
+    );
     this.shader.uniform3f(
       "u_cameraPosition",
       TERRAIN_CAMERA_EYE[0],
       TERRAIN_CAMERA_EYE[1],
       TERRAIN_CAMERA_EYE[2],
     );
-    this.shader.uniform1f("u_terrainHeight", 0.55);
+    this.shader.uniform1f("u_terrainHeight", heightScale);
+    this.shader.uniform1f("u_heightGamma", heightGamma);
+    this.shader.uniform1f("u_smoothing", smoothing);
+    this.shader.uniform1f("u_ambientLight", ambientLight);
+    this.shader.uniform1f("u_diffuseLight", diffuseLight);
+    this.shader.uniform3f(
+      "u_lightDirection",
+      lightDir[0],
+      lightDir[1],
+      lightDir[2],
+    );
 
     const vStart = input.viewport.startTime;
     const vEnd = input.viewport.endTime;
@@ -201,9 +289,16 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
 /**
  * Registers the Terrain 3D WebGL2 shader program under the given name.
  * @param name Program name identifier (default: "terrain").
+ * @param defaultOptions Default options applied when instantiating.
  */
-export function registerTerrainProgram(name = "terrain"): void {
-  registerSpectrogramProgram(name, (gl) => {
-    return new TerrainSpectrogramProgram(gl);
+export function registerTerrainProgram(
+  name = "terrain",
+  defaultOptions?: TerrainOptions,
+): void {
+  registerSpectrogramProgram(name, (gl, options) => {
+    return new TerrainSpectrogramProgram(gl, {
+      ...defaultOptions,
+      ...(options as TerrainOptions),
+    });
   });
 }

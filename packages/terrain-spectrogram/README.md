@@ -25,6 +25,19 @@ scope.createSpectrogram(canvas, {
 });
 ```
 
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `heightScale` | `number` | `0.55` | Mountain peak height multiplier |
+| `heightGamma` | `number` | `1.0` | Peak contrast curve exponent |
+| `meshResolution` | `number` \| `[number, number]` | `64` | Grid mesh resolution (columns/rows) |
+| `fov` | `number` | `70` | Camera field of view in degrees |
+| `ambientLight` | `number` | `0.75` | Base ambient fill light [0, 1] |
+| `diffuseLight` | `number` | `0.25` | Directional slope shading strength [0, 1] |
+| `lightDirection` | `[number, number, number]` | `[0.15, 0.85, 0.45]` | 3D light direction vector |
+| `smoothing` | `number` | `0.6` | 5-tap neighbor height smoothing weight [0, 1] |
+
 ## License
 
 MIT

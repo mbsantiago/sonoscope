@@ -42,3 +42,18 @@ scope.createSpectrogram(canvas, {
 
 scope.attachNavigation(canvas);
 ```
+
+---
+
+## Options
+
+| Option | Type | Default | What it does |
+| :--- | :--- | :--- | :--- |
+| `dotFrequency` | `number` | `0.24` | Density of dots across the canvas |
+| `dotAngle` | `number` | `45` | Grid orientation angle in degrees |
+| `minEnergyThreshold` | `number` | `0.0` | Noise floor cutoff below which no dots appear |
+| `energyGamma` | `number` | `1.4` | Dot growth response curve |
+| `maxDotRadius` | `number` | `0.7071` | Maximum dot radius |
+| `dotSoftness` | `number` | `0.75` | Edge softness multiplier (lower is sharper) |
+| `backgroundOpacity` | `number` | `1.0` | Background opacity (0 to 1) |
+

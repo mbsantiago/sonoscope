@@ -77,12 +77,29 @@ describe("TerrainSpectrogramProgram", () => {
   it("registers globally when registerTerrainProgram is called", () => {
     expect(hasRegisteredSpectrogramProgram("terrain")).toBe(false);
 
-    registerTerrainProgram("terrain");
+    registerTerrainProgram("terrain", {
+      heightScale: 0.8,
+      heightGamma: 1.2,
+      fov: 60,
+      ambientLight: 0.8,
+      diffuseLight: 0.3,
+      smoothing: 0.5,
+      meshResolution: 32,
+    });
     expect(hasRegisteredSpectrogramProgram("terrain")).toBe(true);
 
     const gl = createMockGl();
     const program = createSpectrogramProgram(gl, "terrain");
     expect(program).toBeInstanceOf(TerrainSpectrogramProgram);
+    const terrainProg = program as TerrainSpectrogramProgram;
+    expect(terrainProg.getOptions().heightScale).toBe(0.8);
+    expect(terrainProg.getOptions().fov).toBe(60);
+    expect(terrainProg.getOptions().heightGamma).toBe(1.2);
+    expect(terrainProg.getOptions().smoothing).toBe(0.5);
+
+    terrainProg.setOptions({ heightScale: 1.0, fov: 75 });
+    expect(terrainProg.getOptions().heightScale).toBe(1.0);
+    expect(terrainProg.getOptions().fov).toBe(75);
   });
 
   it("auto-registers when importing /auto", async () => {

@@ -27,8 +27,13 @@ scope.createSpectrogram(canvas, {
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `dotFrequency` | `number` | `0.24` | Density of the dot matrix |
+| `dotAngle` | `number` | `45` | Grid orientation angle in degrees |
 | `minEnergyThreshold` | `number` | `0` | Energy floor for rendering dots |
 | `energyGamma` | `number` | `1.4` | Falloff gamma curve |
+| `maxDotRadius` | `number` | `0.7071` | Maximum dot radius |
+| `dotSoftness` | `number` | `0.75` | Anti-aliasing edge softness multiplier |
+| `backgroundOpacity` | `number` | `1.0` | Background opacity [0, 1] |
+
 
 ## License
 

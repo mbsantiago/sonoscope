@@ -15,6 +15,12 @@ export interface HalftoneOptions {
   dotFrequency?: number | undefined;
 
   /**
+   * Dot grid orientation angle in degrees.
+   * @default 45
+   */
+  dotAngle?: number | undefined;
+
+  /**
    * Energy floor below which no dots are rendered.
    * @default 0
    */
@@ -25,6 +31,24 @@ export interface HalftoneOptions {
    * @default 1.4
    */
   energyGamma?: number | undefined;
+
+  /**
+   * Maximum dot radius relative to cell size [0.1, 1.0].
+   * @default 0.7071
+   */
+  maxDotRadius?: number | undefined;
+
+  /**
+   * Anti-aliasing edge softness multiplier.
+   * @default 0.75
+   */
+  dotSoftness?: number | undefined;
+
+  /**
+   * Background opacity [0, 1].
+   * @default 1.0
+   */
+  backgroundOpacity?: number | undefined;
 }
 
 export const WEBGL2_HALFTONE_FRAGMENT_SHADER = `#version 300 es
@@ -35,8 +59,12 @@ out vec4 outColor;
 ${WEBGL2_FRAGMENT_UNIFORMS}
 
 uniform float u_dotFrequency;
+uniform vec2 u_dotRotCosSin;
 uniform float u_minEnergyThreshold;
 uniform float u_energyGamma;
+uniform float u_maxDotRadius;
+uniform float u_dotSoftness;
+uniform float u_backgroundOpacity;
 
 ${WEBGL2_SCALE_HELPERS}
 
@@ -116,8 +144,8 @@ void main() {
   vec2 contentCoord = vec2(gl_FragCoord.x + timeOffset, gl_FragCoord.y);
 
   float cellSize = 1.0 / u_dotFrequency;
-  const float cosA = 0.70710678;
-  const float sinA = 0.70710678;
+  float cosA = u_dotRotCosSin.x;
+  float sinA = u_dotRotCosSin.y;
   mat2 rot = mat2(cosA, -sinA, sinA, cosA);
   mat2 invRot = mat2(cosA, sinA, -sinA, cosA);
 
@@ -131,14 +159,14 @@ void main() {
   // Continuous normalized intensity
   float normIntensity = clamp((rawIntensity - u_minEnergyThreshold) / max(0.0001, 1.0 - u_minEnergyThreshold), 0.0, 1.0);
   float shapedArea = pow(normIntensity, u_energyGamma);
-  float targetRadius = 0.7071 * sqrt(shapedArea);
+  float targetRadius = u_maxDotRadius * sqrt(shapedArea);
 
   // Colors
-  vec4 backgroundColor = texture(u_colormap, vec2(0.0, 0.5));
+  vec4 backgroundColor = vec4(texture(u_colormap, vec2(0.0, 0.5)).rgb, u_backgroundOpacity);
   vec4 dotColor = texture(u_colormap, vec2(rawIntensity, 0.5));
 
-  // Constant analytical anti-aliasing width (1 pixel in cell-space)
-  float aa = u_dotFrequency * 0.75;
+  // Anti-aliasing width
+  float aa = u_dotFrequency * u_dotSoftness;
   float dist = length(cellLocal);
 
   // Edge antialiasing: smooth falloff at the perimeter of the circle
@@ -171,12 +199,25 @@ export class HalftoneSpectrogramProgram extends NormalSpectrogramProgram {
 
   protected override setCustomUniforms(_input: RenderInput): void {
     const dotFrequency = this.options.dotFrequency ?? 0.24;
+    const dotAngle = this.options.dotAngle ?? 45;
     const minEnergyThreshold = this.options.minEnergyThreshold ?? 0;
     const energyGamma = this.options.energyGamma ?? 1.4;
+    const maxDotRadius = this.options.maxDotRadius ?? Math.SQRT1_2;
+    const dotSoftness = this.options.dotSoftness ?? 0.75;
+    const backgroundOpacity = this.options.backgroundOpacity ?? 1.0;
 
+    const angleRad = (dotAngle * Math.PI) / 180;
     this.shader.uniform1f("u_dotFrequency", dotFrequency);
+    this.shader.uniform2f(
+      "u_dotRotCosSin",
+      Math.cos(angleRad),
+      Math.sin(angleRad),
+    );
     this.shader.uniform1f("u_minEnergyThreshold", minEnergyThreshold);
     this.shader.uniform1f("u_energyGamma", energyGamma);
+    this.shader.uniform1f("u_maxDotRadius", maxDotRadius);
+    this.shader.uniform1f("u_dotSoftness", dotSoftness);
+    this.shader.uniform1f("u_backgroundOpacity", backgroundOpacity);
   }
 }
 
