@@ -194,6 +194,46 @@ export interface TerrainOptions {
   fov?: number | undefined;
 
   /**
+   * Camera tilt angle in degrees (0 = top-down 2D view, 45 = isometric, 80 = horizon view).
+   * @default 0
+   */
+  cameraPitch?: number | undefined;
+
+  /**
+   * Camera horizontal azimuth rotation angle in degrees.
+   * @default 0
+   */
+  cameraYaw?: number | undefined;
+
+  /**
+   * Camera distance from the terrain center.
+   * @default 1.5
+   */
+  cameraDistance?: number | undefined;
+
+  /**
+   * Camera vertical height / altitude override above terrain.
+   * Defaults to distance * cos(pitch).
+   */
+  cameraHeight?: number | undefined;
+
+  /**
+   * Explicit 3D camera eye position [x, y, z] (overrides pitch/yaw/distance).
+   */
+  cameraEye?: [number, number, number] | undefined;
+
+  /**
+   * Explicit 3D camera target look-at point [x, y, z].
+   * @default [0, 0, 0]
+   */
+  cameraTarget?: [number, number, number] | undefined;
+
+  /**
+   * Explicit 3D camera up vector [x, y, z].
+   */
+  cameraUp?: [number, number, number] | undefined;
+
+  /**
    * Base ambient fill light [0, 1].
    * @default 0.75
    */
@@ -218,15 +258,61 @@ export interface TerrainOptions {
   smoothing?: number | undefined;
 }
 
-const TERRAIN_CAMERA_EYE: Vec3 = [0, 1.5, 0];
-const TERRAIN_CAMERA_TARGET: Vec3 = [0, 0, 0];
-const TERRAIN_CAMERA_UP: Vec3 = [0, 0, -1];
+export function computeTerrainCamera(options: TerrainOptions): {
+  eye: Vec3;
+  target: Vec3;
+  up: Vec3;
+} {
+  const target: Vec3 = options.cameraTarget ?? [0, 0, 0];
 
-function terrainViewProjection(aspect: number, fovDegrees = 70): Float32Array {
+  if (options.cameraEye) {
+    return {
+      eye: options.cameraEye,
+      target,
+      up: options.cameraUp ?? [0, 1, 0],
+    };
+  }
+
+  const pitchDeg = options.cameraPitch ?? 0;
+  const yawDeg = options.cameraYaw ?? 0;
+  const distance = options.cameraDistance ?? 1.5;
+  const pitchRad = (pitchDeg * Math.PI) / 180;
+  const yawRad = (yawDeg * Math.PI) / 180;
+
+  const sinP = Math.sin(pitchRad);
+  const cosP = Math.cos(pitchRad);
+  const sinY = Math.sin(yawRad);
+  const cosY = Math.cos(yawRad);
+
+  const height =
+    options.cameraHeight !== undefined ? options.cameraHeight : distance * cosP;
+
+  const eye: Vec3 = [
+    target[0] + distance * sinP * sinY || 0,
+    target[1] + height || 0,
+    target[2] + distance * sinP * cosY || 0,
+  ];
+
+  const up: Vec3 = options.cameraUp ?? [
+    -cosP * sinY || 0,
+    sinP || 0,
+    -cosP * cosY || 0,
+  ];
+
+  return { eye, target, up };
+}
+
+function terrainViewProjection(
+  aspect: number,
+  fovDegrees: number,
+  eye: Vec3,
+  target: Vec3,
+  up: Vec3,
+): Float32Array {
   const fovRad = (fovDegrees * Math.PI) / 180;
   return multiplyMat4(
     perspective(fovRad, aspect, 0.1, 100),
-    lookAt(TERRAIN_CAMERA_EYE, TERRAIN_CAMERA_TARGET, TERRAIN_CAMERA_UP),
+    lookAt(eye, target, up),
   );
 }
 
@@ -378,17 +464,14 @@ export class TerrainSpectrogramProgram extends WebGL2TileProgramBase {
     const diffuseLight = this.options.diffuseLight ?? 0.25;
     const lightDir = this.options.lightDirection ?? [0.15, 0.85, 0.45];
 
+    const { eye, target, up } = computeTerrainCamera(this.options);
+
     this.shader.uniform1f("u_aspect", aspect);
     this.shader.uniformMat4(
       "u_viewProjection",
-      terrainViewProjection(aspect, fov),
+      terrainViewProjection(aspect, fov, eye, target, up),
     );
-    this.shader.uniform3f(
-      "u_cameraPosition",
-      TERRAIN_CAMERA_EYE[0],
-      TERRAIN_CAMERA_EYE[1],
-      TERRAIN_CAMERA_EYE[2],
-    );
+    this.shader.uniform3f("u_cameraPosition", eye[0], eye[1], eye[2]);
     this.shader.uniform1f("u_terrainHeight", heightScale);
     this.shader.uniform1f("u_heightGamma", heightGamma);
     this.shader.uniform1f("u_smoothing", smoothing);

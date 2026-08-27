@@ -5,6 +5,7 @@ import {
 } from "@sonoscope/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  computeTerrainCamera,
   registerTerrainProgram,
   TerrainSpectrogramProgram,
   terrainVerticesForTile,
@@ -97,9 +98,54 @@ describe("TerrainSpectrogramProgram", () => {
     expect(terrainProg.getOptions().heightGamma).toBe(1.2);
     expect(terrainProg.getOptions().smoothing).toBe(0.5);
 
-    terrainProg.setOptions({ heightScale: 1.0, fov: 75 });
+    terrainProg.setOptions({
+      heightScale: 1.0,
+      fov: 75,
+      cameraPitch: 45,
+      cameraYaw: 15,
+      cameraDistance: 2.0,
+      cameraHeight: 1.8,
+    });
     expect(terrainProg.getOptions().heightScale).toBe(1.0);
     expect(terrainProg.getOptions().fov).toBe(75);
+    expect(terrainProg.getOptions().cameraPitch).toBe(45);
+    expect(terrainProg.getOptions().cameraYaw).toBe(15);
+    expect(terrainProg.getOptions().cameraDistance).toBe(2.0);
+    expect(terrainProg.getOptions().cameraHeight).toBe(1.8);
+  });
+
+  it("computes default camera looking top-down", () => {
+    const { eye, target, up } = computeTerrainCamera({});
+    expect(eye[0]).toBeCloseTo(0);
+    expect(eye[1]).toBeCloseTo(1.5);
+    expect(eye[2]).toBeCloseTo(0);
+    expect(target).toEqual([0, 0, 0]);
+    expect(up).toEqual([0, 0, -1]);
+  });
+
+  it("computes pitched camera elevation", () => {
+    const { eye, target, up } = computeTerrainCamera({
+      cameraPitch: 45,
+      cameraDistance: 2.0,
+    });
+    expect(target).toEqual([0, 0, 0]);
+    expect(eye[0]).toBeCloseTo(0);
+    expect(eye[1]).toBeCloseTo(2.0 * Math.cos((45 * Math.PI) / 180));
+    expect(eye[2]).toBeCloseTo(2.0 * Math.sin((45 * Math.PI) / 180));
+    expect(up[0]).toBeCloseTo(0);
+    expect(up[1]).toBeCloseTo(Math.sin((45 * Math.PI) / 180));
+    expect(up[2]).toBeCloseTo(-Math.cos((45 * Math.PI) / 180));
+  });
+
+  it("respects explicit camera overrides", () => {
+    const { eye, target, up } = computeTerrainCamera({
+      cameraEye: [1, 2, 3],
+      cameraTarget: [0, 1, 0],
+      cameraUp: [0, 1, 0],
+    });
+    expect(eye).toEqual([1, 2, 3]);
+    expect(target).toEqual([0, 1, 0]);
+    expect(up).toEqual([0, 1, 0]);
   });
 
   it("auto-registers when importing /auto", async () => {

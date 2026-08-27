@@ -23,6 +23,10 @@ async function main() {
       smoothing: 0.6,
       ambientLight: 0.75,
       diffuseLight: 0.35,
+      // Camera perspective & angle controls
+      cameraPitch: 35, // Tilt angle in degrees (0 = top-down, 45 = isometric, 80 = horizon)
+      cameraYaw: 0, // Horizontal orbit rotation
+      cameraDistance: 1.5, // Distance from center
     },
   });
 
