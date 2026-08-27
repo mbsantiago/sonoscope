@@ -4,6 +4,8 @@ description: Give your spectrogram a retro comic book print look.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
 
 `@sonoscope/halftone-spectrogram` renders your audio with a retro print style. Strong audio signals turn into larger dots, while quiet areas stay sparse.
 
@@ -56,4 +58,21 @@ scope.attachNavigation(canvas);
 | `maxDotRadius` | `number` | `0.7071` | Maximum dot radius |
 | `dotSoftness` | `number` | `0.75` | Edge softness multiplier (lower is sharper) |
 | `backgroundOpacity` | `number` | `1.0` | Background opacity (0 to 1) |
+
+---
+
+## Try it yourself!
+
+Adjust dot angles, frequencies, and softness in the live sandbox:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/halftone/index.ts"),
+    "index.html": loadFile("plugins/halftone/index.html"),
+    "styles.css": loadFile("plugins/halftone/styles.css"),
+  }}
+/>
 

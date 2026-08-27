@@ -4,6 +4,8 @@ description: Turn your spectrogram into a 3D landscape of hills and valleys.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
 
 `@sonoscope/terrain-spectrogram` renders audio as a 3D landscape. Frequencies rise up into mountain ridges as sound plays, giving you an immediate sense of volume and depth.
 
@@ -58,4 +60,21 @@ scope.attachNavigation(canvas);
 | `diffuseLight` | `number` | `0.25` | Directional slope shading strength (0 to 1) |
 | `lightDirection` | `[number, number, number]` | `[0.15, 0.85, 0.45]` | 3D light direction vector |
 | `smoothing` | `number` | `0.6` | Height smoothing weight to soften jagged noise (0 to 1) |
+
+---
+
+## Try it yourself!
+
+Tweak height scaling, FOV angles, lighting, and mesh resolution in the live sandbox:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/terrain/index.ts"),
+    "index.html": loadFile("plugins/terrain/index.html"),
+    "styles.css": loadFile("plugins/terrain/styles.css"),
+  }}
+/>
 

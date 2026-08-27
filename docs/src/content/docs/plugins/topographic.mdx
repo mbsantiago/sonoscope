@@ -4,6 +4,8 @@ description: Draw elevation contour lines across your spectrogram.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
 
 `@sonoscope/topographic-spectrogram` draws contour lines over your audio, making the spectrogram look like a topographic elevation map.
 
@@ -58,4 +60,21 @@ scope.attachNavigation(canvas);
 | `speckleFilter` | `number` | `1.8` | Threshold for suppressing subpixel noise dots |
 | `majorIntervalMultiplier` | `number` | `0` | Make every Nth line thicker (0 to disable) |
 | `majorLineWidth` | `number` | `2.0` | Thickness of major index lines in pixels |
+
+---
+
+## Try it yourself!
+
+Test different contour line widths, intervals, feathering, and major index lines live:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/topographic/index.ts"),
+    "index.html": loadFile("plugins/topographic/index.html"),
+    "styles.css": loadFile("plugins/topographic/styles.css"),
+  }}
+/>
 

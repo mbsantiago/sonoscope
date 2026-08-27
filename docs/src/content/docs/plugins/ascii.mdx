@@ -4,6 +4,8 @@ description: Render audio spectrograms as ASCII text art.
 ---
 
 import PluginSpectrogramPreview from "../../../components/PluginSpectrogramPreview.astro";
+import SandpackPlayground from "../../../components/SandpackPlayground.astro";
+import { loadFile } from "../../../utils/loadFile";
 
 `@sonoscope/ascii-spectrogram` turns your audio into ASCII art. Louder frequencies show up as denser characters, creating a live terminal-style visualizer on a canvas.
 
@@ -57,3 +59,20 @@ scope.attachNavigation(canvas);
 | `textColor` | `string` | `"#00ff66"` | Text color when `colorMode` is `"monochrome"` |
 | `backgroundColor` | `string` | `"#0a0a0c"` | Background color behind the text |
 | `invert` | `boolean` | `false` | Flips bright and dark characters |
+
+---
+
+## Try it yourself!
+
+Experiment with different fonts, character sets, and color modes in the live editor:
+
+<SandpackPlayground
+  template="vanilla-ts"
+  editorHeight={360}
+  previewHeight={360}
+  files={{
+    "index.ts": loadFile("plugins/ascii/index.ts"),
+    "index.html": loadFile("plugins/ascii/index.html"),
+    "styles.css": loadFile("plugins/ascii/styles.css"),
+  }}
+/>

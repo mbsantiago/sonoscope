@@ -8,6 +8,14 @@ import {
 } from "@codesandbox/sandpack-react";
 import coreBundle from "../../../packages/core/dist/index.js?raw";
 import reactBundle from "../../../packages/react/dist/index.js?raw";
+import asciiBundle from "../../../packages/ascii-spectrogram/dist/index.js?raw";
+import asciiAutoBundle from "../../../packages/ascii-spectrogram/dist/auto.js?raw";
+import halftoneBundle from "../../../packages/halftone-spectrogram/dist/index.js?raw";
+import halftoneAutoBundle from "../../../packages/halftone-spectrogram/dist/auto.js?raw";
+import terrainBundle from "../../../packages/terrain-spectrogram/dist/index.js?raw";
+import terrainAutoBundle from "../../../packages/terrain-spectrogram/dist/auto.js?raw";
+import topographicBundle from "../../../packages/topographic-spectrogram/dist/index.js?raw";
+import topographicAutoBundle from "../../../packages/topographic-spectrogram/dist/auto.js?raw";
 
 const flexokiTheme: SandpackTheme = {
   colors: {
@@ -52,7 +60,7 @@ const internalCoreFiles: SandpackFiles = {
   "/node_modules/@sonoscope/core/package.json": {
     code: JSON.stringify({
       name: "@sonoscope/core",
-      version: "0.1.0",
+      version: "0.2.0",
       type: "module",
       main: "./index.js",
       module: "./index.js",
@@ -61,6 +69,94 @@ const internalCoreFiles: SandpackFiles = {
   },
   "/node_modules/@sonoscope/core/index.js": {
     code: coreBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/ascii-spectrogram/package.json": {
+    code: JSON.stringify({
+      name: "@sonoscope/ascii-spectrogram",
+      version: "0.2.0",
+      type: "module",
+      main: "./index.js",
+      module: "./index.js",
+      exports: {
+        ".": "./index.js",
+        "./auto": "./auto.js",
+      },
+    }),
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/ascii-spectrogram/index.js": {
+    code: asciiBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/ascii-spectrogram/auto.js": {
+    code: asciiAutoBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/halftone-spectrogram/package.json": {
+    code: JSON.stringify({
+      name: "@sonoscope/halftone-spectrogram",
+      version: "0.2.0",
+      type: "module",
+      main: "./index.js",
+      module: "./index.js",
+      exports: {
+        ".": "./index.js",
+        "./auto": "./auto.js",
+      },
+    }),
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/halftone-spectrogram/index.js": {
+    code: halftoneBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/halftone-spectrogram/auto.js": {
+    code: halftoneAutoBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/terrain-spectrogram/package.json": {
+    code: JSON.stringify({
+      name: "@sonoscope/terrain-spectrogram",
+      version: "0.2.0",
+      type: "module",
+      main: "./index.js",
+      module: "./index.js",
+      exports: {
+        ".": "./index.js",
+        "./auto": "./auto.js",
+      },
+    }),
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/terrain-spectrogram/index.js": {
+    code: terrainBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/terrain-spectrogram/auto.js": {
+    code: terrainAutoBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/topographic-spectrogram/package.json": {
+    code: JSON.stringify({
+      name: "@sonoscope/topographic-spectrogram",
+      version: "0.2.0",
+      type: "module",
+      main: "./index.js",
+      module: "./index.js",
+      exports: {
+        ".": "./index.js",
+        "./auto": "./auto.js",
+      },
+    }),
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/topographic-spectrogram/index.js": {
+    code: topographicBundle,
+    hidden: true,
+  },
+  "/node_modules/@sonoscope/topographic-spectrogram/auto.js": {
+    code: topographicAutoBundle,
     hidden: true,
   },
 };
