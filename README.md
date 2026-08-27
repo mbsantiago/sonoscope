@@ -10,24 +10,26 @@ Hardware-accelerated audio spectrogram and waveform visualization for the web an
 
 ## Motivation
 
-Audio analysis and bioacoustics workflows often require interactive spectrograms with granular control over STFT parameters (window size, hop length, FFT resolution, window functions) that can update on the fly.
-In web environments, building these interfaces often meant choosing between two compromises:
+Audio analysis and bioacoustics workflows often require interactive spectrograms with granular control over STFT parameters that can update on the fly.
+In web environments, building these interfaces often meant choosing between:
 
 1. **Pre-rendered static images**, which cannot adapt to user parameter changes or zoom levels.
-2. **Client-server architectures**, which offload STFT computation to a remote server, adding latency, hosting costs, and deployment complexity.
+2. **Client-server architectures**, which generate spectrograms on a remote server, adding latency, hosting costs, and deployment complexity.
+3. **Waveform-first libraries**, whose spectrograms are often secondary to playback, waveform navigation, or track editing.
+4. **Live visualizers**, which work well for microphone input and music playback but not for exploring a recording at any point in time.
+5. **Analysis libraries**, which provide signal processing but require developers to build the interactive viewer themselves.
 
 Long recordings and soundscapes can also span several hours.
-Decoding and computing an entire multi-hour file upfront in the browser stalls or crashes the tab.
+Decoding and computing an entire multi-hour file upfront in the browser would crash the tab.
 
-In Python notebooks, exploratory analysis still relies heavily on static Matplotlib figures where zooming or adjusting parameters requires re-running cells and re-slicing arrays.
+In Python notebooks, visualization of spectrograms is often done with static Matplotlib figures where zooming or adjusting parameters requires re-running cells and re-slicing arrays.
 
-Sonoscope addresses these constraints:
+Sonoscope addresses these by:
 
 - **Demand-driven tiled computation.** Decodes and computes spectrograms only for the visible screen window rather than processing the entire file at once, keeping panning and zooming smooth on recordings of any length.
 - **Client-side WebAssembly and WebGL2.** Everything runs directly in the browser with no backend server needed.
   Signal processing runs in the background using fast compiled code (Rust via WebAssembly), while visual drawing is offloaded to the graphics card (WebGL2) at 60 FPS.
 - **Python notebook integration.** Provides an interactive `anywidget` component for JupyterLab, VS Code, Google Colab, and Marimo, replacing static image plots with zoomable views.
-- **SciPy parity.** Verifies STFT outputs against `scipy.signal.ShortTimeFFT` to match standard scientific tooling.
 
 ---
 
