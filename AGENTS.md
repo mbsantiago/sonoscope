@@ -22,6 +22,7 @@ Commands for building, testing, linting, and releasing in this monorepo.
 - `npm run dev:example` — Start Vite dev server for the basic example (`examples/basic`).
 - `npm run dev:docs` — Start Astro docs dev server (`docs/`).
 - `npm run dev:ascii` — Start ASCII plugin demo server.
+- `npm run dev:mic` — Start bounded microphone monitor demo server.
 
 ## Versioning and Releases
 

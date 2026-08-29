@@ -1,0 +1,74 @@
+---
+title: Microphone Monitor
+description: Display the latest bounded window of browser microphone audio in Sonoscope.
+---
+
+`@sonoscope/microphone-source` captures browser microphone audio with Web Audio `AudioWorkletNode` and renders the newest bounded window in a Sonoscope spectrogram.
+
+---
+
+## Installation
+
+```bash
+npm install @sonoscope/microphone-source @sonoscope/core
+```
+
+---
+
+## Quick start
+
+```ts
+import { createMicrophoneMonitor } from "@sonoscope/microphone-source";
+
+const monitor = await createMicrophoneMonitor({ historySeconds: 10 });
+const canvas = document.getElementById("spectrogram") as HTMLCanvasElement;
+
+monitor.attachSpectrogram(canvas, {
+  colorMap: "viridis",
+  // The monitor keeps its previous frame visible while refreshing by default.
+});
+
+monitor.destroy();
+```
+
+---
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `historySeconds` | `number` | `10` | Visible recent-audio window |
+| `refreshRate` | `number` | `10` | Maximum visual refreshes per second |
+| `channelCount` | `number` | `1` | Number of audio channels |
+| `deviceId` | `string` | `undefined` | Specific microphone input device ID |
+| `audioContext` | `AudioContext` | `undefined` | Existing context to reuse without closing it |
+| `mediaStream` | `MediaStream` | `undefined` | Existing stream to reuse without stopping it |
+| `echoCancellation` | `boolean` | `true` | Browser acoustic echo cancellation |
+| `noiseSuppression` | `boolean` | `false` | Browser background noise suppression |
+| `autoGainControl` | `boolean` | `false` | Browser automatic gain control |
+
+---
+
+## Bounded history
+
+The monitor holds only the newest `historySeconds` of PCM. It is not a recording source and does not preserve absolute timestamps, support seeking older audio, or export captured audio.
+
+## Lifecycle controls
+
+`MicrophoneMonitor` owns capture and its attached spectrogram:
+
+```ts
+// Pause recording. Incoming samples are ignored.
+monitor.pause();
+
+// Resume accepting samples.
+monitor.resume();
+
+// Stop capture and keep the final image visible.
+monitor.stop();
+
+// Stop capture and dispose the viewer and navigation handlers.
+monitor.destroy();
+```
+
+Pass `loading: "placeholder"` to `attachSpectrogram()` to restore Sonoscope's normal missing-tile drawing.

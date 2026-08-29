@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
-    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/ascii-spectrogram build && npm run --workspace=@sonoscope/halftone-spectrogram build && npm run --workspace=@sonoscope/terrain-spectrogram build && npm run --workspace=@sonoscope/topographic-spectrogram build && npm run --workspace=@sonoscope/react build && npm run --workspace=@sonoscope/anywidget build",
+    "build": "npm run build:wasm && npm run --workspace=@sonoscope/core build && npm run --workspace=@sonoscope/ascii-spectrogram build && npm run --workspace=@sonoscope/halftone-spectrogram build && npm run --workspace=@sonoscope/terrain-spectrogram build && npm run --workspace=@sonoscope/topographic-spectrogram build && npm run --workspace=@sonoscope/microphone-source build && npm run --workspace=@sonoscope/react build && npm run --workspace=@sonoscope/anywidget build",
     "build:docs": "npm run --workspace=docs build",
     "build:examples": "vite build examples/basic --base=./",
     "visualize:core": "node scripts/visualize-bundle.mjs",
@@ -20,6 +20,7 @@
     "capture:renderers": "node scripts/capture-renderers.mjs",
     "dev:example": "vite --host 127.0.0.1 examples/basic",
     "dev:ascii": "vite packages/ascii-spectrogram/demo",
+    "dev:mic": "vite packages/microphone-source/demo",
     "test": "vitest run",
     "test:browser": "vitest run --config vite.browser.config.ts",
     "check:biome": "biome check",

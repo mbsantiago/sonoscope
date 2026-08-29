@@ -51,6 +51,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private renderRunning = false;
   private renderAgain = false;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
+  private lastCompletedMatrices: SpectrogramMatrix[] = [];
   private requestCounter = 0;
   private renderGeneration = 0;
   private status: SpectrogramStatus = { state: "idle" };
@@ -333,16 +334,20 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         progress: totalTiles === 0 ? 1 : completed / totalTiles,
         phase: "computing",
       });
+      if (this.config.loading === "placeholder") {
+        this.paintPartial(
+          Array.from(matrices.values()),
+          this.missingPlaceholders(visibleTiles, matrices),
+        );
+      }
+    };
+
+    if (this.config.loading === "placeholder") {
       this.paintPartial(
         Array.from(matrices.values()),
         this.missingPlaceholders(visibleTiles, matrices),
       );
-    };
-
-    this.paintPartial(
-      Array.from(matrices.values()),
-      this.missingPlaceholders(visibleTiles, matrices),
-    );
+    }
 
     const startedTime = performance.now();
     await Promise.all(visibleTiles.map((tile) => loadTile(tile)));
@@ -350,7 +355,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     if (this.isDestroyed() || this.renderGeneration !== currentGeneration)
       return;
 
-    this.paintPartial(Array.from(matrices.values()), []);
+    const completedMatrices = Array.from(matrices.values());
+    this.paintPartial(completedMatrices, []);
+    this.lastCompletedMatrices = completedMatrices;
     const durationMs = performance.now() - startedTime;
     this.events.emit("rendercomplete", {
       requestId,
@@ -395,7 +402,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       },
       colorMap: this.config.colorMap,
       tiles: matrices,
-      placeholders,
+      placeholders: this.config.loading === "placeholder" ? placeholders : [],
       ...(this.playheadTime !== undefined
         ? { playheadTime: this.playheadTime }
         : {}),
@@ -529,8 +536,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.attachSourceRangeSync();
     this.renderGeneration += 1;
     this.renderer.invalidate?.();
-    const visibleTiles = this.visibleTileRanges();
-    this.paintPartial([], this.missingPlaceholders(visibleTiles, new Map()));
+    if (this.config.loading === "placeholder") {
+      const visibleTiles = this.visibleTileRanges();
+      this.paintPartial([], this.missingPlaceholders(visibleTiles, new Map()));
+    } else if (this.lastCompletedMatrices.length > 0) {
+      this.paintPartial(this.lastCompletedMatrices, []);
+    }
     this.requestRender();
   }
 
@@ -545,6 +556,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.resizeCleanup = undefined;
     this.cache.clear();
     this.pendingTiles.clear();
+    this.lastCompletedMatrices = [];
     this.backend.destroy?.();
     this.renderer.destroy?.();
   }

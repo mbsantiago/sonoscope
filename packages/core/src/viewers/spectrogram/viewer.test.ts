@@ -885,6 +885,71 @@ describe("SpectrogramViewer", () => {
     });
   });
 
+  it("can suppress placeholders while visible tiles are loading", async () => {
+    let release: (() => void) | undefined;
+    const backend: SpectrogramComputeBackend = {
+      computeTile: async (request) => {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return matrix(request.timeStart, request.timeEnd);
+      },
+    };
+    const viewer = createViewer({
+      canvas: canvas(),
+      source: { ...source, duration: 1 },
+      tileMaxCells: 2048,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
+      loading: "none",
+      backend,
+      autoRender: false,
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    const rendered = viewer.render();
+    await Promise.resolve();
+
+    expect(render).not.toHaveBeenCalled();
+
+    release?.();
+    await rendered;
+
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(render.mock.calls[0]?.[0]).toMatchObject({ placeholders: [] });
+  });
+
+  it("repaints the completed frame while replacing a source when loading is disabled", async () => {
+    const viewer = createViewer({
+      canvas: canvas(),
+      loading: "none",
+      autoRender: false,
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    await viewer.render();
+    const completedFrame = render.mock.calls[0]?.[0];
+    render.mockClear();
+
+    viewer.setSource({ ...source, id: "replacement-source" });
+
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(render.mock.calls[0]?.[0]).toMatchObject({
+      placeholders: [],
+      tiles: (completedFrame as { tiles: unknown[] }).tiles,
+    });
+    viewer.destroy();
+  });
+
   it("sets rendering state and emits renderstart when starting a render", async () => {
     const backend: SpectrogramComputeBackend = {
       computeTile: () => new Promise(() => undefined),

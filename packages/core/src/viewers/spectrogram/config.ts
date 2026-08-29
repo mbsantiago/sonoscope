@@ -10,6 +10,7 @@ const DEFAULT_CONFIG: ResolvedSpectrogramConfig = {
   autoRender: true,
   renderer: "auto",
   backend: "auto",
+  loading: "placeholder",
   channel: 0,
   windowSize: 1024,
   fftSize: 1024,
@@ -84,6 +85,7 @@ export function resolveConfig(
     autoRender: input.autoRender ?? DEFAULT_CONFIG.autoRender,
     renderer: input.renderer ?? DEFAULT_CONFIG.renderer,
     backend: input.backend ?? DEFAULT_CONFIG.backend,
+    loading: input.loading ?? DEFAULT_CONFIG.loading,
     channel,
 
     // STFT

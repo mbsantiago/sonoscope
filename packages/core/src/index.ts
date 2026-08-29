@@ -86,6 +86,7 @@ export type {
   ResolvedSpectrogramConfig,
   SpectrogramConfig,
   SpectrogramEvents,
+  SpectrogramLoadingMode,
   SpectrogramMatrix,
   SpectrogramOptions,
   SpectrogramProfileEvent,

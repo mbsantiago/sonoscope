@@ -118,6 +118,9 @@ export type SpectrogramStatus =
     }
   | { state: "error"; error: Error };
 
+/** Controls whether missing tiles are drawn while computation is in progress. */
+export type SpectrogramLoadingMode = "placeholder" | "none";
+
 export type SpectrogramEvents = {
   configchange: { config: ResolvedSpectrogramConfig };
   viewportchange: { viewport: ViewportConfig };
@@ -218,6 +221,13 @@ export type SpectrogramConfig = {
    * @default "auto"
    */
   backend?: BackendMode | undefined;
+
+  /**
+   * Missing-tile drawing while spectrogram data is being computed. "none"
+   * keeps the previous completed frame visible until the next render finishes.
+   * @default "placeholder"
+   */
+  loading?: SpectrogramLoadingMode | undefined;
 
   /**
    * Audio channel index to analyze (0 for left/mono, 1 for right).
@@ -346,6 +356,7 @@ export type ResolvedSpectrogramConfig = {
   autoRender: boolean;
   renderer: RendererMode;
   backend: BackendMode;
+  loading: SpectrogramLoadingMode;
   channel: number;
 
   // STFT

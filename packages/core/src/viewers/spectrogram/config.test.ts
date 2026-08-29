@@ -14,6 +14,7 @@ describe("resolveConfig", () => {
   it("fills defaults and preserves provided source with flat properties", () => {
     const config = resolveConfig(source);
     expect(config.renderer).toBe("auto");
+    expect(config.loading).toBe("placeholder");
     expect(config.channel).toBe(0);
 
     // Flat STFT
@@ -78,6 +79,10 @@ describe("resolveConfig", () => {
         renderer: { type: "webgl", program: "halftone" },
       }).renderer,
     ).toEqual({ type: "webgl", program: "halftone" });
+  });
+
+  it("allows loading placeholders to be disabled", () => {
+    expect(resolveConfig(source, { loading: "none" }).loading).toBe("none");
   });
 
   it("validates selected channel against the source", () => {

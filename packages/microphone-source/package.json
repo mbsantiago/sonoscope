@@ -1,0 +1,46 @@
+{
+  "name": "@sonoscope/microphone-source",
+  "version": "0.2.0",
+  "description": "Experimental bounded microphone spectrogram monitor for Sonoscope.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbsantiago/sonoscope.git",
+    "directory": "packages/microphone-source"
+  },
+  "homepage": "https://mbsantiago.github.io/sonoscope/",
+  "type": "module",
+  "license": "MIT",
+  "author": "Santiago",
+  "keywords": [
+    "audio",
+    "microphone",
+    "recording",
+    "live",
+    "spectrogram",
+    "sonoscope",
+    "plugin"
+  ],
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sonoscope/core": "^0.2.0"
+  },
+  "scripts": {
+    "dev": "vite demo",
+    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "check:types": "tsc --noEmit"
+  }
+}

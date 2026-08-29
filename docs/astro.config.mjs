@@ -190,6 +190,7 @@ export default defineConfig({
 					label: 'Plugins',
 					items: [
 						{ label: 'Overview & Showcase', slug: 'plugins' },
+						{ label: 'Microphone Monitor', slug: 'plugins/microphone' },
 						{ label: 'ASCII Spectrogram', slug: 'plugins/ascii' },
 						{ label: 'Halftone Shader', slug: 'plugins/halftone' },
 						{ label: 'Terrain 3D Shader', slug: 'plugins/terrain' },

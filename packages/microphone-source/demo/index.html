@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sonoscope Live Microphone Demo</title>
+    <style>
+      :root {
+        --bg: #090a0f;
+        --surface: #131722;
+        --border: #232a3b;
+        --text: #e2e8f0;
+        --accent: #38bdf8;
+        --danger: #ef4444;
+        --success: #22c55e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin: 0;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      h1 span {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: normal;
+      }
+      .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        background: #1e293b;
+        color: #94a3b8;
+        font-family: ui-monospace, monospace;
+      }
+      .badge.recording {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--success);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+      }
+      .badge.paused {
+        background: rgba(234, 179, 8, 0.2);
+        color: #eab308;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .control-group.span-2 {
+        grid-column: span 2;
+      }
+      @media (max-width: 640px) {
+        .control-group.span-2 {
+          grid-column: span 1;
+        }
+      }
+      label {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: flex;
+        justify-content: space-between;
+      }
+      label span {
+        color: var(--accent);
+        font-weight: bold;
+      }
+      select, button, input[type="range"] {
+        background: #0d1117;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.45rem 0.6rem;
+        font-family: inherit;
+        font-size: 0.85rem;
+      }
+      select:focus, button:focus {
+        outline: 1px solid var(--accent);
+        border-color: var(--accent);
+      }
+      button {
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.15s ease;
+      }
+      button.primary {
+        background: #0284c7;
+        border-color: #38bdf8;
+        color: #fff;
+      }
+      button.primary:hover {
+        background: #0369a1;
+      }
+      button.danger {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+      button.danger:hover {
+        background: rgba(239, 68, 68, 0.3);
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+      }
+      .btn-row button {
+        flex: 1;
+      }
+      .dual-slider-wrap {
+        position: relative;
+        height: 30px;
+        display: flex;
+        align-items: center;
+      }
+      .dual-slider-track {
+        position: absolute;
+        width: 100%;
+        height: 6px;
+        background: #0d1117;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+      }
+      .dual-slider-highlight {
+        position: absolute;
+        height: 6px;
+        background: var(--accent);
+        border-radius: 3px;
+        z-index: 1;
+      }
+      .dual-slider-wrap input[type="range"] {
+        position: absolute;
+        width: 100%;
+        pointer-events: none;
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        z-index: 2;
+      }
+      .dual-slider-wrap input[type="range"]::-webkit-slider-thumb {
+        pointer-events: auto;
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        border: 2px solid #090a0f;
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+      }
+      .stage {
+        position: relative;
+        background: #000;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 480px;
+      }
+      .level-meter-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #0d1117;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.4rem 0.6rem;
+        height: 34px;
+      }
+      .level-meter-bar {
+        flex: 1;
+        height: 8px;
+        background: #1e293b;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+      }
+      .level-meter-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #22c55e, #eab308 70%, #ef4444);
+        transition: width 0.05s linear;
+      }
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+        font-family: ui-monospace, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Microphone Monitor <span>@sonoscope/microphone-source</span></h1>
+        <div class="badge" id="state-badge">Standby</div>
+      </header>
+
+      <div class="controls">
+        <div class="control-group">
+          <label>Microphone</label>
+          <div class="btn-row">
+            <button id="btn-toggle" class="primary">Start Mic</button>
+            <button id="btn-pause" disabled>Pause</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Audio Signal</label>
+          <div class="level-meter-wrap">
+            <div class="level-meter-bar">
+              <div class="level-meter-fill" id="meter-fill"></div>
+            </div>
+            <span id="meter-val" style="font-size: 0.7rem; font-family: ui-monospace, monospace; color: #94a3b8;">0%</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="colormap">Colormap</label>
+          <select id="colormap">
+            <option value="viridis" selected>Viridis</option>
+            <option value="inferno">Inferno</option>
+            <option value="magma">Magma</option>
+            <option value="plasma">Plasma</option>
+            <option value="turbo">Turbo</option>
+            <option value="tab20">Tab20</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="freq-scale">Frequency Scale</label>
+          <select id="freq-scale">
+            <option value="mel" selected>Mel Scale</option>
+            <option value="linear">Linear</option>
+            <option value="log">Logarithmic</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="window-size">Window Size</label>
+          <select id="window-size">
+            <option value="512">512 (Fast / High Time Res)</option>
+            <option value="1024">1024 (Balanced)</option>
+            <option value="2048" selected>2048 (High Freq Res)</option>
+            <option value="4096">4096 (Ultra Freq Res)</option>
+          </select>
+        </div>
+
+        <div class="control-group span-2">
+          <label for="min-db">dB Sensitivity Range <span id="db-range-val">[-80 dB, -20 dB]</span></label>
+          <div class="dual-slider-wrap">
+            <div class="dual-slider-track"></div>
+            <div class="dual-slider-highlight" id="db-highlight"></div>
+            <input type="range" id="min-db" min="-120" max="0" step="1" value="-80" />
+            <input type="range" id="max-db" min="-120" max="0" step="1" value="-20" />
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <canvas id="spectrogram-canvas"></canvas>
+      </div>
+
+      <div class="status-bar">
+        <span id="info-text">Click "Start Mic" to begin live visualization</span>
+        <span id="metrics-text">Showing latest 6.0s</span>
+      </div>
+    </div>
+
+    <script type="module">
+      import { createMicrophoneMonitor } from "../src/index.ts";
+
+      const canvas = document.getElementById("spectrogram-canvas");
+      const btnToggle = document.getElementById("btn-toggle");
+      const btnPause = document.getElementById("btn-pause");
+      const stateBadge = document.getElementById("state-badge");
+      const colormapSelect = document.getElementById("colormap");
+      const freqScaleSelect = document.getElementById("freq-scale");
+      const windowSizeSelect = document.getElementById("window-size");
+      const minDbSlider = document.getElementById("min-db");
+      const maxDbSlider = document.getElementById("max-db");
+      const dbRangeVal = document.getElementById("db-range-val");
+      const dbHighlight = document.getElementById("db-highlight");
+      const meterFill = document.getElementById("meter-fill");
+      const meterVal = document.getElementById("meter-val");
+      const infoText = document.getElementById("info-text");
+      const metricsText = document.getElementById("metrics-text");
+
+      const DB_MIN_LIMIT = -120;
+      const DB_MAX_LIMIT = 0;
+
+      let monitor = null;
+      let spectrogram = null;
+      let animFrame = null;
+
+      const VIEWPORT_WINDOW_SECONDS = 6.0;
+
+      function updateSliderTrack() {
+        let minDb = parseInt(minDbSlider.value, 10);
+        let maxDb = parseInt(maxDbSlider.value, 10);
+
+        if (minDb > maxDb - 5) {
+          minDb = maxDb - 5;
+          minDbSlider.value = minDb.toString();
+        }
+
+        const leftPercent = ((minDb - DB_MIN_LIMIT) / (DB_MAX_LIMIT - DB_MIN_LIMIT)) * 100;
+        const rightPercent = ((maxDb - DB_MIN_LIMIT) / (DB_MAX_LIMIT - DB_MIN_LIMIT)) * 100;
+
+        dbHighlight.style.left = `${leftPercent}%`;
+        dbHighlight.style.width = `${Math.max(2, rightPercent - leftPercent)}%`;
+        dbRangeVal.textContent = `[${minDb} dB, ${maxDb} dB]`;
+      }
+
+      async function startRecording() {
+        infoText.textContent = "Requesting microphone permission...";
+        btnToggle.disabled = true;
+
+        try {
+          monitor?.destroy();
+          monitor = await createMicrophoneMonitor({
+            historySeconds: VIEWPORT_WINDOW_SECONDS,
+            echoCancellation: true,
+            noiseSuppression: false,
+            autoGainControl: true,
+          });
+
+          spectrogram = monitor.attachSpectrogram(canvas, {
+            backend: "wasm",
+            colorMap: colormapSelect.value,
+            frequencyScale: freqScaleSelect.value,
+            windowSize: parseInt(windowSizeSelect.value, 10),
+            fftSize: parseInt(windowSizeSelect.value, 10),
+            valueMode: "db",
+            minDb: parseInt(minDbSlider.value, 10),
+            maxDb: parseInt(maxDbSlider.value, 10),
+          });
+
+          btnToggle.textContent = "Stop Mic";
+          btnToggle.className = "danger";
+          btnToggle.disabled = false;
+          btnPause.disabled = false;
+          btnPause.textContent = "Pause";
+
+          stateBadge.textContent = "Recording";
+          stateBadge.className = "badge recording";
+          infoText.textContent = "Speak or make sound into your microphone";
+
+          startLiveFollowLoop();
+        } catch (err) {
+          console.error(err);
+          infoText.textContent = `Error: ${err.message}`;
+          btnToggle.textContent = "Start Mic";
+          btnToggle.className = "primary";
+          btnToggle.disabled = false;
+          stateBadge.textContent = "Error";
+          stateBadge.className = "badge";
+        }
+      }
+
+      function stopRecording() {
+        if (animFrame) {
+          cancelAnimationFrame(animFrame);
+          animFrame = null;
+        }
+
+        if (monitor) {
+          monitor.stop();
+        }
+
+        meterFill.style.width = "0%";
+        meterVal.textContent = "0%";
+
+        btnToggle.textContent = "Start Mic";
+        btnToggle.className = "primary";
+        btnPause.disabled = true;
+        btnPause.textContent = "Pause";
+
+        stateBadge.textContent = "Stopped";
+        stateBadge.className = "badge";
+        infoText.textContent = "Recording stopped. The final monitor image remains visible.";
+      }
+
+      function toggleRecording() {
+        if (monitor && monitor.isRecording) {
+          stopRecording();
+        } else {
+          startRecording();
+        }
+      }
+
+      function togglePause() {
+        if (!monitor) return;
+
+        if (monitor.isRecording) {
+          monitor.pause();
+          btnPause.textContent = "Resume";
+          stateBadge.textContent = "Paused";
+          stateBadge.className = "badge paused";
+        } else {
+          monitor.resume();
+          btnPause.textContent = "Pause";
+          stateBadge.textContent = "Recording";
+          stateBadge.className = "badge recording";
+        }
+      }
+
+      function startLiveFollowLoop() {
+        const tick = () => {
+          if (monitor) {
+            metricsText.textContent = `${monitor.capturedSeconds.toFixed(1)}s captured (${monitor.source.sampleRate} Hz), showing latest ${VIEWPORT_WINDOW_SECONDS.toFixed(1)}s`;
+
+            // Update level meter
+            const vol = Math.min(1, monitor.volume * 5);
+            const percent = Math.round(vol * 100);
+            meterFill.style.width = `${percent}%`;
+            meterVal.textContent = `${percent}%`;
+
+          }
+          animFrame = requestAnimationFrame(tick);
+        };
+        animFrame = requestAnimationFrame(tick);
+      }
+
+      function updateConfig() {
+        updateSliderTrack();
+        if (!spectrogram) return;
+        const winSize = parseInt(windowSizeSelect.value, 10);
+        spectrogram.updateConfig({
+          colorMap: colormapSelect.value,
+          frequencyScale: freqScaleSelect.value,
+          windowSize: winSize,
+          fftSize: winSize,
+          minDb: parseInt(minDbSlider.value, 10),
+          maxDb: parseInt(maxDbSlider.value, 10),
+        });
+        spectrogram.requestRender();
+      }
+
+      updateSliderTrack();
+
+      minDbSlider.addEventListener("input", () => {
+        if (parseInt(minDbSlider.value, 10) > parseInt(maxDbSlider.value, 10) - 5) {
+          minDbSlider.value = (parseInt(maxDbSlider.value, 10) - 5).toString();
+        }
+        updateConfig();
+      });
+
+      maxDbSlider.addEventListener("input", () => {
+        if (parseInt(maxDbSlider.value, 10) < parseInt(minDbSlider.value, 10) + 5) {
+          maxDbSlider.value = (parseInt(minDbSlider.value, 10) + 5).toString();
+        }
+        updateConfig();
+      });
+
+      btnToggle.addEventListener("click", toggleRecording);
+      btnPause.addEventListener("click", togglePause);
+      colormapSelect.addEventListener("change", updateConfig);
+      freqScaleSelect.addEventListener("change", updateConfig);
+      windowSizeSelect.addEventListener("change", updateConfig);
+    </script>
+  </body>
+</html>
