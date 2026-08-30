@@ -199,6 +199,9 @@ export type SpectrogramConfig = {
    */
   autoRender?: boolean | undefined;
 
+  /** Whether to draw loading placeholders over tiles that are still computing. */
+  showLoadingPlaceholders?: boolean | undefined;
+
   /**
    * Rendering engine:
    * - "auto": Uses WebGL2 if supported, falling back to Canvas 2D.
@@ -347,6 +350,7 @@ export type SpectrogramConfig = {
 
 export type ResolvedSpectrogramConfig = {
   autoRender: boolean;
+  showLoadingPlaceholders: boolean;
   renderer: RendererMode;
   backend: BackendMode;
   channel: number;

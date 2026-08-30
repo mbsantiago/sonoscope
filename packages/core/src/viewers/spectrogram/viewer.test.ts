@@ -894,6 +894,7 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 512,
       backend,
       autoRender: false,
+      showLoadingPlaceholders: true,
     });
     const renderer = (
       viewer as unknown as { renderer: { render: (input: unknown) => void } }
@@ -917,6 +918,28 @@ describe("SpectrogramViewer", () => {
     expect(render.mock.calls[render.mock.calls.length - 1]?.[0]).toMatchObject({
       placeholders: [],
     });
+  });
+
+  it("does not paint loading placeholders by default", async () => {
+    const viewer = createViewer({
+      source: { ...source, duration: 2 },
+      tileMaxCells: 2048,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 2,
+      backend: { computeTile: () => new Promise(() => undefined) },
+      autoRender: false,
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    void viewer.render();
+
+    expect(render).toHaveBeenCalledWith(
+      expect.objectContaining({ placeholders: [] }),
+    );
   });
 
   it("sets rendering state and emits renderstart when starting a render", async () => {

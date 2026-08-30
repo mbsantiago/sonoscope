@@ -358,7 +358,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
     this.paintPartial(
       Array.from(matrices.values()),
-      this.missingPlaceholders(visibleTiles, matrices),
+      this.config.showLoadingPlaceholders
+        ? this.missingPlaceholders(visibleTiles, matrices)
+        : [],
     );
 
     const startedTime = performance.now();
@@ -374,7 +376,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       this.scheduleProgressivePaint(currentGeneration, () => {
         this.paintPartial(
           Array.from(matrices.values()),
-          this.missingPlaceholders(visibleTiles, matrices),
+          this.config.showLoadingPlaceholders
+            ? this.missingPlaceholders(visibleTiles, matrices)
+            : [],
         );
       });
     }
@@ -566,7 +570,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.renderGeneration += 1;
     this.renderer.invalidate?.();
     const visibleTiles = this.visibleTileRanges();
-    this.paintPartial([], this.missingPlaceholders(visibleTiles, new Map()));
+    this.paintPartial(
+      [],
+      this.config.showLoadingPlaceholders
+        ? this.missingPlaceholders(visibleTiles, new Map())
+        : [],
+    );
     this.requestRender();
   }
 

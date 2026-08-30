@@ -14,6 +14,7 @@ describe("resolveConfig", () => {
   it("fills defaults and preserves provided source with flat properties", () => {
     const config = resolveConfig(source);
     expect(config.renderer).toBe("auto");
+    expect(config.showLoadingPlaceholders).toBe(false);
     expect(config.channel).toBe(0);
 
     // Flat STFT
@@ -73,6 +74,13 @@ describe("resolveConfig", () => {
     expect(() => resolveConfig(source, { maxCachedBytes: -1 })).toThrow(
       /maxCachedBytes/,
     );
+  });
+
+  it("allows loading placeholders to be enabled explicitly", () => {
+    expect(
+      resolveConfig(source, { showLoadingPlaceholders: true })
+        .showLoadingPlaceholders,
+    ).toBe(true);
   });
 
   it("preserves explicit renderer modes", () => {

@@ -8,6 +8,7 @@ import type {
 
 const DEFAULT_CONFIG: ResolvedSpectrogramConfig = {
   autoRender: true,
+  showLoadingPlaceholders: false,
   renderer: "auto",
   backend: "auto",
   channel: 0,
@@ -91,6 +92,8 @@ export function resolveConfig(
 
   return {
     autoRender: input.autoRender ?? DEFAULT_CONFIG.autoRender,
+    showLoadingPlaceholders:
+      input.showLoadingPlaceholders ?? DEFAULT_CONFIG.showLoadingPlaceholders,
     renderer: input.renderer ?? DEFAULT_CONFIG.renderer,
     backend: input.backend ?? DEFAULT_CONFIG.backend,
     channel,
