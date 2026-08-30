@@ -6,11 +6,13 @@ export type AudioReadOptions = {
 
 export class AudioRingBuffer {
   readonly duration: number;
+  readonly sampleRate: number;
 
   private readonly capacityFrames: number;
   private readonly channels: Float32Array[];
   private writeFrame = 0;
   private storedFrames = 0;
+  private totalFrames = 0;
 
   constructor(options: {
     sampleRate: number;
@@ -31,6 +33,7 @@ export class AudioRingBuffer {
     }
 
     this.duration = options.duration;
+    this.sampleRate = options.sampleRate;
     this.capacityFrames = Math.max(
       1,
       Math.ceil(options.duration * options.sampleRate),
@@ -57,33 +60,39 @@ export class AudioRingBuffer {
       this.capacityFrames,
       this.storedFrames + frameCount,
     );
+    this.totalFrames += frameCount;
   }
 
-  read(options: AudioReadOptions & { sampleRate: number }): Float32Array {
+  get endTime(): number {
+    return this.totalFrames / this.sampleRate;
+  }
+
+  get startTime(): number {
+    return (this.totalFrames - this.storedFrames) / this.sampleRate;
+  }
+
+  read(options: AudioReadOptions): Float32Array {
     const channel = this.channels[options.channel];
     if (!channel) throw new Error(`Invalid channel ${options.channel}`);
 
-    const startFrame = Math.max(
-      0,
-      Math.floor(options.startTime * options.sampleRate + 1e-6),
-    );
-    const endFrame = Math.min(
-      this.capacityFrames,
-      Math.ceil(options.endTime * options.sampleRate - 1e-6),
+    const startFrame = Math.floor(options.startTime * this.sampleRate + 1e-6);
+    const endFrame = Math.max(
+      startFrame,
+      Math.ceil(options.endTime * this.sampleRate - 1e-6),
     );
     const output = new Float32Array(Math.max(0, endFrame - startFrame));
-    const firstDisplayFrame = this.capacityFrames - this.storedFrames;
+    const firstStoredFrame = this.totalFrames - this.storedFrames;
 
     for (
-      let displayFrame = Math.max(startFrame, firstDisplayFrame);
-      displayFrame < endFrame;
-      displayFrame++
+      let frame = Math.max(startFrame, firstStoredFrame);
+      frame < Math.min(endFrame, this.totalFrames);
+      frame++
     ) {
-      const offset = displayFrame - firstDisplayFrame;
+      const offset = frame - firstStoredFrame;
       const sourceFrame =
         (this.writeFrame - this.storedFrames + offset + this.capacityFrames) %
         this.capacityFrames;
-      output[displayFrame - startFrame] = channel[sourceFrame]!;
+      output[frame - startFrame] = channel[sourceFrame]!;
     }
 
     return output;

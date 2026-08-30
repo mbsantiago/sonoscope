@@ -10,6 +10,8 @@ import {
   RECORDER_WORKLET_NAME,
 } from "./worklet-processor";
 
+let nextMonitorSourceId = 0;
+
 export interface MicrophoneMonitorOptions {
   /** Seconds of recent audio shown in the monitor. Defaults to 10. */
   historySeconds?: number | undefined;
@@ -37,11 +39,13 @@ class MonitorAudioSource implements AudioSource {
   constructor(
     readonly sampleRate: number,
     readonly channelCount: number,
-    readonly duration: number,
     private readonly buffer: AudioRingBuffer,
-    revision: number,
   ) {
-    this.id = `microphone-monitor:${sampleRate}:${channelCount}:${duration}:${revision}`;
+    this.id = `microphone-monitor:${sampleRate}:${channelCount}:${nextMonitorSourceId++}`;
+  }
+
+  get duration(): number {
+    return Math.max(this.buffer.duration, this.buffer.endTime);
   }
 
   read(options: {
@@ -49,7 +53,13 @@ class MonitorAudioSource implements AudioSource {
     startTime: number;
     endTime: number;
   }): Float32Array {
-    return this.buffer.read({ ...options, sampleRate: this.sampleRate });
+    // Before the history window fills, keep the newest samples at the right edge.
+    const offset = Math.max(0, this.duration - this.buffer.endTime);
+    return this.buffer.read({
+      ...options,
+      startTime: options.startTime - offset,
+      endTime: options.endTime - offset,
+    });
   }
 }
 
@@ -77,7 +87,6 @@ export class MicrophoneMonitor {
   private spectrogram: ISpectrogramViewer | undefined;
   private elapsedSeconds = 0;
   private lastRms = 0;
-  private refreshRevision = 0;
 
   private constructor(options: MicrophoneMonitorOptions) {
     this.options = options;
@@ -203,8 +212,7 @@ export class MicrophoneMonitor {
 
     this.scope = new Sonoscope({
       source: this.source,
-      startTime: 0,
-      endTime: this.historySeconds,
+      ...this.visibleTimeRange(),
       minDuration: Math.min(0.05, this.historySeconds),
       maxDuration: this.historySeconds,
     });
@@ -357,9 +365,18 @@ export class MicrophoneMonitor {
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = undefined;
       if (!this.active || !this.spectrogram || !this.buffer) return;
-      // A new ID prevents an older asynchronous tile from being reused.
-      this.spectrogram.clearCache();
-      this.spectrogram.setSource(this.createDisplaySource());
+      if (this.buffer.endTime <= this.historySeconds) {
+        // The fixed initial viewport contains newly recorded samples each refresh.
+        const source = this.createDisplaySource();
+        this.sourceValue = source;
+        this.scope?.setSource(source);
+        this.followCaptureWindow();
+        return;
+      }
+      const source = this.source;
+      // Keep absolute tile coordinates stable so completed history remains cached.
+      this.scope?.setSource(source);
+      this.followCaptureWindow();
     }, this.refreshIntervalMs);
   }
 
@@ -376,11 +393,25 @@ export class MicrophoneMonitor {
     const source = new MonitorAudioSource(
       context.sampleRate,
       this.requestedChannelCount,
-      this.historySeconds,
       buffer,
-      this.refreshRevision++,
     );
     return source;
+  }
+
+  private visibleTimeRange(): { startTime: number; endTime: number } {
+    const endTime = this.sourceValue?.duration ?? 0;
+    return {
+      startTime: Math.max(0, endTime - this.historySeconds),
+      endTime,
+    };
+  }
+
+  private followCaptureWindow(): void {
+    const range = this.visibleTimeRange();
+    this.scope
+      ?.getViewportController()
+      .setTimeBounds(range.startTime, range.endTime);
+    this.scope?.setViewport(range, "microphone-follow");
   }
 }
 

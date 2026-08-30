@@ -367,6 +367,7 @@
           monitor?.destroy();
           monitor = await createMicrophoneMonitor({
             historySeconds: VIEWPORT_WINDOW_SECONDS,
+            refreshRate: 20,
             echoCancellation: true,
             noiseSuppression: false,
             autoGainControl: true,

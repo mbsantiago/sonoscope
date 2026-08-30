@@ -51,7 +51,7 @@ monitor.destroy();
 
 ## Bounded history
 
-The monitor holds only the newest `historySeconds` of PCM. It is not a recording source and does not preserve absolute timestamps, support seeking older audio, or export captured audio.
+The monitor starts with an empty window. New audio appears at the right edge and scrolls left as the window fills. Once it is full, it follows the latest `historySeconds` of audio. Older samples are discarded, so it is not for recording, seeking through past audio, or export.
 
 ## Lifecycle controls
 
@@ -71,4 +71,4 @@ monitor.stop();
 monitor.destroy();
 ```
 
-Pass `loading: "placeholder"` to `attachSpectrogram()` to restore Sonoscope's normal missing-tile drawing.
+By default, the display waits for a complete update before replacing the image. Pass `loading: "placeholder"` to `attachSpectrogram()` to show Sonoscope's usual loading pattern instead.

@@ -95,4 +95,88 @@ describe("MicrophoneMonitor", () => {
 
     monitor.destroy();
   });
+
+  it("keeps a stable source and advances the visible capture window", async () => {
+    vi.useFakeTimers();
+    const dependencies = createCaptureDependencies();
+    const monitor = await createMicrophoneMonitor({
+      historySeconds: 0.005,
+      refreshRate: 20,
+      audioContext: dependencies.context,
+      mediaStream: dependencies.stream,
+    });
+    const scope = {
+      setSource: vi.fn(),
+      setViewport: vi.fn(),
+      getViewportController: vi.fn(() => ({ setTimeBounds: vi.fn() })),
+    };
+    const privateMonitor = monitor as unknown as {
+      appendChunk(channels: Float32Array[]): void;
+      scope: typeof scope | undefined;
+      spectrogram: { destroy(): void } | undefined;
+    };
+    privateMonitor.scope = scope;
+    privateMonitor.spectrogram = { destroy: vi.fn() };
+    const source = monitor.source;
+
+    privateMonitor.appendChunk([new Float32Array([1, 2, 3, 4, 5, 6, 7])]);
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(scope.setSource).toHaveBeenCalledWith(source);
+    expect(scope.setViewport).toHaveBeenCalledWith(
+      { startTime: 0.002, endTime: 0.007 },
+      "microphone-follow",
+    );
+    expect(monitor.source).toBe(source);
+
+    privateMonitor.scope = undefined;
+    privateMonitor.spectrogram = undefined;
+    monitor.destroy();
+    vi.useRealTimers();
+  });
+
+  it("keeps an initial history window fixed while new audio arrives", async () => {
+    vi.useFakeTimers();
+    const dependencies = createCaptureDependencies();
+    const monitor = await createMicrophoneMonitor({
+      historySeconds: 0.005,
+      refreshRate: 20,
+      audioContext: dependencies.context,
+      mediaStream: dependencies.stream,
+    });
+    const scope = {
+      setSource: vi.fn(),
+      setViewport: vi.fn(),
+      getViewportController: vi.fn(() => ({ setTimeBounds: vi.fn() })),
+    };
+    const spectrogram = {
+      destroy: vi.fn(),
+      requestRender: vi.fn(),
+    };
+    const privateMonitor = monitor as unknown as {
+      appendChunk(channels: Float32Array[]): void;
+      scope: typeof scope | undefined;
+      spectrogram: typeof spectrogram | undefined;
+    };
+    privateMonitor.scope = scope;
+    privateMonitor.spectrogram = spectrogram;
+    const originalSourceId = monitor.source.id;
+
+    privateMonitor.appendChunk([new Float32Array([1, 2, 3])]);
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(monitor.source.duration).toBe(0.005);
+    expect(monitor.source.id).not.toBe(originalSourceId);
+    expect(spectrogram.requestRender).not.toHaveBeenCalled();
+    expect(scope.setSource).toHaveBeenCalledWith(monitor.source);
+    expect(scope.setViewport).toHaveBeenCalledWith(
+      { startTime: 0, endTime: 0.005 },
+      "microphone-follow",
+    );
+
+    privateMonitor.scope = undefined;
+    privateMonitor.spectrogram = undefined;
+    monitor.destroy();
+    vi.useRealTimers();
+  });
 });
