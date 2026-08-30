@@ -29,7 +29,47 @@ export class SpectrogramCache {
   private peakTiles = 0;
   private peakBytes = 0;
 
-  constructor(private readonly options: { maxCachedTiles: number }) {}
+  private maxCachedTiles: number;
+  private maxCachedBytes: number | undefined;
+
+  constructor(options: {
+    maxCachedTiles: number;
+    maxCachedBytes?: number | undefined;
+  }) {
+    if (
+      !Number.isInteger(options.maxCachedTiles) ||
+      options.maxCachedTiles < 0
+    ) {
+      throw new Error("maxCachedTiles must be a non-negative integer");
+    }
+    if (
+      options.maxCachedBytes !== undefined &&
+      (!Number.isFinite(options.maxCachedBytes) || options.maxCachedBytes < 0)
+    ) {
+      throw new Error("maxCachedBytes must be a finite non-negative number");
+    }
+    this.maxCachedTiles = options.maxCachedTiles;
+    this.maxCachedBytes = options.maxCachedBytes;
+  }
+
+  setMaxCachedTiles(maxCachedTiles: number): void {
+    if (!Number.isInteger(maxCachedTiles) || maxCachedTiles < 0) {
+      throw new Error("maxCachedTiles must be a non-negative integer");
+    }
+    this.maxCachedTiles = maxCachedTiles;
+    this.evict();
+  }
+
+  setMaxCachedBytes(maxCachedBytes: number | undefined): void {
+    if (
+      maxCachedBytes !== undefined &&
+      (!Number.isFinite(maxCachedBytes) || maxCachedBytes < 0)
+    ) {
+      throw new Error("maxCachedBytes must be a finite non-negative number");
+    }
+    this.maxCachedBytes = maxCachedBytes;
+    this.evict();
+  }
 
   get(key: string): SpectrogramMatrix | undefined {
     const entry = this.tiles.get(key);
@@ -69,7 +109,21 @@ export class SpectrogramCache {
     }
     this.tiles.set(key, { matrix, tileTime });
     this.bytes += matrixBytes(matrix);
-    while (this.tiles.size > this.options.maxCachedTiles) {
+    this.evict(viewportTime);
+    this.peakTiles = Math.max(this.peakTiles, this.tiles.size);
+    this.peakBytes = Math.max(this.peakBytes, this.bytes);
+  }
+
+  clear(): void {
+    this.tiles.clear();
+    this.bytes = 0;
+  }
+
+  private evict(viewportTime?: number): void {
+    while (
+      this.tiles.size > this.maxCachedTiles ||
+      (this.maxCachedBytes !== undefined && this.bytes > this.maxCachedBytes)
+    ) {
       let keyToRemove = this.tiles.keys().next().value as string | undefined;
       if (viewportTime !== undefined) {
         let greatestDistance = -Infinity;
@@ -81,18 +135,11 @@ export class SpectrogramCache {
           }
         }
       }
-      if (!keyToRemove) break;
+      if (keyToRemove === undefined) break;
       const removed = this.tiles.get(keyToRemove);
       if (removed) this.bytes -= matrixBytes(removed.matrix);
       this.tiles.delete(keyToRemove);
     }
-    this.peakTiles = Math.max(this.peakTiles, this.tiles.size);
-    this.peakBytes = Math.max(this.peakBytes, this.bytes);
-  }
-
-  clear(): void {
-    this.tiles.clear();
-    this.bytes = 0;
   }
 }
 

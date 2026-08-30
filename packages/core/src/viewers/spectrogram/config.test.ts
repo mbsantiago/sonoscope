@@ -35,6 +35,7 @@ describe("resolveConfig", () => {
     expect(config.tileMaxCells).toBe(2 ** 17); // 131_072
     expect(config.prefetchTiles).toBeGreaterThanOrEqual(4);
     expect(config.maxCachedTiles).toBeGreaterThanOrEqual(64);
+    expect(config.maxCachedBytes).toBeUndefined();
 
     // Modular
     expect(config.colorMap).toBe("viridis");
@@ -63,6 +64,15 @@ describe("resolveConfig", () => {
     expect(config.minDb).toBe(-80);
     expect(config.maxDb).toBe(-10);
     expect(config.tileMaxCells).toBe(262_144);
+  });
+
+  it("validates cache budgets", () => {
+    expect(
+      resolveConfig(source, { maxCachedBytes: 1_024 }).maxCachedBytes,
+    ).toBe(1_024);
+    expect(() => resolveConfig(source, { maxCachedBytes: -1 })).toThrow(
+      /maxCachedBytes/,
+    );
   });
 
   it("preserves explicit renderer modes", () => {

@@ -23,6 +23,7 @@ const DEFAULT_CONFIG: ResolvedSpectrogramConfig = {
   clampValues: true,
   tileMaxCells: 2 ** 17,
   maxCachedTiles: 64,
+  maxCachedBytes: undefined,
   prefetchTiles: 8,
   colorMap: "viridis",
   transforms: [],
@@ -79,6 +80,14 @@ export function resolveConfig(
     throw new Error("prefetchTiles must be greater than or equal to zero");
 
   const maxCachedTiles = input.maxCachedTiles ?? DEFAULT_CONFIG.maxCachedTiles;
+  const maxCachedBytes = input.maxCachedBytes ?? DEFAULT_CONFIG.maxCachedBytes;
+  if (!Number.isInteger(maxCachedTiles) || maxCachedTiles < 0)
+    throw new Error("maxCachedTiles must be a non-negative integer");
+  if (
+    maxCachedBytes !== undefined &&
+    (!Number.isFinite(maxCachedBytes) || maxCachedBytes < 0)
+  )
+    throw new Error("maxCachedBytes must be a finite non-negative number");
 
   return {
     autoRender: input.autoRender ?? DEFAULT_CONFIG.autoRender,
@@ -104,6 +113,7 @@ export function resolveConfig(
     // Cache
     tileMaxCells,
     maxCachedTiles,
+    maxCachedBytes,
     prefetchTiles,
 
     // Modular

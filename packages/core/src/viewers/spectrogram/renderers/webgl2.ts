@@ -24,6 +24,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   private program: WebGL2RenderProgram | undefined;
   private readonly colorMapTexture: WebGLTexture;
   private readonly tileTextures = new Map<string, TextureEntry>();
+  private readonly maxTileTextures = 128;
   private readonly matrixIds = new WeakMap<SpectrogramMatrix, number>();
   private nextMatrixId = 1;
   private colorMapKey = "";
@@ -137,7 +138,11 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
   ): TextureEntry {
     const key = `${this.matrixId(tile)}:${valueScale.mode}:${valueScale.min}:${valueScale.max}:${valueScale.gamma}:${valueScale.clamp}`;
     const existing = this.tileTextures.get(key);
-    if (existing) return existing;
+    if (existing) {
+      this.tileTextures.delete(key);
+      this.tileTextures.set(key, existing);
+      return existing;
+    }
 
     const gl = this.gl;
     const texture = gl.createTexture();
@@ -147,7 +152,7 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     const values =
       tile.frameCount > 0 && tile.binCount > 0
         ? textureValuesForTile(tile, valueScale)
-        : new Uint8Array(4);
+        : new Uint8Array(1);
     const activeTexture = gl.getParameter(gl.ACTIVE_TEXTURE) as number;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -159,11 +164,11 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,
-      gl.RGBA,
+      gl.R8,
       width,
       height,
       0,
-      gl.RGBA,
+      gl.RED,
       gl.UNSIGNED_BYTE,
       values,
     );
@@ -171,6 +176,13 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     gl.activeTexture(activeTexture);
     const entry = { texture, width, height };
     this.tileTextures.set(key, entry);
+    while (this.tileTextures.size > this.maxTileTextures) {
+      const oldestKey = this.tileTextures.keys().next().value as string;
+      const oldest = this.tileTextures.get(oldestKey);
+      if (!oldest) break;
+      this.tileTextures.delete(oldestKey);
+      gl.deleteTexture(oldest.texture);
+    }
     return entry;
   }
 
@@ -238,20 +250,17 @@ export function textureValuesForTile(
   tile: SpectrogramMatrix,
   valueScale: Required<ValueScaleConfig>,
 ): Uint8Array {
-  if (tile.frameCount === 0 || tile.binCount === 0) return new Uint8Array(4);
+  if (tile.frameCount === 0 || tile.binCount === 0) return new Uint8Array(1);
   const source = valueDataForMode(tile, valueScale.mode).values;
-  const values = new Uint8Array(tile.frameCount * tile.binCount * 4);
+  const values = new Uint8Array(tile.frameCount * tile.binCount);
   for (let frame = 0; frame < tile.frameCount; frame++) {
     for (let bin = 0; bin < tile.binCount; bin++) {
-      const index = (bin * tile.frameCount + frame) * 4;
+      const index = bin * tile.frameCount + frame;
       const normalized = normalizedByte(
         source[frame * tile.binCount + bin]!,
         valueScale,
       );
       values[index] = normalized;
-      values[index + 1] = normalized;
-      values[index + 2] = normalized;
-      values[index + 3] = 255;
     }
   }
   return values;

@@ -78,4 +78,47 @@ describe("SpectrogramCache", () => {
     expect(cache.get("new")?.timeStart).toBe(0);
     expect(cache.stats().bytes).toBe(24);
   });
+
+  it("evicts immediately when the tile limit is reduced", () => {
+    const cache = new SpectrogramCache({ maxCachedTiles: 3 });
+    cache.set("a", matrix(1), 1.5);
+    cache.set("b", matrix(2), 2.5);
+    cache.set("c", matrix(3), 3.5);
+    cache.get("a");
+
+    cache.setMaxCachedTiles(1);
+
+    expect(cache.get("a")?.timeStart).toBe(1);
+    expect(cache.get("b")).toBeUndefined();
+    expect(cache.get("c")).toBeUndefined();
+    expect(cache.stats()).toMatchObject({ tiles: 1, bytes: 12 });
+  });
+
+  it("evicts least recently used tiles when the byte limit is exceeded", () => {
+    const cache = new SpectrogramCache({
+      maxCachedTiles: 3,
+      maxCachedBytes: 24,
+    });
+    cache.set("a", matrix(1), 1.5);
+    cache.set("b", matrix(2), 2.5);
+    cache.get("a");
+    cache.set("c", matrix(3), 3.5);
+
+    expect(cache.get("a")?.timeStart).toBe(1);
+    expect(cache.get("b")).toBeUndefined();
+    expect(cache.get("c")?.timeStart).toBe(3);
+    expect(cache.stats()).toMatchObject({ tiles: 2, bytes: 24 });
+  });
+
+  it("does not retain a tile larger than the byte limit", () => {
+    const cache = new SpectrogramCache({
+      maxCachedTiles: 2,
+      maxCachedBytes: 11,
+    });
+
+    cache.set("large", matrix(1), 1.5);
+
+    expect(cache.get("large")).toBeUndefined();
+    expect(cache.stats()).toMatchObject({ tiles: 0, bytes: 0 });
+  });
 });

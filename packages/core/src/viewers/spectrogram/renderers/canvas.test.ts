@@ -100,6 +100,43 @@ describe("renderer helpers", () => {
     expect(context.createImageData).toHaveBeenCalledWith(150, 80);
   });
 
+  it("reuses the image buffer for repeated paints at the same size", () => {
+    const context = {
+      clearRect: vi.fn(),
+      createImageData: vi.fn((w: number, h: number) => ({
+        width: w,
+        height: h,
+        data: new Uint8ClampedArray(w * h * 4),
+      })),
+      putImageData: vi.fn(),
+    };
+    const renderer = new CanvasSpectrogramRenderer();
+    const input = {
+      canvas: canvas(32, 16, context),
+      viewport: {
+        startTime: 0,
+        endTime: 1,
+        minFrequency: 0,
+        maxFrequency: 100,
+      },
+      frequencyScale: "linear" as const,
+      valueScale: {
+        mode: "magnitude" as const,
+        min: 0,
+        max: 1,
+        gamma: 1,
+        clamp: true,
+      },
+      colorMap: "gray" as const,
+      tiles: [matrix],
+    };
+
+    renderer.render(input);
+    renderer.render(input);
+
+    expect(context.createImageData).toHaveBeenCalledTimes(1);
+  });
+
   it("renders adjacent tile boundaries independent of tile order", () => {
     function renderData(tiles: SpectrogramMatrix[]): number[] {
       let data: Uint8ClampedArray | undefined;

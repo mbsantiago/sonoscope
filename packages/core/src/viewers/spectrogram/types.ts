@@ -307,6 +307,9 @@ export type SpectrogramConfig = {
    */
   maxCachedTiles?: number | undefined;
 
+  /** Maximum estimated bytes retained by the computed tile cache. */
+  maxCachedBytes?: number | undefined;
+
   /**
    * Number of tiles to prefetch and compute ahead of the visible viewport.
    * @default 8
@@ -366,6 +369,7 @@ export type ResolvedSpectrogramConfig = {
   // Cache
   tileMaxCells: number;
   maxCachedTiles: number;
+  maxCachedBytes: number | undefined;
   prefetchTiles: number;
 
   // Modular

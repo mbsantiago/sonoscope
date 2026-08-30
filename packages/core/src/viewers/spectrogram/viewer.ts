@@ -40,6 +40,14 @@ import { createSpectrogramProgram } from "./renderers/webgl2-program-factory";
 import { applyTransforms } from "./transforms";
 import { deriveDb, derivePower } from "./value-scale";
 
+type TileJob = {
+  priority: number;
+  sequence: number;
+  run: () => Promise<SpectrogramMatrix>;
+  resolve: (matrix: SpectrogramMatrix) => void;
+  reject: (error: unknown) => void;
+};
+
 export class SpectrogramViewer implements ISpectrogramViewer {
   private readonly events = new TypedEventEmitter<SpectrogramEvents>();
   private readonly cache: SpectrogramCache;
@@ -51,8 +59,15 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private renderRunning = false;
   private renderAgain = false;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
+  private readonly tileQueue: TileJob[] = [];
+  private runningTileComputations = 0;
+  private tileSequence = 0;
+  private progressivePaint:
+    | { generation: number; callback: () => void }
+    | undefined;
   private requestCounter = 0;
   private renderGeneration = 0;
+  private cacheGeneration = 0;
   private status: SpectrogramStatus = { state: "idle" };
   private source: AudioSource;
   private viewport: IViewportController;
@@ -90,6 +105,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.backend = backend;
     this.cache = new SpectrogramCache({
       maxCachedTiles: resolvedConfig.maxCachedTiles,
+      maxCachedBytes: resolvedConfig.maxCachedBytes,
     });
     this.renderer = createSpectrogramRenderer(
       this.canvas,
@@ -159,8 +175,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       ...cleanInput,
     });
     this.renderGeneration += 1;
+    this.cache.setMaxCachedTiles(this.config.maxCachedTiles);
+    this.cache.setMaxCachedBytes(this.config.maxCachedBytes);
     const tilesChanged = this.tileConfigHash() !== previousTileConfigHash;
     if (tilesChanged) {
+      this.cacheGeneration += 1;
       this.cache.clear();
       this.pendingTiles.clear();
     }
@@ -265,6 +284,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
 
   clearCache(): void {
     const cleared = this.cache.stats().tiles;
+    this.cacheGeneration += 1;
     this.cache.clear();
     this.pendingTiles.clear();
     this.events.emit("cacheclear", { clearedTiles: cleared });
@@ -321,6 +341,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         tile.channel,
         tile.timeStart,
         tile.timeEnd,
+        currentGeneration * 100 + 10,
       );
       if (this.isDestroyed() || this.renderGeneration !== currentGeneration)
         return;
@@ -333,10 +354,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         progress: totalTiles === 0 ? 1 : completed / totalTiles,
         phase: "computing",
       });
-      this.paintPartial(
-        Array.from(matrices.values()),
-        this.missingPlaceholders(visibleTiles, matrices),
-      );
     };
 
     this.paintPartial(
@@ -345,11 +362,27 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     );
 
     const startedTime = performance.now();
-    await Promise.all(visibleTiles.map((tile) => loadTile(tile)));
+    const batchSize = 4;
+    for (let index = 0; index < visibleTiles.length; index += batchSize) {
+      if (this.renderGeneration !== currentGeneration) return;
+      await Promise.all(
+        visibleTiles
+          .slice(index, index + batchSize)
+          .map((tile) => loadTile(tile)),
+      );
+      if (this.renderGeneration !== currentGeneration) return;
+      this.scheduleProgressivePaint(currentGeneration, () => {
+        this.paintPartial(
+          Array.from(matrices.values()),
+          this.missingPlaceholders(visibleTiles, matrices),
+        );
+      });
+    }
 
     if (this.isDestroyed() || this.renderGeneration !== currentGeneration)
       return;
 
+    this.flushProgressivePaint(currentGeneration);
     this.paintPartial(Array.from(matrices.values()), []);
     const durationMs = performance.now() - startedTime;
     this.events.emit("rendercomplete", {
@@ -525,7 +558,10 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   setSource(source: AudioSource): void {
     if (this.source === source) return;
     this.source = source;
+    this.cacheGeneration += 1;
+    this.cache.clear();
     this.pendingTiles.clear();
+    this.renderer.invalidate();
     this.attachSourceRangeSync();
     this.renderGeneration += 1;
     this.renderer.invalidate?.();
@@ -648,7 +684,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       const key = this.tileKey(tile.channel, tile.timeStart, tile.timeEnd);
       if (this.cache.has(key) || this.pendingTiles.has(key)) continue;
       started += 1;
-      void this.getTile(tile.channel, tile.timeStart, tile.timeEnd).catch(
+      void this.getTile(tile.channel, tile.timeStart, tile.timeEnd, -1).catch(
         (error) => {
           if (this.isDestroyed()) return;
           this.events.emit("error", {
@@ -774,6 +810,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     channel: number,
     timeStart: number,
     timeEnd: number,
+    priority = 0,
   ): Promise<SpectrogramMatrix> {
     const source = this.source;
     const stft: StftConfig = {
@@ -783,6 +820,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       window: this.config.window,
     };
     const transforms = this.config.transforms;
+    const cacheGeneration = this.cacheGeneration;
     const key = this.tileKey(channel, timeStart, timeEnd);
     const cached = this.cache.get(key);
     if (cached) {
@@ -798,7 +836,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     const pending = this.pendingTiles.get(key);
     if (pending) return pending;
 
-    const promise = (async () => {
+    const promise = this.enqueueTile(async () => {
       const tileStartTime = performance.now();
       try {
         const raw = await this.backend.computeTile({
@@ -814,7 +852,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
           sampleRate: source.sampleRate,
           stft,
         });
-        if (this.isDestroyed()) return transformed;
+        if (this.isDestroyed() || cacheGeneration !== this.cacheGeneration)
+          return transformed;
         const viewport = this.viewport.getViewport();
         this.cache.set(
           key,
@@ -849,10 +888,80 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         }
         throw error;
       }
-    })();
+    }, priority);
     this.pendingTiles.set(key, promise);
-    promise.finally(() => this.pendingTiles.delete(key));
+    promise.finally(() => {
+      if (this.pendingTiles.get(key) === promise) this.pendingTiles.delete(key);
+    });
     return promise;
+  }
+
+  private enqueueTile(
+    run: () => Promise<SpectrogramMatrix>,
+    priority: number,
+  ): Promise<SpectrogramMatrix> {
+    const promise = new Promise<SpectrogramMatrix>((resolve, reject) => {
+      this.tileQueue.push({
+        priority,
+        sequence: this.tileSequence++,
+        run,
+        resolve,
+        reject,
+      });
+    });
+    this.tileQueue.sort(
+      (left, right) =>
+        right.priority - left.priority || left.sequence - right.sequence,
+    );
+    this.pumpTileQueue();
+    return promise;
+  }
+
+  private pumpTileQueue(): void {
+    while (this.runningTileComputations < 4 && this.tileQueue.length > 0) {
+      const job = this.tileQueue.shift();
+      if (!job) return;
+      this.runningTileComputations += 1;
+      void job
+        .run()
+        .then(job.resolve, job.reject)
+        .finally(() => {
+          this.runningTileComputations -= 1;
+          this.pumpTileQueue();
+        });
+    }
+  }
+
+  private scheduleProgressivePaint(
+    generation: number,
+    callback: () => void,
+  ): void {
+    if (this.progressivePaint) {
+      if (generation >= this.progressivePaint.generation) {
+        this.progressivePaint = { generation, callback };
+      }
+      return;
+    }
+    const paint = { generation, callback };
+    this.progressivePaint = paint;
+    const run = () => {
+      if (this.progressivePaint !== paint) return;
+      this.progressivePaint = undefined;
+      if (!this.isDestroyed() && generation === this.renderGeneration)
+        callback();
+    };
+    if (typeof globalThis.requestAnimationFrame === "function") {
+      globalThis.requestAnimationFrame(run);
+    } else {
+      queueMicrotask(run);
+    }
+  }
+
+  private flushProgressivePaint(generation: number): void {
+    const pending = this.progressivePaint;
+    if (!pending || pending.generation !== generation) return;
+    this.progressivePaint = undefined;
+    pending.callback();
   }
 
   private tileKey(channel: number, timeStart: number, timeEnd: number): string {
