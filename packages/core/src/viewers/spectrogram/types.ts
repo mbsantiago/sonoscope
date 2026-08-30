@@ -199,6 +199,9 @@ export type SpectrogramConfig = {
    */
   autoRender?: boolean | undefined;
 
+  /** Whether to draw loading placeholders over tiles that are still computing. */
+  showLoadingPlaceholders?: boolean | undefined;
+
   /**
    * Rendering engine:
    * - "auto": Uses WebGL2 if supported, falling back to Canvas 2D.
@@ -307,6 +310,9 @@ export type SpectrogramConfig = {
    */
   maxCachedTiles?: number | undefined;
 
+  /** Maximum estimated bytes retained by the computed tile cache. */
+  maxCachedBytes?: number | undefined;
+
   /**
    * Number of tiles to prefetch and compute ahead of the visible viewport.
    * @default 8
@@ -344,6 +350,7 @@ export type SpectrogramConfig = {
 
 export type ResolvedSpectrogramConfig = {
   autoRender: boolean;
+  showLoadingPlaceholders: boolean;
   renderer: RendererMode;
   backend: BackendMode;
   channel: number;
@@ -366,6 +373,7 @@ export type ResolvedSpectrogramConfig = {
   // Cache
   tileMaxCells: number;
   maxCachedTiles: number;
+  maxCachedBytes: number | undefined;
   prefetchTiles: number;
 
   // Modular

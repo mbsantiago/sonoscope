@@ -4,7 +4,7 @@ import { textureValuesForTile } from "./webgl2";
 import { tileFrequencyRange } from "./webgl2-geometry";
 
 describe("textureValuesForTile", () => {
-  it("packs normalized values into rgba texture rows", () => {
+  it("packs normalized values into single-channel texture rows", () => {
     const tile: SpectrogramMatrix = {
       channel: 0,
       timeStart: 0,
@@ -28,9 +28,7 @@ describe("textureValuesForTile", () => {
           clamp: true,
         }),
       ),
-    ).toEqual([
-      0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 255,
-    ]);
+    ).toEqual([0, 255, 255, 0]);
   });
 
   it("normalizes magnitude and power texture values with db bounds", () => {

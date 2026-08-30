@@ -835,6 +835,40 @@ describe("SpectrogramViewer", () => {
     await viewer.render();
 
     expect(maxRunning).toBeGreaterThan(1);
+    expect(maxRunning).toBeLessThanOrEqual(4);
+  });
+
+  it("selects a bounded set of tiles for a wide viewport", async () => {
+    const requested: Array<{ timeStart: number; timeEnd: number }> = [];
+    const wideSource: AudioSource = {
+      ...source,
+      sampleRate: 44_100,
+      duration: 30,
+      read: () => new Float32Array(2_048),
+    };
+    const viewer = createViewer({
+      source: wideSource,
+      tileMaxCells: 131_072,
+      fftSize: 2_048,
+      windowSize: 2_048,
+      hopSize: 256,
+      startTime: 0,
+      endTime: 30,
+      backend: {
+        computeTile: async (request) => {
+          requested.push({
+            timeStart: request.timeStart,
+            timeEnd: request.timeEnd,
+          });
+          return matrix(request.timeStart, request.timeEnd);
+        },
+      },
+      autoRender: false,
+    });
+
+    await viewer.render();
+
+    expect(requested).toHaveLength(41);
   });
 
   it("paints placeholders while visible tiles are still loading", async () => {
@@ -860,6 +894,7 @@ describe("SpectrogramViewer", () => {
       maxFrequency: 512,
       backend,
       autoRender: false,
+      showLoadingPlaceholders: true,
     });
     const renderer = (
       viewer as unknown as { renderer: { render: (input: unknown) => void } }
@@ -871,7 +906,7 @@ describe("SpectrogramViewer", () => {
     releaseSecond?.();
     await rendered;
 
-    expect(render).toHaveBeenCalledTimes(4);
+    expect(render).toHaveBeenCalledTimes(3);
     expect(render.mock.calls[0]?.[0]).toMatchObject({
       placeholders: expect.any(Array),
     });
@@ -883,6 +918,28 @@ describe("SpectrogramViewer", () => {
     expect(render.mock.calls[render.mock.calls.length - 1]?.[0]).toMatchObject({
       placeholders: [],
     });
+  });
+
+  it("does not paint loading placeholders by default", async () => {
+    const viewer = createViewer({
+      source: { ...source, duration: 2 },
+      tileMaxCells: 2048,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 2,
+      backend: { computeTile: () => new Promise(() => undefined) },
+      autoRender: false,
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    void viewer.render();
+
+    expect(render).toHaveBeenCalledWith(
+      expect.objectContaining({ placeholders: [] }),
+    );
   });
 
   it("sets rendering state and emits renderstart when starting a render", async () => {

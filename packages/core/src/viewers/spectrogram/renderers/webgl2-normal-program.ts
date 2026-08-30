@@ -1,5 +1,6 @@
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput } from "./canvas";
+import { timeFrequencyToCanvas } from "../frequency-scale";
 import { valueScaleBounds } from "../value-scale";
 import { tileFrequencyRange, tileTimeRange } from "./webgl2-geometry";
 import {
@@ -83,11 +84,12 @@ export class NormalSpectrogramProgram extends WebGL2TileProgramBase {
 
     this.setCustomUniforms(input);
 
-    const placeholderCount = input.placeholders?.length ?? 0;
-    for (let index = 0; index < placeholderCount; index++)
-      this.drawPlaceholder();
-    for (const tile of input.tiles)
+    if ((input.placeholders?.length ?? 0) > 0) this.drawPlaceholder();
+    for (const tile of input.tiles) {
+      this.setTileScissor(tile, input, frame);
       this.drawTile(tile, input.valueScale, resources);
+    }
+    this.gl.disable(this.gl.SCISSOR_TEST);
     this.endPaint(false);
   }
 
@@ -115,5 +117,49 @@ export class NormalSpectrogramProgram extends WebGL2TileProgramBase {
   private drawPlaceholder(): void {
     this.shader.uniform1f("u_overlayMode", 1);
     this.drawQuad();
+  }
+
+  private setTileScissor(
+    tile: SpectrogramMatrix,
+    input: RenderInput,
+    frame: WebGL2Frame,
+  ): void {
+    const time = tileTimeRange(tile);
+    const frequency = tileFrequencyRange(tile);
+    const topLeft = timeFrequencyToCanvas(
+      time.startTime,
+      frequency.max,
+      frame.deviceWidth,
+      frame.deviceHeight,
+      input.viewport,
+      input.frequencyScale,
+    );
+    const bottomRight = timeFrequencyToCanvas(
+      time.endTime,
+      frequency.min,
+      frame.deviceWidth,
+      frame.deviceHeight,
+      input.viewport,
+      input.frequencyScale,
+    );
+    const left = Math.max(0, Math.floor(Math.min(topLeft.x, bottomRight.x)));
+    const right = Math.min(
+      frame.deviceWidth,
+      Math.ceil(Math.max(topLeft.x, bottomRight.x)),
+    );
+    const bottom = Math.max(
+      0,
+      Math.floor(frame.deviceHeight - Math.max(topLeft.y, bottomRight.y)),
+    );
+    const top = Math.min(
+      frame.deviceHeight,
+      Math.ceil(frame.deviceHeight - Math.min(topLeft.y, bottomRight.y)),
+    );
+    if (right <= left || top <= bottom) {
+      this.gl.scissor(0, 0, 0, 0);
+      return;
+    }
+    this.gl.enable(this.gl.SCISSOR_TEST);
+    this.gl.scissor(left, bottom, right - left, top - bottom);
   }
 }

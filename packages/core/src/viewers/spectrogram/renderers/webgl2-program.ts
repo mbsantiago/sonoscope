@@ -191,6 +191,7 @@ export abstract class WebGL2TileProgramBase implements WebGL2RenderProgram {
     } else {
       gl.disable(gl.DEPTH_TEST);
     }
+    gl.disable(gl.SCISSOR_TEST);
     gl.disable(gl.BLEND);
     gl.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     gl.clear(clearMask);

@@ -28,8 +28,11 @@ export interface SpectrogramRenderer {
 
 export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
   readonly kind = "canvas2d" as const;
+  private image: ImageData | undefined;
 
-  invalidate(): void {}
+  invalidate(): void {
+    this.image = undefined;
+  }
 
   render(input: RenderInput): void {
     const width = Math.max(1, input.canvas.width || 1);
@@ -41,7 +44,12 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     context.clearRect(0, 0, width, height);
 
     const colors = buildColorMap(input.colorMap);
-    const image = context.createImageData(width, height);
+    const image =
+      this.image?.width === width && this.image.height === height
+        ? this.image
+        : context.createImageData(width, height);
+    this.image = image;
+    image.data.fill(0);
     for (const placeholder of input.placeholders ?? [])
       this.paintPlaceholder(
         image,
