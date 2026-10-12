@@ -63,10 +63,7 @@
     <p data-status></p>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from "@sonoscope/core";
+      import { Sonoscope } from "@sonoscope/core";
 
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
@@ -78,7 +75,7 @@
       });
 
       let spectrogram = scope.createSpectrogram(canvas);
-      let playhead = scope.attachPlayhead(canvas.parentElement);
+      let cleanupPlayhead = scope.attachPlayhead(canvas.parentElement);
 
       scope.attachNavigation(canvas);
 
@@ -88,11 +85,13 @@
         if (!url) return;
         audio.src = url;
         const nextScope = await Sonoscope.fromAudio(audio, { followPlayback: "page" });
-        playhead?.destroy();
+        cleanupPlayhead?.();
+        spectrogram?.destroy();
         scope.destroy();
         scope = nextScope;
         spectrogram = scope.createSpectrogram(canvas);
-        playhead = scope.attachPlayhead(canvas.parentElement);
+        cleanupPlayhead = scope.attachPlayhead(canvas.parentElement);
+        scope.attachNavigation(canvas);
       });
     </script>
   </body>
