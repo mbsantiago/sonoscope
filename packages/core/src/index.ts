@@ -210,6 +210,7 @@ export {
   clipAudioSource,
 } from "./sources/clipped-source";
 export {
+  type AudioSourceOptions,
   createAudioSourceFromBlob,
   createAudioSourceFromBuffer,
   createAudioSourceFromUrl,

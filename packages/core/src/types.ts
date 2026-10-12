@@ -255,6 +255,23 @@ export interface AudioSource {
   onRangeAvailable?(handler: (range: AudioRange) => void): () => void;
 }
 
+export type AudioContextLike = {
+  decodeAudioData(data: ArrayBuffer): Promise<AudioBuffer>;
+};
+
+export type AudioSourceOptions =
+  | AudioContextLike
+  | {
+      audioContext?: AudioContextLike | undefined;
+      sampleRate?: number | undefined;
+      preferStreaming?: boolean | undefined;
+      preferDecoded?: boolean | undefined;
+      clipStart?: number | undefined;
+      clipEnd?: number | undefined;
+      signal?: AbortSignal | undefined;
+    }
+  | undefined;
+
 /**
  * Playhead tracking behavior during audio playback.
  * - `page`: Flips the viewport forward when the playhead leaves the screen.
@@ -526,6 +543,26 @@ export interface ISonoscope {
   detachAudio(): void;
   /** Replaces the audio source and updates all attached viewers. */
   setSource(source: AudioSource): void;
+  /** Replaces the audio source from a remote URL and updates all attached viewers. */
+  setUrl(url: string, options?: AudioSourceOptions): Promise<void>;
+  /** Replaces the audio source from an HTML audio element and updates all attached viewers. */
+  setAudio(
+    audio: HTMLAudioElement,
+    options?: AudioSourceOptions,
+  ): Promise<void>;
+  /** Replaces the audio source from a Blob or File and updates all attached viewers. */
+  setBlob(blob: Blob, options?: AudioSourceOptions): Promise<void>;
+  /** Replaces the audio source from raw sample array and updates all attached viewers. */
+  setArray(
+    samples: Float32Array,
+    sampleRate: number,
+    options?: AudioSourceOptions,
+  ): void;
+  /** Replaces the audio source from an in-memory buffer and updates all attached viewers. */
+  setBuffer(
+    buffer: ArrayBuffer | Uint8Array,
+    options?: AudioSourceOptions,
+  ): Promise<void>;
 
   /**
    * Attaches pan and zoom navigation handlers to a DOM element.

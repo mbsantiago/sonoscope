@@ -1,5 +1,6 @@
 import type {
   AudioSource,
+  AudioSourceOptions,
   CustomViewerFactory,
   FollowPlaybackMode,
   IDataViewer,
@@ -32,6 +33,7 @@ import {
   createAudioSourceFromBuffer,
   createAudioSourceFromUrl,
   DecodedAudioSource,
+  wrapClippedIfNeeded,
 } from "./sources/source";
 import { encodeWavBlob } from "./sources/wav-encoder";
 import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
@@ -88,6 +90,7 @@ export class Sonoscope implements ISonoscope {
   private audioCleanup: Array<() => void> = [];
   private navigationCleanups: Array<() => void> = [];
   private playheadCleanups: Array<() => void> = [];
+  private sourceAbortController: AbortController | undefined;
   private animationFrame: number | undefined;
 
   private totalDuration: number;
@@ -262,7 +265,7 @@ export class Sonoscope implements ISonoscope {
     audio: HTMLAudioElement,
     options?: Omit<SonoscopeOptions, "source" | "audio">,
   ): Promise<Sonoscope> {
-    const url = audio.currentSrc || audio.src;
+    const url = audio.src || audio.currentSrc;
     if (!url) {
       throw new Error("Audio element has no src or currentSrc");
     }
@@ -697,6 +700,9 @@ export class Sonoscope implements ISonoscope {
   }
 
   setSource(source: AudioSource): void {
+    this.sourceAbortController?.abort();
+    this.sourceAbortController = undefined;
+
     if (source instanceof ClippedAudioSource) {
       this._source = source;
       this._clipStart = source.clipStart;
@@ -765,6 +771,144 @@ export class Sonoscope implements ISonoscope {
         clipStart: this._clipStart,
         clipEnd: this._clipEnd,
       });
+    }
+  }
+
+  /**
+   * Replaces the audio source from a remote URL and updates all attached viewers.
+   * Automatically aborts any in-flight source loads on this coordinator.
+   */
+  async setUrl(url: string, options?: AudioSourceOptions): Promise<void> {
+    this.sourceAbortController?.abort();
+    const controller = new AbortController();
+    this.sourceAbortController = controller;
+
+    if (this.audioElement) {
+      this.audioElement.pause?.();
+      this.audioElement.removeAttribute?.("src");
+      this.audioElement.load?.();
+      this.audioElement.src = url;
+    }
+
+    try {
+      const source = await createAudioSourceFromUrl(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      if (controller.signal.aborted) return;
+      this.setSource(source);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces the audio source from an HTML audio element and updates all attached viewers.
+   * Connects the audio element to the coordinator if not already connected.
+   */
+  async setAudio(
+    audio: HTMLAudioElement,
+    options?: AudioSourceOptions,
+  ): Promise<void> {
+    const url = audio.src || audio.currentSrc;
+    if (!url) {
+      throw new Error("Audio element has no src or currentSrc");
+    }
+    if (this.audioElement !== audio) {
+      this.attachAudio(audio);
+    }
+    await this.setUrl(url, options);
+  }
+
+  /**
+   * Replaces the audio source from a Blob or File and updates all attached viewers.
+   */
+  async setBlob(blob: Blob, options?: AudioSourceOptions): Promise<void> {
+    this.sourceAbortController?.abort();
+    const controller = new AbortController();
+    this.sourceAbortController = controller;
+
+    if (this.audioElement) {
+      this.audioElement.pause?.();
+      this.audioElement.removeAttribute?.("src");
+      this.audioElement.load?.();
+      Sonoscope.attachAudioObjectUrl(this, this.audioElement, () => blob);
+    }
+
+    try {
+      const source = await createAudioSourceFromBlob(blob, {
+        ...options,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      this.setSource(source);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces the audio source from raw sample array and updates all attached viewers.
+   */
+  setArray(
+    samples: Float32Array,
+    sampleRate: number,
+    options?: AudioSourceOptions,
+  ): void {
+    this.sourceAbortController?.abort();
+    this.sourceAbortController = undefined;
+
+    if (this.audioElement) {
+      this.audioElement.pause?.();
+      this.audioElement.removeAttribute?.("src");
+      this.audioElement.load?.();
+      Sonoscope.attachAudioObjectUrl(this, this.audioElement, () =>
+        encodeWavBlob(samples, sampleRate),
+      );
+    }
+
+    const raw = new ArrayAudioSource(samples, sampleRate);
+    const source = wrapClippedIfNeeded(raw, options);
+    this.setSource(source);
+  }
+
+  /**
+   * Replaces the audio source from an in-memory buffer and updates all attached viewers.
+   */
+  async setBuffer(
+    buffer: ArrayBuffer | Uint8Array,
+    options?: AudioSourceOptions,
+  ): Promise<void> {
+    this.sourceAbortController?.abort();
+    const controller = new AbortController();
+    this.sourceAbortController = controller;
+
+    if (this.audioElement) {
+      this.audioElement.pause?.();
+      this.audioElement.removeAttribute?.("src");
+      this.audioElement.load?.();
+      Sonoscope.attachAudioObjectUrl(this, this.audioElement, () => {
+        const bytes =
+          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+        return new Blob([bytes as unknown as BlobPart], {
+          type: "audio/wav",
+        });
+      });
+    }
+
+    try {
+      const source = await createAudioSourceFromBuffer(buffer, {
+        ...options,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      this.setSource(source);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      throw error;
     }
   }
 
@@ -946,6 +1090,8 @@ export class Sonoscope implements ISonoscope {
   }
 
   destroy(): void {
+    this.sourceAbortController?.abort();
+    this.sourceAbortController = undefined;
     this.detachAudio();
     for (const cleanup of this.navigationCleanups) {
       cleanup();

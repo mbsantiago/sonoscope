@@ -75,6 +75,31 @@ describe("FetchByteSource", () => {
       FetchByteSource.fromUrl("missing.wav").stream().getReader().read(),
     ).rejects.toThrow(/Failed to fetch byte stream: 404/);
   });
+
+  it("passes AbortSignal to fetch calls in stream and readRange", async () => {
+    const controller = new AbortController();
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 206,
+      body: streamFrom([Uint8Array.from([1, 2])]),
+      arrayBuffer: () => Promise.resolve(Uint8Array.from([3, 4]).buffer),
+    }) as typeof fetch;
+
+    const source = FetchByteSource.fromUrl("audio.wav", {
+      signal: controller.signal,
+    });
+    const reader = source.stream().getReader();
+    await reader.read();
+    expect(globalThis.fetch).toHaveBeenCalledWith("audio.wav", {
+      signal: controller.signal,
+    });
+
+    await source.readRange(0, 2);
+    expect(globalThis.fetch).toHaveBeenCalledWith("audio.wav", {
+      headers: { Range: "bytes=0-1" },
+      signal: controller.signal,
+    });
+  });
 });
 
 describe("BlobByteSource", () => {

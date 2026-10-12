@@ -49,23 +49,31 @@ export async function readPrefix(
 
 export class FetchByteSource implements SeekableByteSource {
   size?: number;
+  private readonly signal?: AbortSignal | undefined;
 
   private constructor(
     readonly url: string,
-    options?: { size?: number },
+    options?: { size?: number | undefined; signal?: AbortSignal | undefined },
   ) {
-    if (options && "size" in options) this.size = options.size;
+    if (options?.size !== undefined) this.size = options.size;
+    this.signal = options?.signal;
   }
 
-  static fromUrl(url: string, options?: { size?: number }): FetchByteSource {
+  static fromUrl(
+    url: string,
+    options?: { size?: number | undefined; signal?: AbortSignal | undefined },
+  ): FetchByteSource {
     return new FetchByteSource(url, options);
   }
 
   stream(): ReadableStream<Uint8Array> {
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     return new ReadableStream<Uint8Array>({
       start: async (controller) => {
         try {
-          const response = await fetch(this.url);
+          const response = await fetch(this.url, {
+            ...(this.signal ? { signal: this.signal } : {}),
+          });
           if (!response.ok)
             throw new Error(`Failed to fetch byte stream: ${response.status}`);
           const contentLength = response.headers?.get?.("content-length");
@@ -74,7 +82,7 @@ export class FetchByteSource implements SeekableByteSource {
           }
           if (!response.body)
             throw new Error("Fetch response does not expose a readable body");
-          const reader = response.body.getReader();
+          reader = response.body.getReader();
           while (true) {
             const result = await reader.read();
             if (result.done) break;
@@ -84,6 +92,9 @@ export class FetchByteSource implements SeekableByteSource {
         } catch (error) {
           controller.error(error);
         }
+      },
+      cancel: (reason) => {
+        void reader?.cancel(reason);
       },
     });
   }
@@ -98,6 +109,7 @@ export class FetchByteSource implements SeekableByteSource {
       throw new Error("Invalid byte range");
     const response = await fetch(this.url, {
       headers: { Range: `bytes=${start}-${end - 1}` },
+      ...(this.signal ? { signal: this.signal } : {}),
     });
     if (!response.ok)
       throw new Error(`Failed to fetch byte range: ${response.status}`);

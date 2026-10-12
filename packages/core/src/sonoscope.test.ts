@@ -282,6 +282,26 @@ describe("Sonoscope", () => {
     spy.mockRestore();
   });
 
+  it("uses audio.src over outdated audio.currentSrc when audio.src is updated", async () => {
+    const mockSource = createMockSource(18, 44100);
+    const spy = vi
+      .spyOn(sourceModule, "createAudioSourceFromUrl")
+      .mockResolvedValue(mockSource);
+
+    const audio = createMockAudio("https://example.com/podcast.wav");
+    Object.defineProperty(audio, "currentSrc", {
+      value: "https://example.com/old.wav",
+      configurable: true,
+    });
+    audio.src = "https://example.com/new.wav";
+
+    const scope = await Sonoscope.fromAudio(audio);
+    expect(spy).toHaveBeenCalledWith("https://example.com/new.wav");
+    expect(scope.source).toBe(mockSource);
+
+    spy.mockRestore();
+  });
+
   it("throws when Sonoscope.fromAudio is given an audio element with no src", async () => {
     const audio = createMockAudio("");
     Object.defineProperty(audio, "currentSrc", {
@@ -895,6 +915,124 @@ describe("Sonoscope", () => {
 
       // audio.currentTime (previously 25) was beyond new max (20), so it should be clamped to clipStart (10)
       expect(audio.currentTime).toBe(10);
+    });
+  });
+
+  describe("Source Update Methods", () => {
+    it("updates source from URL via setUrl", async () => {
+      const source1 = createMockSource(10);
+      const source2 = createMockSource(25);
+      const audio = createMockAudio("https://example.com/first.wav");
+      const scope = new Sonoscope({ source: source1, audio });
+
+      const spy = vi
+        .spyOn(sourceModule, "createAudioSourceFromUrl")
+        .mockResolvedValue(source2);
+
+      await scope.setUrl("https://example.com/second.wav");
+      expect(spy).toHaveBeenCalledWith(
+        "https://example.com/second.wav",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(scope.source).toBe(source2);
+      expect(scope.getDuration()).toBe(25);
+      expect(audio.src).toBe("https://example.com/second.wav");
+
+      spy.mockRestore();
+    });
+
+    it("automatically cancels in-flight setUrl when a newer URL is requested", async () => {
+      const source1 = createMockSource(10);
+      const sourceFast = createMockSource(30);
+      const scope = new Sonoscope({ source: source1 });
+
+      let slowSignal: AbortSignal | undefined;
+      const slowPromise = new Promise<AudioSource>((resolve) => {
+        setTimeout(() => resolve(createMockSource(20)), 50);
+      });
+
+      vi.spyOn(sourceModule, "createAudioSourceFromUrl").mockImplementation(
+        (url, options) => {
+          if (url === "slow.wav") {
+            slowSignal =
+              options && "signal" in options ? options.signal : undefined;
+            return slowPromise;
+          }
+          return Promise.resolve(sourceFast);
+        },
+      );
+
+      const p1 = scope.setUrl("slow.wav");
+      expect(slowSignal?.aborted).toBe(false);
+
+      const p2 = scope.setUrl("fast.wav");
+      expect(slowSignal?.aborted).toBe(true);
+
+      await Promise.all([p1, p2]);
+      expect(scope.source).toBe(sourceFast);
+      expect(scope.getDuration()).toBe(30);
+
+      vi.restoreAllMocks();
+    });
+
+    it("updates source from HTMLAudioElement via setAudio", async () => {
+      const source1 = createMockSource(10);
+      const source2 = createMockSource(15);
+      const scope = new Sonoscope({ source: source1 });
+
+      const audio = createMockAudio("https://example.com/audio.wav");
+      const spy = vi
+        .spyOn(sourceModule, "createAudioSourceFromUrl")
+        .mockResolvedValue(source2);
+
+      await scope.setAudio(audio);
+      expect(scope.getAudio()).toBe(audio);
+      expect(scope.source).toBe(source2);
+
+      spy.mockRestore();
+    });
+
+    it("updates source synchronously from raw samples via setArray", () => {
+      const source1 = createMockSource(10);
+      const scope = new Sonoscope({ source: source1 });
+
+      const samples = new Float32Array(44100 * 2);
+      scope.setArray(samples, 44100);
+
+      expect(scope.getDuration()).toBe(2);
+      expect(scope.getSampleRate()).toBe(44100);
+    });
+
+    it("updates source from Blob via setBlob", async () => {
+      const source1 = createMockSource(10);
+      const source2 = createMockSource(12);
+      const scope = new Sonoscope({ source: source1 });
+
+      const spy = vi
+        .spyOn(sourceModule, "createAudioSourceFromBlob")
+        .mockResolvedValue(source2);
+
+      const blob = new Blob([new Uint8Array(100)]);
+      await scope.setBlob(blob);
+      expect(scope.source).toBe(source2);
+
+      spy.mockRestore();
+    });
+
+    it("updates source from buffer via setBuffer", async () => {
+      const source1 = createMockSource(10);
+      const source2 = createMockSource(8);
+      const scope = new Sonoscope({ source: source1 });
+
+      const spy = vi
+        .spyOn(sourceModule, "createAudioSourceFromBuffer")
+        .mockResolvedValue(source2);
+
+      const buffer = new Uint8Array(100);
+      await scope.setBuffer(buffer);
+      expect(scope.source).toBe(source2);
+
+      spy.mockRestore();
     });
   });
 
