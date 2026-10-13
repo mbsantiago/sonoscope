@@ -10,6 +10,7 @@ import type {
   NavigationOptions,
   SonoscopeEvents,
   SonoscopeOptions,
+  SourceState,
   ViewportConfig,
   ViewportControllerOptions,
   ViewportState,
@@ -74,16 +75,32 @@ function safeCancelAnimationFrame(id: number): void {
   }
 }
 
+function sourceOptionsWithSignal(
+  options: AudioSourceOptions,
+  signal: AbortSignal,
+): AudioSourceOptions {
+  if (
+    options &&
+    "decodeAudioData" in options &&
+    typeof options.decodeAudioData === "function"
+  ) {
+    return { audioContext: options, signal };
+  }
+  return {
+    ...(options && typeof options === "object" ? options : {}),
+    signal,
+  };
+}
+
 /**
  * Main coordinator that binds audio playback, viewport state, and visualization viewers.
  */
 export class Sonoscope implements ISonoscope {
-  private _source: AudioSource;
+  private _state: SourceState = { status: "empty" };
+  private sourceGeneration = 0;
   private _viewport: IViewportController;
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
-  private readonly viewers = new Set<
-    SpectrogramViewer | WaveformViewer | IDataViewer
-  >();
+  private readonly viewers = new Set<IDataViewer>();
   private _clipStart: number | undefined;
   private _clipEnd: number | undefined;
   private audioElement: HTMLAudioElement | undefined;
@@ -91,6 +108,7 @@ export class Sonoscope implements ISonoscope {
   private navigationCleanups: Array<() => void> = [];
   private playheadCleanups: Array<() => void> = [];
   private sourceAbortController: AbortController | undefined;
+  private externalAbortCleanup: (() => void) | undefined;
   private animationFrame: number | undefined;
 
   private totalDuration: number;
@@ -130,30 +148,36 @@ export class Sonoscope implements ISonoscope {
       ? { source: options as AudioSource }
       : (options as SonoscopeOptions);
 
-    this._source = opts.source;
+    let source = opts.source;
 
-    if (opts.clipStart !== undefined || opts.clipEnd !== undefined) {
+    if (!source) {
       this._clipStart = opts.clipStart;
       this._clipEnd = opts.clipEnd;
-      if (!(this._source instanceof ClippedAudioSource)) {
-        this._source = new ClippedAudioSource(this._source, {
+    } else if (opts.clipStart !== undefined || opts.clipEnd !== undefined) {
+      this._clipStart = opts.clipStart;
+      this._clipEnd = opts.clipEnd;
+      if (!(source instanceof ClippedAudioSource)) {
+        source = new ClippedAudioSource(source, {
           clipStart: opts.clipStart,
           clipEnd: opts.clipEnd,
         });
       }
-    } else if (this._source instanceof ClippedAudioSource) {
-      this._clipStart = this._source.clipStart;
-      this._clipEnd = this._source.clipEnd;
+    } else if (source instanceof ClippedAudioSource) {
+      this._clipStart = source.clipStart;
+      this._clipEnd = source.clipEnd;
     }
 
-    this.totalDuration = Math.max(0.01, this._source.duration);
+    this.totalDuration = source ? Math.max(0.01, source.duration) : 0.01;
     this.minDuration = Math.max(
       0.001,
       opts.minDuration ?? DEFAULT_MIN_DURATION,
     );
     this.maxDuration = Math.max(
       this.minDuration,
-      opts.maxDuration ?? Math.min(DEFAULT_MAX_DURATION, this.totalDuration),
+      opts.maxDuration ??
+        (source
+          ? Math.min(DEFAULT_MAX_DURATION, this.totalDuration)
+          : DEFAULT_MAX_DURATION),
     );
     this.followPlayback = opts.followPlayback ?? DEFAULT_FOLLOW_PLAYBACK;
     this.smoothAnchor = Math.max(
@@ -162,13 +186,18 @@ export class Sonoscope implements ISonoscope {
     );
 
     const initialClipStart = this._clipStart ?? 0;
-    const initialClipEnd = this._clipEnd ?? this.totalDuration;
+    const initialClipEnd = source
+      ? (this._clipEnd ?? this.totalDuration)
+      : Infinity;
 
     if (opts.viewport) {
       this._viewport = opts.viewport;
-      this._viewport.setTimeBounds(initialClipStart, initialClipEnd);
+      if (source)
+        this._viewport.setTimeBounds(initialClipStart, initialClipEnd);
     } else {
-      const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
+      const nyquist = source
+        ? Math.max(100, Math.floor(source.sampleRate / 2))
+        : 24000;
       const minFrequency = opts.minFrequency ?? 0;
       const maxFrequency = opts.maxFrequency ?? nyquist;
 
@@ -183,8 +212,8 @@ export class Sonoscope implements ISonoscope {
 
       this._viewport = new ViewportController({
         minTime: initialClipStart,
-        maxTime: initialClipEnd,
-        totalDuration: this.totalDuration,
+        ...(Number.isFinite(initialClipEnd) ? { maxTime: initialClipEnd } : {}),
+        ...(source ? { totalDuration: this.totalDuration } : {}),
         minDuration: this.minDuration,
         maxDuration: this.maxDuration,
         minFrequency,
@@ -198,14 +227,20 @@ export class Sonoscope implements ISonoscope {
       this.events.emit("viewportchange", e);
     });
 
+    if (source) this._state = { status: "ready", source };
+
     if (opts.audio) {
       this.attachAudio(opts.audio);
     }
   }
 
   /** Active audio source. */
-  get source(): AudioSource {
-    return this._source;
+  get source(): AudioSource | undefined {
+    return this._state.status === "ready" ? this._state.source : undefined;
+  }
+
+  get state(): SourceState {
+    return this._state;
   }
 
   /** Viewport controller managing visible time and frequency coordinates. */
@@ -230,8 +265,10 @@ export class Sonoscope implements ISonoscope {
    * @param options Optional overrides for viewport or playback configuration.
    */
   fork(options?: Partial<SonoscopeOptions>): Sonoscope {
+    const source = this.source;
+    if (!source) throw new Error("No audio source is ready");
     return new Sonoscope({
-      source: this._source,
+      source,
       audio: this.audioElement,
       ...options,
     });
@@ -429,16 +466,17 @@ export class Sonoscope implements ISonoscope {
     this._viewport.panFrequency(deltaHz, source);
   }
 
-  getDuration(): number {
-    return this._source.duration;
+  getDuration(): number | undefined {
+    return this.source?.duration;
   }
 
-  getSampleRate(): number {
-    return this._source.sampleRate;
+  getSampleRate(): number | undefined {
+    return this.source?.sampleRate;
   }
 
-  getNyquist(): number {
-    return Math.floor(this._source.sampleRate / 2);
+  getNyquist(): number | undefined {
+    const source = this.source;
+    return source ? Math.floor(source.sampleRate / 2) : undefined;
   }
 
   getFollowPlayback(): FollowPlaybackMode {
@@ -465,7 +503,9 @@ export class Sonoscope implements ISonoscope {
     clipStart?: number | undefined;
     clipEnd?: number | undefined;
   }): void {
-    const total = this._source.duration;
+    const source = this.source;
+    if (!source) throw new Error("No audio source is ready");
+    const total = source.duration;
     const newStart =
       bounds.clipStart !== undefined
         ? Math.max(0, bounds.clipStart)
@@ -478,8 +518,8 @@ export class Sonoscope implements ISonoscope {
     this._clipStart = newStart;
     this._clipEnd = newEnd;
 
-    if (this._source instanceof ClippedAudioSource) {
-      this._source.setClipBounds({
+    if (source instanceof ClippedAudioSource) {
+      source.setClipBounds({
         clipStart: newStart,
         clipEnd: newEnd,
       });
@@ -557,6 +597,7 @@ export class Sonoscope implements ISonoscope {
   }
 
   private checkPlaybackFollow(currentTime: number): void {
+    if (this._state.status !== "ready") return;
     if (this.followPlayback === "off") return;
     const vp = this._viewport.getViewport();
     const duration = vp.duration;
@@ -689,8 +730,11 @@ export class Sonoscope implements ISonoscope {
   }
 
   seek(time: number): void {
+    if (!this.source) throw new Error("No audio source is ready");
+    const duration = this.getDuration();
+    if (duration === undefined) throw new Error("No audio source is ready");
     const minBound = this._clipStart ?? 0;
-    const maxBound = this._clipEnd ?? this.getDuration();
+    const maxBound = this._clipEnd ?? duration;
     const clamped = Math.max(minBound, Math.min(maxBound, time));
     if (this.audioElement) {
       this.audioElement.currentTime = clamped;
@@ -700,11 +744,93 @@ export class Sonoscope implements ISonoscope {
   }
 
   setSource(source: AudioSource): void {
-    this.sourceAbortController?.abort();
-    this.sourceAbortController = undefined;
+    const generation = this.beginSourceReplacement();
+    try {
+      this.installSource(source, generation);
+    } catch (error) {
+      if (generation === this.sourceGeneration) {
+        this.transitionSourceState({
+          status: "error",
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+      throw error;
+    }
+  }
 
+  private beginSourceReplacement(
+    updateAudio?: () => void,
+    controller?: AbortController,
+    externalSignal?: AbortSignal,
+  ): number {
+    this.sourceAbortController?.abort();
+    this.externalAbortCleanup?.();
+    this.externalAbortCleanup = undefined;
+    this.sourceAbortController = controller;
+    const generation = ++this.sourceGeneration;
+    let externalAborted = false;
+    if (controller && externalSignal) {
+      const abortCurrent = () => {
+        externalAborted = true;
+        controller.abort(externalSignal.reason);
+        if (generation !== this.sourceGeneration) return;
+        this.sourceAbortController = undefined;
+        this.externalAbortCleanup?.();
+        this.externalAbortCleanup = undefined;
+        this.sourceGeneration += 1;
+        this.transitionSourceState({ status: "empty" });
+      };
+      externalSignal.addEventListener("abort", abortCurrent, { once: true });
+      this.externalAbortCleanup = () =>
+        externalSignal.removeEventListener("abort", abortCurrent);
+    }
+    try {
+      this.transitionSourceState({ status: "loading" }, updateAudio);
+      if (externalSignal?.aborted && !externalAborted) {
+        externalAborted = true;
+        controller?.abort(externalSignal.reason);
+        if (generation === this.sourceGeneration) {
+          this.sourceAbortController = undefined;
+          this.externalAbortCleanup?.();
+          this.externalAbortCleanup = undefined;
+          this.sourceGeneration += 1;
+          this.transitionSourceState({ status: "empty" });
+        }
+      }
+    } catch (error) {
+      if (generation === this.sourceGeneration) {
+        if (this.sourceAbortController === controller)
+          this.sourceAbortController = undefined;
+        this.externalAbortCleanup?.();
+        this.externalAbortCleanup = undefined;
+        this.transitionSourceState({
+          status: "error",
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+      throw error;
+    }
+    return generation;
+  }
+
+  private transitionSourceState(
+    state: SourceState,
+    beforeEmit?: () => void,
+  ): void {
+    const previousState = this._state;
+    this._state = state;
+    for (const viewer of this.viewers) {
+      viewer.setSourceState(state, this.sourceGeneration);
+    }
+    beforeEmit?.();
+    this.events.emit("statechange", { state, previousState });
+  }
+
+  private installSource(source: AudioSource, generation: number): void {
+    if (generation !== this.sourceGeneration) return;
+    const previousState = this._state;
+    let installedSource = source;
     if (source instanceof ClippedAudioSource) {
-      this._source = source;
       this._clipStart = source.clipStart;
       this._clipEnd = source.clipEnd;
     } else if (this._clipStart !== undefined || this._clipEnd !== undefined) {
@@ -713,21 +839,20 @@ export class Sonoscope implements ISonoscope {
       const clipEnd = Math.min(this._clipEnd ?? rawTotal, rawTotal);
       this._clipStart = this._clipStart !== undefined ? clipStart : undefined;
       this._clipEnd = this._clipEnd !== undefined ? clipEnd : undefined;
-      this._source = new ClippedAudioSource(source, {
-        clipStart,
-        clipEnd,
-      });
-    } else {
-      this._source = source;
+      installedSource = new ClippedAudioSource(source, { clipStart, clipEnd });
     }
 
-    this.totalDuration = Math.max(0.01, source.duration);
-    const nyquist = Math.max(100, Math.floor(this._source.sampleRate / 2));
+    this.totalDuration = Math.max(0.01, installedSource.duration);
+    this.maxDuration = Math.max(
+      this.minDuration,
+      Math.min(this.maxDuration, this.totalDuration),
+    );
+    const nyquist = Math.max(100, Math.floor(installedSource.sampleRate / 2));
     const effectiveMinTime = this._clipStart ?? 0;
     const effectiveMaxTime = this._clipEnd ?? this.totalDuration;
 
     if (this._viewport instanceof ViewportController) {
-      this._viewport.setTotalDuration(source.duration);
+      this._viewport.setTotalDuration(installedSource.duration);
       this._viewport.setBaseFrequencyBounds(0, nyquist);
       this._viewport.setTimeBounds(effectiveMinTime, effectiveMaxTime);
     }
@@ -761,11 +886,22 @@ export class Sonoscope implements ISonoscope {
       }
     }
 
-    for (const viewer of this.viewers) {
-      viewer.setSource(this._source);
+    if (this.audioElement && this.followPlayback !== "off") {
+      this.checkPlaybackFollow(this.audioElement.currentTime);
     }
+    if (generation !== this.sourceGeneration) return;
 
-    this.events.emit("sourcechange", { source: this._source });
+    const readyState: SourceState = {
+      status: "ready",
+      source: installedSource,
+    };
+    this._state = readyState;
+    for (const viewer of this.viewers)
+      viewer.setSourceState(readyState, generation);
+    this.events.emit("statechange", { state: readyState, previousState });
+    if (generation !== this.sourceGeneration) return;
+    this.events.emit("sourcechange", { source: installedSource });
+    if (generation !== this.sourceGeneration) return;
     if (this._clipStart !== undefined || this._clipEnd !== undefined) {
       this.events.emit("clipchange", {
         clipStart: this._clipStart,
@@ -774,34 +910,53 @@ export class Sonoscope implements ISonoscope {
     }
   }
 
+  private async replaceSource(
+    load: (signal: AbortSignal) => Promise<AudioSource>,
+    updateAudio?: () => void,
+    externalSignal?: AbortSignal,
+  ): Promise<void> {
+    const controller = new AbortController();
+    const generation = this.beginSourceReplacement(
+      updateAudio,
+      controller,
+      externalSignal,
+    );
+    try {
+      const source = await load(controller.signal);
+      if (generation !== this.sourceGeneration || controller.signal.aborted)
+        return;
+      this.installSource(source, generation);
+    } catch (error) {
+      if (generation !== this.sourceGeneration || controller.signal.aborted)
+        return;
+      this.sourceAbortController = undefined;
+      this.externalAbortCleanup?.();
+      this.externalAbortCleanup = undefined;
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this.transitionSourceState({ status: "error", error: normalizedError });
+      throw error;
+    }
+  }
+
   /**
    * Replaces the audio source from a remote URL and updates all attached viewers.
    * Automatically aborts any in-flight source loads on this coordinator.
    */
   async setUrl(url: string, options?: AudioSourceOptions): Promise<void> {
-    this.sourceAbortController?.abort();
-    const controller = new AbortController();
-    this.sourceAbortController = controller;
-
-    if (this.audioElement) {
-      this.audioElement.pause?.();
-      this.audioElement.removeAttribute?.("src");
-      this.audioElement.load?.();
-      this.audioElement.src = url;
-    }
-
-    try {
-      const source = await createAudioSourceFromUrl(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      if (controller.signal.aborted) return;
-      this.setSource(source);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      throw error;
-    }
+    await this.replaceSource(
+      (signal) =>
+        createAudioSourceFromUrl(url, sourceOptionsWithSignal(options, signal)),
+      () => {
+        if (!this.audioElement) return;
+        this.audioElement.pause?.();
+        this.audioElement.removeAttribute?.("src");
+        this.audioElement.load?.();
+        this.audioElement.src = url;
+        this.audioElement.load?.();
+      },
+      options && "signal" in options ? options.signal : undefined,
+    );
   }
 
   /**
@@ -826,28 +981,21 @@ export class Sonoscope implements ISonoscope {
    * Replaces the audio source from a Blob or File and updates all attached viewers.
    */
   async setBlob(blob: Blob, options?: AudioSourceOptions): Promise<void> {
-    this.sourceAbortController?.abort();
-    const controller = new AbortController();
-    this.sourceAbortController = controller;
-
-    if (this.audioElement) {
-      this.audioElement.pause?.();
-      this.audioElement.removeAttribute?.("src");
-      this.audioElement.load?.();
-      Sonoscope.attachAudioObjectUrl(this, this.audioElement, () => blob);
-    }
-
-    try {
-      const source = await createAudioSourceFromBlob(blob, {
-        ...options,
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      this.setSource(source);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      throw error;
-    }
+    await this.replaceSource(
+      (signal) =>
+        createAudioSourceFromBlob(
+          blob,
+          sourceOptionsWithSignal(options, signal),
+        ),
+      () => {
+        if (!this.audioElement) return;
+        this.audioElement.pause?.();
+        this.audioElement.removeAttribute?.("src");
+        this.audioElement.load?.();
+        Sonoscope.attachAudioObjectUrl(this, this.audioElement!, () => blob);
+      },
+      options && "signal" in options ? options.signal : undefined,
+    );
   }
 
   /**
@@ -858,21 +1006,29 @@ export class Sonoscope implements ISonoscope {
     sampleRate: number,
     options?: AudioSourceOptions,
   ): void {
-    this.sourceAbortController?.abort();
-    this.sourceAbortController = undefined;
-
-    if (this.audioElement) {
+    const generation = this.beginSourceReplacement(() => {
+      if (!this.audioElement) return;
       this.audioElement.pause?.();
       this.audioElement.removeAttribute?.("src");
       this.audioElement.load?.();
       Sonoscope.attachAudioObjectUrl(this, this.audioElement, () =>
         encodeWavBlob(samples, sampleRate),
       );
+    });
+    try {
+      const source = wrapClippedIfNeeded(
+        new ArrayAudioSource(samples, sampleRate),
+        options,
+      );
+      this.installSource(source, generation);
+    } catch (error) {
+      if (generation === this.sourceGeneration) {
+        const normalizedError =
+          error instanceof Error ? error : new Error(String(error));
+        this.transitionSourceState({ status: "error", error: normalizedError });
+      }
+      throw error;
     }
-
-    const raw = new ArrayAudioSource(samples, sampleRate);
-    const source = wrapClippedIfNeeded(raw, options);
-    this.setSource(source);
   }
 
   /**
@@ -882,34 +1038,27 @@ export class Sonoscope implements ISonoscope {
     buffer: ArrayBuffer | Uint8Array,
     options?: AudioSourceOptions,
   ): Promise<void> {
-    this.sourceAbortController?.abort();
-    const controller = new AbortController();
-    this.sourceAbortController = controller;
-
-    if (this.audioElement) {
-      this.audioElement.pause?.();
-      this.audioElement.removeAttribute?.("src");
-      this.audioElement.load?.();
-      Sonoscope.attachAudioObjectUrl(this, this.audioElement, () => {
-        const bytes =
-          buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-        return new Blob([bytes as unknown as BlobPart], {
-          type: "audio/wav",
+    await this.replaceSource(
+      (signal) =>
+        createAudioSourceFromBuffer(
+          buffer,
+          sourceOptionsWithSignal(options, signal),
+        ),
+      () => {
+        if (!this.audioElement) return;
+        this.audioElement.pause?.();
+        this.audioElement.removeAttribute?.("src");
+        this.audioElement.load?.();
+        Sonoscope.attachAudioObjectUrl(this, this.audioElement, () => {
+          const bytes =
+            buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+          return new Blob([bytes as unknown as BlobPart], {
+            type: "audio/wav",
+          });
         });
-      });
-    }
-
-    try {
-      const source = await createAudioSourceFromBuffer(buffer, {
-        ...options,
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      this.setSource(source);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      throw error;
-    }
+      },
+      options && "signal" in options ? options.signal : undefined,
+    );
   }
 
   /**
@@ -921,16 +1070,26 @@ export class Sonoscope implements ISonoscope {
     canvas: HTMLCanvasElement,
     options?: Partial<SpectrogramOptions> & {
       viewport?: IViewportController | undefined;
-      source?: AudioSource | undefined;
     },
   ): SpectrogramViewer {
+    const initialSource = this.source;
     const viewer = new SpectrogramViewer(
       canvas,
       options?.viewport ?? this._viewport,
-      options?.source ?? this._source,
+      initialSource,
       options,
     );
     this.viewers.add(viewer);
+    if (initialSource !== this.source) {
+      viewer.setSourceState(
+        initialSource
+          ? { status: "ready", source: initialSource }
+          : this._state,
+        this.sourceGeneration,
+      );
+    } else if (!initialSource) {
+      viewer.setSourceState(this._state, this.sourceGeneration);
+    }
     return viewer;
   }
 
@@ -943,16 +1102,26 @@ export class Sonoscope implements ISonoscope {
     canvas: HTMLCanvasElement,
     options?: Partial<WaveformOptions> & {
       viewport?: IViewportController | undefined;
-      source?: AudioSource | undefined;
     },
   ): WaveformViewer {
+    const initialSource = this.source;
     const viewer = new WaveformViewer(
       canvas,
       options?.viewport ?? this._viewport,
-      options?.source ?? this._source,
+      initialSource,
       options,
     );
     this.viewers.add(viewer);
+    if (initialSource !== this.source) {
+      viewer.setSourceState(
+        initialSource
+          ? { status: "ready", source: initialSource }
+          : this._state,
+        this.sourceGeneration,
+      );
+    } else if (!initialSource) {
+      viewer.setSourceState(this._state, this.sourceGeneration);
+    }
     return viewer;
   }
 
@@ -1033,9 +1202,11 @@ export class Sonoscope implements ISonoscope {
     const viewer = factory(this, canvas, options);
     if (
       viewer &&
-      typeof (viewer as unknown as IDataViewer).setSource === "function"
+      typeof (viewer as unknown as IDataViewer).setSourceState === "function"
     ) {
-      this.viewers.add(viewer as unknown as IDataViewer);
+      const dataViewer = viewer as unknown as IDataViewer;
+      this.viewers.add(dataViewer);
+      dataViewer.setSourceState(this._state, this.sourceGeneration);
     }
     return viewer;
   }
@@ -1090,8 +1261,11 @@ export class Sonoscope implements ISonoscope {
   }
 
   destroy(): void {
+    this.externalAbortCleanup?.();
+    this.externalAbortCleanup = undefined;
     this.sourceAbortController?.abort();
     this.sourceAbortController = undefined;
+    this.sourceGeneration += 1;
     this.detachAudio();
     for (const cleanup of this.navigationCleanups) {
       cleanup();

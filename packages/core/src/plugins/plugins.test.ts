@@ -1,4 +1,4 @@
-import type { AudioSource, IDataViewer } from "../types";
+import type { AudioSource, IDataViewer, SourceState } from "../types";
 import type { SpectrogramRenderer } from "../viewers/spectrogram/renderers/canvas";
 import type {
   SpectrogramRendererFactory,
@@ -113,7 +113,7 @@ describe("Spectrogram & Waveform Renderer Registries", () => {
 describe("Viewer Registry on Sonoscope", () => {
   it("registers and instantiates custom data-bound viewers with source sync", () => {
     class CustomPitchViewer implements IDataViewer {
-      source: AudioSource;
+      source: AudioSource | undefined;
       constructor(
         public scope: Sonoscope,
         public canvas: HTMLCanvasElement,
@@ -121,8 +121,8 @@ describe("Viewer Registry on Sonoscope", () => {
       ) {
         this.source = scope.source;
       }
-      setSource(source: AudioSource) {
-        this.source = source;
+      setSourceState(state: SourceState) {
+        this.source = state.status === "ready" ? state.source : undefined;
       }
       destroy() {}
     }

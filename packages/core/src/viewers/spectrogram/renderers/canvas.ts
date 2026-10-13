@@ -21,6 +21,7 @@ export type RendererKind = "webgl2" | "canvas2d";
 export interface SpectrogramRenderer {
   readonly kind: RendererKind;
   invalidate(): void;
+  clear?(canvas: HTMLCanvasElement): void;
   render(input: RenderInput): void;
   destroy?(): void;
   setProgram?(program: WebGL2RenderProgram): void;
@@ -32,6 +33,12 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
 
   invalidate(): void {
     this.image = undefined;
+  }
+
+  clear(canvas: HTMLCanvasElement): void {
+    this.invalidate();
+    const context = canvas.getContext("2d");
+    context?.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   render(input: RenderInput): void {

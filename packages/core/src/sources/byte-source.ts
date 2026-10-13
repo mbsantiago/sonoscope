@@ -68,8 +68,13 @@ export class FetchByteSource implements SeekableByteSource {
 
   stream(): ReadableStream<Uint8Array> {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let cancelled = false;
+    const cancelReader = () => {
+      void reader?.cancel(this.signal?.reason).catch(() => undefined);
+    };
     return new ReadableStream<Uint8Array>({
       start: async (controller) => {
+        this.signal?.addEventListener("abort", cancelReader, { once: true });
         try {
           const response = await fetch(this.url, {
             ...(this.signal ? { signal: this.signal } : {}),
@@ -90,10 +95,14 @@ export class FetchByteSource implements SeekableByteSource {
           }
           controller.close();
         } catch (error) {
-          controller.error(error);
+          if (!cancelled) controller.error(error);
+        } finally {
+          this.signal?.removeEventListener("abort", cancelReader);
         }
       },
       cancel: (reason) => {
+        cancelled = true;
+        this.signal?.removeEventListener("abort", cancelReader);
         void reader?.cancel(reason);
       },
     });

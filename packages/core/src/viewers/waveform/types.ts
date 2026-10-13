@@ -4,6 +4,7 @@ import type {
   IDataViewer,
   IViewportController,
   NavigableViewer,
+  SourceState,
 } from "../../types";
 export type PeakBlock = {
   min: Float32Array;
@@ -98,7 +99,8 @@ export type WaveformRendererKind = "canvas2d" | "webgl2" | "bars";
 
 export type WaveformRenderInput = {
   canvas: HTMLCanvasElement;
-  source: AudioSource;
+  source: AudioSource | undefined;
+  signal?: AbortSignal | undefined;
   channel: number;
   startTime: number;
   endTime: number;
@@ -111,6 +113,7 @@ export type WaveformRenderInput = {
 export interface WaveformRenderer {
   readonly kind: WaveformRendererKind | string;
   render(input: WaveformRenderInput): Promise<void> | void;
+  clear?(canvas: HTMLCanvasElement): void;
   destroy?(): void;
 }
 
@@ -229,7 +232,7 @@ export interface IWaveformViewer extends IDataViewer, NavigableViewer {
   getRendererKind(): string;
 
   /** Returns the active audio source. */
-  getSource(): AudioSource;
+  getSource(): AudioSource | undefined;
   /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
   /** Returns the visible time viewport. */
@@ -242,7 +245,7 @@ export interface IWaveformViewer extends IDataViewer, NavigableViewer {
   /** Alias for `updateConfig`. */
   setConfig(input: Partial<WaveformOptions>): void;
   /** Updates the audio source. */
-  setSource(source: AudioSource): void;
+  setSourceState(state: SourceState, generation: number): void;
 
   /** Converts canvas X pixel position to time in seconds. */
   canvasToTime(x: number): number;

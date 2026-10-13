@@ -69,30 +69,41 @@
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector("audio");
       const canvas = document.querySelector("canvas");
+      const status = document.querySelector("[data-status]");
 
-      let scope = await Sonoscope.fromAudio(audio, {
-        followPlayback: "smooth",
-      });
+      const scope = new Sonoscope({ audio, followPlayback: "smooth" });
 
-      let spectrogram = scope.createSpectrogram(canvas);
-      let cleanupPlayhead = scope.attachPlayhead(canvas.parentElement);
+      scope.createSpectrogram(canvas);
+      scope.attachPlayhead(canvas.parentElement);
 
       scope.attachNavigation(canvas);
 
-      form.addEventListener("submit", async (event) => {
+      let requestedUrl = input.value.trim();
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          status.textContent = `Loading ${requestedUrl}…`;
+        } else if (state.status === "ready") {
+          status.textContent = `Loaded ${requestedUrl}`;
+        } else if (state.status === "error") {
+          status.textContent = `Could not load ${requestedUrl}: ${state.error.message}`;
+        }
+      });
+
+      function loadUrl(url) {
+        requestedUrl = url;
+        void scope.setUrl(url).catch(() => {
+          // The current error is displayed by the statechange handler.
+        });
+      }
+
+      form.addEventListener("submit", (event) => {
         event.preventDefault();
         const url = input.value.trim();
         if (!url) return;
-        audio.src = url;
-        const nextScope = await Sonoscope.fromAudio(audio, { followPlayback: "page" });
-        cleanupPlayhead?.();
-        spectrogram?.destroy();
-        scope.destroy();
-        scope = nextScope;
-        spectrogram = scope.createSpectrogram(canvas);
-        cleanupPlayhead = scope.attachPlayhead(canvas.parentElement);
-        scope.attachNavigation(canvas);
+        loadUrl(url);
       });
+
+      loadUrl(requestedUrl);
     </script>
   </body>
 </html>

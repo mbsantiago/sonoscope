@@ -226,7 +226,6 @@
               XC400000 · Copper Sunbird · Cinnyris cupreus (MP3)
             </option>
           </select>
-          <button type="button" id="btn-load-preset">Load Preset</button>
         </div>
 
         <div class="controls" style="margin-top: 0.75rem">
@@ -327,7 +326,6 @@
 
     <script type="module">
       import {
-        attachPlayheadOverlay,
         Sonoscope,
         StreamingMp3Source,
       } from "@sonoscope/core";
@@ -335,7 +333,6 @@
       const canvas = document.getElementById("spectrogram-canvas");
       const audio = document.getElementById("audio-element");
       const presetSelect = document.getElementById("preset-select");
-      const btnLoadPreset = document.getElementById("btn-load-preset");
       const urlInput = document.getElementById("url-input");
       const btnLoadUrl = document.getElementById("btn-load-url");
       const fileInput = document.getElementById("file-input");
@@ -350,85 +347,98 @@
       const corsNotice = document.getElementById("cors-notice");
       const corsUrl = document.getElementById("cors-url");
 
-      let scope = null;
-      let viewer = null;
-      let playhead = null;
       let maxDecodedTime = 0;
+      let requestedUrl = presetSelect.value;
+      let unlistenRange = null;
 
-      async function init() {
-        const webCodecsSupported = await StreamingMp3Source.isSupported();
-        statSource.textContent = webCodecsSupported
-          ? "WebCodecs AudioDecoder"
-          : "Web Audio DecodedAudioSource";
+      const scope = new Sonoscope({
+        audio,
+        minDuration: 2,
+        maxDuration: 10,
+        followPlayback: "page",
+      });
+      const viewer = scope.createSpectrogram(canvas, {
+        windowSize: 1024,
+        fftSize: 1024,
+        hopSize: 128,
+        window: "hann",
+        frequencyScale: "mel",
+        valueMode: "db",
+        minDb: -80,
+        maxDb: 0,
+        colorMap: { base: "magma", gamma: 1.5 },
+        renderOnSeek: true,
+      });
+      scope.attachPlayhead(canvas.parentElement);
+      viewer.on("error", ({ error }) => {
+        statRange.textContent = `Spectrogram error: ${error.message}`;
+      });
+      viewer.on("rendercomplete", () => {
+        const source = scope.source;
+        if (source && !source.onRangeAvailable) {
+          updateProgress(source.duration, source.duration);
+        }
+      });
 
-        const initialUrl = presetSelect.value;
-        await loadUrl(initialUrl);
-      }
-
-      async function loadUrl(url) {
-        maxDecodedTime = 0;
-        updateProgress(0, 0);
-        statRange.textContent = "Loading stream...";
-        if (corsNotice) corsNotice.style.display = "none";
-
-        try {
-          playhead?.destroy();
-          viewer?.destroy();
-          scope?.destroy();
-
-          audio.src = url;
-          scope = await Sonoscope.fromAudio(audio, {
-            minDuration: 2,
-            maxDuration: 10,
-            followPlayback: "page",
-          });
-
-          viewer = scope.createSpectrogram(canvas, {
-            windowSize: 1024,
-            fftSize: 1024,
-            hopSize: 128,
-            window: "hann",
-            frequencyScale: "mel",
-            valueMode: "db",
-            minDb: -80,
-            maxDb: 0,
-            colorMap: { base: "magma", gamma: 1.5 },
-            renderOnSeek: true,
-          });
-          playhead = attachPlayheadOverlay(canvas.parentElement, scope);
-
-          const source = scope.source;
-          statFormat.textContent = `${source.sampleRate.toLocaleString()} Hz · ${source.channelCount === 1 ? "Mono" : "Stereo"}`;
-          statDuration.textContent = `${source.duration.toFixed(2)}s`;
-          statSource.textContent = source.id.startsWith("streaming-mp3")
-            ? "WebCodecs Streaming"
-            : source.id.startsWith("streaming-wav")
-              ? "Streaming WAV"
-              : "DecodedAudioSource (Full)";
-
-          if (source.onRangeAvailable) {
-            source.onRangeAvailable((range) => {
-              maxDecodedTime = Math.max(maxDecodedTime, range.endTime);
-              const duration = source.duration || maxDecodedTime;
-              updateProgress(maxDecodedTime, duration);
-            });
-          }
-        } catch (err) {
-          console.error("Failed to load MP3:", err);
-          statRange.textContent = `Error: ${err.message}`;
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          unlistenRange?.();
+          unlistenRange = null;
+          statRange.textContent = `Loading ${requestedUrl}...`;
+          statFormat.textContent = "-";
+          statDuration.textContent = "-";
+        } else if (state.status === "ready") {
+          statRange.textContent = "Source ready; rendering spectrogram...";
+        } else if (state.status === "error") {
+          statRange.textContent = `Error: ${state.error.message}`;
           if (
             corsNotice &&
-            (err instanceof TypeError ||
-              err.message.includes("Failed to fetch") ||
-              err.message.includes("CORS") ||
-              err.message.includes("disallows"))
+            (state.error instanceof TypeError ||
+              state.error.message.includes("Failed to fetch") ||
+              state.error.message.includes("CORS") ||
+              state.error.message.includes("disallows"))
           ) {
-            if (corsUrl)
-              corsUrl.textContent =
-                url.length > 50 ? `${url.slice(0, 47)}...` : url;
+            corsUrl.textContent =
+              requestedUrl.length > 50
+                ? `${requestedUrl.slice(0, 47)}...`
+                : requestedUrl;
             corsNotice.style.display = "block";
           }
         }
+      });
+
+      scope.on("sourcechange", ({ source }) => {
+        statFormat.textContent = `${source.sampleRate.toLocaleString()} Hz · ${source.channelCount === 1 ? "Mono" : "Stereo"}`;
+        statDuration.textContent = `${source.duration.toFixed(2)}s`;
+        statSource.textContent = source.id.startsWith("streaming-mp3")
+          ? "WebCodecs Streaming"
+          : source.id.startsWith("streaming-wav")
+              ? "Streaming WAV"
+              : "DecodedAudioSource (Full)";
+        if (!source.onRangeAvailable) {
+          updateProgress(source.duration, source.duration);
+        }
+
+        unlistenRange?.();
+        unlistenRange = source.onRangeAvailable?.((range) => {
+          if (scope.source !== source || scope.state.status !== "ready") return;
+          maxDecodedTime = Math.max(maxDecodedTime, range.endTime);
+          const duration = source.duration || maxDecodedTime;
+          updateProgress(maxDecodedTime, duration);
+        }) ?? null;
+      });
+
+      function loadUrl(url) {
+        requestedUrl = url;
+        maxDecodedTime = 0;
+        updateProgress(0, 0);
+        statRange.textContent = "Loading stream...";
+        statFormat.textContent = "-";
+        statDuration.textContent = "-";
+        if (corsNotice) corsNotice.style.display = "none";
+        void scope.setUrl(url).catch(() => {
+          // The current error is displayed by the statechange handler.
+        });
       }
 
       function updateProgress(decodedSec, totalSec) {
@@ -439,7 +449,7 @@
         statRange.textContent = `0.0s – ${decodedSec.toFixed(2)}s`;
       }
 
-      btnLoadPreset.addEventListener("click", () => {
+      presetSelect.addEventListener("change", () => {
         loadUrl(presetSelect.value);
       });
 
@@ -456,7 +466,12 @@
         }
       });
 
-      init();
+      loadUrl(requestedUrl);
+      void StreamingMp3Source.isSupported().then((supported) => {
+        statSource.textContent = supported
+          ? "WebCodecs AudioDecoder"
+          : "Web Audio DecodedAudioSource";
+      });
     </script>
   </body>
 </html>

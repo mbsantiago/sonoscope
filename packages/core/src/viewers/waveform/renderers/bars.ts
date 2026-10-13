@@ -13,6 +13,14 @@ export class BarsWaveformRenderer implements WaveformRenderer {
   private currentSource: unknown = null;
   private currentChannel = 0;
 
+  clear(canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext("2d");
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
+  }
+
   constructor(options: BarsWaveformRendererOptions = {}) {
     this.options = { ...options };
   }
@@ -43,6 +51,11 @@ export class BarsWaveformRenderer implements WaveformRenderer {
       startTime,
       endTime,
     } = input;
+
+    if (!source) {
+      this.clear(canvas);
+      return;
+    }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -103,6 +116,10 @@ export class BarsWaveformRenderer implements WaveformRenderer {
       endTime,
       barDuration,
     );
+    if (input.signal?.aborted) {
+      ctx.restore();
+      return;
+    }
 
     const len = barPeaks.min.length;
     if (len === 0) {

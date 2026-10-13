@@ -134,6 +134,20 @@ async function createAudioSourceFromByteSource(
   sourceId?: string,
   fallbackDecode?: () => Promise<AudioSource>,
 ): Promise<AudioSource> {
+  const signal =
+    options && typeof options === "object" && "signal" in options
+      ? options.signal
+      : undefined;
+  const throwIfAborted = () => {
+    if (signal?.aborted) {
+      throw (
+        signal.reason ??
+        new DOMException("The operation was aborted", "AbortError")
+      );
+    }
+  };
+  throwIfAborted();
+
   const isDecodedPreferred =
     Boolean(options && "preferDecoded" in options && options.preferDecoded) ||
     Boolean(
@@ -144,19 +158,26 @@ async function createAudioSourceFromByteSource(
 
   if (isDecodedPreferred && fallbackDecode) {
     const raw = await fallbackDecode();
+    throwIfAborted();
     return wrapClippedIfNeeded(raw, options);
   }
 
   const prefix = await readPrefix(byteSource, 64);
+  throwIfAborted();
 
   if (isWavBytes(prefix)) {
     try {
       const wavOpts = sourceId !== undefined ? { id: sourceId } : undefined;
       const raw = await StreamingWavSource.fromByteSource(byteSource, wavOpts);
+      throwIfAborted();
       return wrapClippedIfNeeded(raw, options);
-    } catch {
+    } catch (error) {
+      throwIfAborted();
+      if (error instanceof DOMException && error.name === "AbortError")
+        throw error;
       if (fallbackDecode) {
         const raw = await fallbackDecode();
+        throwIfAborted();
         return wrapClippedIfNeeded(raw, options);
       }
     }
@@ -170,22 +191,31 @@ async function createAudioSourceFromByteSource(
           byteSource,
           mp3Opts,
         );
+        throwIfAborted();
         return wrapClippedIfNeeded(raw, options);
-      } catch {
+      } catch (error) {
+        throwIfAborted();
+        if (error instanceof DOMException && error.name === "AbortError")
+          throw error;
         if (fallbackDecode) {
           const raw = await fallbackDecode();
+          throwIfAborted();
           return wrapClippedIfNeeded(raw, options);
         }
       }
     }
+    throwIfAborted();
     if (fallbackDecode) {
       const raw = await fallbackDecode();
+      throwIfAborted();
       return wrapClippedIfNeeded(raw, options);
     }
   }
 
+  throwIfAborted();
   if (fallbackDecode) {
     const raw = await fallbackDecode();
+    throwIfAborted();
     return wrapClippedIfNeeded(raw, options);
   }
 

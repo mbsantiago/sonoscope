@@ -20,6 +20,18 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
   private currentSource: unknown = null;
   private currentChannel = 0;
 
+  clear(canvas: HTMLCanvasElement): void {
+    if (this.gl) {
+      this.gl.clearColor(0, 0, 0, 0);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    } else {
+      this.fallbackRenderer?.clear(canvas);
+    }
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
+  }
+
   async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
@@ -31,6 +43,11 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
     } = input;
+
+    if (!source) {
+      this.clear(canvas);
+      return;
+    }
 
     if (
       !this.gl ||
@@ -109,6 +126,7 @@ export class WebGL2WaveformRenderer implements WaveformRenderer {
     const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
 
     const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
+    if (input.signal?.aborted) return;
 
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);

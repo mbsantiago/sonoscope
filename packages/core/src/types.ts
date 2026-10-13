@@ -158,7 +158,7 @@ export interface NavigableViewer {
   };
   getCanvas?(): HTMLElement;
   getScope?(): {
-    getDuration(): number;
+    getDuration(): number | undefined;
     getSampleRate?(): number | undefined;
   };
   getConfig(): {
@@ -191,7 +191,7 @@ export interface ISonoscopeViewer {
  * Data-bound viewer that receives audio source updates.
  */
 export interface IDataViewer extends ISonoscopeViewer {
-  setSource(source: AudioSource): void;
+  setSourceState(state: SourceState, generation: number): void;
 }
 
 /**
@@ -254,6 +254,13 @@ export interface AudioSource {
    */
   onRangeAvailable?(handler: (range: AudioRange) => void): () => void;
 }
+
+/** Current lifecycle state of the audio source owned by a Sonoscope. */
+export type SourceState =
+  | { readonly status: "empty" }
+  | { readonly status: "loading" }
+  | { readonly status: "ready"; readonly source: AudioSource }
+  | { readonly status: "error"; readonly error: Error };
 
 export type AudioContextLike = {
   decodeAudioData(data: ArrayBuffer): Promise<AudioBuffer>;
@@ -413,8 +420,8 @@ export interface IViewportController {
  * Options for initializing a Sonoscope coordinator instance.
  */
 export type SonoscopeOptions = {
-  /** Audio source for decoding and STFT computation. */
-  source: AudioSource;
+  /** Optional audio source for decoding and STFT computation. */
+  source?: AudioSource | undefined;
   /** Optional HTML audio element to sync playback with. */
   audio?: HTMLAudioElement | undefined;
   /** Custom viewport controller to share coordinates across instances. */
@@ -452,6 +459,7 @@ export type SonoscopeEvents = {
   playbackchange: { mode: FollowPlaybackMode };
   timeupdate: { currentTime: number };
   sourcechange: { source: AudioSource };
+  statechange: { state: SourceState; previousState: SourceState };
   audiochange: { audio: HTMLAudioElement | undefined };
   clipchange: {
     clipStart?: number | undefined;
@@ -464,8 +472,10 @@ export type SonoscopeEvents = {
  * Central coordinator managing audio playback, viewport state, and viewer creation.
  */
 export interface ISonoscope {
-  /** Active audio source. */
-  readonly source: AudioSource;
+  /** Active audio source, absent until a replacement succeeds. */
+  readonly source: AudioSource | undefined;
+  /** Current source lifecycle state. */
+  readonly state: SourceState;
   /** Viewport controller managing time and frequency axes. */
   readonly viewport: IViewportController;
   /** Returns the current viewport state. */
@@ -506,11 +516,11 @@ export interface ISonoscope {
   /** Shifts viewport frequency range by a delta in Hz. */
   panFrequency(deltaHz: number, source?: string): void;
   /** Returns total audio duration in seconds. */
-  getDuration(): number;
+  getDuration(): number | undefined;
   /** Returns audio sample rate in Hz. */
-  getSampleRate(): number;
+  getSampleRate(): number | undefined;
   /** Returns Nyquist frequency (`sampleRate / 2`) in Hz. */
-  getNyquist(): number;
+  getNyquist(): number | undefined;
   /** Returns active playback follow mode. */
   getFollowPlayback(): FollowPlaybackMode;
   /** Sets playback follow mode (`page`, `smooth`, or `off`). */

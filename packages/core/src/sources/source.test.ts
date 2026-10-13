@@ -266,6 +266,26 @@ describe("createAudioSourceFromUrl", () => {
     expect(source.id).toBe("decoded-after-streaming-failure");
     expect(decoded).toHaveBeenCalledWith("unsupported.wav", options);
   });
+
+  it("does not start decoded fallback after WAV streaming is aborted", async () => {
+    const controller = new AbortController();
+    const decoded = vi.spyOn(DecodedAudioSource, "fromUrl");
+    vi.spyOn(StreamingWavSource, "fromByteSource").mockImplementation(
+      async () => {
+        controller.abort();
+        throw new DOMException("aborted", "AbortError");
+      },
+    );
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: streamFrom(new Uint8Array(wavHeader(10))),
+    }) as typeof fetch;
+
+    await expect(
+      createAudioSourceFromUrl("aborted.wav", { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(decoded).not.toHaveBeenCalled();
+  });
 });
 
 describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {

@@ -37,6 +37,7 @@ export type {
   Rgba,
   SonoscopeEvents,
   SonoscopeOptions,
+  SourceState,
   TimeBounds,
   ViewportConfig,
   ViewportConstraints,

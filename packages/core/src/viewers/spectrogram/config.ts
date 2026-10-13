@@ -39,11 +39,9 @@ function isPowerOfTwo(value: number): boolean {
 }
 
 export function resolveConfig(
-  source: AudioSource,
+  source: AudioSource | undefined,
   input: SpectrogramOptions = {},
 ): ResolvedSpectrogramConfig {
-  if (!source) throw new Error("SpectrogramViewer requires a source");
-
   const windowSize = input.windowSize ?? DEFAULT_CONFIG.windowSize;
   const fftSize = input.fftSize ?? DEFAULT_CONFIG.fftSize;
   const hopSize = input.hopSize ?? DEFAULT_CONFIG.hopSize;
@@ -61,7 +59,7 @@ export function resolveConfig(
   const channel = input.channel ?? DEFAULT_CONFIG.channel;
   if (!Number.isInteger(channel) || channel < 0)
     throw new Error("channel must be a non-negative integer");
-  if (channel >= source.channelCount)
+  if (source && channel >= source.channelCount)
     throw new Error(
       `channel ${channel} is outside source channel count ${source.channelCount}`,
     );

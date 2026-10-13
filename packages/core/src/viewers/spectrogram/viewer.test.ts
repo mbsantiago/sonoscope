@@ -626,7 +626,7 @@ describe("SpectrogramViewer", () => {
     const nextSource = await sourceModule.createAudioSourceFromUrl("next.wav");
     scope.setSource(nextSource);
 
-    expect(scope.source.sampleRate).toBe(192_000);
+    expect(scope.source?.sampleRate).toBe(192_000);
     viewer.destroy();
     scope.destroy();
   });

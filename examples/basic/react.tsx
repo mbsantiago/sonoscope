@@ -112,7 +112,7 @@ export function ReactSpectrogramDemo(): React.ReactElement {
     const unsubComp = viewer.on("rendercomplete", () => {
       setCacheSummary(formatCacheStats(viewer.getCacheStats()));
       const liveNyquist = viewer.getNyquist();
-      if (liveNyquist > 0) {
+      if (liveNyquist !== undefined && liveNyquist > 0) {
         setNyquist(liveNyquist);
       }
       setStatus(
@@ -141,7 +141,11 @@ export function ReactSpectrogramDemo(): React.ReactElement {
       const viewer = spectrogramRef.current?.getViewer();
       if (viewer) {
         const liveNyquist = viewer.getNyquist();
-        if (liveNyquist > 0 && liveNyquist !== nyquist) {
+        if (
+          liveNyquist !== undefined &&
+          liveNyquist > 0 &&
+          liveNyquist !== nyquist
+        ) {
           setNyquist(liveNyquist);
         }
       }

@@ -137,9 +137,9 @@ export function useSpectrogram(
         }
 
         viewerRef.current = viewer;
-        const dur = effectiveScope.getDuration();
-        const sr = effectiveScope.getSampleRate();
-        const nq = viewer.getNyquist();
+        const dur = effectiveScope.getDuration()!;
+        const sr = effectiveScope.getSampleRate()!;
+        const nq = viewer.getNyquist()!;
         const vp = viewer.getViewport();
 
         setDuration(dur);

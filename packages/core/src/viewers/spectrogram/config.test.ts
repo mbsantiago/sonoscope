@@ -116,11 +116,9 @@ describe("resolveConfig", () => {
     );
   });
 
-  it("throws when source is not provided", () => {
-    expect(() =>
-      resolveConfig(
-        undefined as unknown as Parameters<typeof resolveConfig>[0],
-      ),
-    ).toThrow(/requires a source/);
+  it("resolves source-independent defaults before a source is ready", () => {
+    const config = resolveConfig(undefined);
+    expect(config.channel).toBe(0);
+    expect(config.windowSize).toBe(1024);
   });
 });
