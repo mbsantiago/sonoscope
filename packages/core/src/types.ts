@@ -191,6 +191,10 @@ export interface ISonoscopeViewer {
  * Data-bound viewer that receives audio source updates.
  */
 export interface IDataViewer extends ISonoscopeViewer {
+  /**
+   * Replaces the current source context. The generation also advances when
+   * source-relative bounds change so viewers can discard stale computations.
+   */
   setSourceState(state: SourceState, generation: number): void;
 }
 

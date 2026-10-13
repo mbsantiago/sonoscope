@@ -16,6 +16,7 @@ import {
 } from "../../plugins/program-registry";
 import { Sonoscope } from "../../sonoscope";
 import * as sourceModule from "../../sources/source";
+import { computeStftMatrix } from "./backends/stft";
 import { NormalSpectrogramProgram } from "./renderers/webgl2-normal-program";
 import { SpectrogramViewer } from "./viewer";
 
@@ -967,6 +968,215 @@ describe("SpectrogramViewer", () => {
     expect(render.mock.calls.at(-1)?.[0]).toMatchObject({
       tiles: expect.arrayContaining([expect.any(Object), expect.any(Object)]),
     });
+  });
+
+  it("renders in-clip audio in a partial first tile after clip changes", async () => {
+    const sampleRate = 192_000;
+    const toneFrequency = 880;
+    const source: AudioSource = {
+      id: "phrase-boundary-signal",
+      sampleRate,
+      duration: 20,
+      channelCount: 1,
+      read: ({ startTime, endTime }) => {
+        const sampleCount = Math.floor((endTime - startTime) * sampleRate);
+        return Float32Array.from(
+          { length: sampleCount },
+          (_, index) =>
+            0.5 *
+            Math.sin(
+              (2 *
+                Math.PI *
+                toneFrequency *
+                (Math.floor(startTime * sampleRate) + index)) /
+                sampleRate,
+            ),
+        );
+      },
+    };
+    const imageSnapshots: Uint8ClampedArray[] = [];
+    const drawingContext = {
+      clearRect: vi.fn(),
+      createImageData: (width: number, height: number) => ({
+        width,
+        height,
+        data: new Uint8ClampedArray(width * height * 4),
+      }),
+      putImageData: (image: ImageData) => {
+        imageSnapshots.push(image.data.slice());
+      },
+    };
+    const testCanvas = {
+      width: 500,
+      height: 100,
+      getBoundingClientRect: () => ({ width: 500, height: 100 }),
+      getContext: () => drawingContext,
+    } as unknown as HTMLCanvasElement;
+    const scope = new Sonoscope({
+      source,
+      clipStart: 0,
+      clipEnd: 20,
+      startTime: 0,
+      endTime: 20,
+    });
+    const computedTiles: SpectrogramMatrix[] = [];
+    const viewer = scope.createSpectrogram(testCanvas, {
+      autoRender: false,
+      renderer: "canvas2d",
+      backend: {
+        async computeTile(request) {
+          const samples = await request.source.read({
+            channel: request.channel,
+            startTime: request.timeStart,
+            endTime: request.timeEnd,
+          });
+          const result = computeStftMatrix(samples, {
+            channel: request.channel,
+            timeStart: request.timeStart,
+            sampleRate: request.source.sampleRate,
+            stft: request.stft,
+          });
+          computedTiles.push(result);
+          return result;
+        },
+      },
+      tileMaxCells: 2 ** 17,
+      fftSize: 1024,
+      windowSize: 1024,
+      hopSize: 256,
+      minDb: -100,
+      maxDb: -20,
+      prefetchTiles: 0,
+    });
+
+    const waitForReady = async () => {
+      await vi.waitFor(() => {
+        expect(viewer.getStatus().state).toBe("ready");
+      });
+    };
+    const assertBoundaryTileVisible = () => {
+      const firstTile = computedTiles.find(
+        (tile) => tile.timeStart < 6.5 && tile.timeEnd > 6.5,
+      );
+      expect(firstTile).toBeDefined();
+      expect(firstTile!.frameCount).toBeGreaterThan(0);
+      const inClipEnergy = firstTile!.magnitude.some(
+        (value) => Number.isFinite(value) && value > 0,
+      );
+      expect(inClipEnergy).toBe(true);
+
+      const image = imageSnapshots.at(-1);
+      expect(image).toBeDefined();
+      const visibleBoundaryPixels = Array.from({ length: 35 }, (_, x) => x)
+        .flatMap((x) =>
+          Array.from({ length: testCanvas.height }, (_, y) => [x, y]),
+        )
+        .some(([x, y]) => {
+          const pixel = (y! * testCanvas.width + x!) * 4;
+          return image![pixel]! + image![pixel + 1]! + image![pixel + 2]! > 80;
+        });
+      expect(visibleBoundaryPixels).toBe(true);
+    };
+
+    scope.setClipBounds({ clipStart: 6.5, clipEnd: 11.5 });
+    await waitForReady();
+    assertBoundaryTileVisible();
+
+    computedTiles.length = 0;
+    imageSnapshots.length = 0;
+    scope.setClipBounds({ clipStart: 12, clipEnd: 17 });
+    await waitForReady();
+    computedTiles.length = 0;
+    imageSnapshots.length = 0;
+    scope.setClipBounds({ clipStart: 6.5, clipEnd: 11.5 });
+    await waitForReady();
+    assertBoundaryTileVisible();
+
+    imageSnapshots.length = 0;
+    scope.viewport.setViewport({ startTime: 6.5, endTime: 8.5 });
+    await waitForReady();
+    assertBoundaryTileVisible();
+
+    scope.destroy();
+  });
+
+  it("does not let stale full-view tile work block the first clip tile", async () => {
+    const heldTiles: Array<() => void> = [];
+    const requestedTiles: number[] = [];
+    const source: AudioSource = {
+      id: "slow-phrase-boundary-signal",
+      sampleRate: 192_000,
+      duration: 20,
+      channelCount: 1,
+      read: ({ startTime, endTime }) =>
+        Float32Array.from(
+          { length: Math.floor((endTime - startTime) * 192_000) },
+          (_, index) => Math.sin(index / 12),
+        ),
+    };
+    const scope = new Sonoscope({
+      source,
+      clipStart: 0,
+      clipEnd: 20,
+      startTime: 0,
+      endTime: 20,
+    });
+    const viewer = scope.createSpectrogram(canvas(), {
+      renderer: "canvas2d",
+      tileMaxCells: 2 ** 17,
+      fftSize: 1024,
+      windowSize: 1024,
+      hopSize: 256,
+      prefetchTiles: 0,
+      backend: {
+        computeTile: (request) => {
+          requestedTiles.push(request.timeStart);
+          if (request.timeStart < 1) {
+            return new Promise<SpectrogramMatrix>((resolve) => {
+              heldTiles.push(() =>
+                resolve(matrix(request.timeStart, request.timeEnd)),
+              );
+            });
+          }
+          return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+        },
+      },
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    try {
+      await vi.waitFor(() => {
+        expect(heldTiles).toHaveLength(3);
+      });
+
+      scope.setClipBounds({ clipStart: 6.5, clipEnd: 11.5 });
+      await vi.waitFor(() => {
+        expect(viewer.getStatus().state).toBe("ready");
+      });
+
+      expect(requestedTiles.some((timeStart) => timeStart > 6)).toBe(true);
+      const lastRenderInput = render.mock.calls.at(-1)?.[0] as
+        | { tiles: SpectrogramMatrix[] }
+        | undefined;
+      expect(lastRenderInput).toBeDefined();
+      expect(lastRenderInput).toMatchObject({
+        tiles: expect.arrayContaining([
+          expect.objectContaining({ timeStart: expect.any(Number) }),
+        ]),
+      });
+      const renderedTiles = lastRenderInput!.tiles;
+      expect(
+        renderedTiles.some(
+          (tile) => tile.timeStart < 6.5 && tile.timeEnd > 6.5,
+        ),
+      ).toBe(true);
+    } finally {
+      for (const release of heldTiles) release();
+      scope.destroy();
+    }
   });
 
   it("keeps cached tiles painted while newly visible tiles are loading", async () => {

@@ -293,6 +293,7 @@ export class WaveformViewer implements IWaveformViewer {
       return;
     }
     this.config = resolveWaveformConfig(this.source, this.config);
+    this.clearOutput();
     this.requestRender();
   }
 

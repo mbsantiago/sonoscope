@@ -1,9 +1,11 @@
+import type { AudioSource } from "../../../types";
 import type { ComputeTileRequest } from "../backends/backend";
 import type { SpectrogramMatrix } from "../types";
 import { WEBGL2_HALFTONE_FRAGMENT_SHADER } from "@sonoscope/halftone-spectrogram";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "../../../sonoscope";
 import { ArrayAudioSource } from "../../../sources/array-source";
+import { computeStftMatrix } from "../backends/stft";
 import { SpectrogramViewer } from "../viewer";
 import { CanvasSpectrogramRenderer, type RenderInput } from "./canvas";
 import { WebGL2SpectrogramRenderer } from "./webgl2";
@@ -142,6 +144,173 @@ describe("WebGL2 shaders", () => {
     );
     expect(pixels.some((value) => value > 64)).toBe(true);
     renderer.destroy();
+  });
+
+  it("renders the visible overlap of a tile that starts before the viewport", () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 16;
+    Object.defineProperty(canvas, "getBoundingClientRect", {
+      value: () => ({ width: 64, height: 16 }),
+    });
+    const gl = canvas.getContext("webgl2");
+    if (!gl) return;
+    const renderer = new WebGL2SpectrogramRenderer(
+      gl,
+      createSpectrogramProgram(gl, "normal"),
+    );
+    const tile = brightBandTile(6.49, 6.81);
+    tile.magnitude.fill(1);
+    tile.times = Float32Array.from(
+      { length: tile.frameCount },
+      (_, index) => 6.49 + index * 0.04,
+    );
+
+    renderer.render({
+      canvas,
+      viewport: {
+        startTime: 6.5,
+        endTime: 10.5,
+        minFrequency: 0,
+        maxFrequency: 100,
+      },
+      frequencyScale: "linear",
+      valueScale: {
+        mode: "magnitude",
+        min: -100,
+        max: 0,
+        gamma: 1,
+        clamp: true,
+      },
+      colorMap: "gray",
+      tiles: [tile],
+    });
+
+    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      pixels,
+    );
+    const overlapWidth = Math.ceil(((6.81 - 6.5) / 4) * canvas.width);
+    const overlapHasSignal = Array.from(
+      { length: overlapWidth },
+      (_, x) => x,
+    ).some((x) =>
+      Array.from({ length: canvas.height }, (_, y) => {
+        const pixel = (y * canvas.width + x) * 4;
+        return (
+          pixels[pixel]! > 64 ||
+          pixels[pixel + 1]! > 64 ||
+          pixels[pixel + 2]! > 64
+        );
+      }).some(Boolean),
+    );
+    expect(overlapHasSignal).toBe(true);
+    renderer.destroy();
+  });
+
+  it("shows the real audio in Phrase 2's partial WebGL boundary tile", async () => {
+    const sampleRate = 48_000;
+    const frequency = 880;
+    const source: AudioSource = {
+      id: "webgl-phrase-boundary",
+      sampleRate,
+      duration: 20,
+      channelCount: 1,
+      read: ({ startTime, endTime }) => {
+        const firstSample = Math.floor(startTime * sampleRate);
+        const sampleCount = Math.floor((endTime - startTime) * sampleRate);
+        return Float32Array.from(
+          { length: sampleCount },
+          (_, index) =>
+            0.5 *
+            Math.sin(
+              (2 * Math.PI * frequency * (firstSample + index)) / sampleRate,
+            ),
+        );
+      },
+    };
+    const canvas = document.createElement("canvas");
+    canvas.width = 500;
+    canvas.height = 100;
+    Object.defineProperty(canvas, "getBoundingClientRect", {
+      value: () => ({ width: canvas.width, height: canvas.height }),
+    });
+    if (!canvas.getContext("webgl2")) return;
+
+    const scope = new Sonoscope({
+      source,
+      clipStart: 0,
+      clipEnd: 20,
+      startTime: 0,
+      endTime: 20,
+    });
+    const viewer = scope.createSpectrogram(canvas, {
+      autoRender: false,
+      renderer: { type: "webgl", program: "normal" },
+      tileMaxCells: 2 ** 17,
+      fftSize: 1024,
+      windowSize: 1024,
+      hopSize: 256,
+      minDb: -100,
+      maxDb: -20,
+      frequencyScale: "linear",
+      colorMap: "gray",
+      prefetchTiles: 0,
+      backend: {
+        async computeTile(request: ComputeTileRequest) {
+          const samples = await request.source.read({
+            channel: request.channel,
+            startTime: request.timeStart,
+            endTime: request.timeEnd,
+          });
+          return computeStftMatrix(samples, {
+            channel: request.channel,
+            timeStart: request.timeStart,
+            sampleRate: request.source.sampleRate,
+            stft: request.stft,
+          });
+        },
+      },
+    });
+
+    try {
+      scope.setClipBounds({ clipStart: 6.5, clipEnd: 11.5 });
+      await vi.waitFor(() => {
+        expect(viewer.getStatus().state).toBe("ready");
+      });
+
+      const gl = canvas.getContext("webgl2");
+      if (!gl) return;
+      const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        pixels,
+      );
+      const firstTileWidth = Math.ceil(((6.84 - 6.5) / 5) * canvas.width);
+      const boundaryHasSignal = Array.from(
+        { length: firstTileWidth },
+        (_, x) => x,
+      ).some((x) =>
+        Array.from({ length: canvas.height }, (_, y) => {
+          const pixel = (y * canvas.width + x) * 4;
+          return pixels[pixel]! > 80;
+        }).some(Boolean),
+      );
+      expect(boundaryHasSignal).toBe(true);
+    } finally {
+      scope.destroy();
+    }
   });
 
   it("renders visible halftone spectrogram pixels", () => {

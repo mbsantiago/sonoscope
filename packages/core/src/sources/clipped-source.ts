@@ -165,7 +165,12 @@ export class ClippedAudioSource implements AudioSource {
       0,
       Math.floor((clampedStart - requestedStart) * this.sampleRate),
     );
-    result.set(samples, leadZeros);
+    const destinationOffset = Math.min(leadZeros, result.length);
+    const copyLength = Math.min(
+      samples.length,
+      result.length - destinationOffset,
+    );
+    result.set(samples.subarray(0, copyLength), destinationOffset);
     return result;
   }
 

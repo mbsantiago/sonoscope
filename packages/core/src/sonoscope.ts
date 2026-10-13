@@ -99,6 +99,7 @@ function sourceOptionsWithSignal(
 export class Sonoscope implements ISonoscope {
   private _state: SourceState = { status: "empty" };
   private sourceGeneration = 0;
+  private viewerGeneration = 0;
   private _viewport: IViewportController;
   private readonly events = new TypedEventEmitter<SonoscopeEvents>();
   private readonly viewers = new Set<IDataViewer>();
@@ -534,6 +535,7 @@ export class Sonoscope implements ISonoscope {
         clipEnd: newEnd,
       });
     }
+    this.refreshViewersForSourceContext();
 
     this._viewport.setTimeBounds(newStart, newEnd);
     const clipSpan = Math.max(0.001, newEnd - newStart);
@@ -831,8 +833,9 @@ export class Sonoscope implements ISonoscope {
   ): void {
     const previousState = this._state;
     this._state = state;
+    this.viewerGeneration += 1;
     for (const viewer of this.viewers) {
-      viewer.setSourceState(state, this.sourceGeneration);
+      viewer.setSourceState(state, this.viewerGeneration);
     }
     beforeEmit?.();
     this.events.emit("statechange", { state, previousState });
@@ -913,8 +916,9 @@ export class Sonoscope implements ISonoscope {
         return;
       this.updateProgressiveDuration(installedSource, range.endTime);
     });
+    this.viewerGeneration += 1;
     for (const viewer of this.viewers)
-      viewer.setSourceState(readyState, generation);
+      viewer.setSourceState(readyState, this.viewerGeneration);
     this.events.emit("statechange", { state: readyState, previousState });
     if (generation !== this.sourceGeneration) return;
     this.events.emit("sourcechange", { source: installedSource });
@@ -972,6 +976,13 @@ export class Sonoscope implements ISonoscope {
           "sourceprogress",
         );
       }
+    }
+  }
+
+  private refreshViewersForSourceContext(): void {
+    this.viewerGeneration += 1;
+    for (const viewer of this.viewers) {
+      viewer.setSourceState(this._state, this.viewerGeneration);
     }
   }
 
@@ -1150,10 +1161,10 @@ export class Sonoscope implements ISonoscope {
         initialSource
           ? { status: "ready", source: initialSource }
           : this._state,
-        this.sourceGeneration,
+        this.viewerGeneration,
       );
     } else if (!initialSource) {
-      viewer.setSourceState(this._state, this.sourceGeneration);
+      viewer.setSourceState(this._state, this.viewerGeneration);
     }
     return viewer;
   }
@@ -1182,10 +1193,10 @@ export class Sonoscope implements ISonoscope {
         initialSource
           ? { status: "ready", source: initialSource }
           : this._state,
-        this.sourceGeneration,
+        this.viewerGeneration,
       );
     } else if (!initialSource) {
-      viewer.setSourceState(this._state, this.sourceGeneration);
+      viewer.setSourceState(this._state, this.viewerGeneration);
     }
     return viewer;
   }
@@ -1271,7 +1282,7 @@ export class Sonoscope implements ISonoscope {
     ) {
       const dataViewer = viewer as unknown as IDataViewer;
       this.viewers.add(dataViewer);
-      dataViewer.setSourceState(this._state, this.sourceGeneration);
+      dataViewer.setSourceState(this._state, this.viewerGeneration);
     }
     return viewer;
   }

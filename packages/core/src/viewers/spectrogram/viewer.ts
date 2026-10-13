@@ -44,6 +44,7 @@ import { deriveDb, derivePower } from "./value-scale";
 type TileJob = {
   priority: number;
   sequence: number;
+  queueGeneration: number;
   run: () => Promise<SpectrogramMatrix>;
   resolve: (matrix: SpectrogramMatrix) => void;
   reject: (error: unknown) => void;
@@ -59,10 +60,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
   private renderQueued = false;
   private renderRunning = false;
   private renderAgain = false;
+  private renderAbortController: AbortController | undefined;
   private readonly pendingTiles = new Map<string, Promise<SpectrogramMatrix>>();
   private readonly tileQueue: TileJob[] = [];
   private runningTileComputations = 0;
   private tileSequence = 0;
+  private tileQueueGeneration = 0;
   private progressivePaint:
     | { generation: number; callback: () => void }
     | undefined;
@@ -172,7 +175,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       ...this.config,
       ...cleanInput,
     });
-    this.renderGeneration += 1;
+    this.invalidateRender();
     this.cache.setMaxCachedTiles(this.config.maxCachedTiles);
     this.cache.setMaxCachedBytes(this.config.maxCachedBytes);
     const tilesChanged = this.tileConfigHash() !== previousTileConfigHash;
@@ -328,6 +331,8 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.requestCounter += 1;
     const requestId = `render_${this.requestCounter}`;
     const currentGeneration = this.renderGeneration;
+    const renderAbortController = new AbortController();
+    this.renderAbortController = renderAbortController;
 
     const visibleTiles = this.visibleTileRanges();
     const totalTiles = visibleTiles.length;
@@ -400,11 +405,31 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     for (let index = 0; index < visibleTiles.length; index += batchSize) {
       if (this.renderGeneration !== currentGeneration) return;
       try {
-        await Promise.all(
+        const batch = Promise.all(
           visibleTiles
             .slice(index, index + batchSize)
             .map((tile) => loadTile(tile)),
+        ).then(
+          () => ({ state: "complete" as const }),
+          (error: unknown) => ({ state: "error" as const, error }),
         );
+        let onAbort: (() => void) | undefined;
+        const invalidated = new Promise<{ state: "invalidated" }>((resolve) => {
+          onAbort = () => resolve({ state: "invalidated" });
+          if (renderAbortController.signal.aborted) {
+            onAbort();
+            return;
+          }
+          renderAbortController.signal.addEventListener("abort", onAbort, {
+            once: true,
+          });
+        });
+        const result = await Promise.race([batch, invalidated]);
+        if (onAbort) {
+          renderAbortController.signal.removeEventListener("abort", onAbort);
+        }
+        if (result.state === "invalidated") return;
+        if (result.state === "error") throw result.error;
       } catch (error) {
         if (this.isDestroyed() || this.renderGeneration !== currentGeneration)
           return;
@@ -435,6 +460,12 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     if (this.renderQueued || this.renderRunning) return;
     this.renderQueued = true;
     void Promise.resolve().then(() => this.renderRequested());
+  }
+
+  private invalidateRender(): void {
+    this.renderGeneration += 1;
+    this.renderAbortController?.abort();
+    this.renderAbortController = undefined;
   }
 
   private resolveRendererProgram(
@@ -595,10 +626,14 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.sourceGeneration = generation;
     this.cacheGeneration += 1;
     this.cache.clear();
+    // In-flight work cannot be canceled through AudioSource.read(), but stale
+    // jobs must not occupy the current source context's scheduling slots.
+    this.tileQueueGeneration += 1;
+    this.runningTileComputations = 0;
     this.cancelQueuedTiles();
     this.pendingTiles.clear();
     this.renderer.invalidate();
-    this.renderGeneration += 1;
+    this.invalidateRender();
     this.renderAgain = false;
     this.renderer.invalidate?.();
     this.source = state.status === "ready" ? state.source : undefined;
@@ -640,7 +675,9 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.status = { state: "destroyed" };
     this.sourceGeneration += 1;
     this.cacheGeneration += 1;
-    this.renderGeneration += 1;
+    this.invalidateRender();
+    this.tileQueueGeneration += 1;
+    this.runningTileComputations = 0;
     this.cancelQueuedTiles();
     this.events.clear();
     for (const cleanup of this.viewportCleanup) cleanup();
@@ -660,7 +697,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.viewportCleanup = [];
 
     const unlistenViewport = this.viewport.on("viewportchange", (e) => {
-      this.renderGeneration += 1;
+      this.invalidateRender();
       this.events.emit("viewportchange", { viewport: e.viewport });
       this.requestRender();
     });
@@ -981,6 +1018,7 @@ export class SpectrogramViewer implements ISpectrogramViewer {
       this.tileQueue.push({
         priority,
         sequence: this.tileSequence++,
+        queueGeneration: this.tileQueueGeneration,
         run,
         resolve,
         reject,
@@ -1003,7 +1041,11 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         .run()
         .then(job.resolve, job.reject)
         .finally(() => {
-          this.runningTileComputations -= 1;
+          // A job from an older context released its slot when that context
+          // was invalidated; do not decrement the new context's slot count.
+          if (job.queueGeneration === this.tileQueueGeneration) {
+            this.runningTileComputations -= 1;
+          }
           this.pumpTileQueue();
         });
     }

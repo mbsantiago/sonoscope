@@ -73,6 +73,48 @@ describe("ClippedAudioSource", () => {
     expect(read3.every((v) => v === 0)).toBe(true);
   });
 
+  it("truncates a one-sample rounding surplus when padding a high-rate tile", async () => {
+    const sampleRate = 48_000;
+    const source: AudioSource = {
+      sampleRate,
+      duration: 20,
+      channelCount: 1,
+      id: "rounded-high-rate-source",
+      read: async ({ startTime, endTime }) => {
+        const startFrame = Math.floor(startTime * sampleRate + 1e-6);
+        const endFrame = Math.ceil(endTime * sampleRate - 1e-6);
+        return Float32Array.from(
+          { length: endFrame - startFrame },
+          (_, index) => startFrame + index + 1,
+        );
+      },
+    };
+    const clipped = new ClippedAudioSource(source, {
+      clipStart: 6.5,
+      clipEnd: 11.5,
+    });
+    const tileStart = (1024 * 256) / sampleRate;
+    const tileEnd = (1279 * 256 + 1024) / sampleRate;
+
+    const samples = await clipped.read({
+      channel: 0,
+      startTime: tileStart,
+      endTime: tileEnd,
+    });
+
+    expect(samples).toHaveLength(
+      Math.floor((tileEnd - tileStart) * sampleRate),
+    );
+    expect(
+      samples
+        .slice(0, Math.floor((6.5 - tileStart) * sampleRate))
+        .every((value) => value === 0),
+    ).toBe(true);
+    expect(samples[Math.floor((6.5 - tileStart) * sampleRate)]).toBe(
+      Math.floor(6.5 * sampleRate) + 1,
+    );
+  });
+
   it("dynamically updates clip bounds via setClipBounds", () => {
     const source = createMockSource(30);
     const clipped = new ClippedAudioSource(source, {

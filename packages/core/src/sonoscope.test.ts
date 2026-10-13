@@ -1,4 +1,4 @@
-import type { AudioSource } from "./types";
+import type { AudioSource, SourceState } from "./types";
 import { describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "./sonoscope";
 import { ArrayAudioSource } from "./sources/array-source";
@@ -146,6 +146,30 @@ describe("Sonoscope", () => {
     scope.setSource(createMockSource());
 
     expect(states).toEqual(["loading", "ready"]);
+    scope.destroy();
+  });
+
+  it("invalidates data viewers when clip bounds change without replacing the source", () => {
+    const source = createMockSource(20);
+    const scope = new Sonoscope({ source });
+    const updates: Array<{ state: string; generation: number }> = [];
+    const viewer = {
+      setSourceState(state: SourceState, generation: number) {
+        updates.push({ state: state.status, generation });
+      },
+      destroy() {},
+    };
+    scope.createViewer(() => viewer, createMockCanvas());
+    const previousGeneration = updates.at(-1)?.generation;
+
+    scope.setClipBounds({ clipStart: 6.5, clipEnd: 11.5 });
+
+    expect(scope.source).toBe(source);
+    expect(updates.at(-1)).toEqual({
+      state: "ready",
+      generation: expect.any(Number),
+    });
+    expect(updates.at(-1)!.generation).toBeGreaterThan(previousGeneration!);
     scope.destroy();
   });
 
