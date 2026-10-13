@@ -92,6 +92,28 @@ describe("FetchByteSource", () => {
     expect(chunks).toEqual([5, 6]);
   });
 
+  it("detects ignored ranges once and cancels the full-file response body", async () => {
+    const cancelBody = vi.fn();
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: new ReadableStream<Uint8Array>({ cancel: cancelBody }),
+    }) as unknown as typeof fetch;
+    const source = FetchByteSource.fromUrl("audio.wav");
+
+    const results = await Promise.allSettled([
+      source.readRange(0, 16),
+      source.readRange(16, 32),
+    ]);
+    await expect(source.readRange(32, 48)).rejects.toThrow(
+      /does not support byte-range/,
+    );
+
+    expect(results.every((result) => result.status === "rejected")).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledOnce();
+    expect(cancelBody).toHaveBeenCalledOnce();
+  });
+
   it("reads byte ranges with a Range header", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

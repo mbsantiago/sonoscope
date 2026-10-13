@@ -110,6 +110,7 @@
       audio.src = recordings[index][0];
       const scope = await Sonoscope.fromAudio(audio, {
         followPlayback: "page",
+        maxDuration: 3,
       });
 
       // 2. Initialize SpectrogramViewer bound to scope

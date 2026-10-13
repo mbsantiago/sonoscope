@@ -61,6 +61,8 @@ export async function readPrefix(
 export class FetchByteSource implements SeekableByteSource {
   size?: number;
   private readonly signal?: AbortSignal | undefined;
+  private rangeSupport: boolean | undefined;
+  private rangeProbe: Promise<boolean> | undefined;
 
   private constructor(
     readonly url: string,
@@ -127,15 +129,97 @@ export class FetchByteSource implements SeekableByteSource {
       end < start
     )
       throw new Error("Invalid byte range");
+
+    if (this.rangeSupport === false) {
+      throw new Error("Server does not support byte-range requests");
+    }
+    if (this.rangeSupport === true) {
+      return this.readSupportedRange(start, end);
+    }
+
+    if (this.rangeProbe) {
+      const supported = await this.rangeProbe;
+      if (!supported) {
+        throw new Error("Server does not support byte-range requests");
+      }
+      return this.readSupportedRange(start, end);
+    }
+
+    let resolveProbe!: (supported: boolean) => void;
+    const probe = new Promise<boolean>((resolve) => {
+      resolveProbe = resolve;
+    });
+    this.rangeProbe = probe;
+    try {
+      const result = await this.requestRange(start, end, (supported) => {
+        this.rangeSupport = supported;
+        resolveProbe(supported);
+      });
+      if (!result.supported) {
+        throw new Error("Server does not support byte-range requests");
+      }
+      return result.bytes!;
+    } catch (error) {
+      resolveProbe(false);
+      throw error;
+    } finally {
+      if (this.rangeProbe === probe) this.rangeProbe = undefined;
+    }
+  }
+
+  private async readSupportedRange(
+    start: number,
+    end: number,
+  ): Promise<Uint8Array> {
     const response = await fetch(this.url, {
       headers: { Range: `bytes=${start}-${end - 1}` },
       ...(this.signal ? { signal: this.signal } : {}),
     });
+    if (response.status === 200) {
+      this.rangeSupport = false;
+      try {
+        await response.body?.cancel("Server ignored byte-range request");
+      } catch {
+        // The response may already have been consumed or cancelled.
+      }
+      throw new Error("Server does not support byte-range requests");
+    }
     if (!response.ok)
       throw new Error(`Failed to fetch byte range: ${response.status}`);
     if (response.status !== 206)
       throw new Error(`Server ignored byte range request: ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
+  }
+
+  private async requestRange(
+    start: number,
+    end: number,
+    onSupportKnown: (supported: boolean) => void,
+  ): Promise<{ supported: boolean; bytes?: Uint8Array }> {
+    const response = await fetch(this.url, {
+      headers: { Range: `bytes=${start}-${end - 1}` },
+      ...(this.signal ? { signal: this.signal } : {}),
+    });
+    if (response.status === 200) {
+      this.rangeSupport = false;
+      onSupportKnown(false);
+      try {
+        await response.body?.cancel("Server ignored byte-range request");
+      } catch {
+        // The response may already have been consumed or cancelled.
+      }
+      return { supported: false };
+    }
+    if (!response.ok)
+      throw new Error(`Failed to fetch byte range: ${response.status}`);
+    if (response.status !== 206)
+      throw new Error(`Unexpected byte-range response: ${response.status}`);
+    this.rangeSupport = true;
+    onSupportKnown(true);
+    return {
+      supported: true,
+      bytes: new Uint8Array(await response.arrayBuffer()),
+    };
   }
 }
 
