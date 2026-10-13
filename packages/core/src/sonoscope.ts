@@ -45,6 +45,7 @@ import { ViewportController } from "./viewport";
 
 const DEFAULT_MIN_DURATION = 0.05;
 const DEFAULT_MAX_DURATION = 40;
+const PROGRESSIVE_DURATION_STEP = 0.2;
 const DEFAULT_FOLLOW_PLAYBACK = "page";
 const DEFAULT_SMOOTH_ANCHOR = 0.5;
 
@@ -109,9 +110,12 @@ export class Sonoscope implements ISonoscope {
   private playheadCleanups: Array<() => void> = [];
   private sourceAbortController: AbortController | undefined;
   private externalAbortCleanup: (() => void) | undefined;
+  private sourceRangeCleanup: (() => void) | undefined;
   private animationFrame: number | undefined;
 
   private totalDuration: number;
+  private progressiveViewportDuration = 10;
+  private updatingProgressiveDuration = false;
   private minDuration: number;
   private maxDuration: number;
   private followPlayback: FollowPlaybackMode;
@@ -174,10 +178,7 @@ export class Sonoscope implements ISonoscope {
     );
     this.maxDuration = Math.max(
       this.minDuration,
-      opts.maxDuration ??
-        (source
-          ? Math.min(DEFAULT_MAX_DURATION, this.totalDuration)
-          : DEFAULT_MAX_DURATION),
+      opts.maxDuration ?? DEFAULT_MAX_DURATION,
     );
     this.followPlayback = opts.followPlayback ?? DEFAULT_FOLLOW_PLAYBACK;
     this.smoothAnchor = Math.max(
@@ -224,8 +225,17 @@ export class Sonoscope implements ISonoscope {
     }
 
     this._viewport.on("viewportchange", (e) => {
+      if (
+        this._state.status === "ready" &&
+        !this.updatingProgressiveDuration &&
+        e.source !== "sourcechange" &&
+        e.source !== "sourceprogress"
+      ) {
+        this.progressiveViewportDuration = e.viewport.duration;
+      }
       this.events.emit("viewportchange", e);
     });
+    this.progressiveViewportDuration = this._viewport.getViewport().duration;
 
     if (source) this._state = { status: "ready", source };
 
@@ -764,6 +774,8 @@ export class Sonoscope implements ISonoscope {
     externalSignal?: AbortSignal,
   ): number {
     this.sourceAbortController?.abort();
+    this.sourceRangeCleanup?.();
+    this.sourceRangeCleanup = undefined;
     this.externalAbortCleanup?.();
     this.externalAbortCleanup = undefined;
     this.sourceAbortController = controller;
@@ -843,10 +855,6 @@ export class Sonoscope implements ISonoscope {
     }
 
     this.totalDuration = Math.max(0.01, installedSource.duration);
-    this.maxDuration = Math.max(
-      this.minDuration,
-      Math.min(this.maxDuration, this.totalDuration),
-    );
     const nyquist = Math.max(100, Math.floor(installedSource.sampleRate / 2));
     const effectiveMinTime = this._clipStart ?? 0;
     const effectiveMaxTime = this._clipEnd ?? this.totalDuration;
@@ -896,6 +904,15 @@ export class Sonoscope implements ISonoscope {
       source: installedSource,
     };
     this._state = readyState;
+    this.sourceRangeCleanup?.();
+    this.sourceRangeCleanup = installedSource.onRangeAvailable?.((range) => {
+      if (
+        generation !== this.sourceGeneration ||
+        this.source !== installedSource
+      )
+        return;
+      this.updateProgressiveDuration(installedSource, range.endTime);
+    });
     for (const viewer of this.viewers)
       viewer.setSourceState(readyState, generation);
     this.events.emit("statechange", { state: readyState, previousState });
@@ -907,6 +924,54 @@ export class Sonoscope implements ISonoscope {
         clipStart: this._clipStart,
         clipEnd: this._clipEnd,
       });
+    }
+  }
+
+  private updateProgressiveDuration(
+    source: AudioSource,
+    availableEnd: number,
+  ): void {
+    const duration = Math.max(source.duration, availableEnd);
+    if (
+      !Number.isFinite(duration) ||
+      duration - this.totalDuration < PROGRESSIVE_DURATION_STEP
+    )
+      return;
+
+    const previousDuration = this.totalDuration;
+    const viewport = this._viewport.getViewport();
+    const preferredViewportDuration = this.progressiveViewportDuration;
+    const wasAtAvailableEnd = viewport.endTime >= previousDuration - 0.001;
+    this.totalDuration = duration;
+
+    const minTime = this._clipStart ?? 0;
+    const maxTime = this._clipEnd ?? duration;
+    if (this._viewport instanceof ViewportController) {
+      this.updatingProgressiveDuration = true;
+      try {
+        this._viewport.setTotalDuration(duration);
+        this._viewport.setTimeBounds(minTime, maxTime);
+      } finally {
+        this.updatingProgressiveDuration = false;
+      }
+    }
+
+    if (wasAtAvailableEnd) {
+      const endTime = Math.min(
+        maxTime,
+        viewport.startTime +
+          Math.min(
+            this.maxDuration,
+            preferredViewportDuration,
+            duration - viewport.startTime,
+          ),
+      );
+      if (endTime > viewport.endTime + 0.001) {
+        this._viewport.setViewport(
+          { startTime: viewport.startTime, endTime },
+          "sourceprogress",
+        );
+      }
     }
   }
 
@@ -1261,6 +1326,8 @@ export class Sonoscope implements ISonoscope {
   }
 
   destroy(): void {
+    this.sourceRangeCleanup?.();
+    this.sourceRangeCleanup = undefined;
     this.externalAbortCleanup?.();
     this.externalAbortCleanup = undefined;
     this.sourceAbortController?.abort();

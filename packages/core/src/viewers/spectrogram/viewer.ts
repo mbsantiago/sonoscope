@@ -358,6 +358,14 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         progress: totalTiles === 0 ? 1 : completed / totalTiles,
         phase: "computing",
       });
+      this.scheduleProgressivePaint(currentGeneration, () => {
+        this.paintPartial(
+          Array.from(matrices.values()),
+          this.config.showLoadingPlaceholders
+            ? this.missingPlaceholders(visibleTiles, matrices)
+            : [],
+        );
+      });
     };
 
     this.paintPartial(
@@ -383,14 +391,6 @@ export class SpectrogramViewer implements ISpectrogramViewer {
         throw error;
       }
       if (this.renderGeneration !== currentGeneration) return;
-      this.scheduleProgressivePaint(currentGeneration, () => {
-        this.paintPartial(
-          Array.from(matrices.values()),
-          this.config.showLoadingPlaceholders
-            ? this.missingPlaceholders(visibleTiles, matrices)
-            : [],
-        );
-      });
     }
 
     if (this.isDestroyed() || this.renderGeneration !== currentGeneration)

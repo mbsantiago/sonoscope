@@ -906,7 +906,7 @@ describe("SpectrogramViewer", () => {
     releaseSecond?.();
     await rendered;
 
-    expect(render).toHaveBeenCalledTimes(3);
+    expect(render.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(render.mock.calls[0]?.[0]).toMatchObject({
       placeholders: expect.any(Array),
     });
@@ -917,6 +917,55 @@ describe("SpectrogramViewer", () => {
     ).toBeGreaterThan(0);
     expect(render.mock.calls[render.mock.calls.length - 1]?.[0]).toMatchObject({
       placeholders: [],
+    });
+  });
+
+  it("paints completed tiles before slower visible tiles finish", async () => {
+    const releases: Array<() => void> = [];
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        if (request.timeStart > 0) {
+          return new Promise((resolve) => {
+            releases.push(() =>
+              resolve(matrix(request.timeStart, request.timeEnd)),
+            );
+          });
+        }
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = createViewer({
+      canvas: canvas(),
+      source: { ...source, sampleRate: 1024, duration: 2 },
+      tileMaxCells: 2048,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 2,
+      minFrequency: 0,
+      maxFrequency: 512,
+      backend,
+      autoRender: false,
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    const rendering = viewer.render();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const partialPaints = render.mock.calls
+      .map(([input]) => input as { tiles: SpectrogramMatrix[] })
+      .filter(({ tiles }) => tiles.length === 1);
+    expect(partialPaints.length).toBeGreaterThan(0);
+    expect(releases.length).toBeGreaterThan(0);
+
+    releases.forEach((release) => {
+      release();
+    });
+    await rendering;
+    expect(render.mock.calls.at(-1)?.[0]).toMatchObject({
+      tiles: expect.arrayContaining([expect.any(Object), expect.any(Object)]),
     });
   });
 

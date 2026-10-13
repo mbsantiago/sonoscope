@@ -99,6 +99,13 @@ that cannot be interrupted is prevented from publishing stale results.
 `Sonoscope.fromUrl()`, `fromAudio()`, and in-memory factories remain available
 when code wants to await a ready scope before continuing.
 
+`ready` means the source metadata is available; it does not mean a progressive
+source has downloaded or decoded the entire file. Progressive sources report
+decoded intervals through `AudioSource.onRangeAvailable()`. Their duration may
+be provisional and grow as frames arrive; the scope expands its available time
+bounds as that happens, and viewers render the visible interval as soon as its
+samples can be read.
+
 ## Features
 
 - **Unified viewport coordinator (`Sonoscope`).** Single source of truth for time bounds, playback position, follow modes (`page`, `smooth`, `off`), and multi-canvas synchronization.

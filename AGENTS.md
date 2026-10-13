@@ -1,5 +1,21 @@
 # Agent Command Reference
 
+## Architecture and Abstraction Boundaries
+
+- Keep generic layers source-agnostic. `Sonoscope`, viewers, and shared interfaces must depend on the `AudioSource` contract and explicit capabilities, not concrete source classes, source IDs, formats, or source-specific flags.
+- Put format-specific parsing, duration discovery, progressive availability, and cancellation behavior in source implementations or source-layer adapters. Communicate those behaviors upward through small, documented contracts/events that are meaningful for every implementation that supports them.
+- Preserve one owner for each piece of state. Avoid mirroring source, readiness, or duration state across the scope, viewers, and demos unless the relationship and synchronization contract are explicit.
+- Prefer cohesive modules with narrow responsibilities and stable interfaces. Avoid adding special cases to a generic coordinator when a capability or adapter at the boundary can express the behavior.
+- Keep practical coupling explicit: before adding a cross-layer dependency, identify why it is needed, keep its surface minimal, and add tests at the interface that guarantees the behavior.
+- Treat format-specific demos as consumers of generic APIs. They may display format-specific details, but must not implement core source lifecycle, cancellation, or viewer invalidation themselves.
+
+## Simplicity, Demo Quality, and Performance
+
+- Keep demo code as simple as possible. Demos should show how easily library users can express the desired behavior; complexity in a demo is a signal to reconsider the API and whether refactoring or library development is needed.
+- After preserving modularity and abstraction boundaries, prioritize performance: provide quick user feedback and fast visualization, especially for progressive sources.
+- Prefer simple code as evidence of sound design: use adequate abstractions, loose coupling, and shallow control flow.
+- Apply YAGNI. Avoid features that are not needed, and require clear justification before adding features that increase API or implementation complexity.
+
 Commands for building, testing, linting, and releasing in this monorepo.
 
 ## Building

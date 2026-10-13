@@ -149,6 +149,68 @@ describe("Sonoscope", () => {
     scope.destroy();
   });
 
+  it("extends the visible time range as an MP3 source reveals its duration", () => {
+    let duration = 1152 / 44100;
+    let publishRange:
+      | ((range: { startTime: number; endTime: number }) => void)
+      | undefined;
+    const source: AudioSource = {
+      id: "progressive-mp3",
+      sampleRate: 44100,
+      channelCount: 1,
+      get duration() {
+        return duration;
+      },
+      read: () => new Float32Array(0),
+      onRangeAvailable(handler) {
+        publishRange = handler;
+        return () => {
+          publishRange = undefined;
+        };
+      },
+    };
+    const scope = new Sonoscope({});
+    scope.setSource(source);
+    const initialViewportEnd = scope.getViewport().endTime;
+
+    duration = 2;
+    publishRange?.({ startTime: 0, endTime: duration });
+
+    expect(scope.getViewport().totalDuration).toBe(2);
+    expect(scope.getViewport().endTime).toBeGreaterThan(initialViewportEnd);
+    scope.destroy();
+  });
+
+  it("preserves the requested initial viewport span while MP3 duration grows", () => {
+    let duration = 1152 / 44100;
+    let publishRange:
+      | ((range: { startTime: number; endTime: number }) => void)
+      | undefined;
+    const source: AudioSource = {
+      id: "progressive-mp3-with-custom-window",
+      sampleRate: 44100,
+      channelCount: 1,
+      get duration() {
+        return duration;
+      },
+      read: () => new Float32Array(0),
+      onRangeAvailable(handler) {
+        publishRange = handler;
+        return () => {
+          publishRange = undefined;
+        };
+      },
+    };
+    const scope = new Sonoscope({ endTime: 1, maxDuration: 10 });
+    scope.setSource(source);
+
+    duration = 2;
+    publishRange?.({ startTime: 0, endTime: duration });
+
+    expect(scope.getViewport().endTime).toBe(1);
+    scope.destroy();
+  });
+
   it("constructs directly with an AudioSource", () => {
     const source = createMockSource(15, 44100);
     const scope = new Sonoscope(source);

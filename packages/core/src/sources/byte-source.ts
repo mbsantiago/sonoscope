@@ -34,14 +34,25 @@ export async function readPrefix(
   const reader = source.stream().getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let streamEnded = false;
   try {
     while (total < length) {
       const result = await reader.read();
-      if (result.done) break;
+      if (result.done) {
+        streamEnded = true;
+        break;
+      }
       chunks.push(result.value);
       total += result.value.length;
     }
   } finally {
+    if (!streamEnded) {
+      try {
+        await reader.cancel("Prefix read complete");
+      } catch {
+        // The stream may already have failed or been cancelled.
+      }
+    }
     reader.releaseLock();
   }
   return concatChunks(chunks).slice(0, length);

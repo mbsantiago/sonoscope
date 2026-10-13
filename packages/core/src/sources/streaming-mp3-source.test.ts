@@ -134,4 +134,21 @@ describe("StreamingMp3Source", () => {
 
     expect(handler).toHaveBeenCalled();
   });
+
+  it("updates provisional duration as streamed MP3 frames decode", async () => {
+    const frame1 = createMp3Frame(128, 44100);
+    const frame2 = createMp3Frame(128, 44100);
+    const stream = controllableSource();
+    const promise = StreamingMp3Source.fromByteSource(stream.source, {
+      decoderFactory: createMockDecoderFactory(),
+    });
+    stream.push(frame1);
+    const source = await promise;
+    const initialDuration = source.duration;
+
+    stream.push(frame2);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(source.duration).toBeGreaterThan(initialDuration);
+  });
 });

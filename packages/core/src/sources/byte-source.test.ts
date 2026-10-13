@@ -39,9 +39,48 @@ describe("byte source helpers", () => {
     );
     expect(Array.from(prefix)).toEqual([1, 2, 3]);
   });
+
+  it("cancels the underlying stream after reading the requested prefix", async () => {
+    const cancel = vi.fn();
+    const prefix = await readPrefix(
+      {
+        stream: () =>
+          new ReadableStream<Uint8Array>({
+            pull(controller) {
+              controller.enqueue(Uint8Array.from([1, 2, 3, 4, 5]));
+            },
+            cancel,
+          }),
+      },
+      3,
+    );
+
+    expect(Array.from(prefix)).toEqual([1, 2, 3]);
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });
 
 describe("FetchByteSource", () => {
+  it("cancels the HTTP body after prefix sniffing", async () => {
+    const cancelBody = vi.fn();
+    const responseBody = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(128));
+      },
+      cancel: cancelBody,
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "1024" },
+      body: responseBody,
+    }) as unknown as typeof fetch;
+
+    const prefix = await readPrefix(FetchByteSource.fromUrl("audio.mp3"), 16);
+
+    expect(prefix).toHaveLength(16);
+    expect(cancelBody).toHaveBeenCalledOnce();
+  });
+
   it("streams bytes from fetch", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

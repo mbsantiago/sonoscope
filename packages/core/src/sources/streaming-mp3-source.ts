@@ -331,6 +331,7 @@ export class StreamingMp3Source implements AudioSource {
     }
 
     this.decodedFrameCount = endFrame;
+    this.duration = Math.max(this.duration, endFrame / this.sampleRate);
     addDecodedRange(this.decodedRanges, startFrame, endFrame);
 
     if (endFrame > startFrame) {

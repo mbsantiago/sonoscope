@@ -200,10 +200,9 @@
         <p><a href="./index.html">← Back to demos</a></p>
         <h1>WebCodecs MP3 Streaming Demo</h1>
         <p style="color: var(--text-muted); margin-top: 0.25rem">
-          Progressive chunk-by-chunk MP3 decoding directly via the browser's
-          WebCodecs
-          <code>AudioDecoder</code> API. Spectrogram tiles render dynamically as
-          frames stream in.
+          Progressive MP3 decoding via WebCodecs when the browser supports it.
+          Otherwise, the demo falls back to full-file Web Audio decoding.
+          Spectrogram tiles render dynamically as decoded frames arrive.
         </p>
       </header>
 
@@ -353,8 +352,9 @@
 
       const scope = new Sonoscope({
         audio,
-        minDuration: 2,
+        minDuration: 1,
         maxDuration: 10,
+        endTime: 5,
         followPlayback: "page",
       });
       const viewer = scope.createSpectrogram(canvas, {
@@ -364,7 +364,7 @@
         window: "hann",
         frequencyScale: "mel",
         valueMode: "db",
-        minDb: -80,
+        minDb: -120,
         maxDb: 0,
         colorMap: { base: "magma", gamma: 1.5 },
         renderOnSeek: true,
@@ -424,6 +424,7 @@
           if (scope.source !== source || scope.state.status !== "ready") return;
           maxDecodedTime = Math.max(maxDecodedTime, range.endTime);
           const duration = source.duration || maxDecodedTime;
+          statDuration.textContent = `${duration.toFixed(2)}s`;
           updateProgress(maxDecodedTime, duration);
         }) ?? null;
       });

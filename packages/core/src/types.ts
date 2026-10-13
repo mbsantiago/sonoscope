@@ -231,7 +231,11 @@ export interface PlayheadOverlayOptions {
 export interface AudioSource {
   /** Sample rate in Hz. */
   readonly sampleRate: number;
-  /** Total duration in seconds. */
+  /**
+   * Current total-duration estimate in seconds. Progressive sources may grow
+   * this value as decoded frames become available and report that progress
+   * through `onRangeAvailable`.
+   */
   readonly duration: number;
   /** Number of audio channels. */
   readonly channelCount: number;
@@ -248,7 +252,7 @@ export interface AudioSource {
     endTime: number;
   }): Float32Array | Promise<Float32Array>;
   /**
-   * Subscribes to progressive loading updates as new byte ranges arrive.
+   * Subscribes to progressive availability updates as decoded audio ranges arrive.
    * @param handler Callback receiving the newly available time range in seconds.
    * @returns Unsubscribe function.
    */
