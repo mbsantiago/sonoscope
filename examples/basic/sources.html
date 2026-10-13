@@ -56,11 +56,7 @@
     <div class="stage"><canvas></canvas></div>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        createAudioSourceFromUrl,
-        Sonoscope,
-      } from "@sonoscope/core";
+      import { Sonoscope } from "@sonoscope/core";
 
       const recordings = [
         [
@@ -105,16 +101,15 @@
       const canvas = document.querySelector("canvas");
       const title = document.querySelector("[data-title]");
       let index = 0;
+      let selectedLabel = recordings[index][1];
 
-      // 1. Initialize Sonoscope coordinator from Audio Element
-      audio.src = recordings[index][0];
-      const scope = await Sonoscope.fromAudio(audio, {
+      const scope = new Sonoscope({
+        audio,
         followPlayback: "page",
         maxDuration: 3,
       });
 
-      // 2. Initialize SpectrogramViewer bound to scope
-      const spectrogram = scope.createSpectrogram(canvas, {
+      scope.createSpectrogram(canvas, {
         windowSize: 1024,
         fftSize: 1024,
         hopSize: 128,
@@ -126,36 +121,36 @@
         maxDb: 0,
         colorMap: { base: "gray" },
       });
+      scope.attachNavigation(canvas);
+      scope.attachPlayhead(canvas.parentElement);
 
-      async function showRecording(nextIndex) {
-        const previousIndex = index;
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          title.textContent = `Loading ${selectedLabel}...`;
+        } else if (state.status === "ready") {
+          title.textContent = selectedLabel;
+        } else if (state.status === "error") {
+          title.textContent = `Could not load ${selectedLabel}: ${state.error.message}`;
+        }
+      });
+
+      function showRecording(nextIndex) {
         index = (nextIndex + recordings.length) % recordings.length;
         const [url, label] = recordings[index];
-        title.textContent = `Loading ${label}...`;
-        try {
-          // Decode source and update on Sonoscope directly
-          const nextSource = await createAudioSourceFromUrl(url);
-          audio.src = url;
-          scope.setSource(nextSource);
-          title.textContent = label;
-        } catch (error) {
-          index = previousIndex;
-          title.textContent = `Could not load ${label}: ${error instanceof Error ? error.message : String(error)}`;
-        }
+        selectedLabel = label;
+        void scope.setUrl(url).catch(() => {
+          // The active load error is displayed by the statechange handler.
+        });
       }
-
-      scope.attachNavigation(canvas);
-      attachPlayheadOverlay(canvas.parentElement, scope);
 
       document
         .querySelector('[data-action="previous"]')
-        .addEventListener("click", () => void showRecording(index - 1));
+        .addEventListener("click", () => showRecording(index - 1));
       document
         .querySelector('[data-action="next"]')
-        .addEventListener("click", () => void showRecording(index + 1));
+        .addEventListener("click", () => showRecording(index + 1));
 
-      title.textContent = recordings[index][1];
-      spectrogram.requestRender();
+      showRecording(index);
     </script>
   </body>
 </html>
