@@ -151,20 +151,45 @@
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector("audio");
-      let canvas = document.querySelector("canvas");
+      const canvas = document.querySelector("canvas");
       const status = document.querySelector("[data-status]");
       const minimap = document.querySelector(".minimap");
       const tilesElement = document.querySelector(".minimap-tiles");
       const viewportElement = document.querySelector(".minimap-viewport");
-      let scope;
-      let spectrogram;
       let minimapFrame;
       let tilesDirty = true;
       let lastTileSummary = "tiles: none yet";
       let lastPaintSummary = "paint passes: none yet";
-      let cleanupPlayhead;
-      let cleanupNavigation;
-      let cleanupAudioPause;
+      const scope = new Sonoscope({ audio, followPlayback: "page" });
+      const spectrogram = scope.createSpectrogram(canvas, {
+        renderer: "auto",
+        renderOnSeek: true,
+      });
+
+      spectrogram.on("tileload", scheduleTileMapUpdate);
+      spectrogram.on("renderprogress", scheduleMinimapUpdate);
+      spectrogram.on("rendercomplete", (event) => {
+        lastPaintSummary = `render: ${(event.durationMs ?? 0).toFixed(1)}ms (${event.renderedTiles} tiles)`;
+        scheduleMinimapUpdate();
+      });
+      spectrogram.on("viewportchange", scheduleMinimapUpdate);
+      audio.addEventListener("pause", scheduleMinimapUpdate);
+      scope.attachNavigation(canvas, { onNavigate: scheduleMinimapUpdate });
+      scope.attachPlayhead(canvas.parentElement);
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          status.textContent = "Loading and rendering...";
+          tilesDirty = true;
+          scheduleMinimapUpdate();
+        }
+        else if (state.status === "ready") scheduleMinimapUpdate();
+        else if (state.status === "error") {
+          status.textContent = state.error.message;
+          tilesDirty = true;
+          scheduleMinimapUpdate();
+        }
+      });
+      scope.on("sourcechange", scheduleMinimapUpdate);
 
       function scheduleTileMapUpdate() {
         tilesDirty = true;
@@ -182,8 +207,14 @@
 
       function updateMinimap() {
         if (!spectrogram) return;
+        if (scope.state.status !== "ready") {
+          tilesElement.replaceChildren();
+          viewportElement.style.left = "0%";
+          viewportElement.style.width = "0%";
+          return;
+        }
         const viewport = spectrogram.getViewport();
-        const duration = scope.getDuration();
+        const duration = scope.getDuration() ?? 0.001;
         const cacheStats = spectrogram.getCacheStats();
 
         if (tilesDirty) {
@@ -256,51 +287,11 @@
         return `paint passes: ${count}; partial [${partials.join(", ") || "none"}]; final [${finals.join(", ") || "none"}]`;
       }
 
-      async function load(url) {
-        cleanupNavigation?.();
-        cleanupAudioPause?.();
-        cleanupPlayhead?.();
-        spectrogram?.destroy();
-        scope?.destroy();
-        canvas = resetCanvas(canvas);
-        audio.src = url;
+      function load(url) {
         status.textContent = "Loading and rendering...";
-        try {
-          scope = await Sonoscope.fromAudio(audio, {
-            followPlayback: "page",
-          });
-          spectrogram = scope.createSpectrogram(canvas, {
-            renderer: "auto",
-            renderOnSeek: true,
-          });
-          cleanupPlayhead = scope.attachPlayhead(canvas.parentElement);
-        } catch (error) {
-          status.textContent =
-            error instanceof Error ? error.message : String(error);
-          return;
-        }
-        spectrogram.on("tileload", () => {
-          scheduleTileMapUpdate();
+        void scope.setUrl(url).catch(() => {
+          // The source error is displayed by the statechange handler.
         });
-        spectrogram.on("renderprogress", scheduleMinimapUpdate);
-        audio.addEventListener("pause", scheduleMinimapUpdate);
-        cleanupAudioPause = () =>
-          audio.removeEventListener("pause", scheduleMinimapUpdate);
-        spectrogram.on("rendercomplete", (event) => {
-          lastPaintSummary = `render: ${(event.durationMs ?? 0).toFixed(1)}ms (${event.renderedTiles} tiles)`;
-          scheduleMinimapUpdate();
-        });
-        spectrogram.on("viewportchange", scheduleMinimapUpdate);
-        cleanupNavigation = scope.attachNavigation(canvas, {
-          onNavigate: scheduleMinimapUpdate,
-        });
-        updateMinimap();
-      }
-
-      function resetCanvas(current) {
-        const next = current.cloneNode(false);
-        current.replaceWith(next);
-        return next;
       }
 
       form.addEventListener("submit", (event) => {

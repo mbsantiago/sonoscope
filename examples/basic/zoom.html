@@ -34,61 +34,54 @@
     <div class="stage"><canvas></canvas><div class="selection"></div></div>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from '@sonoscope/core';
+      import { Sonoscope } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       const form = document.querySelector('form');
       const input = document.querySelector('input[name="url"]');
       const follow = document.querySelector('input[name="follow"]');
       const audio = document.querySelector('audio');
-      let canvas = document.querySelector('canvas');
+      const canvas = document.querySelector('canvas');
       const selection = document.querySelector('.selection');
       const status = document.querySelector('[data-status]');
-      let scope;
-      let spectrogram;
+      const scope = new Sonoscope({
+        audio,
+        followPlayback: follow.checked ? "page" : "off",
+      });
+      const spectrogram = scope.createSpectrogram(canvas);
       let resetViewport;
       let dragStart;
-      let cleanupNavigation;
-      let cleanupPlayhead;
+
+      scope.attachPlayhead(canvas.parentElement);
+      scope.attachNavigation(canvas, {
+        drag: false,
+        onNavigate: () => {
+          status.textContent = statusText();
+        },
+      });
+      scope.on("viewportchange", () => {
+        status.textContent = statusText();
+      });
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") status.textContent = "Loading audio...";
+        else if (state.status === "ready") {
+          resetViewport = spectrogram.getViewport();
+          status.textContent = statusText();
+        } else if (state.status === "error") {
+          status.textContent = state.error.message;
+        }
+      });
 
       function statusText() {
-        if (!spectrogram) return '';
         const viewport = spectrogram.getViewport();
         return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz`;
       }
 
-      async function load(url) {
-        cleanupNavigation?.();
-        cleanupPlayhead?.destroy();
-        spectrogram?.destroy();
-        scope?.destroy();
-        canvas = resetCanvas(canvas);
-        attachCanvasInteractions(canvas);
-        audio.src = url;
+      function load(url) {
         status.textContent = 'Loading and rendering...';
-        try {
-          scope = await Sonoscope.fromAudio(audio, {
-            followPlayback: follow.checked ? "page" : "off",
-          });
-          spectrogram = scope.createSpectrogram(canvas);
-          cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
-          resetViewport = spectrogram.getViewport();
-          cleanupNavigation = scope.attachNavigation(canvas, {
-            drag: false,
-            onNavigate: () => {
-              status.textContent = statusText();
-            },
-          });
-          scope.on('viewportchange', () => {
-            status.textContent = statusText();
-          });
-          status.textContent = statusText();
-        } catch (error) {
-          status.textContent = error instanceof Error ? error.message : String(error);
-        }
+        void scope.setUrl(url).catch(() => {
+          // The current error is displayed by the statechange handler.
+        });
       }
 
       function setViewport(viewport) {
@@ -97,8 +90,8 @@
       }
 
       function fullBounds() {
-        const duration = scope.getDuration();
-        const samplerate = scope.getSampleRate();
+        const duration = scope.getDuration() ?? 0;
+        const samplerate = scope.getSampleRate() ?? 0;
         return { startTime: 0, endTime: duration, minFrequency: 0, maxFrequency: samplerate / 2 };
       }
 
@@ -114,7 +107,7 @@
         event.preventDefault();
         if (input.value.trim()) void load(input.value.trim());
       });
-      follow.addEventListener('change', () => scope?.setFollowPlayback(follow.checked ? 'page' : 'off'));
+      follow.addEventListener('change', () => scope.setFollowPlayback(follow.checked ? 'page' : 'off'));
       document.querySelector('[data-action="reset"]').addEventListener('click', () => resetViewport && setViewport(resetViewport));
       document.querySelector('[data-action="zoom-in"]').addEventListener('click', () => {
         if (scope) {
@@ -141,7 +134,7 @@
           showSelection(dragStart, { x: event.clientX - rect.left, y: event.clientY - rect.top });
         });
         target.addEventListener('pointerup', (event) => {
-          if (!spectrogram || !dragStart) return;
+          if (scope.state.status !== "ready" || !dragStart) return;
           const rect = target.getBoundingClientRect();
           const end = { x: event.clientX - rect.left, y: event.clientY - rect.top };
           selection.style.display = 'none';
@@ -164,14 +157,9 @@
         });
       }
 
-      function resetCanvas(current) {
-        const next = current.cloneNode(false);
-        current.replaceWith(next);
-        return next;
-      }
-
       input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
-      await load(input.value);
+      attachCanvasInteractions(canvas);
+      load(input.value);
     </script>
   </body>
 </html>

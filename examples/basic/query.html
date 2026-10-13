@@ -261,10 +261,8 @@
 
     <script type="module">
       import {
-        attachPlayheadOverlay,
         hzToScale,
         Sonoscope,
-        SpectrogramViewer,
         scaleToHz,
       } from '@sonoscope/core';
 
@@ -275,10 +273,9 @@
       const scaleSelect = document.getElementById('scale-select');
       const modeSelect = document.getElementById('mode-select');
       const audio = document.querySelector('audio');
-      let specCanvas = document.querySelector('.spec-canvas');
+      const specCanvas = document.querySelector('.spec-canvas');
       const sliceCanvas = document.querySelector('.slice-canvas');
       const sliceCtx = sliceCanvas.getContext('2d');
-      let cleanupPlayhead = null;
 
       const statusEl = document.getElementById('spec-status');
       const sliceTimeEl = document.getElementById('slice-time-label');
@@ -291,8 +288,13 @@
       const valModeEl = document.getElementById('val-mode');
       const rawOutputEl = document.getElementById('raw-output');
 
-      let scope = null;
-      let viewer = null;
+      const scope = new Sonoscope({ audio, followPlayback: "page" });
+      const viewer = scope.createSpectrogram(specCanvas, {
+        colorMap: "magma",
+        frequencyScale: scaleSelect.value,
+        valueMode: modeSelect.value,
+      });
+      scope.attachPlayhead(specCanvas.parentElement);
       let lastPoint = null;
       let lastSpectrum = null;
       let lastCanvasY = null;
@@ -451,10 +453,13 @@
       }
 
       async function queryAtPoint(x, y) {
-        if (!viewer) return;
+        if (scope.state.status !== "ready") return;
         const currentMode = modeSelect.value;
-        const point = await viewer.queryCanvasPoint({ x, y, mode: currentMode });
-        const spectrum = await viewer.querySpectrum({ time: point.time, mode: currentMode });
+        const source = scope.source;
+        try {
+          const point = await viewer.queryCanvasPoint({ x, y, mode: currentMode });
+          const spectrum = await viewer.querySpectrum({ time: point.time, mode: currentMode });
+          if (scope.source !== source) return;
         
         lastPoint = point;
         lastSpectrum = spectrum;
@@ -484,36 +489,48 @@
           }
         }, null, 2);
 
-        drawVerticalSpectrumChart(spectrum, point, lastCanvasY);
-      }
-
-      async function load(url) {
-        cleanupPlayhead?.destroy?.();
-        viewer?.destroy();
-        scope?.destroy();
-        statusEl.textContent = 'Loading audio...';
-        audio.src = url;
-        try {
-          resizeCanvas(sliceCanvas);
-          scope = await Sonoscope.fromAudio(audio, {
-            followPlayback: "page",
-          });
-          viewer = scope.createSpectrogram(specCanvas, {
-            colorMap: 'magma',
-            frequencyScale: scaleSelect.value,
-            valueMode: modeSelect.value,
-          });
-          cleanupPlayhead = attachPlayheadOverlay(specCanvas.parentElement, scope);
-          statusEl.textContent = `Ready (${scope.getSampleRate().toLocaleString()} Hz)`;
-          
-          // Initial slice at t = 0
-          const initialSpectrum = await viewer.querySpectrum({ time: 0, mode: modeSelect.value });
-          drawVerticalSpectrumChart(initialSpectrum, null, null);
+          drawVerticalSpectrumChart(spectrum, point, lastCanvasY);
         } catch (error) {
-          statusEl.textContent = 'Error';
-          rawOutputEl.textContent = error instanceof Error ? error.message : String(error);
+          if (scope.source === source && scope.state.status === "ready") {
+            rawOutputEl.textContent = error instanceof Error ? error.message : String(error);
+          }
         }
       }
+
+      function load(url) {
+        statusEl.textContent = 'Loading audio...';
+        void scope.setUrl(url).catch(() => {
+          // The active load error is reported through the statechange handler.
+        });
+      }
+
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          statusEl.textContent = "Loading audio...";
+          lastPoint = null;
+          lastSpectrum = null;
+        } else if (state.status === "error") {
+          statusEl.textContent = "Error";
+          rawOutputEl.textContent = state.error.message;
+        }
+      });
+
+      scope.on("sourcechange", ({ source }) => {
+        statusEl.textContent = `Ready (${source.sampleRate.toLocaleString()} Hz)`;
+        void viewer
+          .querySpectrum({ time: 0, mode: modeSelect.value })
+          .then((initialSpectrum) => {
+            if (scope.source === source)
+              drawVerticalSpectrumChart(initialSpectrum, null, null);
+          })
+          .catch((error) => {
+            if (scope.source === source) {
+              statusEl.textContent = "Error";
+              rawOutputEl.textContent =
+                error instanceof Error ? error.message : String(error);
+            }
+          });
+      });
 
       form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -550,7 +567,7 @@
 
       input.value = new URLSearchParams(window.location.search).get('url') || DEFAULT_AUDIO_URL;
       resizeCanvas(sliceCanvas);
-      await load(input.value);
+      load(input.value);
     </script>
   </body>
 </html>

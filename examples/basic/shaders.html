@@ -77,63 +77,57 @@
       import "@sonoscope/terrain-spectrogram/auto";
       import "@sonoscope/topographic-spectrogram/auto";
       import {
-        attachPlayheadOverlay,
         Sonoscope,
       } from "@sonoscope/core";
 
-      let canvas = document.querySelector("canvas");
+      const canvas = document.querySelector("canvas");
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector("audio");
       const shader = document.querySelector("#shader");
 
-      let scope;
-      let spectrogram;
-      let cleanupNavigation;
-      let cleanupPlayhead;
+      const scope = new Sonoscope({ audio, followPlayback: "page" });
+      const spectrogram = scope.createSpectrogram(canvas, {
+        renderer: { type: "webgl", program: shader.value },
+        frequencyScale: "mel",
+        valueMode: "db",
+        minDb: -65,
+        maxDb: -10,
+        colorMap: { base: "gray" },
+        renderOnSeek: true,
+      });
+      scope.attachNavigation(canvas);
+      scope.attachPlayhead(canvas.parentElement);
 
-      async function main(shader) {
-        spectrogram?.destroy();
-        scope?.destroy();
-        cleanupNavigation?.();
-        cleanupPlayhead?.destroy();
-        canvas = resetCanvas(canvas);
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") status.textContent = "Loading audio...";
+        else if (state.status === "ready") status.textContent = "Audio ready";
+        else if (state.status === "error") status.textContent = state.error.message;
+      });
+      spectrogram.on("error", ({ error }) => {
+        status.textContent = `Spectrogram error: ${error.message}`;
+      });
 
-        scope = await Sonoscope.fromAudio(audio, {
-          followPlayback: "page",
+      function loadUrl(url) {
+        void scope.setUrl(url).catch(() => {
+          // The current load error is displayed by the statechange handler.
         });
-
-        spectrogram = scope.createSpectrogram(canvas, {
-          renderer: { type: "webgl", program: shader },
-          frequencyScale: "mel",
-          valueMode: "db",
-          minDb: -65,
-          maxDb: -10,
-          colorMap: { base: "gray" },
-          renderOnSeek: true,
-        });
-
-        cleanupNavigation = scope.attachNavigation(canvas);
-        cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
       }
 
-      form.addEventListener("submit", async (event) => {
+      form.addEventListener("submit", (event) => {
         event.preventDefault();
         const url = input.value.trim();
         if (!url) return;
-        audio.src = url;
-        await main(shader.value);
+        loadUrl(url);
       });
 
-      shader.addEventListener("change", () => void main(shader.value));
+      shader.addEventListener("change", () => {
+        spectrogram.updateConfig({
+          renderer: { type: "webgl", program: shader.value },
+        });
+      });
 
-      function resetCanvas(current) {
-        const next = current.cloneNode(false);
-        current.replaceWith(next);
-        return next;
-      }
-
-      await main("normal");
+      loadUrl(input.value.trim());
     </script>
   </body>
 </html>

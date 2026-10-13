@@ -502,7 +502,12 @@
       const statRenderTime = document.getElementById("stat-rendertime");
 
       // State
-      let scope = null;
+      const scope = new Sonoscope({
+        audio,
+        startTime: 0,
+        endTime: 8,
+        followPlayback: followSelect.value,
+      });
       let waveViewer = null;
       let rulerViewer = null;
       let playheadOverlay = null;
@@ -567,12 +572,7 @@
           }
         }
 
-        return Sonoscope.fromArray(data, sampleRate, {
-          audio,
-          startTime: 0,
-          endTime: Math.min(8, duration),
-          followPlayback: followSelect.value,
-        });
+        return { samples: data, sampleRate };
       }
 
       function updateStats() {
@@ -614,13 +614,7 @@
         };
       }
 
-      async function initializeViewers() {
-        cleanupNav?.();
-        playheadOverlay?.destroy();
-        rulerViewer?.destroy();
-        waveViewer?.destroy();
-        destroyComparison();
-
+      function initializeViewers() {
         const config = getWaveConfig();
         waveViewer = scope.createWaveform(mainWaveCanvas, config);
         rulerViewer = scope.createTimeRuler(mainRulerCanvas, {
@@ -642,10 +636,6 @@
 
         waveViewer.on("error", (e) => {
           waveStatusEl.textContent = `Error: ${e.error.message}`;
-        });
-
-        scope.on("viewportchange", () => {
-          updateStats();
         });
 
         if (toggleComparison.checked) {
@@ -707,26 +697,31 @@
         cmpWaveWebgl = null;
       }
 
-      async function loadSelectedSource() {
+      function loadSelectedSource() {
         waveStatusEl.textContent = "Loading audio...";
-        scope?.destroy();
 
         const preset = sourcePresetSelect.value;
         if (preset === "custom-url") {
           const url = audioUrlInput.value.trim();
           if (!url) return;
-          audio.src = url;
-          scope = await Sonoscope.fromAudio(audio, {
-            startTime: 0,
-            endTime: 8,
-            followPlayback: followSelect.value,
+          void scope.setUrl(url).catch(() => {
+            // The active error is displayed through the source lifecycle.
           });
         } else {
-          scope = createSyntheticSource(preset);
+          const { samples, sampleRate } = createSyntheticSource(preset);
+          scope.setArray(samples, sampleRate);
         }
-
-        await initializeViewers();
       }
+
+      scope.on("viewportchange", updateStats);
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          waveStatusEl.textContent = "Loading audio...";
+        } else if (state.status === "error") {
+          waveStatusEl.textContent = `Error: ${state.error.message}`;
+        }
+      });
+      initializeViewers();
 
       // Waveform click-to-seek
       mainWaveCanvas.addEventListener("click", (e) => {
@@ -849,7 +844,7 @@
       });
 
       // Initial boot
-      await loadSelectedSource();
+      loadSelectedSource();
     </script>
   </body>
 </html>

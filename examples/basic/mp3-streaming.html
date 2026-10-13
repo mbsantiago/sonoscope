@@ -429,17 +429,21 @@
         }) ?? null;
       });
 
-      function loadUrl(url) {
-        requestedUrl = url;
+      function loadSource(label, replaceSource) {
+        requestedUrl = label;
         maxDecodedTime = 0;
         updateProgress(0, 0);
         statRange.textContent = "Loading stream...";
         statFormat.textContent = "-";
         statDuration.textContent = "-";
         if (corsNotice) corsNotice.style.display = "none";
-        void scope.setUrl(url).catch(() => {
+        void replaceSource().catch(() => {
           // The current error is displayed by the statechange handler.
         });
+      }
+
+      function loadUrl(url) {
+        loadSource(url, () => scope.setUrl(url));
       }
 
       function updateProgress(decodedSec, totalSec) {
@@ -462,8 +466,7 @@
       fileInput.addEventListener("change", (e) => {
         const file = e.target.files?.[0];
         if (file) {
-          const blobUrl = URL.createObjectURL(file);
-          loadUrl(blobUrl);
+          loadSource(file.name, () => scope.setBlob(file));
         }
       });
 

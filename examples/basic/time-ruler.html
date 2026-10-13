@@ -256,10 +256,7 @@
     </div>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from "@sonoscope/core";
+      import { Sonoscope } from "@sonoscope/core";
 
       const presetSelect = document.getElementById("preset-select");
       const topProgramSelect = document.getElementById("top-renderer-select");
@@ -273,77 +270,49 @@
       const canvasSpectrogram = document.getElementById("canvas-spectrogram");
       const canvasRulerBottom = document.getElementById("canvas-ruler-bottom");
 
-      let scope = null;
-      let rulerTopViewer = null;
-      let waveformViewer = null;
-      let spectrogramViewer = null;
-      let rulerBottomViewer = null;
+      const scope = new Sonoscope({
+        audio,
+        followPlayback: followSelect.value,
+        startTime: 0,
+        endTime: 12,
+      });
 
-      let playheadTop = null;
-      let playheadWave = null;
-      let playheadSpec = null;
-      let playheadBottom = null;
+      const rulerTopViewer = scope.createTimeRuler(canvasRulerTop, {
+        renderer: topProgramSelect.value,
+        timeFormat: timeFormatSelect.value,
+        tickPosition: "top",
+        color: "#cbd5e1",
+        tickColor: "#475569",
+      });
+      const waveformViewer = scope.createWaveform(canvasWaveform, {
+        color: "#38bdf8",
+        amplitudeScale: 1.1,
+      });
+      const spectrogramViewer = scope.createSpectrogram(canvasSpectrogram, {
+        frequencyScale: "mel",
+        valueMode: "db",
+        minDb: -80,
+        maxDb: -5,
+        colorMap: "magma",
+      });
+      const rulerBottomViewer = scope.createTimeRuler(canvasRulerBottom, {
+        renderer: bottomProgramSelect.value,
+        timeFormat: timeFormatSelect.value,
+        color: "#f8fafc",
+        backgroundColor: "#070b12",
+        tickColor: "#334155",
+      });
 
-      let cleanupNav = null;
+      scope.attachPlayhead(canvasRulerTop.parentElement);
+      scope.attachPlayhead(canvasWaveform.parentElement);
+      scope.attachPlayhead(canvasSpectrogram.parentElement);
+      scope.attachPlayhead(canvasRulerBottom.parentElement);
+      scope.attachNavigation(canvasSpectrogram);
 
-      async function loadTrack(url) {
-        cleanupNav?.();
-        playheadTop?.destroy();
-        playheadWave?.destroy();
-        playheadSpec?.destroy();
-        playheadBottom?.destroy();
-
-        rulerTopViewer?.destroy();
-        waveformViewer?.destroy();
-        spectrogramViewer?.destroy();
-        rulerBottomViewer?.destroy();
-        scope?.destroy();
-
-        audio.src = url;
-
-        scope = await Sonoscope.fromAudio(audio, {
-          followPlayback: followSelect.value,
-          startTime: 0,
-          endTime: 12,
+      function loadTrack(url) {
+        void scope.setUrl(url).catch(() => {
+          // Source errors can be observed through scope.state.
         });
-
-        rulerTopViewer = scope.createTimeRuler(canvasRulerTop, {
-          renderer: topProgramSelect.value,
-          timeFormat: timeFormatSelect.value,
-          tickPosition: "top",
-          color: "#cbd5e1",
-          tickColor: "#475569",
-        });
-
-        waveformViewer = scope.createWaveform(canvasWaveform, {
-          color: "#38bdf8",
-          amplitudeScale: 1.1,
-        });
-
-        spectrogramViewer = scope.createSpectrogram(canvasSpectrogram, {
-          frequencyScale: "mel",
-          valueMode: "db",
-          minDb: -80,
-          maxDb: -5,
-          colorMap: "magma",
-        });
-
-        rulerBottomViewer = scope.createTimeRuler(canvasRulerBottom, {
-          renderer: bottomProgramSelect.value,
-          timeFormat: timeFormatSelect.value,
-          color: "#f8fafc",
-          backgroundColor: "#070b12",
-          tickColor: "#334155",
-        });
-
-        // Attach decoupled playheads across all 4 tracks
-        playheadTop = attachPlayheadOverlay(canvasRulerTop.parentElement, scope);
-        playheadWave = attachPlayheadOverlay(canvasWaveform.parentElement, scope);
-        playheadSpec = attachPlayheadOverlay(canvasSpectrogram.parentElement, scope);
-        playheadBottom = attachPlayheadOverlay(canvasRulerBottom.parentElement, scope);
-
-        // Attach drag navigation to spectrogram
-        cleanupNav = scope.attachNavigation(canvasSpectrogram);
       }
 
       presetSelect.addEventListener("change", () => loadTrack(presetSelect.value));
@@ -362,7 +331,7 @@
       });
 
       followSelect.addEventListener("change", () => {
-        scope?.setFollowPlayback(followSelect.value);
+        scope.setFollowPlayback(followSelect.value);
       });
 
       loadTrack(presetSelect.value);

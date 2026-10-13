@@ -223,6 +223,7 @@
       const viewers = [];
       const playheads = [];
       const audios = [];
+      let sourceLoadStarted = false;
 
       for (let i = 0; i < ITEMS.length; i++) {
         const item = ITEMS[i];
@@ -289,16 +290,16 @@
       }
 
       async function loadAllViewers(renderer) {
-        for (const v of viewers) {
-          try { v.destroy?.(); } catch {}
+        currentRenderer = renderer;
+        if (sourceLoadStarted) {
+          for (const viewer of viewers) {
+            viewer?.updateConfig({ renderer: currentRenderer });
+          }
+          return;
         }
-        for (const p of playheads) {
-          try { p.destroy?.(); } catch {}
-        }
-        viewers.length = 0;
-        playheads.length = 0;
 
         // Concurrency queue: load up to 4 streams in parallel
+        sourceLoadStarted = true;
         const concurrency = 4;
         let nextIndex = 0;
 
@@ -319,7 +320,7 @@
                 followPlayback: "page",
               });
               const viewer = scope.createSpectrogram(canvas, {
-                renderer,
+                renderer: currentRenderer,
                 windowSize: 1024,
                 fftSize: 1024,
                 hopSize: 256,

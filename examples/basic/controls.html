@@ -210,17 +210,14 @@
 
     <script type="module">
       import "@sonoscope/halftone-spectrogram/auto";
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from "@sonoscope/core";
+      import { Sonoscope } from "@sonoscope/core";
 
       const DEFAULT_AUDIO_URL =
         "https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original";
       const form = document.querySelector("form");
       const input = document.querySelector('input[name="url"]');
       const audio = document.querySelector("audio");
-      let canvas = document.querySelector("canvas");
+      const canvas = document.querySelector("canvas");
       const status = document.querySelector("[data-status]");
       const minSlider = document.querySelector('input[name="minDb"]');
       const maxSlider = document.querySelector('input[name="maxDb"]');
@@ -229,11 +226,9 @@
       const modeSelect = document.querySelector('select[name="mode"]');
       const colorSelect = document.querySelector('select[name="colorMap"]');
 
-      let scope;
+      const scope = new Sonoscope({ audio, followPlayback: "page" });
       let viewer;
       let source;
-      let cleanupNavigation;
-      let cleanupPlayhead;
 
       function value(name) {
         return document.querySelector(`[name="${name}"]`).value;
@@ -311,35 +306,27 @@
         return `${viewport.startTime.toFixed(2)}s-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.maxFrequency)}Hz ceiling`;
       }
 
-      async function load(url) {
-        cleanupNavigation?.();
-        cleanupPlayhead?.destroy?.();
-        viewer?.destroy();
-        scope?.destroy();
-        canvas = resetCanvas(canvas);
-        audio.src = url;
-        status.textContent = "Loading and rendering...";
-        try {
-          scope = await Sonoscope.fromAudio(audio, {
-            followPlayback: "page",
-          });
-          viewer = scope.createSpectrogram(canvas, {
-            ...config(),
-          });
-          source = scope.source;
-          status.textContent = statusText();
-          cleanupNavigation = scope.attachNavigation(canvas);
-          cleanupPlayhead = attachPlayheadOverlay(canvas.parentElement, scope);
-        } catch (error) {
-          status.textContent =
-            error instanceof Error ? error.message : String(error);
+      viewer = scope.createSpectrogram(canvas, config());
+      scope.attachNavigation(canvas);
+      scope.attachPlayhead(canvas.parentElement);
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          source = undefined;
+          status.textContent = "Loading and rendering...";
+        } else if (state.status === "error") {
+          status.textContent = state.error.message;
         }
-      }
+      });
+      scope.on("sourcechange", ({ source: nextSource }) => {
+        source = nextSource;
+        status.textContent = statusText();
+      });
 
-      function resetCanvas(current) {
-        const next = current.cloneNode(false);
-        current.replaceWith(next);
-        return next;
+      function load(url) {
+        status.textContent = "Loading and rendering...";
+        void scope.setUrl(url).catch(() => {
+          // The active error is displayed by the statechange handler.
+        });
       }
 
       form.addEventListener("submit", (event) => {
@@ -350,23 +337,14 @@
       document
         .querySelector('[data-action="apply"]')
         .addEventListener("click", () => {
-          if (!viewer) return;
-          const previousRenderer = JSON.stringify(viewer.getConfig().renderer);
-          const nextConfig = config();
-          if (JSON.stringify(nextConfig.renderer) !== previousRenderer) {
-            const url =
-              viewer.getConfig().audio?.currentSrc || input.value.trim();
-            if (url) void load(url);
-            return;
-          }
-          viewer.updateConfig(nextConfig);
+          viewer.updateConfig(config());
           status.textContent = statusText();
         });
 
       input.value =
         new URLSearchParams(window.location.search).get("url") ||
         DEFAULT_AUDIO_URL;
-      await load(input.value);
+      load(input.value);
     </script>
   </body>
 </html>
