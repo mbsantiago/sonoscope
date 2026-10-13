@@ -969,6 +969,56 @@ describe("SpectrogramViewer", () => {
     });
   });
 
+  it("keeps cached tiles painted while newly visible tiles are loading", async () => {
+    let releaseSecondTile: (() => void) | undefined;
+    let notifySecondTileStarted: (() => void) | undefined;
+    const secondTileStarted = new Promise<void>((resolve) => {
+      notifySecondTileStarted = resolve;
+    });
+    const backend: SpectrogramComputeBackend = {
+      computeTile: (request) => {
+        if (request.timeStart >= 1) {
+          notifySecondTileStarted?.();
+          return new Promise((resolve) => {
+            releaseSecondTile = () =>
+              resolve(matrix(request.timeStart, request.timeEnd));
+          });
+        }
+        return Promise.resolve(matrix(request.timeStart, request.timeEnd));
+      },
+    };
+    const viewer = createViewer({
+      canvas: canvas(),
+      source: { ...source, sampleRate: 1024, duration: 2 },
+      tileMaxCells: 2048,
+      prefetchTiles: 0,
+      startTime: 0,
+      endTime: 1,
+      minFrequency: 0,
+      maxFrequency: 512,
+      backend,
+      autoRender: false,
+    });
+    const renderer = (
+      viewer as unknown as { renderer: { render: (input: unknown) => void } }
+    ).renderer;
+    const render = vi.spyOn(renderer, "render");
+
+    await viewer.render();
+    render.mockClear();
+    viewer.setViewport({ startTime: 0, endTime: 2 });
+    await secondTileStarted;
+
+    expect(render.mock.calls[0]?.[0]).toMatchObject({
+      tiles: [expect.any(Object)],
+    });
+    expect(render.mock.calls[0]?.[0]).not.toMatchObject({ tiles: [] });
+
+    releaseSecondTile?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    viewer.destroy();
+  });
+
   it("does not paint loading placeholders by default", async () => {
     const viewer = createViewer({
       source: { ...source, duration: 2 },

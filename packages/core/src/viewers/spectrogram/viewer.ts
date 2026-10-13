@@ -334,13 +334,33 @@ export class SpectrogramViewer implements ISpectrogramViewer {
     this.events.emit("renderstart", { requestId, total: totalTiles });
 
     const matrices = new Map<string, SpectrogramMatrix>();
-    let completed = 0;
+    for (const tile of visibleTiles) {
+      const cached = this.cache.get(
+        this.tileKey(tile.channel, tile.timeStart, tile.timeEnd),
+      );
+      if (cached) {
+        matrices.set(
+          `${tile.channel}:${tile.timeStart}:${tile.timeEnd}`,
+          cached,
+        );
+      }
+    }
+    let completed = matrices.size;
 
     const loadTile = async (tile: {
       channel: number;
       timeStart: number;
       timeEnd: number;
     }) => {
+      if (matrices.has(`${tile.channel}:${tile.timeStart}:${tile.timeEnd}`)) {
+        await this.getTile(
+          tile.channel,
+          tile.timeStart,
+          tile.timeEnd,
+          currentGeneration * 100 + 10,
+        );
+        return;
+      }
       const matrix = await this.getTile(
         tile.channel,
         tile.timeStart,
