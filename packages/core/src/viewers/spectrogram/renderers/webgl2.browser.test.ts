@@ -222,11 +222,11 @@ describe("WebGL2 shaders", () => {
       sampleRate,
       duration: 20,
       channelCount: 1,
-      read: ({ startTime, endTime }) => {
-        const firstSample = Math.floor(startTime * sampleRate);
-        const sampleCount = Math.floor((endTime - startTime) * sampleRate);
+      read: async ({ startTime, endTime }) => {
+        const firstSample = Math.floor(startTime * sampleRate + 1e-6);
+        const endSample = Math.ceil(endTime * sampleRate - 1e-6);
         return Float32Array.from(
-          { length: sampleCount },
+          { length: endSample - firstSample },
           (_, index) =>
             0.5 *
             Math.sin(

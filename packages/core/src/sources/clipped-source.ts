@@ -156,15 +156,19 @@ export class ClippedAudioSource implements AudioSource {
     if (requestedStart === clampedStart && requestedEnd === clampedEnd) {
       return samples;
     }
+    // Derive lengths from absolute frame boundaries so floating-point
+    // subtraction cannot drop the final sample of an STFT-aligned tile.
+    const requestedStartFrame = Math.floor(
+      requestedStart * this.sampleRate + 1e-6,
+    );
+    const requestedEndFrame = Math.ceil(requestedEnd * this.sampleRate - 1e-6);
+    const clampedStartFrame = Math.floor(clampedStart * this.sampleRate + 1e-6);
     const totalExpectedSamples = Math.max(
       0,
-      Math.floor((requestedEnd - requestedStart) * this.sampleRate),
+      requestedEndFrame - requestedStartFrame,
     );
     const result = new Float32Array(totalExpectedSamples);
-    const leadZeros = Math.max(
-      0,
-      Math.floor((clampedStart - requestedStart) * this.sampleRate),
-    );
+    const leadZeros = Math.max(0, clampedStartFrame - requestedStartFrame);
     const destinationOffset = Math.min(leadZeros, result.length);
     const copyLength = Math.min(
       samples.length,

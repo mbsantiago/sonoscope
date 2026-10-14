@@ -73,7 +73,7 @@ describe("ClippedAudioSource", () => {
     expect(read3.every((v) => v === 0)).toBe(true);
   });
 
-  it("truncates a one-sample rounding surplus when padding a high-rate tile", async () => {
+  it("uses absolute sample bounds when zero-padding a high-rate tile", async () => {
     const sampleRate = 48_000;
     const source: AudioSource = {
       sampleRate,
@@ -102,9 +102,10 @@ describe("ClippedAudioSource", () => {
       endTime: tileEnd,
     });
 
-    expect(samples).toHaveLength(
-      Math.floor((tileEnd - tileStart) * sampleRate),
-    );
+    const requestedStartFrame = Math.floor(tileStart * sampleRate + 1e-6);
+    const requestedEndFrame = Math.ceil(tileEnd * sampleRate - 1e-6);
+    expect(samples).toHaveLength(requestedEndFrame - requestedStartFrame);
+    expect(Math.floor((samples.length - 1024) / 256) + 1).toBe(256);
     expect(
       samples
         .slice(0, Math.floor((6.5 - tileStart) * sampleRate))

@@ -971,24 +971,22 @@ describe("SpectrogramViewer", () => {
   });
 
   it("renders in-clip audio in a partial first tile after clip changes", async () => {
-    const sampleRate = 192_000;
+    const sampleRate = 48_000;
     const toneFrequency = 880;
     const source: AudioSource = {
       id: "phrase-boundary-signal",
       sampleRate,
       duration: 20,
       channelCount: 1,
-      read: ({ startTime, endTime }) => {
-        const sampleCount = Math.floor((endTime - startTime) * sampleRate);
+      read: async ({ startTime, endTime }) => {
+        const firstSample = Math.floor(startTime * sampleRate + 1e-6);
+        const endSample = Math.ceil(endTime * sampleRate - 1e-6);
         return Float32Array.from(
-          { length: sampleCount },
+          { length: endSample - firstSample },
           (_, index) =>
             0.5 *
             Math.sin(
-              (2 *
-                Math.PI *
-                toneFrequency *
-                (Math.floor(startTime * sampleRate) + index)) /
+              (2 * Math.PI * toneFrequency * (firstSample + index)) /
                 sampleRate,
             ),
         );

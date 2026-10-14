@@ -100,6 +100,79 @@ describe("renderer helpers", () => {
     expect(context.createImageData).toHaveBeenCalledWith(150, 80);
   });
 
+  it("maps spectrogram frequencies using the selected scale", () => {
+    function renderAtScale(frequencyScale: "linear" | "log" | "mel") {
+      let pixels: Uint8ClampedArray | undefined;
+      const context = {
+        clearRect: vi.fn(),
+        createImageData: (width: number, height: number) => ({
+          width,
+          height,
+          data: new Uint8ClampedArray(width * height * 4),
+          colorSpace: "srgb" as const,
+        }),
+        putImageData: (image: ImageData) => {
+          pixels = new Uint8ClampedArray(image.data);
+        },
+      };
+      const magnitude = new Float32Array(2 * 5);
+      magnitude[1] = 1;
+      magnitude[5 + 1] = 1;
+
+      new CanvasSpectrogramRenderer().render({
+        canvas: canvas(8, 101, context),
+        viewport: {
+          startTime: 0,
+          endTime: 1,
+          minFrequency: 20,
+          maxFrequency: 8_000,
+        },
+        frequencyScale,
+        valueScale: {
+          mode: "db",
+          min: -100,
+          max: 0,
+          gamma: 1,
+          clamp: true,
+        },
+        colorMap: "gray",
+        tiles: [
+          {
+            channel: 0,
+            timeStart: 0,
+            timeEnd: 1,
+            frameStart: 0,
+            frameCount: 2,
+            binCount: 5,
+            sampleRate: 16_000,
+            times: Float32Array.from([0.25, 0.75]),
+            frequencies: Float32Array.from([0, 1_000, 2_000, 4_000, 8_000]),
+            magnitude,
+          },
+        ],
+      });
+
+      return Array.from({ length: 101 }, (_, y) => {
+        let intensity = 0;
+        for (let x = 0; x < 8; x++) {
+          intensity += pixels![(y * 8 + x) * 4]!;
+        }
+        return intensity;
+      });
+    }
+
+    const brightestRow = (intensities: number[]) =>
+      intensities.indexOf(Math.max(...intensities));
+
+    const linearRow = brightestRow(renderAtScale("linear"));
+    const logRow = brightestRow(renderAtScale("log"));
+    const melRow = brightestRow(renderAtScale("mel"));
+
+    expect(linearRow).not.toBe(logRow);
+    expect(linearRow).not.toBe(melRow);
+    expect(logRow).not.toBe(melRow);
+  });
+
   it("reuses the image buffer for repeated paints at the same size", () => {
     const context = {
       clearRect: vi.fn(),

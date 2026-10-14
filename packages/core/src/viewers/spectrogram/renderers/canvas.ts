@@ -1,4 +1,4 @@
-import type { Rgba, ViewportConfig } from "../../../types";
+import type { FrequencyScale, Rgba, ViewportConfig } from "../../../types";
 import type {
   RenderInput,
   SpectrogramMatrix,
@@ -73,6 +73,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
         height,
         tile,
         input.viewport,
+        input.frequencyScale ?? "linear",
         input.valueScale,
         colors,
       );
@@ -85,6 +86,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     height: number,
     tile: SpectrogramMatrix,
     viewport: ViewportConfig,
+    frequencyScale: FrequencyScale,
     valueScale: Required<ValueScaleConfig>,
     colors: Rgba[],
   ): void {
@@ -124,6 +126,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
         width,
         height,
         viewport,
+        frequencyScale,
       );
       return locateSamplePosition(tile.frequencies, frequency);
     });
