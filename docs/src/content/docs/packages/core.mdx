@@ -35,6 +35,8 @@ const urlScope = await Sonoscope.fromUrl("https://example.com/sound.mp3");
 
 Full reference: [`Sonoscope`](/sonoscope/reference/core/classes/sonoscope/), [`ISonoscope`](/sonoscope/reference/core/interfaces/isonoscope/), [`SonoscopeOptions`](/sonoscope/reference/core/type-aliases/sonoscopeoptions/).
 
+For the building blocks, see [Audio sources](/sonoscope/understanding/audio-sources/) and [Viewers and renderers](/sonoscope/understanding/viewers/). For the coordinator's active-source lifecycle, see [The Sonoscope object](/sonoscope/understanding/sonoscope/).
+
 ## Viewers
 
 ### Spectrogram Viewer
@@ -56,6 +58,8 @@ scope.attachNavigation(canvas);
 ```
 
 Full reference: [`SpectrogramViewer`](/sonoscope/reference/core/classes/spectrogramviewer/), [`ISpectrogramViewer`](/sonoscope/reference/core/interfaces/ispectrogramviewer/), [`SpectrogramConfig`](/sonoscope/reference/core/type-aliases/spectrogramconfig/).
+
+For an overview of why spectrograms are tiled, see [Why spectrograms use tiles](/sonoscope/understanding/why-tiling/). For frame alignment and tile sizing details, see [How spectrogram tiling works](/sonoscope/understanding/spectrogram-tiling/).
 
 ### Waveform Viewer
 

@@ -1,0 +1,53 @@
+---
+title: Concepts
+description: An overview of audio sources, viewers, viewports, and the Sonoscope object.
+---
+
+import ConceptFigure from '../../../components/ConceptFigure.astro';
+
+Sonoscope is built around a few simple ideas. Understanding how they fit together makes it easier to use the library.
+This page introduces the main parts and links to more detailed explanations.
+
+## Audio sources
+
+<ConceptFigure concept="sources" />
+
+Everything starts with an **audio source**.
+It provides audio samples, which Sonoscope can use to make visualizations.
+You can load audio from a URL, a browser `<audio>` element, an uploaded file or `Blob`, or an array of samples in memory.
+Most other parts of Sonoscope work the same way, regardless of which source type you use.
+
+See [Audio sources](/sonoscope/understanding/audio-sources/) for how sources provide samples, or the [Audio Sources demo](/sonoscope/demos/sources/) to try the different inputs.
+
+## Viewers
+
+<ConceptFigure concept="viewers" />
+
+Once you have an audio source, you can visualize it using different **viewers**.
+Viewers take audio data and draw it.
+A waveform viewer shows how the signal changes over time. A spectrogram viewer shows how its frequencies change over time.
+You can create multiple viewers for the same source to see the audio in different ways.
+
+Viewers have **parameters** you can change. For example, a spectrogram viewer's window size affects how it analyzes the audio, while its frequency scale changes how frequencies appear on screen.
+
+The same viewer can draw its data in different ways. For example, a waveform can appear as a line or as bars.
+The part that draws it is called a **renderer**. Sonoscope has built-in renderers, and you can add your own.
+
+See [Viewers and renderers](/sonoscope/understanding/viewers/) for the different viewers and how they draw. You can also try the [waveform](/sonoscope/demos/waveform/) and [spectrogram](/sonoscope/demos/spectrogram/) demos.
+
+## Viewport
+
+<ConceptFigure concept="viewport" />
+
+Recordings can be long, so you may want to show only a small part at a time.
+A **viewport** defines the visible time and frequency range. You can move it by dragging or panning, and zoom in or out to see more or less detail.
+Viewers use the viewport to know which part of the audio to display. When viewers share a viewport, their time axes stay in sync. Separate Sonoscope objects can also share a viewport to keep views of different sources aligned.
+
+A **clip** sets the part of a recording you want to work with. It limits where the viewport can move and where playback can go. See [Viewports, recording duration, and clips](/sonoscope/understanding/viewports/) for the difference between the full recording, a clip, the visible viewport, and the playback position.
+
+## Sonoscope object
+
+<ConceptFigure concept="sonoscope" />
+
+You can connect sources, viewports, and viewers yourself. However, the **Sonoscope** object makes it easier to use them together.
+It keeps track of the active source, connects attached viewers to the viewport, and coordinates playback. For example, when you load a different recording, it updates the viewers for you.

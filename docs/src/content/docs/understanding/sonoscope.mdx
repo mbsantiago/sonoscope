@@ -1,0 +1,63 @@
+---
+title: The Sonoscope object
+description: How the Sonoscope object keeps a source, viewers, viewport, and playback together.
+---
+
+You can use an [audio source](/sonoscope/understanding/audio-sources/) on its own. But if you want to show it in several [viewers](/sonoscope/understanding/viewers/) and play it back, you also need to keep track of which source and [viewport](/sonoscope/understanding/viewports/) they share. The `Sonoscope` object does that for you.
+
+```text
+audio input ──▶ Sonoscope ──▶ attached viewers
+                    │                 ▲
+                    ├── playback      │
+                    └── viewport ─────┘
+```
+
+## Changing the active source
+
+An application may need to switch recordings while its viewers stay on screen. `Sonoscope` keeps track of the active source, the one those viewers should use. You can check `scope.state` or listen for `statechange` while it changes:
+
+| State | Meaning |
+| --- | --- |
+| `empty` | There is no active source yet. |
+| `loading` | Sonoscope is loading a replacement source. |
+| `ready` | The source is available to the viewers. |
+| `error` | Loading failed. You can try another source. |
+
+Create the object and its viewers once, then load recordings as the user selects them:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+const audio = document.querySelector("audio")!;
+const canvas = document.querySelector<HTMLCanvasElement>("#spectrogram")!;
+const status = document.querySelector<HTMLElement>("[data-status]");
+const scope = new Sonoscope({ audio });
+scope.createSpectrogram(canvas, { frequencyScale: "mel" });
+
+scope.on("statechange", ({ state }) => {
+  if (!status) return;
+  if (state.status === "loading") status.textContent = "Loading audio…";
+  if (state.status === "ready") status.textContent = "Audio ready";
+  if (state.status === "error") status.textContent = state.error.message;
+});
+
+void scope.setUrl("/audio/recording.mp3").catch(() => {
+  // statechange reports the error.
+});
+```
+
+You can also start with a recording using `Sonoscope.fromUrl()`, `fromAudio()`, or another [source helper](/sonoscope/demos/sources/). Those methods give you a `Sonoscope` with a source ready to use. The `set*` methods replace the source on an existing object, so you can keep its viewers attached.
+
+If a user picks another recording before the first one finishes loading, Sonoscope uses the newer choice. It stops or ignores work from the old request so the viewers do not show the wrong recording. Call `scope.destroy()` when you are done with the object and its viewers.
+
+## A ready source can still be loading audio
+
+`ready` means the source can be used, not necessarily that every part of the recording has been decoded. Some sources make audio available bit by bit. The [source](/sonoscope/understanding/audio-sources/) handles that work and can tell Sonoscope when more samples are ready. Sonoscope then updates the viewers and viewport as needed.
+
+## Clips and the viewport
+
+Sonoscope also keeps the viewers on the same visible time range. You can set a clip to limit which part of the recording users can view and play. If you change the clip, Sonoscope updates the viewport and viewers to match. It does not need to load the recording again.
+
+See [Viewports, recording duration, and clips](/sonoscope/understanding/viewports/) for how those time ranges differ.
+
+For the methods and events available on the object, see the [`Sonoscope` API reference](/sonoscope/reference/core/classes/sonoscope/).

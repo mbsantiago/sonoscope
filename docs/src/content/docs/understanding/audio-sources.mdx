@@ -1,0 +1,109 @@
+---
+title: Audio sources
+description: Where audio samples come from and how the different source types provide them.
+---
+
+Audio is a series of samples: numbers that describe a sound signal over time.
+An **audio source** gives Sonoscope access to those samples for visualization and analysis.
+Audio can come from many places. Sonoscope uses the same interface for every source, so the rest of the library can ask for samples from a channel and time range without knowing where the audio came from.
+
+That interface is [`AudioSource`](/sonoscope/reference/core/interfaces/audiosource/).
+Each audio source provides basic information about the audio: sample rate, duration, and channel count.
+Its [`read()`](/sonoscope/reference/core/interfaces/audiosource/#read) method gets samples for a specific channel and time range, either immediately or once they are ready.
+Times are measured in seconds from the start of the recording. Each source also has an `id`, so computed data can be associated with the right source.
+
+:::note[What is an interface?]
+An interface is like a contract. It says what information an object must provide and what it must be able to do, without saying how it does the work.
+For `AudioSource`, that means providing details such as sample rate and a way to read samples. Any source that follows this contract can be used wherever an `AudioSource` is needed.
+:::
+
+## Ways to create sources
+
+Depending on where your audio comes from, you can use one of the options below.
+The middle column gives you an audio source to use on its own.
+The last column creates a `Sonoscope` object with that source, so you can also connect viewers and playback with ease.
+
+| Where the audio comes from | Use the source on its own | Use it with Sonoscope |
+| --- | --- | --- |
+| URL | [`await createAudioSourceFromUrl(url)`](/sonoscope/reference/core/functions/createaudiosourcefromurl/) | [`await Sonoscope.fromUrl(url)`](/sonoscope/reference/core/classes/sonoscope/#fromurl) |
+| Browser `<audio>` element | [`await createAudioSourceFromUrl(audio.src)`](/sonoscope/reference/core/functions/createaudiosourcefromurl/) | [`await Sonoscope.fromAudio(audio)`](/sonoscope/reference/core/classes/sonoscope/#fromaudio) |
+| File or `Blob` | [`await createAudioSourceFromBlob(file)`](/sonoscope/reference/core/functions/createaudiosourcefromblob/) | [`await Sonoscope.fromBlob(file)`](/sonoscope/reference/core/classes/sonoscope/#fromblob) |
+| Audio file data in memory | [`await createAudioSourceFromBuffer(bytes)`](/sonoscope/reference/core/functions/createaudiosourcefrombuffer/) | [`await Sonoscope.fromBuffer(bytes)`](/sonoscope/reference/core/classes/sonoscope/#frombuffer) |
+| Raw samples in memory | [`new ArrayAudioSource(samples, sampleRate)`](/sonoscope/reference/core/classes/arrayaudiosource/#constructor) | [`Sonoscope.fromArray(samples, sampleRate)`](/sonoscope/reference/core/classes/sonoscope/#fromarray) |
+| Audio already decoded by the browser | [`new DecodedAudioSource(buffer)`](/sonoscope/reference/core/classes/decodedaudiosource/#constructor) | [`Sonoscope.fromAudioBuffer(buffer)`](/sonoscope/reference/core/classes/sonoscope/#fromaudiobuffer) |
+
+For a browser `<audio>` element, the source uses the element's URL to get samples. `Sonoscope.fromAudio(audio)` also connects the element for playback. The [Audio Sources demo](/sonoscope/demos/sources/) shows these inputs in use.
+
+## Built-in source types
+
+The table above shows ways to create audio sources. Behind the scenes, Sonoscope uses different source types to read it. For example, a URL and a file can both contain WAV audio, so they can use the same kind of source.
+
+These built-in types all follow the `AudioSource` interface:
+
+- [`ArrayAudioSource`](/sonoscope/reference/core/classes/arrayaudiosource/) reads raw sample arrays already in memory.
+- [`DecodedAudioSource`](/sonoscope/reference/core/classes/decodedaudiosource/) reads an `AudioBuffer` after the browser has decoded the whole file.
+- [`StreamingWavSource`](/sonoscope/reference/core/classes/streamingwavsource/) and [`StreamingMp3Source`](/sonoscope/reference/core/classes/streamingmp3source/) read WAV and MP3 files progressively, so some ranges can be used before the entire recording is ready.
+- [`ClippedAudioSource`](/sonoscope/reference/core/classes/clippedaudiosource/) wraps another source and limits reads to a clip. It keeps the original recording's time positions and duration. See [Viewports, recording duration, and clips](/sonoscope/understanding/viewports/) for how clip bounds affect viewing and playback.
+
+When you load an audio file, the library checks its format and chooses how to read it. It can stream WAV or MP3 audio when supported, or ask the browser to decode the whole file. You can also request full decoding with `preferDecoded: true`.
+Most of the time, you do not need to choose the source type yourself.
+
+The source type affects how samples become available. If the built-in types do not suit your needs, you can create your own by implementing `AudioSource`. Give it the required information and `read()` method; add `onRangeAvailable()` if it provides samples progressively. Viewers can then use it through the same interface.
+
+## Reading samples directly
+
+If you want the samples yourself, you can call `read()` on a source directly. This example reads the first second of the recording's first channel:
+
+```ts
+import { createAudioSourceFromUrl } from "@sonoscope/core";
+
+const source = await createAudioSourceFromUrl("/audio/recording.mp3");
+const samples = await source.read({ channel: 0, startTime: 0, endTime: 1 });
+```
+
+The `channel` is numbered from zero: use `0` for the first channel and `1` for the second, if there is one. `startTime` and `endTime` are seconds on the recording's timeline. The result is a `Float32Array` of sample values for that channel. At a sample rate of 48,000 samples per second, a one-second range has about 48,000 values.
+
+Some sources return samples immediately; others may need to load or decode the requested range first. `read()` can return either an array or a promise. If you request a range beyond the end of a recording, you may receive fewer samples.
+
+:::note[What does `await` do?]
+Long recordings can take time to load. A source can make parts of a recording available as it loads, so you do not have to wait for the whole file to start using it.
+
+When you call `read()`, the requested samples may already be available, or the source may need to get them first. `await` works in either case. It waits for those samples before continuing your code, without stopping the rest of the page. It does not wait for the whole recording to load.
+
+If a streaming source is still loading the range you asked for, `read()` returns a promise. You can use `.then()` to run a function when those samples arrive:
+
+```ts
+const result = source.read({ channel: 0, startTime: 10, endTime: 11 });
+
+if (result instanceof Promise) {
+  result.then((samples) => console.log(samples.length));
+}
+```
+
+Even a streaming source may return samples immediately for a range it has already loaded. That is why this example checks for a promise. Use `await` when you want code that works in either case.
+:::
+
+## Finding out when more audio is available
+
+Some sources make parts of a recording available as they load. They can provide [`onRangeAvailable()`](/sonoscope/reference/core/interfaces/audiosource/#onrangeavailable) to tell you when a new time range is ready.
+Pass it a **callback**, a function the source calls for each newly available range:
+
+```ts
+import type { AudioRange } from "@sonoscope/core";
+
+// Called when a new range is available.
+const callback = ({ startTime, endTime }: AudioRange) => {
+  console.log(`Samples available from ${startTime}s to ${endTime}s`);
+};
+
+// Subscribe to updates. This returns a function to stop listening.
+const unsubscribe = source.onRangeAvailable?.(callback);
+
+// When you no longer need updates:
+unsubscribe?.();
+```
+
+The callback receives `startTime` and `endTime` in recording seconds. It can run more than once as new ranges arrive. You might use it to refresh a view when samples become available; it does not give you the samples themselves. Call `read()` to get them.
+
+`onRangeAvailable()` is optional. An in-memory source already has its samples, so it may have no ranges to announce.
+You do not need to subscribe before calling `read()`: a progressive source can wait for the requested samples and return them when they are ready. Its reported `duration` may also grow as more of the recording is discovered. [`Sonoscope`](/sonoscope/understanding/sonoscope/) listens for updates from its active source to keep attached viewers up to date.

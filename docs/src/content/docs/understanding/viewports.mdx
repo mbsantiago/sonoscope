@@ -1,0 +1,53 @@
+---
+title: Viewports, recording duration, and clips
+description: How the recording, a clip, the visible viewport, and the playhead relate.
+---
+
+A **viewport** tells a viewer which part of a recording to show. If a recording is two minutes long, you might show only ten seconds at a time. Those ten seconds are the visible viewport.
+
+The recording, a clip, the viewport, and the playback position all use the same time scale. Here is how they can fit together:
+
+```text
+recording time:  0s ├──────────────────────────────────────────────────┤ 120s
+clip:                     30s ├──────────────────┤ 60s
+viewport:                         40s ├──────┤ 50s
+playhead:                               ▲ 45s
+```
+
+The recording lasts 120 seconds. The clip covers seconds 30 to 60, the viewport shows seconds 40 to 50, and the playhead marks playback at second 45.
+
+## Recording duration
+
+The **recording duration** is its full length in seconds. `scope.getDuration()` returns the active source's duration. All times are measured from the start of that recording. Second 45 still means second 45, even if you are working with a clip that starts at second 30.
+
+The **viewport duration** is different. A viewport from second 40 to second 50 lasts 10 seconds, even though the recording lasts 120 seconds. `scope.getViewport()` includes both the visible `duration` and `totalDuration`, along with the visible start and end times.
+
+Some sources load audio in parts. Their reported duration may grow as more audio becomes available. The distinction between recording duration and viewport duration stays the same.
+
+## Clip bounds
+
+A **clip** is a chosen part of the recording. In the diagram, it starts at second 30 and ends at second 60. It keeps those original times; it does not start a new timeline at zero.
+
+Clip bounds limit where you can pan or zoom the viewport and where playback can go. If you do not set a clip, you can use the whole recording.
+
+Set or inspect clip bounds with `Sonoscope`:
+
+```ts
+scope.setClipBounds({ clipStart: 30, clipEnd: 60 });
+
+scope.getClipBounds(); // { clipStart: 30, clipEnd: 60 }
+scope.getDuration();   // 120: the recording duration, not the 30-second clip
+scope.getViewport();   // visible time and frequency ranges
+```
+
+Changing the clip keeps the viewport inside the new bounds. If an audio element is attached, Sonoscope pauses it and moves its playback position to the clip start. Seeking before the start stops at the start; playback pauses at the end. The underlying recording still lasts 120 seconds. When Sonoscope uses a clipped source, sample reads stay within the clip too.
+
+## The viewport
+
+The viewport is the part you can see. It has a time range, `startTime` to `endTime`, and a frequency range, `minFrequency` to `maxFrequency`. The frequency range matters for views such as a [spectrogram](/sonoscope/demos/spectrogram/), which shows sound across time and frequency. Moving the viewport does not change the recording or the clip.
+
+Use `getViewport()` to check what is visible and `setViewport()` to change it. You can also `pan()` to move along the recording or `zoomTime()` to see more or less time. Sonoscope keeps navigation within the recording or the active clip. Viewers attached to one Sonoscope object share a viewport, so their time axes stay aligned.
+
+The **playhead** marks the current playback time, which you can read with `scope.getCurrentTime()`. It may be inside or outside the visible viewport. If playback-follow is enabled, Sonoscope can move the viewport as playback advances.
+
+See [The Sonoscope object](/sonoscope/understanding/sonoscope/) for how it keeps viewers and playback in sync, or the [`ViewportState` reference](/sonoscope/reference/core/type-aliases/viewportstate/) for the fields returned by `getViewport()`.

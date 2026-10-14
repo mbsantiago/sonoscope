@@ -1,0 +1,173 @@
+---
+interface Props {
+  concept: "sources" | "viewers" | "viewport" | "sonoscope";
+}
+
+const { concept } = Astro.props;
+
+const descriptions = {
+  sources: "Audio from a URL, a file, or an array of samples enters an audio source, which provides samples to viewers.",
+  viewers: "One audio source feeds a waveform viewer and a spectrogram viewer, producing two views of the same recording.",
+  viewport: "A recording contains a clip; a smaller viewport shows part of the clip, with a playhead marking the playback time.",
+  sonoscope: "Sonoscope connects an active source and a shared viewport and playback controls to multiple viewers.",
+};
+
+const arrow = `concept-arrow-${concept}`;
+---
+
+<figure class="concept-figure not-content">
+  <svg viewBox="0 0 640 180" role="img" aria-label={descriptions[concept]} xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id={arrow} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
+        <path d="M1 1 6 3.5 1 6" fill="none" stroke="currentColor" stroke-width="1.4" />
+      </marker>
+    </defs>
+
+    {concept === "sources" && (
+      <>
+        <rect class="box" x="28" y="16" width="110" height="38" rx="7" />
+        <rect class="box" x="28" y="71" width="110" height="38" rx="7" />
+        <rect class="box" x="28" y="126" width="110" height="38" rx="7" />
+        <text x="83" y="40" text-anchor="middle">URL</text>
+        <text x="83" y="95" text-anchor="middle">File / Blob</text>
+        <text x="83" y="150" text-anchor="middle">Sample array</text>
+        <path class="line" d="M138 35 H186 V90 H233 M138 90 H233 M138 145 H186 V90" />
+        <rect class="box focus" x="235" y="59" width="175" height="62" rx="9" />
+        <text x="322" y="95" text-anchor="middle">Audio source</text>
+        <path class="line" d="M410 90 H491" marker-end={`url(#${arrow})`} />
+        <path class="signal" d="M505 90 h12 l5 -12 8 24 8 -34 9 43 8 -29 6 8 h36" />
+        <text class="small" x="548" y="134" text-anchor="middle">samples</text>
+      </>
+    )}
+
+    {concept === "viewers" && (
+      <>
+        <rect class="box focus" x="28" y="67" width="151" height="46" rx="8" />
+        <text x="103" y="95" text-anchor="middle">Audio source</text>
+        <path class="line" d="M179 90 H229 V46 H288" marker-end={`url(#${arrow})`} />
+        <path class="line" d="M229 90 V134 H288" marker-end={`url(#${arrow})`} />
+        <rect class="box" x="294" y="13" width="314" height="69" rx="8" />
+        <text x="316" y="37">Waveform</text>
+        <path class="signal" d="M423 51 h12 l5 -9 6 17 7 -28 7 38 7 -31 8 22 6 -12 h13 l5 -11 7 22 7 -16 7 13 h27" />
+        <rect class="box" x="294" y="99" width="314" height="69" rx="8" />
+        <text x="316" y="123">Spectrogram</text>
+        <g class="bins">
+          <rect x="423" y="136" width="16" height="16" rx="2" />
+          <rect x="444" y="130" width="16" height="22" rx="2" />
+          <rect x="465" y="139" width="16" height="13" rx="2" />
+          <rect x="486" y="124" width="16" height="28" rx="2" />
+          <rect x="507" y="132" width="16" height="20" rx="2" />
+          <rect x="528" y="121" width="16" height="31" rx="2" />
+          <rect x="549" y="136" width="16" height="16" rx="2" />
+        </g>
+      </>
+    )}
+
+    {concept === "viewport" && (
+      <>
+        <text x="30" y="41">Recording</text>
+        <text x="30" y="92">Clip</text>
+        <text x="30" y="143">Viewport</text>
+        <rect class="track" x="163" y="25" width="442" height="20" rx="5" />
+        <rect class="track" x="163" y="76" width="442" height="20" rx="5" />
+        <rect class="clip" x="233" y="76" width="299" height="20" rx="5" />
+        <rect class="track" x="163" y="127" width="442" height="20" rx="5" />
+        <rect class="window" x="322" y="127" width="114" height="20" rx="5" />
+        <path class="playhead" d="M378 118 V156" />
+        <circle class="playhead-dot" cx="378" cy="118" r="4" />
+        <text class="small" x="378" y="174" text-anchor="middle">playhead</text>
+      </>
+    )}
+
+    {concept === "sonoscope" && (
+      <>
+        <rect class="box" x="27" y="69" width="119" height="42" rx="8" />
+        <text x="86" y="95" text-anchor="middle">Audio input</text>
+        <path class="line" d="M146 90 H208" marker-end={`url(#${arrow})`} />
+        <rect class="box focus" x="215" y="28" width="207" height="124" rx="10" />
+        <text x="318" y="61" text-anchor="middle">Sonoscope</text>
+        <path class="divider" d="M237 75 H400" />
+        <text class="small" x="318" y="99" text-anchor="middle">active source · viewport</text>
+        <text class="small" x="318" y="123" text-anchor="middle">playback</text>
+        <path class="line" d="M422 90 H463 V49 H488" marker-end={`url(#${arrow})`} />
+        <path class="line" d="M463 90 V132 H488" marker-end={`url(#${arrow})`} />
+        <rect class="box" x="494" y="28" width="117" height="42" rx="8" />
+        <rect class="box" x="494" y="111" width="117" height="42" rx="8" />
+        <text x="552" y="54" text-anchor="middle">Waveform</text>
+        <text x="552" y="137" text-anchor="middle">Spectrogram</text>
+      </>
+    )}
+  </svg>
+</figure>
+
+<style>
+  .concept-figure {
+    margin: 1.25rem 0 1.75rem;
+    overflow-x: auto;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 520px;
+    height: auto;
+    font: 14px system-ui, sans-serif;
+  }
+
+  text {
+    fill: currentColor;
+  }
+
+  .small {
+    font-size: 12px;
+    fill: var(--sl-color-gray-2);
+  }
+
+  .box {
+    fill: var(--sl-color-bg);
+    stroke: var(--sl-color-gray-4);
+  }
+
+  .focus, .window {
+    fill: var(--sl-color-accent-low);
+    stroke: var(--sl-color-accent);
+  }
+
+  .line, .divider {
+    fill: none;
+    stroke: var(--sl-color-gray-3);
+    stroke-width: 1.5;
+  }
+
+  .divider {
+    stroke: var(--sl-color-gray-5);
+  }
+
+  .signal, .playhead {
+    fill: none;
+    stroke: var(--sl-color-accent);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .track {
+    fill: var(--sl-color-gray-6);
+  }
+
+  .clip {
+    fill: var(--sl-color-gray-4);
+  }
+
+  .playhead-dot, .bins rect {
+    fill: var(--sl-color-accent);
+  }
+
+  .bins rect:nth-child(even) {
+    opacity: 0.55;
+  }
+</style>
