@@ -9,7 +9,7 @@ Audio can come from many places. Sonoscope uses the same interface for every sou
 
 That interface is [`AudioSource`](/sonoscope/reference/core/interfaces/audiosource/).
 Each audio source provides basic information about the audio: sample rate, duration, and channel count.
-Its [`read()`](/sonoscope/reference/core/interfaces/audiosource/#read) method gets samples for a specific channel and time range, either immediately or once they are ready.
+Its [`read()`](/sonoscope/reference/core/interfaces/audiosource/#read) method gives you samples for a specific channel and time range when they are ready.
 Times are measured in seconds from the start of the recording. Each source also has an `id`, so computed data can be associated with the right source.
 
 :::note[What is an interface?]
@@ -48,7 +48,7 @@ These built-in types all follow the `AudioSource` interface:
 When you load an audio file, the library checks its format and chooses how to read it. It can stream WAV or MP3 audio when supported, or ask the browser to decode the whole file. You can also request full decoding with `preferDecoded: true`.
 Most of the time, you do not need to choose the source type yourself.
 
-The source type affects how samples become available. If the built-in types do not suit your needs, you can create your own by implementing `AudioSource`. Give it the required information and `read()` method; add `onRangeAvailable()` if it provides samples progressively. Viewers can then use it through the same interface.
+The source type affects how samples become available. If the built-in types do not suit your needs, you can create your own by implementing `AudioSource`. Give it the required information and a `read()` method that returns a promise; add `onRangeAvailable()` if it provides samples progressively. Viewers can then use it through the same interface.
 
 ## Reading samples directly
 
@@ -63,24 +63,21 @@ const samples = await source.read({ channel: 0, startTime: 0, endTime: 1 });
 
 The `channel` is numbered from zero: use `0` for the first channel and `1` for the second, if there is one. `startTime` and `endTime` are seconds on the recording's timeline. The result is a `Float32Array` of sample values for that channel. At a sample rate of 48,000 samples per second, a one-second range has about 48,000 values.
 
-Some sources return samples immediately; others may need to load or decode the requested range first. `read()` can return either an array or a promise. If you request a range beyond the end of a recording, you may receive fewer samples.
+Some sources already have the samples; others may need to load or decode the requested range first. `read()` always returns a promise for the samples. If you request a range beyond the end of a recording, you may receive fewer samples.
 
 :::note[What does `await` do?]
 Long recordings can take time to load. A source can make parts of a recording available as it loads, so you do not have to wait for the whole file to start using it.
 
-When you call `read()`, the requested samples may already be available, or the source may need to get them first. `await` works in either case. It waits for those samples before continuing your code, without stopping the rest of the page. It does not wait for the whole recording to load.
+When you call `read()`, the samples may already be available, or the source may need to get them first. `await` waits for the requested samples before moving to the next line. The rest of the page can keep running, and you do not have to wait for the whole recording to load.
 
-If a streaming source is still loading the range you asked for, `read()` returns a promise. You can use `.then()` to run a function when those samples arrive:
+You can also use `.then()` to run a callback when those samples are ready:
 
 ```ts
-const result = source.read({ channel: 0, startTime: 10, endTime: 11 });
-
-if (result instanceof Promise) {
-  result.then((samples) => console.log(samples.length));
-}
+source.read({ channel: 0, startTime: 10, endTime: 11 }).then((samples) => {
+  // Use the samples here.
+  console.log(samples.length);
+});
 ```
-
-Even a streaming source may return samples immediately for a range it has already loaded. That is why this example checks for a promise. Use `await` when you want code that works in either case.
 :::
 
 ## Finding out when more audio is available

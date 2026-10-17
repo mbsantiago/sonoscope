@@ -1,9 +1,12 @@
 ---
-title: Viewers and renderers
-description: How viewers turn audio into pictures, and how renderers and shaders change their appearance.
+title: Viewers
+description: How viewers turn audio into visualizations, and how renderers and shaders change their appearance.
 ---
 
-An [audio source](/sonoscope/understanding/audio-sources/) provides samples. A **viewer** uses them to show something about the recording. It also uses a [viewport](/sonoscope/understanding/viewports/) to know which time or frequency range to show. You can attach several viewers to one [`Sonoscope`](/sonoscope/understanding/sonoscope/) so they share a source and stay aligned when you pan or zoom.
+Once you have an [audio source](/sonoscope/understanding/audio-sources/) that provides raw audio data (samples) you might need a way to visualize the audio it contains.
+A **viewer** is a component that generates a visualization from the audio, allowing to show something about the recording.
+The viewers use a [viewport](/sonoscope/understanding/viewports/) to know which time or frequency range to show, which can be changed live by the user to focus on a different range.
+It is possible to attach several viewers to one single source, which can be setup convinently through a [`Sonoscope`](/sonoscope/understanding/sonoscope/) object so they share a source and stay aligned when you pan or zoom.
 
 ## What can you view?
 
@@ -16,7 +19,9 @@ Sonoscope has four built-in viewers:
 | [`TimeRulerViewer`](/sonoscope/reference/core/classes/timerulerviewer/) | Time marks for the visible range. |
 | [`FrequencyRulerViewer`](/sonoscope/reference/core/classes/frequencyrulerviewer/) | Frequency marks alongside a spectrogram. |
 
-A waveform and spectrogram may show the same source in different ways. The rulers help you read their axes; they do not decode audio. The playhead is a separate overlay that marks playback time, rather than another audio viewer.
+A waveform and spectrogram may show the same source in different ways.
+The rulers help you read their axes.
+The playhead is a separate overlay that marks playback time, rather than another audio viewer.
 
 Viewers have settings for the data or view they produce. For example, a spectrogram's window size changes how much audio is analyzed at a time, while its frequency scale changes where frequencies appear on the vertical axis. Try the [waveform](/sonoscope/demos/waveform/), [spectrogram](/sonoscope/demos/spectrogram/), and [rulers](/sonoscope/demos/rulers/) demos to see them together.
 
