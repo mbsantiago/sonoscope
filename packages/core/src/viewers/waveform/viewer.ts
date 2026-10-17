@@ -24,7 +24,7 @@ const DEFAULT_CONFIG: ResolvedWaveformConfig = {
   color: "#000000",
   backgroundColor: "transparent",
   amplitudeScale: 1,
-  renderer: "canvas2d",
+  renderer: "envelope",
 };
 
 function resolveWaveformConfig(

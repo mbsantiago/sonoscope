@@ -5,8 +5,14 @@ import { createWaveformRenderer } from "./renderer-factory";
 import { WebGL2WaveformRenderer } from "./webgl2";
 
 describe("createWaveformRenderer", () => {
-  it("defaults to CanvasWaveformRenderer when mode is undefined or canvas2d", () => {
+  it("uses the same CanvasWaveformRenderer for envelope and canvas2d", () => {
     expect(createWaveformRenderer()).toBeInstanceOf(CanvasWaveformRenderer);
+    expect(createWaveformRenderer("envelope")).toBeInstanceOf(
+      CanvasWaveformRenderer,
+    );
+    expect(createWaveformRenderer({ type: "envelope" })).toBeInstanceOf(
+      CanvasWaveformRenderer,
+    );
     expect(createWaveformRenderer("canvas2d")).toBeInstanceOf(
       CanvasWaveformRenderer,
     );

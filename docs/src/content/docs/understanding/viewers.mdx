@@ -1,9 +1,13 @@
 ---
-title: Viewers
-description: How viewers turn audio into visualizations, and how renderers and shaders change their appearance.
+title: Viewers and locators
+description: How viewers show audio, locators show the visible range, and renderers change how they look.
 ---
 
-An [audio source](/sonoscope/understanding/audio-sources/) provides samples. A **viewer** uses those samples to show something about the recording. It also uses the [viewport](/sonoscope/understanding/viewports/) to know which time or frequency range to show. You can attach several viewers to one [`Sonoscope`](/sonoscope/understanding/sonoscope/) so they share a source and stay aligned when you pan or zoom.
+import WaveformRenderersFigure from '../../../components/WaveformRenderersFigure.astro';
+
+Once you have an [audio source](/sonoscope/understanding/audio-sources/), you can visualize its samples to get a better sense of what's in the recording.
+A **viewer** uses those samples to show something about the audio. It also uses the [viewport](/sonoscope/understanding/viewports/) to know which time or frequency range to show.
+You can use several viewers with the same source to see different aspects of the audio at once. [`Sonoscope`](/sonoscope/understanding/sonoscope/) makes it easy to connect them and keep them aligned when you pan or zoom.
 
 ## What can you view?
 
@@ -11,16 +15,21 @@ Sonoscope has two built-in viewers:
 
 | Viewer | What it shows |
 | --- | --- |
-| [`WaveformViewer`](/sonoscope/reference/core/classes/waveformviewer/) | How the signal changes over time. |
+| [`WaveformViewer`](/sonoscope/reference/core/classes/waveformviewer/) | How the strength of the audio signal changes over time. |
 | [`SpectrogramViewer`](/sonoscope/reference/core/classes/spectrogramviewer/) | How the frequencies in the signal change over time. |
 
-A waveform and spectrogram can show the same source in different ways. The playhead is a separate overlay that marks playback time.
+A waveform and a spectrogram show the same audio in different ways.
 
-Viewers have settings for the data or view they produce. For example, a spectrogram's window size changes how much audio is analyzed at a time, while its frequency scale changes where frequencies appear on the vertical axis. Try the [waveform](/sonoscope/demos/waveform/) and [spectrogram](/sonoscope/demos/spectrogram/) demos to see them together.
+Viewers have settings for the data or view they produce.
+For example, a spectrogram's window size changes how much audio is analyzed at a time, while its frequency scale changes where frequencies appear on the vertical axis.
+Try the [waveform](/sonoscope/demos/waveform/) and [spectrogram](/sonoscope/demos/spectrogram/) demos to see them together.
 
 ## Locators show where you are
 
-**Locators** show where you are in the recording. A time ruler marks the visible time range; a frequency ruler marks the visible frequencies. They share the viewport with viewers, so their marks move when you pan or zoom. You can also attach navigation controls to a ruler to let people drag or zoom there.
+To see which part of the recording you're looking at, you can use a **locator**.
+A time ruler marks the visible time range, while a frequency ruler marks the frequencies shown.
+Locators share the viewport with viewers, so their marks move when you pan or zoom.
+You can also attach navigation controls to a ruler to let people drag or zoom there.
 
 | Locator | What it shows |
 | --- | --- |
@@ -29,27 +38,35 @@ Viewers have settings for the data or view they produce. For example, a spectrog
 
 The [rulers demo](/sonoscope/demos/rulers/) shows them alongside viewers.
 
-## Renderers draw the view
+## Why use different renderers?
 
-A **renderer** decides how a viewer or locator draws. Changing a renderer does not change the recording or the visible range.
+Often there is more than one way to visualize the same thing. A waveform, for example, can show changes in amplitude as a continuous envelope or as a series of bars.
 
-- A waveform can use Canvas2D or WebGL2 drawing, or show its peaks as bars with the `"bars"` renderer.
-- A spectrogram can draw its computed data with Canvas2D or WebGL2. Its `"auto"` setting tries WebGL2 and falls back to Canvas2D when needed.
-- Time and frequency rulers can draw ordinary `"ticks"` or segmented `"boxes"`.
+<WaveformRenderersFigure />
 
-For example, these two waveform viewers show the same source using different drawing styles:
+In Sonoscope, a **renderer** is the part that draws a viewer or locator. You can change it without changing the audio or the visible range. Every built-in viewer and locator has a default renderer, so you usually don't need to choose one. You might want a different renderer when:
+
+- You want another way to show the same information. For example, you can draw a waveform with `"envelope"` for a line and envelope, or `"bars"` for separate peaks. Time and frequency rulers can use ordinary `"ticks"` or segmented `"boxes"`.
+- You need a different drawing technology. Browsers offer more than one way to draw on a canvas: Canvas2D provides 2D drawing tools, while WebGL2 uses the graphics processor. WebGL2 can be faster for a detailed spectrogram, but it isn't available everywhere. The spectrogram's `"auto"` setting tries WebGL2 first and uses Canvas2D when WebGL2 isn't available.
+
+For example, these two waveform viewers show the same source in different styles:
 
 ```ts
-scope.createWaveform(lineCanvas, { renderer: "canvas2d" });
+// Draw the waveform as a line and peak envelope.
+scope.createWaveform(lineCanvas, { renderer: "envelope" });
+
+// Draw its peaks as bars.
 scope.createWaveform(barCanvas, { renderer: "bars" });
 ```
 
-You can also register your own renderer. The [Plugins overview](/sonoscope/plugins/) shows other ways to draw spectrograms, including ASCII text and WebGL effects.
+If the built-in renderers don't give you the look or drawing method you need, you can register your own. The [Plugins overview](/sonoscope/plugins/) shows other ways to draw spectrograms, including ASCII text and WebGL effects.
 
-## Where shaders fit
+## Spectrogram WebGL renderer and shaders
 
-WebGL2 renderers use small programs called **shaders** to draw with the GPU. In the spectrogram viewer, the audio samples are first turned into spectrogram data. The WebGL2 renderer then gives that data to a shader program to decide how it appears on screen. The shader changes the picture, not the underlying audio or its frequency analysis.
+When the spectrogram uses WebGL2, its renderer passes the spectrogram data calculated from the audio samples to a small program called a **shader**, which decides how to draw it on screen.
 
-The built-in WebGL2 spectrogram program is `"normal"`. A custom WebGL2 program can change the look, for example by drawing [halftone dots](/sonoscope/plugins/halftone/) or [topographic contours](/sonoscope/plugins/topographic/). Programs are a way to customize the WebGL2 spectrogram renderer; they are not a separate kind of audio source or compute backend. The [`registerSpectrogramProgram()` reference](/sonoscope/reference/core/functions/registerspectrogramprogram/) describes the extension point.
+The built-in `"normal"` program draws a spectrogram like the one in the [spectrogram demo](/sonoscope/demos/spectrogram/). Examples of custom shader programs are [halftone dots](/sonoscope/plugins/halftone/) and [topographic contours](/sonoscope/plugins/topographic/).
+
+You can also register your own WebGL2 program for the spectrogram viewer. See the [`registerSpectrogramProgram()` reference](/sonoscope/reference/core/functions/registerspectrogramprogram/) for details.
 
 If you want to know why a spectrogram viewer works in pieces rather than calculating the whole recording at once, continue to [Why spectrograms use tiles](/sonoscope/understanding/why-tiling/).

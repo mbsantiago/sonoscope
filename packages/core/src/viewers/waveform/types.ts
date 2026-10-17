@@ -79,7 +79,7 @@ export type BarsWaveformRendererConfig = BarsWaveformRendererOptions & {
 };
 
 export type Canvas2DWaveformRendererConfig = {
-  type: "canvas2d";
+  type: "envelope" | "canvas2d";
 };
 
 export type WebGL2WaveformRendererConfig = {
@@ -87,6 +87,7 @@ export type WebGL2WaveformRendererConfig = {
 };
 
 export type WaveformRendererMode =
+  | "envelope"
   | "canvas2d"
   | "webgl2"
   | "bars"
@@ -158,11 +159,11 @@ export type WaveformConfig = {
 
   /**
    * Rendering engine:
-   * - "canvas2d": Standard 2D canvas line/envelope renderer.
+   * - "envelope": Standard 2D canvas line/envelope renderer ("canvas2d" is an alias).
    * - "webgl2": Hardware-accelerated GPU shader renderer.
    * - "bars": Segmented pill/bar waveform renderer.
    * - Custom object with bar configuration options (`{ type: "bars", barWidth, barGap, ... }`).
-   * @default "canvas2d"
+   * @default "envelope"
    */
   renderer?: WaveformRendererMode | undefined;
 
@@ -228,7 +229,7 @@ export interface IWaveformViewer extends IDataViewer, NavigableViewer {
   getStatus(): WaveformStatus;
   /** Returns the bound HTML canvas element. */
   getCanvas(): HTMLCanvasElement;
-  /** Returns the active rendering engine (`canvas2d`, `webgl2`, or `bars`). */
+  /** Returns the configured renderer name (for example, `envelope`, `canvas2d`, `webgl2`, or `bars`). */
   getRendererKind(): string;
 
   /** Returns the active audio source. */

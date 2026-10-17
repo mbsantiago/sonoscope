@@ -17,6 +17,12 @@
 - Prefer simple code as evidence of sound design: use adequate abstractions, loose coupling, and shallow control flow.
 - Apply YAGNI. Avoid features that are not needed, and require clear justification before adding features that increase API or implementation complexity.
 
+## Documentation Writing
+
+- Explain why a feature exists and when someone would use it, not just what it does. Preserve the author's intended explanation and tone when editing prose.
+- Write naturally for readers who may not know software-development terms. Do not turn explanations into slogan-like contrasts or a string of short, clipped sentences; use as much detail as the idea needs.
+- Do not use the unslop skill to rewrite documentation unless the user asks for it. Avoid adding caveats or distinctions that repeat what the explanation already makes clear.
+
 Commands for building, testing, linting, and releasing in this monorepo.
 
 ## Building

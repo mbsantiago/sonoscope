@@ -158,6 +158,19 @@ describe("WaveformViewer", () => {
     expect(nextConfig.color).not.toBe(config.color);
   });
 
+  it("uses envelope as the default waveform renderer name", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const viewer = new WaveformViewer(
+      createMockCanvas(),
+      scope.viewport,
+      scope.source,
+    );
+
+    expect(viewer.getConfig().renderer).toBe("envelope");
+    expect(viewer.getRendererKind()).toBe("envelope");
+    viewer.destroy();
+  });
+
   it("keeps viewport state outside the waveform configuration", () => {
     const scope = new Sonoscope({
       source: dummySource,

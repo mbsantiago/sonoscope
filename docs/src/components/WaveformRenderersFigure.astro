@@ -1,0 +1,76 @@
+---
+const levels = [0.12, 0.3, 0.58, 0.72, 0.46, 0.24, 0.4, 0.85, 0.64, 0.3, 0.68, 0.92, 0.6, 0.34, 0.5, 0.16];
+const centerY = 101;
+const halfHeight = 43;
+const envelopeX = 42;
+const barsX = 350;
+const step = 16;
+
+const upper = levels.map((level, index) => `${index === 0 ? 'M' : 'L'} ${envelopeX + index * step} ${centerY - level * halfHeight}`).join(' ');
+const lower = levels.map((level, index) => `L ${envelopeX + (levels.length - 1 - index) * step} ${centerY + levels[levels.length - 1 - index] * halfHeight}`).join(' ');
+---
+
+<figure class="waveform-renderers-figure not-content">
+  <svg viewBox="0 0 640 163" role="img" aria-label="The same waveform shown as a continuous envelope and as separate bars" xmlns="http://www.w3.org/2000/svg">
+    <rect class="panel" x="22" y="14" width="286" height="135" rx="8" />
+    <rect class="panel" x="332" y="14" width="286" height="135" rx="8" />
+    <text x="40" y="38">Envelope</text>
+    <text x="350" y="38">Bars</text>
+    <path class="baseline" d="M42 101 H282 M350 101 H590" />
+    <path class="envelope" d={`${upper} ${lower} Z`} />
+    {levels.map((level, index) => (
+      <rect
+        class="bar"
+        x={barsX + index * step}
+        y={centerY - level * halfHeight}
+        width="10"
+        height={2 * level * halfHeight}
+        rx="2"
+      />
+    ))}
+  </svg>
+  <figcaption>The same changes in amplitude, drawn as an envelope or as bars.</figcaption>
+</figure>
+
+<style>
+  .waveform-renderers-figure {
+    margin: 1.25rem 0 1.75rem;
+    overflow-x: auto;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 520px;
+    height: auto;
+    font: 14px system-ui, sans-serif;
+  }
+
+  text { fill: currentColor; }
+
+  .panel {
+    fill: var(--sl-color-bg);
+    stroke: var(--sl-color-gray-4);
+  }
+
+  .baseline {
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1;
+  }
+
+  .envelope, .bar {
+    fill: var(--sl-color-accent-low);
+    stroke: var(--sl-color-accent);
+    stroke-width: 1.5;
+  }
+
+  figcaption {
+    padding: 0 1rem 1rem;
+    font-size: 0.875rem;
+    color: var(--sl-color-gray-2);
+  }
+</style>
