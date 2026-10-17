@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Sonoscope } from "../../sonoscope";
-import { FrequencyRulerViewer } from "./viewer";
+import { FrequencyRulerLocator } from "./locator";
 
 function createMockCanvas(): HTMLCanvasElement {
   return {
@@ -23,7 +23,7 @@ function createMockCanvas(): HTMLCanvasElement {
   } as unknown as HTMLCanvasElement;
 }
 
-describe("FrequencyRulerViewer", () => {
+describe("FrequencyRulerLocator", () => {
   const dummySource = {
     id: "dummy",
     sampleRate: 48000,
@@ -32,23 +32,23 @@ describe("FrequencyRulerViewer", () => {
     read: vi.fn(async () => new Float32Array(0)),
   };
 
-  it("creates FrequencyRulerViewer and renders automatically on viewport changes", async () => {
+  it("creates FrequencyRulerLocator and renders automatically on viewport changes", async () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createMockCanvas();
-    const viewer = scope.createFrequencyRuler(canvas, {
+    const locator = scope.createFrequencyRuler(canvas, {
       renderer: "ticks",
       frequencyScale: "mel",
       color: "#ffffff",
     });
 
-    expect(viewer).toBeInstanceOf(FrequencyRulerViewer);
-    expect(viewer.getConfig().frequencyScale).toBe("mel");
+    expect(locator).toBeInstanceOf(FrequencyRulerLocator);
+    expect(locator.getConfig().frequencyScale).toBe("mel");
 
-    await viewer.render();
-    expect(viewer.getStatus().state).toBe("ready");
+    await locator.render();
+    expect(locator.getStatus().state).toBe("ready");
 
-    viewer.destroy();
-    expect(viewer.getStatus().state).toBe("destroyed");
+    locator.destroy();
+    expect(locator.getStatus().state).toBe("destroyed");
   });
 
   it("converts between canvas coordinates and frequency", () => {
@@ -58,31 +58,31 @@ describe("FrequencyRulerViewer", () => {
       maxFrequency: 20_000,
     });
     const canvas = createMockCanvas();
-    const viewer = scope.createFrequencyRuler(canvas, {
+    const locator = scope.createFrequencyRuler(canvas, {
       frequencyScale: "linear",
     });
 
-    expect(viewer.canvasToFrequency(400)).toBeCloseTo(0);
-    expect(viewer.canvasToFrequency(0)).toBeCloseTo(20000);
-    expect(viewer.canvasToFrequency(200)).toBeCloseTo(10000);
+    expect(locator.canvasToFrequency(400)).toBeCloseTo(0);
+    expect(locator.canvasToFrequency(0)).toBeCloseTo(20000);
+    expect(locator.canvasToFrequency(200)).toBeCloseTo(10000);
 
-    expect(viewer.frequencyToCanvas(0)).toBeCloseTo(400);
-    expect(viewer.frequencyToCanvas(20000)).toBeCloseTo(0);
+    expect(locator.frequencyToCanvas(0)).toBeCloseTo(400);
+    expect(locator.frequencyToCanvas(20000)).toBeCloseTo(0);
   });
 
   it("supports updating config and switching frequency scale", async () => {
     const scope = new Sonoscope({ source: dummySource });
     const canvas = createMockCanvas();
-    const viewer = scope.createFrequencyRuler(canvas);
+    const locator = scope.createFrequencyRuler(canvas);
 
-    viewer.updateConfig({
+    locator.updateConfig({
       frequencyScale: "log",
     });
-    expect(viewer.getConfig().frequencyScale).toBe("log");
-    expect(viewer.getViewport().frequencyScale).toBe("log");
+    expect(locator.getConfig().frequencyScale).toBe("log");
+    expect(locator.getViewport().frequencyScale).toBe("log");
 
-    await viewer.render();
-    expect(viewer.getStatus().state).toBe("ready");
+    await locator.render();
+    expect(locator.getStatus().state).toBe("ready");
   });
 
   it("synchronizes viewport with Sonoscope global scope", () => {
@@ -92,15 +92,15 @@ describe("FrequencyRulerViewer", () => {
       maxFrequency: 20_000,
     });
     const canvas = createMockCanvas();
-    const viewer = scope.createFrequencyRuler(canvas);
+    const locator = scope.createFrequencyRuler(canvas);
 
-    // Scope updating viewport updates viewer
+    // Scope updating viewport updates locator
     scope.setViewport({ minFrequency: 200, maxFrequency: 5000 });
-    expect(viewer.getViewport().minFrequency).toBe(200);
-    expect(viewer.getViewport().maxFrequency).toBe(5000);
+    expect(locator.getViewport().minFrequency).toBe(200);
+    expect(locator.getViewport().maxFrequency).toBe(5000);
   });
 
-  it("keeps multiple attached viewers in sync via source frequency methods", () => {
+  it("keeps multiple attached locators in sync via source frequency methods", () => {
     const scope = new Sonoscope({
       source: dummySource,
       minFrequency: 0,
@@ -146,19 +146,37 @@ describe("FrequencyRulerViewer", () => {
       minFrequency: 100,
       maxFrequency: 12_000,
     });
-    const viewer = scope.createFrequencyRuler(createMockCanvas(), {
+    const locator = scope.createFrequencyRuler(createMockCanvas(), {
       frequencyScale: "mel",
     });
 
-    expect(viewer.getConfig()).not.toHaveProperty("minFrequency");
-    expect(viewer.getConfig()).not.toHaveProperty("maxFrequency");
+    expect(locator.getConfig()).not.toHaveProperty("minFrequency");
+    expect(locator.getConfig()).not.toHaveProperty("maxFrequency");
 
-    viewer.updateConfig({ frequencyScale: "log" });
+    locator.updateConfig({ frequencyScale: "log" });
 
-    expect(viewer.getViewport()).toEqual({
+    expect(locator.getViewport()).toEqual({
       minFrequency: 100,
       maxFrequency: 12_000,
       frequencyScale: "log",
     });
+  });
+
+  it("follows source metadata through the viewport without reading samples", async () => {
+    const source = {
+      ...dummySource,
+      read: vi.fn(async () => new Float32Array(0)),
+    };
+    const scope = new Sonoscope({ source });
+    const locator = scope.createFrequencyRuler(createMockCanvas());
+    const renderComplete = vi.fn();
+    locator.on("rendercomplete", renderComplete);
+
+    scope.setSource({ ...source, sampleRate: 32_000 });
+    await vi.waitFor(() => expect(renderComplete).toHaveBeenCalled());
+    expect(locator.getViewport().maxFrequency).toBe(16_000);
+    expect(source.read).not.toHaveBeenCalled();
+    locator.destroy();
+    scope.destroy();
   });
 });

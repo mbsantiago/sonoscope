@@ -199,9 +199,18 @@ export interface IDataViewer extends ISonoscopeViewer {
 }
 
 /**
- * Viewport-only viewer (e.g. time rulers, frequency rulers, overlays).
+ * A viewport-bound locator that renders without reading audio samples.
  */
-export interface IViewportViewer extends ISonoscopeViewer, NavigableViewer {}
+export interface IViewportLocator {
+  /** Renders the current viewport. */
+  render(): Promise<void>;
+  /** Schedules a render after the viewport changes. */
+  requestRender(): void;
+  /** Returns the viewport shared with other viewers and locators. */
+  getViewportController(): IViewportController;
+  /** Releases viewport and canvas listeners. */
+  destroy(): void;
+}
 
 /**
  * Factory function to construct a custom viewer instance.

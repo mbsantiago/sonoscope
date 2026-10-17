@@ -201,7 +201,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Concepts', slug: 'understanding/concepts' },
 						{ label: 'Audio Sources', slug: 'understanding/audio-sources' },
-						{ label: 'Viewers and Renderers', slug: 'understanding/viewers' },
+						{ label: 'Viewers', slug: 'understanding/viewers' },
 						{ label: 'The Sonoscope Object', slug: 'understanding/sonoscope' },
 						{ label: 'Viewports, Duration, and Clips', slug: 'understanding/viewports' },
 						{ label: 'Why Spectrograms Use Tiles', slug: 'understanding/why-tiling' },

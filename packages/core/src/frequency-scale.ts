@@ -1,5 +1,8 @@
-import type { FrequencyScale, ViewportConfig } from "../../types";
+import type { FrequencyScale, ViewportConfig } from "./types";
 
+const DEFAULT_MAX_FREQUENCY = 24_000;
+
+// The GPU uses equivalent GLSL functions in viewers/spectrogram/renderers/webgl2-program.ts.
 export function hzToMel(hz: number): number {
   return 2595 * Math.log10(1 + hz / 700);
 }
@@ -29,7 +32,7 @@ export function canvasToTimeFrequency(
   frequencyScale: FrequencyScale = "linear",
 ): { time: number; frequency: number } {
   const minFreq = viewport.minFrequency ?? 0;
-  const maxFreq = viewport.maxFrequency ?? 24000;
+  const maxFreq = viewport.maxFrequency ?? DEFAULT_MAX_FREQUENCY;
   const time =
     viewport.startTime + (x / width) * (viewport.endTime - viewport.startTime);
   const min = hzToScale(minFreq, frequencyScale);
@@ -47,7 +50,7 @@ export function timeFrequencyToCanvas(
   frequencyScale: FrequencyScale = "linear",
 ): { x: number; y: number } {
   const minFreq = viewport.minFrequency ?? 0;
-  const maxFreq = viewport.maxFrequency ?? 24000;
+  const maxFreq = viewport.maxFrequency ?? DEFAULT_MAX_FREQUENCY;
   const x =
     ((time - viewport.startTime) / (viewport.endTime - viewport.startTime)) *
     width;

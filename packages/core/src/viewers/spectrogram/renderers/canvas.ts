@@ -6,7 +6,7 @@ import type {
   WebGL2RenderProgram,
 } from "../types";
 import { buildColorMap } from "../../../colormap";
-import { canvasToTimeFrequency } from "../frequency-scale";
+import { canvasToTimeFrequency } from "../../../frequency-scale";
 import {
   locateSamplePosition,
   sampleValueDataPosition,

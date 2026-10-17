@@ -1,6 +1,6 @@
 ---
 title: Concepts
-description: An overview of audio sources, viewers, viewports, and the Sonoscope object.
+description: An overview of audio sources, viewers, locators, viewports, and the Sonoscope object.
 ---
 
 import ConceptFigure from '../../../components/ConceptFigure.astro';
@@ -33,7 +33,7 @@ Viewers have **parameters** you can change. For example, a spectrogram viewer's 
 The same viewer can draw its data in different ways. For example, a waveform can appear as a line or as bars.
 The part that draws it is called a **renderer**. Sonoscope has built-in renderers, and you can add your own.
 
-See [Viewers and renderers](/sonoscope/understanding/viewers/) for the different viewers and how they draw. You can also try the [waveform](/sonoscope/demos/waveform/) and [spectrogram](/sonoscope/demos/spectrogram/) demos.
+See [Viewers](/sonoscope/understanding/viewers/) for the different viewers and how they draw. You can also try the [waveform](/sonoscope/demos/waveform/) and [spectrogram](/sonoscope/demos/spectrogram/) demos.
 
 ## Viewport
 
@@ -41,7 +41,7 @@ See [Viewers and renderers](/sonoscope/understanding/viewers/) for the different
 
 Recordings can be long, so you may want to show only a small part at a time.
 A **viewport** defines the visible time and frequency range. You can move it by dragging or panning, and zoom in or out to see more or less detail.
-Viewers use the viewport to know which part of the audio to display. When viewers share a viewport, their time axes stay in sync. Separate Sonoscope objects can also share a viewport to keep views of different sources aligned.
+Viewers use the viewport to know which part of the audio to display. **Locators**, such as the time and frequency rulers, show which time or frequency range is visible. A ruler can also be used to pan or zoom. When viewers and locators share a viewport, they stay in sync. Separate Sonoscope objects can share a viewport to keep views of different sources aligned.
 
 A **clip** sets the part of a recording you want to work with. It limits where the viewport can move and where playback can go. See [Viewports, recording duration, and clips](/sonoscope/understanding/viewports/) for the difference between the full recording, a clip, the visible viewport, and the playback position.
 

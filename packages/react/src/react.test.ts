@@ -1,9 +1,9 @@
 import {
   type AudioSource,
-  FrequencyRulerViewer,
+  FrequencyRulerLocator,
   Sonoscope,
   SpectrogramViewer,
-  TimeRulerViewer,
+  TimeRulerLocator,
   WaveformViewer,
 } from "@sonoscope/core";
 import React, { act, createRef } from "react";
@@ -831,7 +831,7 @@ describe("React Components and Hooks", () => {
   });
 
   describe("<TimeRuler /> and useTimeRuler", () => {
-    it("renders canvas and attaches TimeRulerViewer in SonoscopeProvider", async () => {
+    it("renders canvas and attaches TimeRulerLocator in SonoscopeProvider", async () => {
       const source = createMockAudioSource(30);
       const scope = new Sonoscope({ source });
       const ref = createRef<TimeRulerHandle>();
@@ -850,7 +850,7 @@ describe("React Components and Hooks", () => {
         (child) => child.tagName === "CANVAS",
       );
       expect(canvas).toBeTruthy();
-      expect(ref.current?.getViewer()).toBeInstanceOf(TimeRulerViewer);
+      expect(ref.current?.getLocator()).toBeInstanceOf(TimeRulerLocator);
       scope.destroy();
     });
 
@@ -884,7 +884,7 @@ describe("React Components and Hooks", () => {
   });
 
   describe("<FrequencyRuler /> and useFrequencyRuler", () => {
-    it("renders canvas and attaches FrequencyRulerViewer in SonoscopeProvider", async () => {
+    it("renders canvas and attaches FrequencyRulerLocator in SonoscopeProvider", async () => {
       const source = createMockAudioSource(30);
       const scope = new Sonoscope({ source });
       const ref = createRef<FrequencyRulerHandle>();
@@ -907,7 +907,7 @@ describe("React Components and Hooks", () => {
         (child) => child.tagName === "CANVAS",
       );
       expect(canvas).toBeTruthy();
-      expect(ref.current?.getViewer()).toBeInstanceOf(FrequencyRulerViewer);
+      expect(ref.current?.getLocator()).toBeInstanceOf(FrequencyRulerLocator);
       scope.destroy();
     });
   });

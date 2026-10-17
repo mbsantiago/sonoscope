@@ -1,3 +1,5 @@
+import type { FrequencyRulerOptions } from "./locators/frequency-ruler/types";
+import type { TimeRulerOptions } from "./locators/time-ruler/types";
 import type {
   AudioSource,
   AudioSourceOptions,
@@ -15,12 +17,12 @@ import type {
   ViewportControllerOptions,
   ViewportState,
 } from "./types";
-import type { FrequencyRulerOptions } from "./viewers/frequency-ruler/types";
 import type { SpectrogramOptions } from "./viewers/spectrogram/types";
-import type { TimeRulerOptions } from "./viewers/time-ruler/types";
 import type { WaveformOptions } from "./viewers/waveform/types";
 import { type AutoResizeOptions, attachAutoResize } from "./auto-resize";
 import { TypedEventEmitter } from "./events";
+import { FrequencyRulerLocator } from "./locators/frequency-ruler/locator";
+import { TimeRulerLocator } from "./locators/time-ruler/locator";
 import { attachPlayheadOverlay, type PlayheadOverlayOptions } from "./playhead";
 import {
   getRegisteredViewer,
@@ -37,9 +39,7 @@ import {
   wrapClippedIfNeeded,
 } from "./sources/source";
 import { encodeWavBlob } from "./sources/wav-encoder";
-import { FrequencyRulerViewer } from "./viewers/frequency-ruler/viewer";
 import { SpectrogramViewer } from "./viewers/spectrogram/viewer";
-import { TimeRulerViewer } from "./viewers/time-ruler/viewer";
 import { WaveformViewer } from "./viewers/waveform/viewer";
 import { ViewportController } from "./viewport";
 
@@ -1202,7 +1202,7 @@ export class Sonoscope implements ISonoscope {
   }
 
   /**
-   * Creates and attaches a TimeRulerViewer to a canvas element.
+   * Creates and attaches a TimeRulerLocator to a canvas element.
    * @param canvas HTML canvas element for rendering.
    * @param options Ruler appearance and tick formatting options.
    */
@@ -1211,8 +1211,8 @@ export class Sonoscope implements ISonoscope {
     options?: Partial<TimeRulerOptions> & {
       viewport?: IViewportController | undefined;
     },
-  ): TimeRulerViewer {
-    return new TimeRulerViewer(
+  ): TimeRulerLocator {
+    return new TimeRulerLocator(
       canvas,
       options?.viewport ?? this._viewport,
       options,
@@ -1220,7 +1220,7 @@ export class Sonoscope implements ISonoscope {
   }
 
   /**
-   * Creates and attaches a FrequencyRulerViewer to a canvas element.
+   * Creates and attaches a FrequencyRulerLocator to a canvas element.
    * @param canvas HTML canvas element for rendering.
    * @param options Frequency scale and tick formatting options.
    */
@@ -1229,8 +1229,8 @@ export class Sonoscope implements ISonoscope {
     options?: Partial<FrequencyRulerOptions> & {
       viewport?: IViewportController | undefined;
     },
-  ): FrequencyRulerViewer {
-    return new FrequencyRulerViewer(
+  ): FrequencyRulerLocator {
+    return new FrequencyRulerLocator(
       canvas,
       options?.viewport ?? this._viewport,
       options,

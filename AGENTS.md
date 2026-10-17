@@ -8,6 +8,7 @@
 - Prefer cohesive modules with narrow responsibilities and stable interfaces. Avoid adding special cases to a generic coordinator when a capability or adapter at the boundary can express the behavior.
 - Keep practical coupling explicit: before adding a cross-layer dependency, identify why it is needed, keep its surface minimal, and add tests at the interface that guarantees the behavior.
 - Treat format-specific demos as consumers of generic APIs. They may display format-specific details, but must not implement core source lifecycle, cancellation, or viewer invalidation themselves.
+- Use explicit named imports and exports in barrel modules; do not use `import *` or `export *`.
 
 ## Simplicity, Demo Quality, and Performance
 

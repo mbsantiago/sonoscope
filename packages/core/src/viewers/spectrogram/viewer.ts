@@ -27,15 +27,15 @@ import type {
 import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
 import {
+  canvasToTimeFrequency as mapCanvasToTimeFrequency,
+  timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
+} from "../../frequency-scale";
+import {
   createSpectrogramBackend,
   isSpectrogramComputeBackend,
 } from "./backends/backend-factory";
 import { createTileKey, SpectrogramCache } from "./cache";
 import { resolveConfig, stableHash } from "./config";
-import {
-  canvasToTimeFrequency as mapCanvasToTimeFrequency,
-  timeFrequencyToCanvas as mapTimeFrequencyToCanvas,
-} from "./frequency-scale";
 import { createSpectrogramRenderer } from "./renderers/renderer-factory";
 import { createSpectrogramProgram } from "./renderers/webgl2-program-factory";
 import { applyTransforms } from "./transforms";

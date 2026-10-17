@@ -3,7 +3,7 @@ import type {
   FrequencyRulerRenderer,
   FrequencyRulerRenderInput,
 } from "../types";
-import { hzToScale } from "../../spectrogram/frequency-scale";
+import { hzToScale } from "../../../frequency-scale";
 import { computeFrequencyTicks, formatFrequencyLabel } from "../ticks";
 
 export class TicksFrequencyRulerRenderer implements FrequencyRulerRenderer {

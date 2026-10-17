@@ -77,21 +77,21 @@ scope.attachNavigation(canvas, { axis: "time" });
 
 Full reference: [`WaveformViewer`](/sonoscope/reference/core/classes/waveformviewer/), [`IWaveformViewer`](/sonoscope/reference/core/interfaces/iwaveformviewer/), [`WaveformConfig`](/sonoscope/reference/core/type-aliases/waveformconfig/).
 
-### Rulers & Playheads
+### Locators and playheads
 
-Creates a [`TimeRulerViewer`](/sonoscope/reference/core/classes/timerulerviewer/) or [`FrequencyRulerViewer`](/sonoscope/reference/core/classes/frequencyrulerviewer/), and attaches playhead overlays via [`attachPlayheadOverlay`](/sonoscope/reference/core/functions/attachplayheadoverlay/).
+Creates a [`TimeRulerLocator`](/sonoscope/reference/core/classes/timerulerlocator/) or [`FrequencyRulerLocator`](/sonoscope/reference/core/classes/frequencyrulerlocator/), and attaches playhead overlays via [`attachPlayheadOverlay`](/sonoscope/reference/core/functions/attachplayheadoverlay/).
 
 ```typescript
 import { attachPlayheadOverlay } from "@sonoscope/core";
 
 const timeRuler = scope.createTimeRuler(timeCanvas, {
-  program: "ticks",
+  renderer: "ticks",
   tickPosition: "top",
 });
 scope.attachNavigation(timeCanvas, { axis: "time" });
 
 const freqRuler = scope.createFrequencyRuler(freqCanvas, {
-  program: "ticks",
+  renderer: "ticks",
   frequencyScale: "mel",
   tickPosition: "right",
 });
@@ -100,7 +100,7 @@ scope.attachNavigation(freqCanvas, { axis: "frequency" });
 attachPlayheadOverlay(containerElement, scope);
 ```
 
-Full reference: [`TimeRulerViewer`](/sonoscope/reference/core/classes/timerulerviewer/), [`FrequencyRulerViewer`](/sonoscope/reference/core/classes/frequencyrulerviewer/), [`TimeRulerConfig`](/sonoscope/reference/core/type-aliases/timerulerconfig/), [`FrequencyRulerConfig`](/sonoscope/reference/core/type-aliases/frequencyrulerconfig/), [`attachPlayheadOverlay`](/sonoscope/reference/core/functions/attachplayheadoverlay/).
+Full reference: [`IViewportLocator`](/sonoscope/reference/core/interfaces/iviewportlocator/), [`TimeRulerLocator`](/sonoscope/reference/core/classes/timerulerlocator/), [`FrequencyRulerLocator`](/sonoscope/reference/core/classes/frequencyrulerlocator/), [`TimeRulerConfig`](/sonoscope/reference/core/type-aliases/timerulerconfig/), [`FrequencyRulerConfig`](/sonoscope/reference/core/type-aliases/frequencyrulerconfig/), [`attachPlayheadOverlay`](/sonoscope/reference/core/functions/attachplayheadoverlay/).
 
 ## Interactive Navigation
 

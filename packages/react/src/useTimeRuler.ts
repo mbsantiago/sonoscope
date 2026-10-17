@@ -1,8 +1,8 @@
 import {
   type ISonoscope,
   type TimeRulerConfig,
+  TimeRulerLocator,
   type TimeRulerStatus,
-  TimeRulerViewer,
 } from "@sonoscope/core";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 
@@ -14,39 +14,39 @@ export function useTimeRuler(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseTimeRulerOptions = {},
 ): {
-  viewer: TimeRulerViewer | null;
+  locator: TimeRulerLocator | null;
   status: TimeRulerStatus;
   scope: ISonoscope | null;
 } {
-  const { scope, ...viewerConfig } = options;
-  const [viewer, setViewer] = useState<TimeRulerViewer | null>(null);
+  const { scope, ...locatorConfig } = options;
+  const [locator, setLocator] = useState<TimeRulerLocator | null>(null);
   const [status, setStatus] = useState<TimeRulerStatus>({ state: "idle" });
-  const viewerRef = useRef<TimeRulerViewer | null>(null);
+  const locatorRef = useRef<TimeRulerLocator | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: serialize config to prevent loop
   const memoizedConfig = useMemo(
-    () => viewerConfig,
-    [JSON.stringify(viewerConfig)],
+    () => locatorConfig,
+    [JSON.stringify(locatorConfig)],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses scope/canvas identity; in-place option updates handled below
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !scope) {
-      viewerRef.current?.destroy();
-      viewerRef.current = null;
-      setViewer(null);
+      locatorRef.current?.destroy();
+      locatorRef.current = null;
+      setLocator(null);
       setStatus({ state: "idle" });
       return;
     }
 
-    const instance = new TimeRulerViewer(
+    const instance = new TimeRulerLocator(
       canvas,
       scope.viewport,
       memoizedConfig,
     );
-    viewerRef.current = instance;
-    setViewer(instance);
+    locatorRef.current = instance;
+    setLocator(instance);
     setStatus(instance.getStatus());
 
     const unsubs = [
@@ -62,18 +62,18 @@ export function useTimeRuler(
     return () => {
       for (const unsub of unsubs) unsub();
       instance.destroy();
-      viewerRef.current = null;
-      setViewer(null);
+      locatorRef.current = null;
+      setLocator(null);
     };
   }, [scope, canvasRef]);
 
   useEffect(() => {
-    const instance = viewerRef.current;
+    const instance = locatorRef.current;
     if (!instance) return;
     try {
       instance.updateConfig(memoizedConfig);
     } catch {}
   }, [memoizedConfig]);
 
-  return { viewer, status, scope: scope ?? null };
+  return { locator, status, scope: scope ?? null };
 }

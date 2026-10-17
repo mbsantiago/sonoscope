@@ -1,10 +1,10 @@
 import {
   type ColorMapConfig,
-  type FrequencyRulerViewer,
+  type FrequencyRulerLocator,
   type FrequencyScale,
   Sonoscope,
   type SpectrogramViewer,
-  type TimeRulerViewer,
+  type TimeRulerLocator,
   type WaveformViewer,
   attachPlayheadOverlay,
 } from "@sonoscope/core";
@@ -34,8 +34,8 @@ export default function InteractiveSpectrogram({
   const scopeRef = useRef<Sonoscope | null>(null);
   const specRef = useRef<SpectrogramViewer | null>(null);
   const waveformRef = useRef<WaveformViewer | null>(null);
-  const freqRulerRef = useRef<FrequencyRulerViewer | null>(null);
-  const timeRulerRef = useRef<TimeRulerViewer | null>(null);
+  const freqRulerRef = useRef<FrequencyRulerLocator | null>(null);
+  const timeRulerRef = useRef<TimeRulerLocator | null>(null);
 
   const [cmap, setCmap] = useState<ColorMapConfig>(initialCmap);
   const [scale, setScale] = useState<FrequencyScale>(initialScale);

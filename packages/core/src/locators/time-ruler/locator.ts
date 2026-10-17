@@ -1,6 +1,6 @@
 import type { IViewportController, ViewportConfig } from "../../types";
 import type {
-  ITimeRulerViewer,
+  ITimeRulerLocator,
   ResolvedTimeRulerConfig,
   TimeRulerEvents,
   TimeRulerOptions,
@@ -45,7 +45,7 @@ function resolveTimeRulerConfig(
   };
 }
 
-export class TimeRulerViewer implements ITimeRulerViewer {
+export class TimeRulerLocator implements ITimeRulerLocator {
   private readonly events = new TypedEventEmitter<TimeRulerEvents>();
   private readonly canvas: HTMLCanvasElement;
   private readonly viewport: IViewportController;
@@ -67,10 +67,10 @@ export class TimeRulerViewer implements ITimeRulerViewer {
     options?: Partial<TimeRulerOptions>,
   ) {
     if (!canvas) {
-      throw new Error("TimeRulerViewer requires a canvas");
+      throw new Error("TimeRulerLocator requires a canvas");
     }
     if (!viewport) {
-      throw new Error("TimeRulerViewer requires a viewport controller");
+      throw new Error("TimeRulerLocator requires a viewport controller");
     }
 
     this.viewport = viewport;

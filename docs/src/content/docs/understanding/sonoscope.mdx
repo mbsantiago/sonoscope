@@ -1,6 +1,6 @@
 ---
 title: The Sonoscope object
-description: How the Sonoscope object keeps a source, viewers, viewport, and playback together.
+description: How the Sonoscope object keeps a source, viewers, locators, viewport, and playback together.
 ---
 
 You can use an [audio source](/sonoscope/understanding/audio-sources/) on its own. But if you want to show it in several [viewers](/sonoscope/understanding/viewers/) and play it back, you also need to keep track of which source and [viewport](/sonoscope/understanding/viewports/) they share. The `Sonoscope` object does that for you.
@@ -56,7 +56,7 @@ If a user picks another recording before the first one finishes loading, Sonosco
 
 ## Clips and the viewport
 
-Sonoscope also keeps the viewers on the same visible time range. You can set a clip to limit which part of the recording users can view and play. If you change the clip, Sonoscope updates the viewport and viewers to match. It does not need to load the recording again.
+Sonoscope gives viewers and locators the same viewport, so their displays stay aligned as you pan or zoom. You can set a clip to limit which part of the recording users can view and play. If you change the clip, Sonoscope updates the viewport, so both viewers and locators follow it. It does not need to load the recording again.
 
 See [Viewports, recording duration, and clips](/sonoscope/understanding/viewports/) for how those time ranges differ.
 
