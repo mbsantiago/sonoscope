@@ -310,7 +310,7 @@
         if (scope.state.status !== "ready") return;
         const rect = waveCanvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const targetTime = waveViewer.canvasToTime(clickX);
+        const targetTime = waveViewer.canvasToTime(clickX * waveCanvas.width / rect.width);
         scope.seek(targetTime);
       });
 

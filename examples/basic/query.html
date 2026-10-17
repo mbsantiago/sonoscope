@@ -298,6 +298,7 @@
       let lastPoint = null;
       let lastSpectrum = null;
       let lastCanvasY = null;
+      let lastCanvasPosition = null;
 
       function resizeCanvas(c) {
         const rect = c.getBoundingClientRect();
@@ -456,14 +457,19 @@
         if (scope.state.status !== "ready") return;
         const currentMode = modeSelect.value;
         const source = scope.source;
+        const rect = specCanvas.getBoundingClientRect();
         try {
-          const point = await viewer.queryCanvasPoint({ x, y, mode: currentMode });
+          const point = await viewer.queryCanvasPoint({
+            x: x * specCanvas.width / rect.width,
+            y: y * specCanvas.height / rect.height,
+            mode: currentMode,
+          });
           const spectrum = await viewer.querySpectrum({ time: point.time, mode: currentMode });
           if (scope.source !== source) return;
         
         lastPoint = point;
         lastSpectrum = spectrum;
-        const rect = specCanvas.getBoundingClientRect();
+        lastCanvasPosition = { x, y };
         lastCanvasY = y / (rect.height || 1);
 
         // Update DOM metrics
@@ -509,6 +515,7 @@
           statusEl.textContent = "Loading audio...";
           lastPoint = null;
           lastSpectrum = null;
+          lastCanvasPosition = null;
         } else if (state.status === "error") {
           statusEl.textContent = "Error";
           rawOutputEl.textContent = state.error.message;
@@ -548,8 +555,8 @@
       modeSelect.addEventListener('change', () => {
         if (!viewer) return;
         viewer.updateConfig({ valueMode: modeSelect.value });
-        if (lastPoint) {
-          void queryAtPoint(lastPoint.time, lastPoint.frequency);
+        if (lastCanvasPosition) {
+          void queryAtPoint(lastCanvasPosition.x, lastCanvasPosition.y);
         }
       });
 

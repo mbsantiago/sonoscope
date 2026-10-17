@@ -728,7 +728,7 @@
         if (!waveViewer || !scope) return;
         const rect = mainWaveCanvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const targetTime = waveViewer.canvasToTime(clickX);
+        const targetTime = waveViewer.canvasToTime(clickX * mainWaveCanvas.width / rect.width);
         scope.seek(targetTime);
       });
 

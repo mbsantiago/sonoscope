@@ -138,10 +138,14 @@
           const rect = target.getBoundingClientRect();
           const end = { x: event.clientX - rect.left, y: event.clientY - rect.top };
           selection.style.display = 'none';
-          if (Math.abs(end.x - dragStart.x) > 8 || Math.abs(end.y - dragStart.y) > 8) {
+          if (Math.abs(end.x - dragStart.x) > 8 && Math.abs(end.y - dragStart.y) > 8) {
             const bounds = fullBounds();
-            const a = spectrogram.canvasToTimeFrequency(dragStart.x, dragStart.y);
-            const b = spectrogram.canvasToTimeFrequency(end.x, end.y);
+            const toCanvasPoint = ({ x, y }) => spectrogram.canvasToTimeFrequency(
+              x * target.width / rect.width,
+              y * target.height / rect.height,
+            );
+            const a = toCanvasPoint(dragStart);
+            const b = toCanvasPoint(end);
             setViewport({
               startTime: Math.max(bounds.startTime, Math.min(a.time, b.time)),
               endTime: Math.min(bounds.endTime, Math.max(a.time, b.time)),
