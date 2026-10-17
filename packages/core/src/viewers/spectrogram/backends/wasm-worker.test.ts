@@ -15,7 +15,7 @@ function createAudioSource(): AudioSource {
     sampleRate,
     duration: 1,
     channelCount: 1,
-    read: () => samples,
+    read: async () => samples,
   };
 }
 

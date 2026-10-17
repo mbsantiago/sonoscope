@@ -33,7 +33,7 @@ describe("WASM in real browser", () => {
       sampleRate: 44100,
       duration: 1,
       channelCount: 1,
-      read: () => samples,
+      read: async () => samples,
     };
 
     const matrix = await backend.computeTile({

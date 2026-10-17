@@ -75,8 +75,9 @@ describe("StreamingWavSource sequential decode", () => {
     stream.push(bytes.slice(0, 44));
     const source = await created;
     const read = source.read({ channel: 0, startTime: 0, endTime: 0.5 });
+    expect(read).toBeInstanceOf(Promise);
     let resolved = false;
-    void Promise.resolve(read).then(() => {
+    void read.then(() => {
       resolved = true;
     });
     await Promise.resolve();
@@ -85,6 +86,12 @@ describe("StreamingWavSource sequential decode", () => {
     expect(
       Array.from(await read).map((value) => Number(value.toFixed(4))),
     ).toEqual([0, 1]);
+    const readyRead = source.read({ channel: 0, startTime: 0, endTime: 0.5 });
+    expect(readyRead).toBeInstanceOf(Promise);
+    await expect(readyRead.then(Array.from)).resolves.toEqual([
+      0,
+      32767 / 32768,
+    ]);
   });
 
   it("emits available ranges when sequential samples decode", async () => {
@@ -169,7 +176,7 @@ describe("StreamingWavSource sequential decode", () => {
     const source = await StreamingWavSource.fromByteSource(seekableSource);
     const earlier = source.read({ channel: 0, startTime: 0, endTime: 0.5 });
     let earlierResolved = false;
-    void Promise.resolve(earlier).then(() => {
+    void earlier.then(() => {
       earlierResolved = true;
     });
 

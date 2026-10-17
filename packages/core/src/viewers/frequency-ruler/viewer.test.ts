@@ -29,7 +29,7 @@ describe("FrequencyRulerViewer", () => {
     sampleRate: 48000,
     duration: 60,
     channelCount: 1,
-    read: vi.fn(),
+    read: vi.fn(async () => new Float32Array(0)),
   };
 
   it("creates FrequencyRulerViewer and renders automatically on viewport changes", async () => {

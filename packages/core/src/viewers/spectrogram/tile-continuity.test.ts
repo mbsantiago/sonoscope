@@ -42,7 +42,7 @@ describe("Spectrogram Tile Continuity & Global Frame Alignment", () => {
       duration,
       channelCount: 1,
       id: "test-continuous-source",
-      read: ({ startTime, endTime }) => {
+      read: async ({ startTime, endTime }) => {
         const start = Math.max(0, Math.floor(startTime * sampleRate));
         const end = Math.min(totalSamples, Math.ceil(endTime * sampleRate));
         return samples.slice(start, end);
@@ -112,7 +112,7 @@ describe("Spectrogram Tile Continuity & Global Frame Alignment", () => {
       duration,
       channelCount: 1,
       id: "test-multiconfig-source",
-      read: ({ startTime, endTime }) => {
+      read: async ({ startTime, endTime }) => {
         const start = Math.max(0, Math.floor(startTime * sampleRate));
         const end = Math.min(totalSamples, Math.ceil(endTime * sampleRate));
         return samples.slice(start, end);

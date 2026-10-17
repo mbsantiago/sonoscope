@@ -142,14 +142,14 @@ describe("Viewer Registry on Sonoscope", () => {
       duration: 10,
       sampleRate: 44100,
       channelCount: 1,
-      read: () => new Float32Array(10),
+      read: async () => new Float32Array(10),
     };
     const nextSource: AudioSource = {
       id: "source-2",
       duration: 15,
       sampleRate: 44100,
       channelCount: 1,
-      read: () => new Float32Array(10),
+      read: async () => new Float32Array(10),
     };
 
     const scope = new Sonoscope(initialSource);
@@ -176,7 +176,7 @@ describe("Viewer Registry on Sonoscope", () => {
       duration: 10,
       sampleRate: 44100,
       channelCount: 1,
-      read: () => new Float32Array(10),
+      read: async () => new Float32Array(10),
     };
     const scope = new Sonoscope(source);
     expect(() =>

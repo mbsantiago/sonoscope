@@ -118,7 +118,7 @@ function createMockSource(duration = 20, sampleRate = 48000): AudioSource {
     duration,
     sampleRate,
     channelCount: 2,
-    read: () => new Float32Array(100),
+    read: async () => new Float32Array(100),
   };
 }
 
@@ -185,7 +185,7 @@ describe("Sonoscope", () => {
       get duration() {
         return duration;
       },
-      read: () => new Float32Array(0),
+      read: async () => new Float32Array(0),
       onRangeAvailable(handler) {
         publishRange = handler;
         return () => {
@@ -217,7 +217,7 @@ describe("Sonoscope", () => {
       get duration() {
         return duration;
       },
-      read: () => new Float32Array(0),
+      read: async () => new Float32Array(0),
       onRangeAvailable(handler) {
         publishRange = handler;
         return () => {

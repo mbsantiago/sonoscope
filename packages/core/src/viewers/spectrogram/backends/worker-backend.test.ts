@@ -52,7 +52,7 @@ function source(): AudioSource {
     sampleRate: 1024,
     duration: 1,
     channelCount: 1,
-    read: () => Float32Array.from([0, 1, 0, -1]),
+    read: async () => Float32Array.from([0, 1, 0, -1]),
   };
 }
 

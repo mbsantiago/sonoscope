@@ -7,7 +7,7 @@ const source: AudioSource = {
   sampleRate: 48_000,
   duration: 10,
   channelCount: 1,
-  read: () => new Float32Array(0),
+  read: async () => new Float32Array(0),
 };
 
 describe("resolveConfig", () => {

@@ -100,11 +100,11 @@ export class ClippedAudioSource implements AudioSource {
     }
   }
 
-  read(options: {
+  async read(options: {
     channel: number;
     startTime: number;
     endTime: number;
-  }): Float32Array | Promise<Float32Array> {
+  }): Promise<Float32Array> {
     const requestedStart = options.startTime;
     const requestedEnd = options.endTime;
 
@@ -119,26 +119,14 @@ export class ClippedAudioSource implements AudioSource {
       return new Float32Array(sampleCount);
     }
 
-    const raw = this.underlyingSource.read({
+    const samples = await this.underlyingSource.read({
       channel: options.channel,
       startTime: clampedStart,
       endTime: clampedEnd,
     });
 
-    if (raw instanceof Promise) {
-      return raw.then((samples) => {
-        return this.padSamplesIfNeeded(
-          samples,
-          requestedStart,
-          requestedEnd,
-          clampedStart,
-          clampedEnd,
-        );
-      });
-    }
-
     return this.padSamplesIfNeeded(
-      raw,
+      samples,
       requestedStart,
       requestedEnd,
       clampedStart,

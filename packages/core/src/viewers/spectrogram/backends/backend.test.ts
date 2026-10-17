@@ -9,7 +9,7 @@ describe("MainThreadComputeBackend", () => {
       sampleRate: 1024,
       duration: 1,
       channelCount: 1,
-      read: () => new Float32Array(1024),
+      read: async () => new Float32Array(1024),
     };
     const backend = new MainThreadComputeBackend();
     const matrix = await backend.computeTile({

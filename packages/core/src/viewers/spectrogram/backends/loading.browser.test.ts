@@ -26,7 +26,7 @@ describe("loading and profiler backends in browser", () => {
         sampleRate: 44100,
         duration: 1,
         channelCount: 1,
-        read: () => samples,
+        read: async () => samples,
       };
 
       const matrix = await backend.computeTile({
@@ -59,7 +59,7 @@ describe("loading and profiler backends in browser", () => {
       sampleRate: 44100,
       duration: 2,
       channelCount: 1,
-      read: ({
+      read: async ({
         startTime,
         endTime,
       }: {
@@ -116,7 +116,7 @@ describe("loading and profiler backends in browser", () => {
         sampleRate: 44100,
         duration: 10,
         channelCount: 1,
-        read: ({
+        read: async ({
           startTime,
           endTime,
         }: {

@@ -248,13 +248,13 @@ export interface AudioSource {
   /**
    * Reads PCM samples for a specific channel and time range.
    * @param options Channel index and time span in seconds.
-   * @returns Float32Array of normalized audio samples.
+   * @returns Promise resolving to normalized audio samples.
    */
   read(options: {
     channel: number;
     startTime: number;
     endTime: number;
-  }): Float32Array | Promise<Float32Array>;
+  }): Promise<Float32Array>;
   /**
    * Subscribes to progressive availability updates as decoded audio ranges arrive.
    * @param handler Callback receiving the newly available time range in seconds.

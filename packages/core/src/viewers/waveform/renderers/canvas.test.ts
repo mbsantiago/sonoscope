@@ -29,7 +29,7 @@ const dummySource: AudioSource = {
   sampleRate: 1000,
   duration: 10,
   channelCount: 1,
-  read: ({ startTime, endTime }) => {
+  read: async ({ startTime, endTime }) => {
     const count = Math.max(0, Math.floor((endTime - startTime) * 1000));
     const data = new Float32Array(count);
     for (let i = 0; i < count; i++) {

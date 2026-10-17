@@ -8,7 +8,7 @@ function createMockSource(duration = 20, sampleRate = 1000): AudioSource {
     duration,
     channelCount: 1,
     id: `mock:${duration}:${sampleRate}`,
-    read({ channel, startTime, endTime }) {
+    async read({ channel, startTime, endTime }) {
       if (channel !== 0) throw new Error("Invalid channel");
       const length = Math.floor((endTime - startTime) * sampleRate);
       const data = new Float32Array(length);
@@ -36,7 +36,7 @@ describe("ClippedAudioSource", () => {
     expect(clipped.duration).toBe(30);
   });
 
-  it("clamps requested reads to clip bounds and zero-pads outside bounds", () => {
+  it("clamps requested reads to clip bounds and zero-pads outside bounds", async () => {
     const source = createMockSource(30, 100);
     const clipped = new ClippedAudioSource(source, {
       clipStart: 5,
@@ -44,20 +44,22 @@ describe("ClippedAudioSource", () => {
     });
 
     // Request exactly within bounds
-    const read1 = clipped.read({
+    const withinClip = clipped.read({
       channel: 0,
       startTime: 5,
       endTime: 7,
-    }) as Float32Array;
+    });
+    expect(withinClip).toBeInstanceOf(Promise);
+    const read1 = await withinClip;
     expect(read1.length).toBe(200);
     expect(read1[0]).toBeCloseTo(5);
 
     // Request starting before clipStart: 4s to 6s (1s zeros, 1s real samples)
-    const read2 = clipped.read({
+    const read2 = await clipped.read({
       channel: 0,
       startTime: 4,
       endTime: 6,
-    }) as Float32Array;
+    });
     expect(read2.length).toBe(200);
     expect(read2[0]).toBe(0); // Before clipStart -> zero padded
     expect(read2[99]).toBe(0);
@@ -68,9 +70,11 @@ describe("ClippedAudioSource", () => {
       channel: 0,
       startTime: 0,
       endTime: 2,
-    }) as Float32Array;
-    expect(read3.length).toBe(200);
-    expect(read3.every((v) => v === 0)).toBe(true);
+    });
+    expect(read3).toBeInstanceOf(Promise);
+    const zeros = await read3;
+    expect(zeros.length).toBe(200);
+    expect(zeros.every((v) => v === 0)).toBe(true);
   });
 
   it("uses absolute sample bounds when zero-padding a high-rate tile", async () => {

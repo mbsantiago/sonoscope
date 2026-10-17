@@ -88,7 +88,7 @@ const source: AudioSource = {
   sampleRate: 1024,
   duration: 1,
   channelCount: 1,
-  read: () =>
+  read: async () =>
     Float32Array.from({ length: 1024 }, (_, i) =>
       Math.sin(2 * Math.PI * 128 * (i / 1024)),
     ),
@@ -845,7 +845,7 @@ describe("SpectrogramViewer", () => {
       ...source,
       sampleRate: 44_100,
       duration: 30,
-      read: () => new Float32Array(2_048),
+      read: async () => new Float32Array(2_048),
     };
     const viewer = createViewer({
       source: wideSource,
@@ -1106,7 +1106,7 @@ describe("SpectrogramViewer", () => {
       sampleRate: 192_000,
       duration: 20,
       channelCount: 1,
-      read: ({ startTime, endTime }) =>
+      read: async ({ startTime, endTime }) =>
         Float32Array.from(
           { length: Math.floor((endTime - startTime) * 192_000) },
           (_, index) => Math.sin(index / 12),
@@ -1788,14 +1788,14 @@ describe("SpectrogramViewer", () => {
       sampleRate: 1000,
       duration: 10,
       channelCount: 1,
-      read: () => new Float32Array(1000),
+      read: async () => new Float32Array(1000),
     };
     const sourceB: AudioSource = {
       id: "source-b",
       sampleRate: 1000,
       duration: 10,
       channelCount: 1,
-      read: () => new Float32Array(1000),
+      read: async () => new Float32Array(1000),
     };
 
     const scope = new Sonoscope({
@@ -1842,7 +1842,7 @@ describe("SpectrogramViewer", () => {
       sampleRate: 500_000,
       duration: 1,
       channelCount: 1,
-      read: () => new Float32Array(500_000),
+      read: async () => new Float32Array(500_000),
     };
 
     const viewer = createViewer({
