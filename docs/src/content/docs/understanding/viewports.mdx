@@ -1,36 +1,45 @@
 ---
-title: Viewports, recording duration, and clips
+title: Viewports and clips
 description: How the recording, a clip, the visible viewport, and the playhead relate.
 ---
 
-A **viewport** tells a viewer which part of a recording to show. If a recording is two minutes long, you might show only ten seconds at a time. Those ten seconds are the visible viewport.
+import ViewportFigures from '../../../components/ViewportFigures.astro';
 
-The recording, a clip, the viewport, and the playback position all use the same time scale. Here is how they can fit together:
+Audio recordings can be long, and visualizing an entire recording at once may be impractical or take too much work. In Sonoscope, the **viewport** defines the part you see at a given moment. You can move it to explore other parts of the recording or zoom in to look more closely. Sometimes you may want to limit that movement to a smaller part of the recording, called a **clip**. The viewport stays within the clip when one is set, and within the recording in any case. Let's look more closely at how viewports, recording bounds, and clips work together.
 
-```text
-recording time:  0s ├──────────────────────────────────────────────────┤ 120s
-clip:                     30s ├──────────────────┤ 60s
-viewport:                         40s ├──────┤ 50s
-playhead:                               ▲ 45s
-```
+## The viewport
 
-The recording lasts 120 seconds. The clip covers seconds 30 to 60, the viewport shows seconds 40 to 50, and the playhead marks playback at second 45.
+<ViewportFigures concept="viewport" />
 
-## Recording duration
+The viewport covers a time range, from [`startTime`](/sonoscope/reference/core/type-aliases/viewportstate/#property-starttime) to [`endTime`](/sonoscope/reference/core/type-aliases/viewportstate/#property-endtime), and a frequency range, from [`minFrequency`](/sonoscope/reference/core/type-aliases/viewportstate/#property-minfrequency) to [`maxFrequency`](/sonoscope/reference/core/type-aliases/viewportstate/#property-maxfrequency). The frequency range matters for views such as a [spectrogram](/sonoscope/demos/spectrogram/), which shows sound across time and frequency.
 
-The **recording duration** is its full length in seconds. `scope.getDuration()` returns the active source's duration. All times are measured from the start of that recording. Second 45 still means second 45, even if you are working with a clip that starts at second 30.
+The viewport tells viewers which part of the recording to show. For example, rather than calculate and draw a whole two-minute recording at once, a viewer can focus on the ten seconds in view. You can then zoom in on a part that interests you or pan to another part without trying to show everything at once.
 
-The **viewport duration** is different. A viewport from second 40 to second 50 lasts 10 seconds, even though the recording lasts 120 seconds. `scope.getViewport()` includes both the visible `duration` and `totalDuration`, along with the visible start and end times.
+When using a [Sonoscope object](/sonoscope/understanding/sonoscope/), you can call [`getViewport()`](/sonoscope/reference/core/classes/sonoscope/#getviewport) to check what is visible and [`setViewport()`](/sonoscope/reference/core/classes/sonoscope/#setviewport) to change it. You can also [`pan()`](/sonoscope/reference/core/classes/sonoscope/#pan) along the recording or [`zoomTime()`](/sonoscope/reference/core/classes/sonoscope/#zoomtime) to see more or less time. The Sonoscope object keeps the viewport within the recording or active clip and gives its attached viewers the same viewport, so they show the same time range as you navigate.
 
-Some sources load audio in parts. Their reported duration may grow as more audio becomes available. The distinction between recording duration and viewport duration stays the same.
+## Recording bounds
+
+You can choose which time and frequency ranges to view, but it does not make sense to extend them beyond what the recording can show. A recording's [**duration**](/sonoscope/reference/core/interfaces/audiosource/#property-duration) gives its length in seconds, while its [**sample rate**](/sonoscope/reference/core/interfaces/audiosource/#property-samplerate) tells you how many audio samples were captured per second. The viewport's time range stays between zero and the recording's duration; its frequency range stays between zero and the Nyquist frequency.
+
+:::note[Nyquist frequency]
+The **Nyquist frequency** is half the sample rate. The recorded samples cannot represent frequencies above that limit, so extending the viewport beyond it would suggest that the recording contains information it cannot have. Separately, a sound above the Nyquist frequency can appear as a false lower frequency in the recording if it was not filtered out before sampling. This distortion is called **aliasing**.
+:::
+
+When using a Sonoscope object, [`scope.getDuration()`](/sonoscope/reference/core/classes/sonoscope/#getduration) and [`scope.getSampleRate()`](/sonoscope/reference/core/classes/sonoscope/#getsamplerate) give you these properties of the active audio source. The viewport has its own duration, which may be much shorter than the recording's: `scope.getViewport()` gives you both the visible [`duration`](/sonoscope/reference/core/type-aliases/viewportstate/#property-duration) and the recording's [`totalDuration`](/sonoscope/reference/core/type-aliases/viewportstate/#property-totalduration).
+
+:::note[When the recording duration changes]
+Some sources load audio in parts, as when streaming an MP3 file. If the full length is not yet known, the reported recording duration may grow as more audio becomes available. The viewport duration still describes only the time currently in view.
+:::
 
 ## Clip bounds
 
-A **clip** is a chosen part of the recording. In the diagram, it starts at second 30 and ends at second 60. It keeps those original times; it does not start a new timeline at zero.
+Sometimes you want to work with only part of a recording rather than leave the whole recording open for viewing. For example, when annotating a short passage, you may want to limit the surrounding context to that passage. Or, if you are reviewing the results of a machine learning model that analyzed only part of a recording, you need to know which part its results describe. In Sonoscope, that chosen part is a **clip**, also called a segment.
 
-Clip bounds limit where you can pan or zoom the viewport and where playback can go. If you do not set a clip, you can use the whole recording.
+<ViewportFigures concept="clip" />
 
-Set or inspect clip bounds with `Sonoscope`:
+A clip has a start time and an end time on the recording's timeline. Those bounds limit the viewport and playback to that range. Without a clip, you can use the whole recording. When Sonoscope uses a clipped audio source, sample reads stay within the clip too.
+
+When using a Sonoscope object, call [`getClipBounds()`](/sonoscope/reference/core/classes/sonoscope/#getclipbounds) to check the clip's bounds and [`setClipBounds()`](/sonoscope/reference/core/classes/sonoscope/#setclipbounds) to change them. For a 120-second recording, you could limit the clip to seconds 30 through 60:
 
 ```ts
 scope.setClipBounds({ clipStart: 30, clipEnd: 60 });
@@ -40,14 +49,10 @@ scope.getDuration();   // 120: the recording duration, not the 30-second clip
 scope.getViewport();   // visible time and frequency ranges
 ```
 
-Changing the clip keeps the viewport inside the new bounds. If an audio element is attached, Sonoscope pauses it and moves its playback position to the clip start. Seeking before the start stops at the start; playback pauses at the end. The underlying recording still lasts 120 seconds. When Sonoscope uses a clipped source, sample reads stay within the clip too.
+When you update the clip bounds, the viewport adjusts to fit within the new range. If an audio element is attached, Sonoscope pauses playback and moves it to the new clip start. Playback cannot seek before that start and pauses at the new clip end.
 
-## The viewport
+## Playhead
 
-The viewport is the part you can see. It has a time range, `startTime` to `endTime`, and a frequency range, `minFrequency` to `maxFrequency`. The frequency range matters for views such as a [spectrogram](/sonoscope/demos/spectrogram/), which shows sound across time and frequency. Moving the viewport does not change the recording or the clip.
-
-Use `getViewport()` to check what is visible and `setViewport()` to change it. You can also `pan()` to move along the recording or `zoomTime()` to see more or less time. Sonoscope keeps navigation within the recording or the active clip. Viewers attached to one Sonoscope object share a viewport, so their time axes stay aligned.
-
-The **playhead** marks the current playback time, which you can read with `scope.getCurrentTime()`. It may be inside or outside the visible viewport. If playback-follow is enabled, Sonoscope can move the viewport as playback advances.
+The **playhead** marks the current playback time, which you can read with [`scope.getCurrentTime()`](/sonoscope/reference/core/classes/sonoscope/#getcurrenttime). It may be inside or outside the visible viewport. If playback-follow is enabled, Sonoscope can move the viewport as playback advances.
 
 See [The Sonoscope object](/sonoscope/understanding/sonoscope/) for how it keeps viewers and playback in sync, or the [`ViewportState` reference](/sonoscope/reference/core/type-aliases/viewportstate/) for the fields returned by `getViewport()`.
