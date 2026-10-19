@@ -1,6 +1,7 @@
 import type {
   AudioSource,
   IViewportController,
+  SourceState,
   ViewportConfig,
 } from "../../types";
 import type {
@@ -23,15 +24,13 @@ const DEFAULT_CONFIG: ResolvedWaveformConfig = {
   color: "#000000",
   backgroundColor: "transparent",
   amplitudeScale: 1,
-  renderer: "canvas2d",
+  renderer: "envelope",
 };
 
 function resolveWaveformConfig(
-  source: AudioSource,
+  _source: AudioSource | undefined,
   input: Partial<WaveformOptions> = {},
 ): ResolvedWaveformConfig {
-  if (!source) throw new Error("WaveformViewer requires a source");
-
   let color = input.color ?? DEFAULT_CONFIG.color;
   if (input.colorMap) {
     color = colorMapToRgb(input.colorMap, 255);
@@ -58,7 +57,10 @@ export class WaveformViewer implements IWaveformViewer {
   private renderAgain = false;
   private requestCounter = 0;
   private status: WaveformStatus = { state: "idle" };
-  private source: AudioSource;
+  private source: AudioSource | undefined;
+  private sourceGeneration = 0;
+  private renderGeneration = 0;
+  private activeRenderController: AbortController | undefined;
   private viewport: IViewportController;
   private readonly canvas: HTMLCanvasElement;
   private config: ResolvedWaveformConfig;
@@ -68,7 +70,7 @@ export class WaveformViewer implements IWaveformViewer {
   constructor(
     canvas: HTMLCanvasElement,
     viewport: IViewportController,
-    source: AudioSource,
+    source: AudioSource | undefined,
     options?: Partial<WaveformOptions>,
   ) {
     if (!canvas) {
@@ -77,10 +79,6 @@ export class WaveformViewer implements IWaveformViewer {
     if (!viewport) {
       throw new Error("WaveformViewer requires a viewport controller");
     }
-    if (!source) {
-      throw new Error("WaveformViewer requires an AudioSource");
-    }
-
     const resolvedConfig = resolveWaveformConfig(source, options);
 
     this.source = source;
@@ -103,7 +101,7 @@ export class WaveformViewer implements IWaveformViewer {
     }
   }
 
-  getSource(): AudioSource {
+  getSource(): AudioSource | undefined {
     return this.source;
   }
 
@@ -198,6 +196,8 @@ export class WaveformViewer implements IWaveformViewer {
 
   requestRender(): void {
     if (this.status.state === "destroyed") return;
+    this.renderGeneration += 1;
+    this.activeRenderController?.abort();
     this.renderAgain = true;
     if (this.renderQueued || this.renderRunning) return;
     this.renderQueued = true;
@@ -210,9 +210,17 @@ export class WaveformViewer implements IWaveformViewer {
     this.renderRunning = true;
     while (this.renderAgain && this.status.state !== "destroyed") {
       this.renderAgain = false;
+      const generation = this.sourceGeneration;
+      const renderGeneration = this.renderGeneration;
       try {
         await this.render();
       } catch (error) {
+        if (
+          generation !== this.sourceGeneration ||
+          renderGeneration !== this.renderGeneration ||
+          !this.source
+        )
+          continue;
         this.status = {
           state: "error",
           error: error instanceof Error ? error : new Error(String(error)),
@@ -227,38 +235,87 @@ export class WaveformViewer implements IWaveformViewer {
 
   async render(): Promise<void> {
     if (this.status.state === "destroyed") return;
+    const source = this.source;
+    if (!source) {
+      this.clearOutput();
+      this.status = { state: "idle" };
+      return;
+    }
+    const generation = this.sourceGeneration;
+    const renderGeneration = this.renderGeneration;
+    const controller = new AbortController();
+    this.activeRenderController = controller;
     const requestId = `waveform-${++this.requestCounter}`;
     this.status = { state: "rendering" };
     this.events.emit("renderstart", { requestId });
 
     const vp = this.getViewport();
 
-    await this.renderer.render({
-      canvas: this.canvas,
-      source: this.source,
-      channel: this.config.channel,
-      startTime: vp.startTime,
-      endTime: vp.endTime,
-      color: this.config.color,
-      backgroundColor: this.config.backgroundColor,
-      amplitudeScale: this.config.amplitudeScale,
-      colorMap: this.config.colorMap,
-    });
+    try {
+      await this.renderer.render({
+        canvas: this.canvas,
+        source,
+        signal: controller.signal,
+        channel: this.config.channel,
+        startTime: vp.startTime,
+        endTime: vp.endTime,
+        color: this.config.color,
+        backgroundColor: this.config.backgroundColor,
+        amplitudeScale: this.config.amplitudeScale,
+        colorMap: this.config.colorMap,
+      });
+    } finally {
+      if (this.activeRenderController === controller)
+        this.activeRenderController = undefined;
+    }
 
-    if (this.status.state === "destroyed") return;
+    if (
+      this.status.state === "destroyed" ||
+      generation !== this.sourceGeneration ||
+      renderGeneration !== this.renderGeneration
+    )
+      return;
 
     this.status = { state: "ready" };
     this.events.emit("rendercomplete", { requestId });
   }
 
-  setSource(source: AudioSource): void {
-    if (this.source === source) return;
-    this.source = source;
+  setSourceState(state: SourceState, generation: number): void {
+    if (this.status.state === "destroyed") return;
+    this.sourceGeneration = generation;
+    this.renderGeneration += 1;
+    this.activeRenderController?.abort();
+    this.activeRenderController = undefined;
+    this.source = state.status === "ready" ? state.source : undefined;
+    if (!this.source) {
+      this.renderAgain = false;
+      this.clearOutput();
+      this.status = { state: "idle" };
+      return;
+    }
+    this.config = resolveWaveformConfig(this.source, this.config);
+    this.clearOutput();
     this.requestRender();
+  }
+
+  private clearOutput(): void {
+    if (this.renderer.clear) {
+      this.renderer.clear(this.canvas);
+      return;
+    }
+    try {
+      const context = this.canvas.getContext("2d");
+      context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    } catch {
+      // Resizing below is the fallback for canvases owned by custom GL renderers.
+    }
+    this.canvas.width = this.canvas.width;
   }
 
   destroy(): void {
     this.status = { state: "destroyed" };
+    this.activeRenderController?.abort();
+    this.activeRenderController = undefined;
     this.events.clear();
     for (const cleanup of this.viewportCleanup) cleanup();
     this.viewportCleanup = [];

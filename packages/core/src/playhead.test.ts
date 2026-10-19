@@ -77,7 +77,7 @@ describe("PlayheadOverlay", () => {
       sampleRate: 44100,
       duration: 10,
       channelCount: 1,
-      read: () => new Float32Array(1024),
+      read: async () => new Float32Array(1024),
     };
   });
 

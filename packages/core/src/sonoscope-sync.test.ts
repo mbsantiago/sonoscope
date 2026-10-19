@@ -127,7 +127,7 @@ function createMockSource(duration = 20, sampleRate = 44100): AudioSource {
     duration,
     sampleRate,
     channelCount: 1,
-    read: ({ startTime, endTime }) => {
+    read: async ({ startTime, endTime }) => {
       const start = Math.floor(startTime * sampleRate);
       const end = Math.floor(endTime * sampleRate);
       const count = Math.max(0, end - start);

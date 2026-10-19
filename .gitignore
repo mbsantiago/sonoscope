@@ -8,3 +8,5 @@ vite.config.d.ts.map
 .vitest-attachments/
 __screenshots__/
 *-bundle-stats.html
+docs/superpowers/
+.superpowers/

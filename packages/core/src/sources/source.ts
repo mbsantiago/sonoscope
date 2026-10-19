@@ -1,4 +1,8 @@
-import type { AudioSource } from "../types";
+import type {
+  AudioContextLike,
+  AudioSource,
+  AudioSourceOptions,
+} from "../types";
 import {
   BlobByteSource,
   BufferByteSource,
@@ -12,17 +16,7 @@ import { StreamingMp3Source } from "./streaming-mp3-source";
 import { StreamingWavSource } from "./streaming-wav-source";
 import { isWavBytes } from "./wav";
 
-export type AudioSourceOptions =
-  | AudioContextLike
-  | {
-      audioContext?: AudioContextLike | undefined;
-      sampleRate?: number | undefined;
-      preferStreaming?: boolean | undefined;
-      preferDecoded?: boolean | undefined;
-      clipStart?: number | undefined;
-      clipEnd?: number | undefined;
-    }
-  | undefined;
+export type { AudioSourceOptions };
 
 export class DecodedAudioSource implements AudioSource {
   readonly sampleRate: number;
@@ -45,10 +39,14 @@ export class DecodedAudioSource implements AudioSource {
       | {
           audioContext?: AudioContextLike | undefined;
           sampleRate?: number | undefined;
+          signal?: AbortSignal | undefined;
         }
       | undefined,
   ): Promise<DecodedAudioSource> {
-    const response = await fetch(url);
+    const signal = options && "signal" in options ? options.signal : undefined;
+    const response = await fetch(url, {
+      ...(signal ? { signal } : {}),
+    });
     if (!response.ok)
       throw new Error(`Failed to fetch audio source: ${response.status}`);
     const data = await response.arrayBuffer();
@@ -111,11 +109,11 @@ export class DecodedAudioSource implements AudioSource {
     }
   }
 
-  read(options: {
+  async read(options: {
     channel: number;
     startTime: number;
     endTime: number;
-  }): Float32Array {
+  }): Promise<Float32Array> {
     if (options.channel < 0 || options.channel >= this.channelCount)
       throw new Error(`Invalid channel ${options.channel}`);
     const start = Math.max(
@@ -136,6 +134,20 @@ async function createAudioSourceFromByteSource(
   sourceId?: string,
   fallbackDecode?: () => Promise<AudioSource>,
 ): Promise<AudioSource> {
+  const signal =
+    options && typeof options === "object" && "signal" in options
+      ? options.signal
+      : undefined;
+  const throwIfAborted = () => {
+    if (signal?.aborted) {
+      throw (
+        signal.reason ??
+        new DOMException("The operation was aborted", "AbortError")
+      );
+    }
+  };
+  throwIfAborted();
+
   const isDecodedPreferred =
     Boolean(options && "preferDecoded" in options && options.preferDecoded) ||
     Boolean(
@@ -146,19 +158,26 @@ async function createAudioSourceFromByteSource(
 
   if (isDecodedPreferred && fallbackDecode) {
     const raw = await fallbackDecode();
+    throwIfAborted();
     return wrapClippedIfNeeded(raw, options);
   }
 
   const prefix = await readPrefix(byteSource, 64);
+  throwIfAborted();
 
   if (isWavBytes(prefix)) {
     try {
       const wavOpts = sourceId !== undefined ? { id: sourceId } : undefined;
       const raw = await StreamingWavSource.fromByteSource(byteSource, wavOpts);
+      throwIfAborted();
       return wrapClippedIfNeeded(raw, options);
-    } catch {
+    } catch (error) {
+      throwIfAborted();
+      if (error instanceof DOMException && error.name === "AbortError")
+        throw error;
       if (fallbackDecode) {
         const raw = await fallbackDecode();
+        throwIfAborted();
         return wrapClippedIfNeeded(raw, options);
       }
     }
@@ -172,22 +191,31 @@ async function createAudioSourceFromByteSource(
           byteSource,
           mp3Opts,
         );
+        throwIfAborted();
         return wrapClippedIfNeeded(raw, options);
-      } catch {
+      } catch (error) {
+        throwIfAborted();
+        if (error instanceof DOMException && error.name === "AbortError")
+          throw error;
         if (fallbackDecode) {
           const raw = await fallbackDecode();
+          throwIfAborted();
           return wrapClippedIfNeeded(raw, options);
         }
       }
     }
+    throwIfAborted();
     if (fallbackDecode) {
       const raw = await fallbackDecode();
+      throwIfAborted();
       return wrapClippedIfNeeded(raw, options);
     }
   }
 
+  throwIfAborted();
   if (fallbackDecode) {
     const raw = await fallbackDecode();
+    throwIfAborted();
     return wrapClippedIfNeeded(raw, options);
   }
 
@@ -223,7 +251,10 @@ export async function createAudioSourceFromUrl(
   url: string,
   options?: AudioSourceOptions,
 ): Promise<AudioSource> {
-  const byteSource = FetchByteSource.fromUrl(url);
+  const signal = options && "signal" in options ? options.signal : undefined;
+  const byteSource = FetchByteSource.fromUrl(url, {
+    ...(signal ? { signal } : {}),
+  });
   return createAudioSourceFromByteSource(byteSource, options, url, () =>
     DecodedAudioSource.fromUrl(url, options),
   );
@@ -262,10 +293,6 @@ export async function createAudioSourceFromBuffer(
     DecodedAudioSource.fromBuffer(buffer, options, id),
   );
 }
-
-export type AudioContextLike = {
-  decodeAudioData(data: ArrayBuffer): Promise<AudioBuffer>;
-};
 
 function getSharedDecodeContext(sampleRate?: number): AudioContextLike {
   if (typeof AudioContext !== "undefined") {

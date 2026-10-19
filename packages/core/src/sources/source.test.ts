@@ -65,11 +65,11 @@ describe("DecodedAudioSource", () => {
     expect(source.sampleRate).toBe(96_000);
   });
 
-  it("reads a time range as a copied Float32Array", () => {
+  it("reads a time range as a copied Float32Array", async () => {
     const source = new DecodedAudioSource(makeBuffer(), "fixture");
-    expect(
-      Array.from(source.read({ channel: 0, startTime: 0.2, endTime: 0.5 })),
-    ).toEqual([2, 3, 4]);
+    const read = source.read({ channel: 0, startTime: 0.2, endTime: 0.5 });
+    expect(read).toBeInstanceOf(Promise);
+    await expect(read.then(Array.from)).resolves.toEqual([2, 3, 4]);
   });
 
   it("decodes WAV files using the file sample rate by default", async () => {
@@ -130,7 +130,7 @@ describe("createAudioSourceFromUrl", () => {
         sampleRate: 10,
         duration: 1,
         channelCount: 1,
-        read: () => new Float32Array(0),
+        read: async () => new Float32Array(0),
       } as unknown as StreamingWavSource);
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -175,7 +175,7 @@ describe("createAudioSourceFromUrl", () => {
         sampleRate: 44100,
         duration: 1,
         channelCount: 2,
-        read: () => new Float32Array(0),
+        read: async () => new Float32Array(0),
       } as unknown as StreamingMp3Source);
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -266,6 +266,26 @@ describe("createAudioSourceFromUrl", () => {
     expect(source.id).toBe("decoded-after-streaming-failure");
     expect(decoded).toHaveBeenCalledWith("unsupported.wav", options);
   });
+
+  it("does not start decoded fallback after WAV streaming is aborted", async () => {
+    const controller = new AbortController();
+    const decoded = vi.spyOn(DecodedAudioSource, "fromUrl");
+    vi.spyOn(StreamingWavSource, "fromByteSource").mockImplementation(
+      async () => {
+        controller.abort();
+        throw new DOMException("aborted", "AbortError");
+      },
+    );
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: streamFrom(new Uint8Array(wavHeader(10))),
+    }) as typeof fetch;
+
+    await expect(
+      createAudioSourceFromUrl("aborted.wav", { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(decoded).not.toHaveBeenCalled();
+  });
 });
 
 describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {
@@ -277,7 +297,7 @@ describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {
         sampleRate: 44100,
         duration: 1,
         channelCount: 1,
-        read: () => new Float32Array(0),
+        read: async () => new Float32Array(0),
       } as unknown as StreamingWavSource);
 
     const blob = new Blob([wavHeader(44100)]);
@@ -294,7 +314,7 @@ describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {
         sampleRate: 22050,
         duration: 1,
         channelCount: 1,
-        read: () => new Float32Array(0),
+        read: async () => new Float32Array(0),
       } as unknown as StreamingWavSource);
 
     const buffer = wavHeader(22050);
@@ -320,7 +340,7 @@ describe("createAudioSourceFromBlob and createAudioSourceFromBuffer", () => {
       sampleRate: 44100,
       duration: 30,
       channelCount: 1,
-      read: () => new Float32Array(0),
+      read: async () => new Float32Array(0),
     } as unknown as StreamingWavSource);
 
     const buffer = wavHeader(44100);

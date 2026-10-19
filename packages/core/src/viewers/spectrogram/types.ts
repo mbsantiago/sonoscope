@@ -6,6 +6,7 @@ import type {
   IDataViewer,
   IViewportController,
   NavigableViewer,
+  SourceState,
   ViewportConfig,
 } from "../../types";
 import type {
@@ -417,7 +418,7 @@ export interface ISpectrogramViewer extends IDataViewer, NavigableViewer {
   getCanvas(): HTMLCanvasElement;
 
   /** Returns the active audio source. */
-  getSource(): AudioSource;
+  getSource(): AudioSource | undefined;
   /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
   /** Returns the visible time and frequency viewport. */
@@ -430,7 +431,7 @@ export interface ISpectrogramViewer extends IDataViewer, NavigableViewer {
     maxFrequency: number;
   };
   /** Returns the Nyquist frequency in Hz. */
-  getNyquist(): number;
+  getNyquist(): number | undefined;
 
   /** Returns the resolved spectrogram configuration options. */
   getConfig(): ResolvedSpectrogramConfig;
@@ -439,7 +440,7 @@ export interface ISpectrogramViewer extends IDataViewer, NavigableViewer {
   /** Alias for `updateConfig`. */
   setConfig(input: Partial<SpectrogramOptions>): void;
   /** Updates the audio source and invalidates the tile cache. */
-  setSource(source: AudioSource): void;
+  setSourceState(state: SourceState, generation: number): void;
   /** Returns the active rendering engine (`webgl2` or `canvas2d`). */
   getRendererKind(): "webgl2" | "canvas2d";
 

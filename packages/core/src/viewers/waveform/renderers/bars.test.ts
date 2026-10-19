@@ -29,7 +29,7 @@ const dummySource: AudioSource = {
   sampleRate: 1000,
   duration: 10,
   channelCount: 1,
-  read: ({ startTime, endTime }) => {
+  read: async ({ startTime, endTime }) => {
     const start = Math.floor(startTime * 1000);
     const end = Math.floor(endTime * 1000);
     const count = Math.max(0, end - start);

@@ -1,4 +1,4 @@
-import type { IViewportController } from "../../types";
+import type { IViewportController, IViewportLocator } from "../../types";
 import type { TimeFormatMode } from "./ticks";
 
 export type TimeRulerRendererName = "ticks" | "boxes";
@@ -145,9 +145,9 @@ export type TimeRulerEvents = {
 };
 
 /**
- * Time ruler viewer canvas controller and coordinate tick renderer.
+ * Time ruler locator canvas controller and coordinate tick renderer.
  */
-export interface ITimeRulerViewer {
+export interface ITimeRulerLocator extends IViewportLocator {
   /** Renders the current time ruler viewport asynchronously. */
   render(): Promise<void>;
   /** Schedules a render on the next animation frame. */

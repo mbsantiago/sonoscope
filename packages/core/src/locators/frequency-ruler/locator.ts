@@ -6,12 +6,12 @@ import type {
   FrequencyRulerRendererName,
   FrequencyRulerStatus,
   FrequencyRulerViewport,
-  IFrequencyRulerViewer,
+  IFrequencyRulerLocator,
   ResolvedFrequencyRulerConfig,
 } from "./types";
 import { attachAutoResize } from "../../auto-resize";
 import { TypedEventEmitter } from "../../events";
-import { hzToScale, scaleToHz } from "../spectrogram/frequency-scale";
+import { hzToScale, scaleToHz } from "../../frequency-scale";
 import { BoxesFrequencyRulerRenderer } from "./renderers/boxes-renderer";
 import { TicksFrequencyRulerRenderer } from "./renderers/ticks-renderer";
 
@@ -47,7 +47,7 @@ function resolveFrequencyRulerConfig(
   };
 }
 
-export class FrequencyRulerViewer implements IFrequencyRulerViewer {
+export class FrequencyRulerLocator implements IFrequencyRulerLocator {
   private readonly events = new TypedEventEmitter<FrequencyRulerEvents>();
   private readonly canvas: HTMLCanvasElement;
   private readonly viewport: IViewportController;
@@ -69,10 +69,10 @@ export class FrequencyRulerViewer implements IFrequencyRulerViewer {
     options?: Partial<FrequencyRulerOptions>,
   ) {
     if (!canvas) {
-      throw new Error("FrequencyRulerViewer requires a canvas");
+      throw new Error("FrequencyRulerLocator requires a canvas");
     }
     if (!viewport) {
-      throw new Error("FrequencyRulerViewer requires a viewport controller");
+      throw new Error("FrequencyRulerLocator requires a viewport controller");
     }
 
     this.viewport = viewport;

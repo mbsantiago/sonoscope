@@ -213,7 +213,8 @@
 
     <p class="hint">
       <strong>Source-Level Protection:</strong> STFT computation and audio playback are restricted to the active clip.<br />
-      <strong>Playback Enforced:</strong> Audio automatically starts at <code>clipStart</code>, pauses at <code>clipEnd</code>, and seeks outside the clip are clamped.
+      <strong>Playback Enforced:</strong> Audio automatically starts at <code>clipStart</code>, pauses at <code>clipEnd</code>, and seeks outside the clip are clamped.<br />
+      <strong>Clip edges:</strong> STFT windows crossing a clip boundary are zero-padded, which can appear as a narrow dark strip at either edge.
     </p>
 
     <script type="module">

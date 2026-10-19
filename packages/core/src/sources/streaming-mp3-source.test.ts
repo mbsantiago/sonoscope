@@ -100,8 +100,9 @@ describe("StreamingMp3Source", () => {
 
     // Request samples from time 0 to 0.003s (~132 samples at 44.1kHz, so requires frame 2)
     const read = source.read({ channel: 0, startTime: 0, endTime: 0.003 });
+    expect(read).toBeInstanceOf(Promise);
     let resolved = false;
-    void Promise.resolve(read).then(() => {
+    void read.then(() => {
       resolved = true;
     });
     await Promise.resolve();
@@ -111,6 +112,9 @@ describe("StreamingMp3Source", () => {
     stream.push(frame2);
     const samples = await read;
     expect(samples.length).toBeGreaterThan(0);
+    const readyRead = source.read({ channel: 0, startTime: 0, endTime: 0.003 });
+    expect(readyRead).toBeInstanceOf(Promise);
+    await expect(readyRead).resolves.toEqual(samples);
   });
 
   it("emits available ranges when chunks decode", async () => {
@@ -133,5 +137,22 @@ describe("StreamingMp3Source", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(handler).toHaveBeenCalled();
+  });
+
+  it("updates provisional duration as streamed MP3 frames decode", async () => {
+    const frame1 = createMp3Frame(128, 44100);
+    const frame2 = createMp3Frame(128, 44100);
+    const stream = controllableSource();
+    const promise = StreamingMp3Source.fromByteSource(stream.source, {
+      decoderFactory: createMockDecoderFactory(),
+    });
+    stream.push(frame1);
+    const source = await promise;
+    const initialDuration = source.duration;
+
+    stream.push(frame2);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(source.duration).toBeGreaterThan(initialDuration);
   });
 });

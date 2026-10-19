@@ -195,7 +195,7 @@ describe("backend-factory", () => {
         sampleRate: 1000,
         duration: 1,
         channelCount: 1,
-        read: () => new Float32Array(1000),
+        read: async () => new Float32Array(1000),
       };
       const scope = Sonoscope.fromSource(source);
       const viewer = new SpectrogramViewer(
@@ -212,7 +212,7 @@ describe("backend-factory", () => {
         sampleRate: 1000,
         duration: 1,
         channelCount: 1,
-        read: () => new Float32Array(1000),
+        read: async () => new Float32Array(1000),
       };
       let customComputed = false;
       const customBackend: SpectrogramComputeBackend = {

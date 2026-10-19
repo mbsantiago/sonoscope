@@ -100,11 +100,11 @@ export class ClippedAudioSource implements AudioSource {
     }
   }
 
-  read(options: {
+  async read(options: {
     channel: number;
     startTime: number;
     endTime: number;
-  }): Float32Array | Promise<Float32Array> {
+  }): Promise<Float32Array> {
     const requestedStart = options.startTime;
     const requestedEnd = options.endTime;
 
@@ -119,26 +119,14 @@ export class ClippedAudioSource implements AudioSource {
       return new Float32Array(sampleCount);
     }
 
-    const raw = this.underlyingSource.read({
+    const samples = await this.underlyingSource.read({
       channel: options.channel,
       startTime: clampedStart,
       endTime: clampedEnd,
     });
 
-    if (raw instanceof Promise) {
-      return raw.then((samples) => {
-        return this.padSamplesIfNeeded(
-          samples,
-          requestedStart,
-          requestedEnd,
-          clampedStart,
-          clampedEnd,
-        );
-      });
-    }
-
     return this.padSamplesIfNeeded(
-      raw,
+      samples,
       requestedStart,
       requestedEnd,
       clampedStart,
@@ -156,16 +144,25 @@ export class ClippedAudioSource implements AudioSource {
     if (requestedStart === clampedStart && requestedEnd === clampedEnd) {
       return samples;
     }
+    // Derive lengths from absolute frame boundaries so floating-point
+    // subtraction cannot drop the final sample of an STFT-aligned tile.
+    const requestedStartFrame = Math.floor(
+      requestedStart * this.sampleRate + 1e-6,
+    );
+    const requestedEndFrame = Math.ceil(requestedEnd * this.sampleRate - 1e-6);
+    const clampedStartFrame = Math.floor(clampedStart * this.sampleRate + 1e-6);
     const totalExpectedSamples = Math.max(
       0,
-      Math.floor((requestedEnd - requestedStart) * this.sampleRate),
+      requestedEndFrame - requestedStartFrame,
     );
     const result = new Float32Array(totalExpectedSamples);
-    const leadZeros = Math.max(
-      0,
-      Math.floor((clampedStart - requestedStart) * this.sampleRate),
+    const leadZeros = Math.max(0, clampedStartFrame - requestedStartFrame);
+    const destinationOffset = Math.min(leadZeros, result.length);
+    const copyLength = Math.min(
+      samples.length,
+      result.length - destinationOffset,
     );
-    result.set(samples, leadZeros);
+    result.set(samples.subarray(0, copyLength), destinationOffset);
     return result;
   }
 

@@ -286,10 +286,7 @@
     </div>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from "@sonoscope/core";
+      import { Sonoscope } from "@sonoscope/core";
 
       const presetSelect = document.getElementById("preset-select");
       const scaleSelect = document.getElementById("scale-select");
@@ -303,88 +300,62 @@
       const canvasSpectrogram = document.getElementById("canvas-spectrogram");
       const canvasBottomRuler = document.getElementById("canvas-bottom-ruler");
 
-      let scope = null;
-      let topRuler = null;
-      let freqRuler = null;
-      let spectrogram = null;
-      let bottomRuler = null;
+      const scope = new Sonoscope({
+        audio,
+        followPlayback: followSelect.value,
+        startTime: 0,
+        endTime: 12,
+      });
 
-      let playheadTop = null;
-      let playheadSpec = null;
-      let playheadBottom = null;
+      const topRuler = scope.createTimeRuler(canvasTopRuler, {
+        renderer: "ticks",
+        tickPosition: "top",
+        color: "#cbd5e1",
+        tickColor: "#475569",
+      });
+      const freqRuler = scope.createFrequencyRuler(canvasFreqRuler, {
+        renderer: freqProgramSelect.value,
+        frequencyScale: scaleSelect.value,
+        color: "#cbd5e1",
+        tickColor: "#334155",
+        tickPosition: "right",
+      });
+      const spectrogram = scope.createSpectrogram(canvasSpectrogram, {
+        frequencyScale: scaleSelect.value,
+        valueMode: "db",
+        minDb: -80,
+        maxDb: -5,
+        colorMap: colormapSelect.value,
+      });
+      const bottomRuler = scope.createTimeRuler(canvasBottomRuler, {
+        renderer: "boxes",
+        color: "#f8fafc",
+        backgroundColor: "#070b12",
+        tickColor: "#334155",
+      });
 
-      let cleanupNav = null;
+      scope.attachPlayhead(canvasTopRuler.parentElement);
+      scope.attachPlayhead(canvasSpectrogram.parentElement);
+      scope.attachPlayhead(canvasBottomRuler.parentElement);
+      scope.attachNavigation(canvasSpectrogram);
+      scope.attachNavigation(canvasFreqRuler, { axis: "frequency" });
+      scope.attachNavigation(canvasTopRuler, { axis: "time" });
+      scope.attachNavigation(canvasBottomRuler, { axis: "time" });
 
-      async function loadTrack(url) {
-        cleanupNav?.();
-        playheadTop?.destroy();
-        playheadSpec?.destroy();
-        playheadBottom?.destroy();
-
-        topRuler?.destroy();
-        freqRuler?.destroy();
-        spectrogram?.destroy();
-        bottomRuler?.destroy();
-        scope?.destroy();
-
-        audio.src = url;
-
-        scope = await Sonoscope.fromAudio(audio, {
-          followPlayback: followSelect.value,
-          startTime: 0,
-          endTime: 12,
+      function updateFrequencyBounds() {
+        const minFrequency = scaleSelect.value === "log" ? 20 : 0;
+        scope.setViewport({
+          minFrequency,
+          maxFrequency: scope.getNyquist() ?? 0,
         });
+      }
 
-        const scale = scaleSelect.value;
-        const minFreq = scale === "log" ? 20 : 0;
-        const maxFreq = Math.floor(scope.getSampleRate() / 2);
-        scope.setViewport({ minFrequency: minFreq, maxFrequency: maxFreq });
+      scope.on("sourcechange", updateFrequencyBounds);
 
-        topRuler = scope.createTimeRuler(canvasTopRuler, {
-          renderer: "ticks",
-          tickPosition: "top",
-          color: "#cbd5e1",
-          tickColor: "#475569",
+      function loadTrack(url) {
+        void scope.setUrl(url).catch(() => {
+          // Source errors can be observed through scope.state.
         });
-
-        freqRuler = scope.createFrequencyRuler(canvasFreqRuler, {
-          renderer: freqProgramSelect.value,
-          frequencyScale: scale,
-          color: "#cbd5e1",
-          tickColor: "#334155",
-          tickPosition: "right",
-        });
-
-        spectrogram = scope.createSpectrogram(canvasSpectrogram, {
-          frequencyScale: scale,
-          valueMode: "db",
-          minDb: -80,
-          maxDb: -5,
-          colorMap: colormapSelect.value,
-        });
-
-        bottomRuler = scope.createTimeRuler(canvasBottomRuler, {
-          renderer: "boxes",
-          color: "#f8fafc",
-          backgroundColor: "#070b12",
-          tickColor: "#334155",
-        });
-
-        // Attach decoupled playheads across time axes
-        playheadTop = attachPlayheadOverlay(canvasTopRuler.parentElement, scope);
-        playheadSpec = attachPlayheadOverlay(canvasSpectrogram.parentElement, scope);
-        playheadBottom = attachPlayheadOverlay(canvasBottomRuler.parentElement, scope);
-
-        // Attach full bidirectional navigation
-        const cleanups = [
-          scope.attachNavigation(canvasSpectrogram),
-          scope.attachNavigation(canvasFreqRuler, { axis: "frequency" }),
-          scope.attachNavigation(canvasTopRuler, { axis: "time" }),
-          scope.attachNavigation(canvasBottomRuler, { axis: "time" }),
-        ];
-        cleanupNav = () => {
-          for (const fn of cleanups) fn();
-        };
       }
 
       presetSelect.addEventListener("change", () => loadTrack(presetSelect.value));
@@ -392,7 +363,9 @@
       scaleSelect.addEventListener("change", () => {
         const scale = scaleSelect.value;
         const minFreq = scale === "log" ? 20 : 0;
-        scope?.setViewport({ frequencyScale: scale, minFrequency: minFreq });
+        scope?.setViewport({ minFrequency: minFreq });
+        freqRuler.updateConfig({ frequencyScale: scale });
+        spectrogram.updateConfig({ frequencyScale: scale });
       });
 
       freqProgramSelect.addEventListener("change", () => {

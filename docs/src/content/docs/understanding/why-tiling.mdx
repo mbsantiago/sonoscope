@@ -1,0 +1,37 @@
+---
+title: Why spectrograms use tiles
+description: Why Sonoscope computes a spectrogram in small pieces called tiles.
+---
+
+A [spectrogram](/sonoscope/demos/spectrogram/) shows how the frequencies in a recording change over time. For a long recording, computing the whole picture at once would take time and memory, even if you only want to see a few seconds.
+
+Sonoscope divides the recording into small time sections called **tiles**. The spectrogram viewer can compute and draw the ones needed for the current [viewport](/sonoscope/understanding/viewports/) first.
+
+## What a tile contains
+
+Each tile holds the spectrogram data for a stretch of time. Think of it as one piece of a larger picture. Its columns show successive moments in the audio, and its rows show different frequencies. The viewer lines up the tiles on the same time scale so they fit together when you pan.
+
+```text
+recording time  ──┬────────┬────────┬────────┬────────┬──▶
+                  tile 0   tile 1   tile 2   tile 3
+                                  └── visible viewport ──┘
+```
+
+## Start with what is visible
+
+The viewer asks the [audio source](/sonoscope/understanding/audio-sources/) for samples covering the visible tiles. It turns those samples into spectrogram data and draws it. It keeps computed tiles in a cache, so it can reuse them if you pan back. It may also prepare nearby tiles before you reach them.
+
+If a source loads audio in parts, the viewer can draw tiles as soon as their samples are available. It does not have to wait for the entire recording. Different renderers can draw the same computed tile data, so changing how the spectrogram looks does not require a different calculation.
+
+## Tile size and detail
+
+Tile size is a trade-off:
+
+- Larger tiles mean fewer pieces to manage, but each piece takes more time and memory to compute.
+- Smaller tiles can appear sooner, but the viewer has more pieces to manage.
+
+`tileMaxCells` controls roughly how much data can fit in a tile. Other settings, such as `windowSize` and `hopSize`, affect the level of time and frequency detail in the spectrogram. See the [`SpectrogramOptions` reference](/sonoscope/reference/core/type-aliases/spectrogramoptions/) for the settings.
+
+For the details of how tiles line up and how samples become spectrogram data, continue to [How spectrogram tiling works](/sonoscope/understanding/spectrogram-tiling/).
+
+You can also try panning around the [spectrogram demo](/sonoscope/demos/spectrogram/) to see how the viewer loads different parts of a recording.

@@ -7,6 +7,14 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
   private currentSource: unknown = null;
   private currentChannel = 0;
 
+  clear(canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext("2d");
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    this.pyramid?.clear();
+    this.pyramid = null;
+    this.currentSource = null;
+  }
+
   async render(input: WaveformRenderInput): Promise<void> {
     const {
       canvas,
@@ -18,6 +26,11 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
       backgroundColor = "transparent",
       amplitudeScale = 1.0,
     } = input;
+
+    if (!source) {
+      this.clear(canvas);
+      return;
+    }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -47,6 +60,7 @@ export class CanvasWaveformRenderer implements WaveformRenderer {
     const targetWidth = Math.max(1, Math.floor((rect?.width || width) * dpr));
 
     const peaks = await this.pyramid.getPeaks(startTime, endTime, targetWidth);
+    if (input.signal?.aborted) return;
 
     ctx.save();
     ctx.clearRect(0, 0, width, height);

@@ -1,6 +1,6 @@
 import type { SpectrogramMatrix, ValueScaleConfig } from "../types";
 import type { RenderInput } from "./canvas";
-import { timeFrequencyToCanvas } from "../frequency-scale";
+import { timeFrequencyToCanvas } from "../../../frequency-scale";
 import { valueScaleBounds } from "../value-scale";
 import { tileFrequencyRange, tileTimeRange } from "./webgl2-geometry";
 import {

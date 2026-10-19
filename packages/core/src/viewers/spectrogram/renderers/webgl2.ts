@@ -67,6 +67,17 @@ export class WebGL2SpectrogramRenderer implements SpectrogramRenderer {
     this.tileTextures.clear();
   }
 
+  clear(_canvas: HTMLCanvasElement): void {
+    this.invalidate();
+    if (
+      typeof this.gl.clear !== "function" ||
+      typeof this.gl.clearColor !== "function"
+    )
+      return;
+    this.gl.clearColor(0, 0, 0, 0);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+  }
+
   /**
    * Swaps the active shader program in place, preserving cached GPU tile
    * textures. The renderer takes ownership of the program it is given and

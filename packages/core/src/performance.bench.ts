@@ -26,7 +26,7 @@ function source(data: Float32Array): AudioSource {
     sampleRate,
     duration: durationSeconds,
     channelCount: 1,
-    read: ({ startTime, endTime }) =>
+    read: async ({ startTime, endTime }) =>
       data.slice(
         Math.floor(startTime * sampleRate),
         Math.ceil(endTime * sampleRate),

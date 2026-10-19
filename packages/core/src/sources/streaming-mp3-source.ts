@@ -132,11 +132,11 @@ export class StreamingMp3Source implements AudioSource {
     return StreamingMp3Source.fromReader(reader, [], totalBytes, options);
   }
 
-  read(options: {
+  async read(options: {
     channel: number;
     startTime: number;
     endTime: number;
-  }): Float32Array | Promise<Float32Array> {
+  }): Promise<Float32Array> {
     if (options.channel < 0 || options.channel >= this.channelCount) {
       throw new Error(`Invalid channel ${options.channel}`);
     }
@@ -331,6 +331,7 @@ export class StreamingMp3Source implements AudioSource {
     }
 
     this.decodedFrameCount = endFrame;
+    this.duration = Math.max(this.duration, endFrame / this.sampleRate);
     addDecodedRange(this.decodedRanges, startFrame, endFrame);
 
     if (endFrame > startFrame) {

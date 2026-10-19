@@ -1,0 +1,76 @@
+---
+title: How spectrogram tiling works
+description: How audio samples become aligned spectrogram tiles that viewers can reuse.
+---
+
+Start with [Why spectrograms use tiles](/sonoscope/understanding/why-tiling/) if you are new to the idea. This page goes into the details: how the viewer turns audio samples into tiles, makes neighboring tiles line up, and reuses them when you move the [viewport](/sonoscope/understanding/viewports/).
+
+A spectrogram is made of short analyses of the audio called **frames**. For each frame, the viewer looks at a small window of samples and measures the frequencies in it. A tile groups several neighboring frames into one piece of the spectrogram.
+
+## Frames line up across tiles
+
+Each frame has a position in the recording, even before the viewer divides the frames into tiles. This shared grid keeps tiles aligned when you pan. The calculation uses four settings:
+
+- `sampleRate`: samples per second in the source.
+- `windowSize`: samples used to analyze one frame.
+- `hopSize`: samples between the start of one frame and the next.
+- `fftSize`: the size of the Fourier transform used to measure frequencies.
+
+For frame number `k`, the analysis reads these samples:
+
+```text
+[k × hopSize, k × hopSize + windowSize)
+```
+
+The start is included and the end is not. The frame's center time in seconds is:
+
+```text
+(k × hopSize + windowSize / 2) / sampleRate
+```
+
+The result has about `fftSize / 2` frequency values, called **bins**. If a sample buffer contains `sampleCount` samples, the number of complete frames it can hold is:
+
+```text
+max(0, floor((sampleCount - windowSize) / hopSize) + 1)
+```
+
+Frames need a full window of samples, which is why a short buffer may have no complete frames.
+
+## How many frames fit in a tile
+
+`tileMaxCells` limits roughly how many frame-and-frequency values fit in one tile. The viewer uses it to decide how many frames go in a tile:
+
+```text
+binCount       = max(1, floor(fftSize / 2))
+framesPerTile  = max(1, floor(tileMaxCells / binCount))
+```
+
+Tile `i` starts at frame `i × framesPerTile`. The last tile can have fewer frames if the recording ends. Each frame belongs to one tile, so neighbors do not calculate the same frame twice.
+
+Each frame needs `windowSize` samples, including samples after its start. To calculate all the frames in a tile, the viewer requests samples from:
+
+```text
+sampleStart = firstGlobalFrame × hopSize
+sampleEnd   = (firstGlobalFrame + frameCount - 1) × hopSize + windowSize
+```
+
+Neighboring reads may overlap because the last frame in one tile and the first frame in the next need some of the same samples. Their frames still belong to separate tiles.
+
+## Clip edges and rounding
+
+The viewer works out tile boundaries in whole sample positions, then converts them to seconds to read from the source and label cached tiles. When it converts back, it uses the absolute start and end sample positions. Subtracting two times and multiplying the difference by the sample rate can lose a sample through rounding. That can leave the last frame of a tile incomplete.
+
+A frame at the edge of a [clip](/sonoscope/understanding/viewports/) may need samples beyond the clip. A clipped source fills those positions with zeros. The frame still needs its full window of samples, or it could disappear from the tile.
+
+## Compute, save, and draw
+
+For each tile the viewer needs, it:
+
+1. Works out which frames and samples belong to the tile.
+2. Reads those samples from the [audio source](/sonoscope/understanding/audio-sources/) and calculates their frequency values.
+3. Saves the result in a cache. Its key includes the source, channel, time interval, and analysis settings, so different results do not get mixed up.
+4. Gives the ready data to the renderer, which draws it at the right time and frequency positions in the viewport.
+
+Visible tiles come first; the viewer may prepare nearby ones afterward. If you switch recordings or move the viewport, it must not draw an old result in the new view. A source that loads in parts can tell the viewer when more samples are ready.
+
+To inspect tile work in an application, use `getTileStates()` and `getCacheStats()` on a `SpectrogramViewer`. See [`SpectrogramOptions`](/sonoscope/reference/core/type-aliases/spectrogramoptions/) for the settings and the [spectrogram demo](/sonoscope/demos/spectrogram/) for a working viewer.

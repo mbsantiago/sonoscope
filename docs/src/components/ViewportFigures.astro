@@ -1,0 +1,84 @@
+---
+interface Props {
+  concept: 'viewport' | 'clip';
+}
+
+const { concept } = Astro.props;
+const descriptions = {
+  viewport: 'A viewport selects one part of a longer recording for a viewer to show.',
+  clip: 'A clip covers part of a recording, and the viewport stays within the clip.',
+};
+---
+
+<figure class="viewport-figure not-content">
+  <svg viewBox="0 0 640 170" role="img" aria-label={descriptions[concept]} xmlns="http://www.w3.org/2000/svg">
+    {concept === 'viewport' ? (
+      <>
+        <text x="28" y="55">Recording</text>
+        <rect class="track" x="142" y="35" width="464" height="28" rx="5" />
+        <rect class="selection" x="302" y="35" width="134" height="28" rx="5" />
+        <path class="guide" d="M302 65 L142 105 M436 65 L606 105" />
+        <text x="28" y="132">Viewer</text>
+        <rect class="selection" x="142" y="105" width="464" height="40" rx="5" />
+        <text x="374" y="131" text-anchor="middle">Viewport: the part shown</text>
+      </>
+    ) : (
+      <>
+        <text x="28" y="44">Recording</text>
+        <rect class="track" x="142" y="27" width="464" height="24" rx="5" />
+        <text x="28" y="94">Clip</text>
+        <rect class="track" x="142" y="77" width="464" height="24" rx="5" />
+        <rect class="clip" x="220" y="77" width="308" height="24" rx="5" />
+        <text x="28" y="144">Viewport</text>
+        <rect class="track" x="142" y="127" width="464" height="24" rx="5" />
+        <rect class="selection" x="302" y="127" width="134" height="24" rx="5" />
+      </>
+    )}
+  </svg>
+  <figcaption>
+    {concept === 'viewport'
+      ? 'The viewer shows the part of the recording selected by the viewport.'
+      : 'The clip limits where the viewport can move within the recording.'}
+  </figcaption>
+</figure>
+
+<style>
+  .viewport-figure {
+    margin: 1.25rem 0 1.75rem;
+    overflow-x: auto;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 520px;
+    height: auto;
+    font: 14px system-ui, sans-serif;
+  }
+
+  text { fill: currentColor; }
+  .track { fill: var(--sl-color-gray-6); }
+  .clip { fill: var(--sl-color-gray-4); }
+
+  .selection {
+    fill: var(--sl-color-accent-low);
+    stroke: var(--sl-color-accent);
+    stroke-width: 1.5;
+  }
+
+  .guide {
+    fill: none;
+    stroke: var(--sl-color-accent);
+    stroke-width: 1.5;
+  }
+
+  figcaption {
+    padding: 0 1rem 1rem;
+    font-size: 0.875rem;
+    color: var(--sl-color-gray-2);
+  }
+</style>

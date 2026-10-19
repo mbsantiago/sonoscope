@@ -94,7 +94,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       sampleRate,
       duration,
       channelCount: 1,
-      read: () => new Float32Array(0),
+      read: async () => new Float32Array(0),
     };
 
     const scope = new Sonoscope({
@@ -180,7 +180,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       sampleRate,
       duration,
       channelCount: 1,
-      read: ({ startTime, endTime }) => {
+      read: async ({ startTime, endTime }) => {
         readCallCount++;
         const startSample = Math.max(0, Math.floor(startTime * sampleRate));
         const endSample = Math.min(
@@ -313,7 +313,7 @@ describe("Spectrogram Audio Tracker Sync & Fast Long-Duration Tiling", () => {
       sampleRate,
       duration,
       channelCount: 1,
-      read: () => new Float32Array(2048),
+      read: async () => new Float32Array(2048),
     };
 
     const audio = createMockAudio(0, duration);

@@ -238,10 +238,7 @@
     </div>
 
     <script type="module">
-      import {
-        attachPlayheadOverlay,
-        Sonoscope,
-      } from '@sonoscope/core';
+      import { Sonoscope } from '@sonoscope/core';
 
       const DEFAULT_AUDIO_URL = 'https://upload.wikimedia.org/wikipedia/commons/0/01/After_You%27ve_Gone_%28Harris_1918_recording%29.wav?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original';
       
@@ -258,94 +255,70 @@
       const specStatusEl = document.getElementById('spec-status');
       const vpDisplayEl = document.getElementById('vp-display');
 
-      let scope = null;
-      let specViewer = null;
-      let waveViewer = null;
-      let cleanupSpecNav = null;
-      let cleanupWaveNav = null;
-      let cleanupSpecPlayhead = null;
-      let cleanupWavePlayhead = null;
+      const scope = new Sonoscope({
+        audio,
+        startTime: 0,
+        endTime: 10,
+        followPlayback: followSelect.value,
+      });
+      const waveViewer = scope.createWaveform(waveCanvas, {
+        colorMap: colorSelect.value,
+        amplitudeScale: parseFloat(gainSelect.value),
+        renderer: rendererSelect.value,
+      });
+      const specViewer = scope.createSpectrogram(specCanvas, {
+        colorMap: colorSelect.value,
+        renderer: rendererSelect.value,
+      });
 
-      async function load(url) {
-        cleanupSpecNav?.();
-        cleanupWaveNav?.();
-        cleanupSpecPlayhead?.destroy?.();
-        cleanupWavePlayhead?.destroy?.();
-        specViewer?.destroy();
-        waveViewer?.destroy();
-        scope?.destroy();
-
-        waveStatusEl.textContent = 'Loading audio...';
-        specStatusEl.textContent = 'Loading audio...';
-        audio.src = url;
-
-        try {
-          // 1. Initialize single unified Sonoscope coordinator
-          scope = await Sonoscope.fromAudio(audio, {
-            startTime: 0,
-            endTime: 10,
-            followPlayback: followSelect.value,
-          });
-
-          // 2. Initialize WaveformViewer bound to Sonoscope
-          waveViewer = scope.createWaveform(waveCanvas, {
-            colorMap: colorSelect.value,
-            amplitudeScale: parseFloat(gainSelect.value),
-            renderer: rendererSelect.value,
-          });
-
-          // 3. Initialize SpectrogramViewer bound to same Sonoscope
-          specViewer = scope.createSpectrogram(specCanvas, {
-            colorMap: colorSelect.value,
-            renderer: rendererSelect.value,
-          });
-
-          // 4. Listen to coordinator viewport updates
-          scope.on('viewportchange', (event) => {
-            vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
-          });
-
-          waveViewer.on('error', (event) => {
-            waveStatusEl.textContent = `Error: ${event.error.message}`;
-          });
-          specViewer.on('error', (event) => {
-            specStatusEl.textContent = `Error: ${event.error.message}`;
-          });
-
-          // 5. Attach canvas navigation and decoupled hardware-accelerated playhead overlays
-          cleanupSpecNav = scope.attachNavigation(specCanvas);
-          cleanupWaveNav = scope.attachNavigation(waveCanvas, { axis: 'time' });
-          cleanupSpecPlayhead = attachPlayheadOverlay(specCanvas.parentElement, scope);
-          cleanupWavePlayhead = attachPlayheadOverlay(waveCanvas.parentElement, scope);
-
-          const source = scope.source;
-          waveStatusEl.textContent = 'Ready';
-          specStatusEl.textContent = `Ready (${source.sampleRate.toLocaleString()} Hz)`;
-          const vp = scope.getViewport();
-          vpDisplayEl.textContent = `${vp.startTime.toFixed(2)}s - ${vp.endTime.toFixed(2)}s`;
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          waveStatusEl.textContent = `Error: ${msg}`;
-          specStatusEl.textContent = `Error: ${msg}`;
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          waveStatusEl.textContent = "Loading audio...";
+          specStatusEl.textContent = "Loading audio...";
+        } else if (state.status === "ready") {
+          waveStatusEl.textContent = "Ready";
+          specStatusEl.textContent = `Ready (${state.source.sampleRate.toLocaleString()} Hz)`;
+        } else if (state.status === "error") {
+          const message = `Error: ${state.error.message}`;
+          waveStatusEl.textContent = message;
+          specStatusEl.textContent = message;
         }
+      });
+      scope.on("viewportchange", (event) => {
+        vpDisplayEl.textContent = `${event.viewport.startTime.toFixed(2)}s - ${event.viewport.endTime.toFixed(2)}s`;
+      });
+      waveViewer.on("error", (event) => {
+        waveStatusEl.textContent = `Error: ${event.error.message}`;
+      });
+      specViewer.on("error", (event) => {
+        specStatusEl.textContent = `Error: ${event.error.message}`;
+      });
+
+      scope.attachNavigation(specCanvas);
+      scope.attachNavigation(waveCanvas, { axis: "time" });
+      scope.attachPlayhead(specCanvas.parentElement);
+      scope.attachPlayhead(waveCanvas.parentElement);
+
+      function load(url) {
+        void scope.setUrl(url).catch(() => {
+          // The current load error is displayed through scope.state.
+        });
       }
 
       // Waveform click-to-seek
       waveCanvas.addEventListener('click', (e) => {
-        if (!waveViewer || !scope) return;
+        if (scope.state.status !== "ready") return;
         const rect = waveCanvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const targetTime = waveViewer.canvasToTime(clickX);
+        const targetTime = waveViewer.canvasToTime(clickX * waveCanvas.width / rect.width);
         scope.seek(targetTime);
       });
 
       gainSelect.addEventListener('change', () => {
-        if (!waveViewer) return;
         waveViewer.updateConfig({ amplitudeScale: parseFloat(gainSelect.value) });
       });
 
       followSelect.addEventListener('change', () => {
-        if (!scope) return;
         scope.setFollowPlayback(followSelect.value);
       });
 

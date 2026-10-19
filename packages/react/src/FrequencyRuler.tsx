@@ -1,8 +1,8 @@
 import {
   type AudioSource,
   type FrequencyRulerConfig,
+  FrequencyRulerLocator,
   type FrequencyRulerStatus,
-  FrequencyRulerViewer,
   Sonoscope,
 } from "@sonoscope/core";
 import {
@@ -21,8 +21,8 @@ import { useSonoscopeContext } from "./SonoscopeContext";
  * Imperative handle exposed by the FrequencyRuler component ref.
  */
 export type FrequencyRulerHandle = {
-  /** Returns the underlying FrequencyRulerViewer instance. */
-  getViewer: () => FrequencyRulerViewer | null;
+  /** Returns the underlying FrequencyRulerLocator instance. */
+  getLocator: () => FrequencyRulerLocator | null;
   /** Returns the canvas element. */
   getCanvas: () => HTMLCanvasElement | null;
 };
@@ -40,7 +40,7 @@ export interface FrequencyRulerProps extends FrequencyRulerConfig {
   className?: string | undefined;
   style?: CSSProperties | undefined;
   canvasProps?: HTMLAttributes<HTMLCanvasElement> | undefined;
-  onReady?: ((viewer: FrequencyRulerViewer) => void) | undefined;
+  onReady?: ((locator: FrequencyRulerLocator) => void) | undefined;
 }
 
 /**
@@ -62,12 +62,12 @@ export const FrequencyRuler = forwardRef<
     style,
     canvasProps,
     onReady,
-    ...viewerConfig
+    ...locatorConfig
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const viewerRef = useRef<FrequencyRulerViewer | null>(null);
+  const locatorRef = useRef<FrequencyRulerLocator | null>(null);
   const [_activeScope, setActiveScope] = useState<Sonoscope | null>(null);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
@@ -78,8 +78,8 @@ export const FrequencyRuler = forwardRef<
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: serialize config to avoid shallow object recreations
   const memoizedConfig = useMemo(
-    () => viewerConfig,
-    [JSON.stringify(viewerConfig)],
+    () => locatorConfig,
+    [JSON.stringify(locatorConfig)],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount uses scope/source identity; in-place option updates are handled reactively below
@@ -91,7 +91,7 @@ export const FrequencyRuler = forwardRef<
     let ownedScope: Sonoscope | undefined;
     const unsubs: Array<() => void> = [];
 
-    const initViewer = async () => {
+    const initLocator = async () => {
       try {
         let effectiveScope: Sonoscope | null = scope ?? null;
 
@@ -115,37 +115,37 @@ export const FrequencyRuler = forwardRef<
           return;
         }
 
-        const viewer = new FrequencyRulerViewer(
+        const locator = new FrequencyRulerLocator(
           canvas,
           effectiveScope.viewport,
           memoizedConfig,
         );
 
         if (isCancelled) {
-          viewer.destroy();
+          locator.destroy();
           ownedScope?.destroy();
           return;
         }
 
-        viewerRef.current = viewer;
+        locatorRef.current = locator;
         setActiveScope(effectiveScope);
-        setStatus(viewer.getStatus());
+        setStatus(locator.getStatus());
 
-        onReadyRef.current?.(viewer);
+        onReadyRef.current?.(locator);
 
         unsubs.push(
-          viewer.on("renderstart", () => {
+          locator.on("renderstart", () => {
             setStatus({ state: "rendering" });
           }),
-          viewer.on("rendercomplete", () => {
+          locator.on("rendercomplete", () => {
             setStatus({ state: "ready" });
           }),
-          viewer.on("error", (event) => {
+          locator.on("error", (event) => {
             setStatus({ state: "error", error: event.error });
           }),
         );
 
-        await viewer.render();
+        await locator.render();
       } catch (error) {
         if (!isCancelled) {
           setStatus({
@@ -156,29 +156,29 @@ export const FrequencyRuler = forwardRef<
       }
     };
 
-    void initViewer();
+    void initLocator();
 
     return () => {
       isCancelled = true;
       for (const unsub of unsubs) unsub();
-      viewerRef.current?.destroy();
-      viewerRef.current = null;
+      locatorRef.current?.destroy();
+      locatorRef.current = null;
       setActiveScope(null);
       ownedScope?.destroy();
     };
   }, [scope, url, source, audio]);
 
-  // Handle in-place reactive config updates on existing viewer
+  // Handle in-place reactive config updates on existing locator
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
+    const locator = locatorRef.current;
+    if (!locator) return;
     try {
-      viewer.updateConfig(memoizedConfig);
+      locator.updateConfig(memoizedConfig);
     } catch {}
   }, [memoizedConfig]);
 
   useImperativeHandle(ref, () => ({
-    getViewer: () => viewerRef.current,
+    getLocator: () => locatorRef.current,
     getCanvas: () => canvasRef.current,
   }));
 

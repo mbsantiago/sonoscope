@@ -4,6 +4,7 @@ import type {
   IDataViewer,
   IViewportController,
   NavigableViewer,
+  SourceState,
 } from "../../types";
 export type PeakBlock = {
   min: Float32Array;
@@ -78,7 +79,7 @@ export type BarsWaveformRendererConfig = BarsWaveformRendererOptions & {
 };
 
 export type Canvas2DWaveformRendererConfig = {
-  type: "canvas2d";
+  type: "envelope" | "canvas2d";
 };
 
 export type WebGL2WaveformRendererConfig = {
@@ -86,6 +87,7 @@ export type WebGL2WaveformRendererConfig = {
 };
 
 export type WaveformRendererMode =
+  | "envelope"
   | "canvas2d"
   | "webgl2"
   | "bars"
@@ -98,7 +100,8 @@ export type WaveformRendererKind = "canvas2d" | "webgl2" | "bars";
 
 export type WaveformRenderInput = {
   canvas: HTMLCanvasElement;
-  source: AudioSource;
+  source: AudioSource | undefined;
+  signal?: AbortSignal | undefined;
   channel: number;
   startTime: number;
   endTime: number;
@@ -111,6 +114,7 @@ export type WaveformRenderInput = {
 export interface WaveformRenderer {
   readonly kind: WaveformRendererKind | string;
   render(input: WaveformRenderInput): Promise<void> | void;
+  clear?(canvas: HTMLCanvasElement): void;
   destroy?(): void;
 }
 
@@ -155,11 +159,11 @@ export type WaveformConfig = {
 
   /**
    * Rendering engine:
-   * - "canvas2d": Standard 2D canvas line/envelope renderer.
+   * - "envelope": Standard 2D canvas line/envelope renderer ("canvas2d" is an alias).
    * - "webgl2": Hardware-accelerated GPU shader renderer.
    * - "bars": Segmented pill/bar waveform renderer.
    * - Custom object with bar configuration options (`{ type: "bars", barWidth, barGap, ... }`).
-   * @default "canvas2d"
+   * @default "envelope"
    */
   renderer?: WaveformRendererMode | undefined;
 
@@ -225,11 +229,11 @@ export interface IWaveformViewer extends IDataViewer, NavigableViewer {
   getStatus(): WaveformStatus;
   /** Returns the bound HTML canvas element. */
   getCanvas(): HTMLCanvasElement;
-  /** Returns the active rendering engine (`canvas2d`, `webgl2`, or `bars`). */
+  /** Returns the configured renderer name (for example, `envelope`, `canvas2d`, `webgl2`, or `bars`). */
   getRendererKind(): string;
 
   /** Returns the active audio source. */
-  getSource(): AudioSource;
+  getSource(): AudioSource | undefined;
   /** Returns the bound viewport controller. */
   getViewportController(): IViewportController;
   /** Returns the visible time viewport. */
@@ -242,7 +246,7 @@ export interface IWaveformViewer extends IDataViewer, NavigableViewer {
   /** Alias for `updateConfig`. */
   setConfig(input: Partial<WaveformOptions>): void;
   /** Updates the audio source. */
-  setSource(source: AudioSource): void;
+  setSourceState(state: SourceState, generation: number): void;
 
   /** Converts canvas X pixel position to time in seconds. */
   canvasToTime(x: number): number;

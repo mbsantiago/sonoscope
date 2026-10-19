@@ -158,7 +158,7 @@ export interface NavigableViewer {
   };
   getCanvas?(): HTMLElement;
   getScope?(): {
-    getDuration(): number;
+    getDuration(): number | undefined;
     getSampleRate?(): number | undefined;
   };
   getConfig(): {
@@ -191,13 +191,26 @@ export interface ISonoscopeViewer {
  * Data-bound viewer that receives audio source updates.
  */
 export interface IDataViewer extends ISonoscopeViewer {
-  setSource(source: AudioSource): void;
+  /**
+   * Replaces the current source context. The generation also advances when
+   * source-relative bounds change so viewers can discard stale computations.
+   */
+  setSourceState(state: SourceState, generation: number): void;
 }
 
 /**
- * Viewport-only viewer (e.g. time rulers, frequency rulers, overlays).
+ * A viewport-bound locator that renders without reading audio samples.
  */
-export interface IViewportViewer extends ISonoscopeViewer, NavigableViewer {}
+export interface IViewportLocator {
+  /** Renders the current viewport. */
+  render(): Promise<void>;
+  /** Schedules a render after the viewport changes. */
+  requestRender(): void;
+  /** Returns the viewport shared with other viewers and locators. */
+  getViewportController(): IViewportController;
+  /** Releases viewport and canvas listeners. */
+  destroy(): void;
+}
 
 /**
  * Factory function to construct a custom viewer instance.
@@ -231,7 +244,11 @@ export interface PlayheadOverlayOptions {
 export interface AudioSource {
   /** Sample rate in Hz. */
   readonly sampleRate: number;
-  /** Total duration in seconds. */
+  /**
+   * Current total-duration estimate in seconds. Progressive sources may grow
+   * this value as decoded frames become available and report that progress
+   * through `onRangeAvailable`.
+   */
   readonly duration: number;
   /** Number of audio channels. */
   readonly channelCount: number;
@@ -240,20 +257,44 @@ export interface AudioSource {
   /**
    * Reads PCM samples for a specific channel and time range.
    * @param options Channel index and time span in seconds.
-   * @returns Float32Array of normalized audio samples.
+   * @returns Promise resolving to normalized audio samples.
    */
   read(options: {
     channel: number;
     startTime: number;
     endTime: number;
-  }): Float32Array | Promise<Float32Array>;
+  }): Promise<Float32Array>;
   /**
-   * Subscribes to progressive loading updates as new byte ranges arrive.
+   * Subscribes to progressive availability updates as decoded audio ranges arrive.
    * @param handler Callback receiving the newly available time range in seconds.
    * @returns Unsubscribe function.
    */
   onRangeAvailable?(handler: (range: AudioRange) => void): () => void;
 }
+
+/** Current lifecycle state of the audio source owned by a Sonoscope. */
+export type SourceState =
+  | { readonly status: "empty" }
+  | { readonly status: "loading" }
+  | { readonly status: "ready"; readonly source: AudioSource }
+  | { readonly status: "error"; readonly error: Error };
+
+export type AudioContextLike = {
+  decodeAudioData(data: ArrayBuffer): Promise<AudioBuffer>;
+};
+
+export type AudioSourceOptions =
+  | AudioContextLike
+  | {
+      audioContext?: AudioContextLike | undefined;
+      sampleRate?: number | undefined;
+      preferStreaming?: boolean | undefined;
+      preferDecoded?: boolean | undefined;
+      clipStart?: number | undefined;
+      clipEnd?: number | undefined;
+      signal?: AbortSignal | undefined;
+    }
+  | undefined;
 
 /**
  * Playhead tracking behavior during audio playback.
@@ -396,8 +437,8 @@ export interface IViewportController {
  * Options for initializing a Sonoscope coordinator instance.
  */
 export type SonoscopeOptions = {
-  /** Audio source for decoding and STFT computation. */
-  source: AudioSource;
+  /** Optional audio source for decoding and STFT computation. */
+  source?: AudioSource | undefined;
   /** Optional HTML audio element to sync playback with. */
   audio?: HTMLAudioElement | undefined;
   /** Custom viewport controller to share coordinates across instances. */
@@ -435,6 +476,7 @@ export type SonoscopeEvents = {
   playbackchange: { mode: FollowPlaybackMode };
   timeupdate: { currentTime: number };
   sourcechange: { source: AudioSource };
+  statechange: { state: SourceState; previousState: SourceState };
   audiochange: { audio: HTMLAudioElement | undefined };
   clipchange: {
     clipStart?: number | undefined;
@@ -447,8 +489,10 @@ export type SonoscopeEvents = {
  * Central coordinator managing audio playback, viewport state, and viewer creation.
  */
 export interface ISonoscope {
-  /** Active audio source. */
-  readonly source: AudioSource;
+  /** Active audio source, absent until a replacement succeeds. */
+  readonly source: AudioSource | undefined;
+  /** Current source lifecycle state. */
+  readonly state: SourceState;
   /** Viewport controller managing time and frequency axes. */
   readonly viewport: IViewportController;
   /** Returns the current viewport state. */
@@ -489,11 +533,11 @@ export interface ISonoscope {
   /** Shifts viewport frequency range by a delta in Hz. */
   panFrequency(deltaHz: number, source?: string): void;
   /** Returns total audio duration in seconds. */
-  getDuration(): number;
+  getDuration(): number | undefined;
   /** Returns audio sample rate in Hz. */
-  getSampleRate(): number;
+  getSampleRate(): number | undefined;
   /** Returns Nyquist frequency (`sampleRate / 2`) in Hz. */
-  getNyquist(): number;
+  getNyquist(): number | undefined;
   /** Returns active playback follow mode. */
   getFollowPlayback(): FollowPlaybackMode;
   /** Sets playback follow mode (`page`, `smooth`, or `off`). */
@@ -526,6 +570,26 @@ export interface ISonoscope {
   detachAudio(): void;
   /** Replaces the audio source and updates all attached viewers. */
   setSource(source: AudioSource): void;
+  /** Replaces the audio source from a remote URL and updates all attached viewers. */
+  setUrl(url: string, options?: AudioSourceOptions): Promise<void>;
+  /** Replaces the audio source from an HTML audio element and updates all attached viewers. */
+  setAudio(
+    audio: HTMLAudioElement,
+    options?: AudioSourceOptions,
+  ): Promise<void>;
+  /** Replaces the audio source from a Blob or File and updates all attached viewers. */
+  setBlob(blob: Blob, options?: AudioSourceOptions): Promise<void>;
+  /** Replaces the audio source from raw sample array and updates all attached viewers. */
+  setArray(
+    samples: Float32Array,
+    sampleRate: number,
+    options?: AudioSourceOptions,
+  ): void;
+  /** Replaces the audio source from an in-memory buffer and updates all attached viewers. */
+  setBuffer(
+    buffer: ArrayBuffer | Uint8Array,
+    options?: AudioSourceOptions,
+  ): Promise<void>;
 
   /**
    * Attaches pan and zoom navigation handlers to a DOM element.

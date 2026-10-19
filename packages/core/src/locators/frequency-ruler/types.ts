@@ -1,4 +1,8 @@
-import type { FrequencyScale, IViewportController } from "../../types";
+import type {
+  FrequencyScale,
+  IViewportController,
+  IViewportLocator,
+} from "../../types";
 import type { FrequencyFormatMode } from "./ticks";
 
 export type FrequencyRulerRendererName = "ticks" | "boxes";
@@ -152,9 +156,9 @@ export type FrequencyRulerEvents = {
 };
 
 /**
- * Frequency ruler viewer canvas controller and coordinate tick renderer.
+ * Frequency ruler locator canvas controller and coordinate tick renderer.
  */
-export interface IFrequencyRulerViewer {
+export interface IFrequencyRulerLocator extends IViewportLocator {
   /** Renders the current frequency ruler viewport asynchronously. */
   render(): Promise<void>;
   /** Schedules a render on the next animation frame. */

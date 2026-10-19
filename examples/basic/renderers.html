@@ -51,7 +51,8 @@
       <h1>Renderer switching</h1>
       <p class="note">
         Switch between Canvas 2D, auto, and experimental WebGL2 rendering for
-        the same synthetic source.
+        the same synthetic source. Drag to pan time; wheel to pan; Ctrl+wheel to
+        zoom time. Hold Shift to pan frequency, or Ctrl+Shift+wheel to zoom it.
       </p>
       <div class="controls">
         <label
@@ -82,7 +83,7 @@
       class SyntheticSource {
         id = "synthetic-renderers";
         sampleRate = 48_000;
-        duration = 12;
+        duration = 48;
         channelCount = 1;
         data = Float32Array.from(
           { length: this.sampleRate * this.duration },
@@ -162,7 +163,7 @@
         try {
           scope = Sonoscope.fromSource(source, {
             startTime: 0,
-            endTime: 8,
+            endTime: 4.1,
             minFrequency: frequencyScale.value === "log" ? 20 : 0,
             maxFrequency: 8_000,
           });
@@ -179,10 +180,15 @@
             fftSize: 2048,
             hopSize: 512,
           });
+          scope.attachNavigation(canvas);
           playhead = attachPlayheadOverlay(canvas.parentElement, scope);
-          viewer.on("rendercomplete", (event) => {
-            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getViewport().frequencyScale}\nrequest: ${event.requestId}\nrender duration: ${(event.durationMs ?? 0).toFixed(1)} ms\ntiles rendered: ${event.renderedTiles}`;
-          });
+          viewer.on("rendercomplete", updateStatus);
+          scope.on("viewportchange", () => updateStatus());
+
+          function updateStatus(event) {
+            const viewport = viewer.getViewport();
+            status.textContent = `renderer config: ${JSON.stringify(viewer.getConfig().renderer)}\nactual renderer: ${viewer.getRendererKind()}\nfrequency scale: ${viewer.getFrequencyScale()}\nviewport: ${viewport.startTime.toFixed(2)}-${viewport.endTime.toFixed(2)}s, ${Math.round(viewport.minFrequency)}-${Math.round(viewport.maxFrequency)}Hz\n${event?.requestId ? `request: ${event.requestId}\nrender duration: ${(event.durationMs ?? 0).toFixed(1)} ms\ntiles rendered: ${event.renderedTiles}` : ""}`;
+          }
         } catch (error) {
           status.textContent =
             error instanceof Error ? error.message : String(error);

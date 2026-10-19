@@ -44,7 +44,7 @@ describe("ContinuousPeakPyramid", () => {
     sampleRate: 1000,
     duration: 10,
     channelCount: 1,
-    read: ({
+    read: async ({
       startTime,
       endTime,
     }: {

@@ -1,4 +1,4 @@
-import type { Rgba, ViewportConfig } from "../../../types";
+import type { FrequencyScale, Rgba, ViewportConfig } from "../../../types";
 import type {
   RenderInput,
   SpectrogramMatrix,
@@ -6,7 +6,7 @@ import type {
   WebGL2RenderProgram,
 } from "../types";
 import { buildColorMap } from "../../../colormap";
-import { canvasToTimeFrequency } from "../frequency-scale";
+import { canvasToTimeFrequency } from "../../../frequency-scale";
 import {
   locateSamplePosition,
   sampleValueDataPosition,
@@ -21,6 +21,7 @@ export type RendererKind = "webgl2" | "canvas2d";
 export interface SpectrogramRenderer {
   readonly kind: RendererKind;
   invalidate(): void;
+  clear?(canvas: HTMLCanvasElement): void;
   render(input: RenderInput): void;
   destroy?(): void;
   setProgram?(program: WebGL2RenderProgram): void;
@@ -32,6 +33,12 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
 
   invalidate(): void {
     this.image = undefined;
+  }
+
+  clear(canvas: HTMLCanvasElement): void {
+    this.invalidate();
+    const context = canvas.getContext("2d");
+    context?.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   render(input: RenderInput): void {
@@ -66,6 +73,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
         height,
         tile,
         input.viewport,
+        input.frequencyScale ?? "linear",
         input.valueScale,
         colors,
       );
@@ -78,6 +86,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
     height: number,
     tile: SpectrogramMatrix,
     viewport: ViewportConfig,
+    frequencyScale: FrequencyScale,
     valueScale: Required<ValueScaleConfig>,
     colors: Rgba[],
   ): void {
@@ -117,6 +126,7 @@ export class CanvasSpectrogramRenderer implements SpectrogramRenderer {
         width,
         height,
         viewport,
+        frequencyScale,
       );
       return locateSamplePosition(tile.frequencies, frequency);
     });

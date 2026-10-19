@@ -26,7 +26,7 @@ export function createWaveformRenderer(
     );
   }
 
-  if (!mode || mode === "canvas2d") {
+  if (!mode || mode === "envelope" || mode === "canvas2d") {
     return new CanvasWaveformRenderer();
   }
 
@@ -50,7 +50,7 @@ export function createWaveformRenderer(
     }
 
     if ("type" in mode) {
-      if (mode.type === "canvas2d") {
+      if (mode.type === "envelope" || mode.type === "canvas2d") {
         return new CanvasWaveformRenderer();
       }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ArrayAudioSource } from "./array-source";
 
 describe("ArrayAudioSource", () => {
-  it("initializes from a 1D Float32Array mono audio", () => {
+  it("initializes from a 1D Float32Array mono audio", async () => {
     const data = new Float32Array(44100 * 2); // 2 seconds at 44.1kHz
     data[44100] = 0.5;
     const source = new ArrayAudioSource(data, 44100);
@@ -11,11 +11,16 @@ describe("ArrayAudioSource", () => {
     expect(source.channelCount).toBe(1);
     expect(source.duration).toBeCloseTo(2.0);
 
-    const chunk = source.read({ channel: 0, startTime: 1.0, endTime: 1.001 });
+    const reading = source.read({ channel: 0, startTime: 1.0, endTime: 1.001 });
+    expect(reading).toBeInstanceOf(Promise);
+    const chunk = await reading;
     expect(chunk[0]).toBeCloseTo(0.5);
+    await expect(
+      source.read({ channel: 0, startTime: 0, endTime: 0.1 }),
+    ).resolves.toBeInstanceOf(Float32Array);
   });
 
-  it("initializes from 2D multi-channel Float32Array", () => {
+  it("initializes from 2D multi-channel Float32Array", async () => {
     const left = new Float32Array(48000);
     const right = new Float32Array(48000);
     left[0] = 0.8;
@@ -25,10 +30,10 @@ describe("ArrayAudioSource", () => {
     expect(source.channelCount).toBe(2);
     expect(source.duration).toBeCloseTo(1.0);
     expect(
-      source.read({ channel: 0, startTime: 0, endTime: 0.1 })[0],
+      (await source.read({ channel: 0, startTime: 0, endTime: 0.1 }))[0],
     ).toBeCloseTo(0.8);
     expect(
-      source.read({ channel: 1, startTime: 0, endTime: 0.1 })[0],
+      (await source.read({ channel: 1, startTime: 0, endTime: 0.1 }))[0],
     ).toBeCloseTo(-0.8);
   });
 
@@ -39,11 +44,11 @@ describe("ArrayAudioSource", () => {
     expect(source.channelCount).toBe(1);
   });
 
-  it("throws error for invalid channel access", () => {
+  it("rejects invalid channel access", async () => {
     const source = new ArrayAudioSource([0.1, 0.2], 44100);
-    expect(() => source.read({ channel: 1, startTime: 0, endTime: 1 })).toThrow(
-      /Invalid channel/,
-    );
+    await expect(
+      source.read({ channel: 1, startTime: 0, endTime: 1 }),
+    ).rejects.toThrow(/Invalid channel/);
   });
 
   it("throws error for invalid sample rate", () => {

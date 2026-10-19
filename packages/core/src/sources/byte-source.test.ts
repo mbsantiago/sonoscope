@@ -39,9 +39,48 @@ describe("byte source helpers", () => {
     );
     expect(Array.from(prefix)).toEqual([1, 2, 3]);
   });
+
+  it("cancels the underlying stream after reading the requested prefix", async () => {
+    const cancel = vi.fn();
+    const prefix = await readPrefix(
+      {
+        stream: () =>
+          new ReadableStream<Uint8Array>({
+            pull(controller) {
+              controller.enqueue(Uint8Array.from([1, 2, 3, 4, 5]));
+            },
+            cancel,
+          }),
+      },
+      3,
+    );
+
+    expect(Array.from(prefix)).toEqual([1, 2, 3]);
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });
 
 describe("FetchByteSource", () => {
+  it("cancels the HTTP body after prefix sniffing", async () => {
+    const cancelBody = vi.fn();
+    const responseBody = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(128));
+      },
+      cancel: cancelBody,
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "1024" },
+      body: responseBody,
+    }) as unknown as typeof fetch;
+
+    const prefix = await readPrefix(FetchByteSource.fromUrl("audio.mp3"), 16);
+
+    expect(prefix).toHaveLength(16);
+    expect(cancelBody).toHaveBeenCalledOnce();
+  });
+
   it("streams bytes from fetch", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -51,6 +90,28 @@ describe("FetchByteSource", () => {
     const chunks: number[] = [];
     for await (const chunk of source.stream()) chunks.push(...chunk);
     expect(chunks).toEqual([5, 6]);
+  });
+
+  it("detects ignored ranges once and cancels the full-file response body", async () => {
+    const cancelBody = vi.fn();
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: new ReadableStream<Uint8Array>({ cancel: cancelBody }),
+    }) as unknown as typeof fetch;
+    const source = FetchByteSource.fromUrl("audio.wav");
+
+    const results = await Promise.allSettled([
+      source.readRange(0, 16),
+      source.readRange(16, 32),
+    ]);
+    await expect(source.readRange(32, 48)).rejects.toThrow(
+      /does not support byte-range/,
+    );
+
+    expect(results.every((result) => result.status === "rejected")).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledOnce();
+    expect(cancelBody).toHaveBeenCalledOnce();
   });
 
   it("reads byte ranges with a Range header", async () => {
@@ -74,6 +135,31 @@ describe("FetchByteSource", () => {
     await expect(
       FetchByteSource.fromUrl("missing.wav").stream().getReader().read(),
     ).rejects.toThrow(/Failed to fetch byte stream: 404/);
+  });
+
+  it("passes AbortSignal to fetch calls in stream and readRange", async () => {
+    const controller = new AbortController();
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 206,
+      body: streamFrom([Uint8Array.from([1, 2])]),
+      arrayBuffer: () => Promise.resolve(Uint8Array.from([3, 4]).buffer),
+    }) as typeof fetch;
+
+    const source = FetchByteSource.fromUrl("audio.wav", {
+      signal: controller.signal,
+    });
+    const reader = source.stream().getReader();
+    await reader.read();
+    expect(globalThis.fetch).toHaveBeenCalledWith("audio.wav", {
+      signal: controller.signal,
+    });
+
+    await source.readRange(0, 2);
+    expect(globalThis.fetch).toHaveBeenCalledWith("audio.wav", {
+      headers: { Range: "bytes=0-1" },
+      signal: controller.signal,
+    });
   });
 });
 

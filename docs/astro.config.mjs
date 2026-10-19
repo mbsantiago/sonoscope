@@ -197,6 +197,18 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Understanding',
+					items: [
+						{ label: 'Concepts', slug: 'understanding/concepts' },
+						{ label: 'Audio Sources', slug: 'understanding/audio-sources' },
+						{ label: 'Viewers and Locators', slug: 'understanding/viewers' },
+						{ label: 'Viewports and Clips', slug: 'understanding/viewports' },
+						{ label: 'The Sonoscope Object', slug: 'understanding/sonoscope' },
+						{ label: 'Why Spectrograms Use Tiles', slug: 'understanding/why-tiling' },
+						{ label: 'How Spectrogram Tiling Works', slug: 'understanding/spectrogram-tiling' },
+					],
+				},
+				{
 					label: 'API Reference',
 					items: [coreSidebarGroup, reactSidebarGroup],
 				},

@@ -1,5 +1,5 @@
 import type { FrequencyScale } from "../../types";
-import { hzToScale } from "../spectrogram/frequency-scale";
+import { hzToScale } from "../../frequency-scale";
 
 export type FrequencyFormatMode =
   | "auto"

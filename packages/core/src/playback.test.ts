@@ -70,7 +70,7 @@ const source: AudioSource = {
   sampleRate: 100,
   duration: 10,
   channelCount: 1,
-  read: () => new Float32Array(100),
+  read: async () => new Float32Array(100),
 };
 
 afterEach(() => {

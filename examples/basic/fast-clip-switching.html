@@ -278,8 +278,6 @@
 
     <script type="module">
       import {
-        attachPlayheadOverlay,
-        createAudioSourceFromUrl,
         Sonoscope,
       } from "@sonoscope/core";
 
@@ -383,9 +381,46 @@
       const statPlayhead = document.getElementById("stat-playhead");
 
       let currentIndex = 0;
-      let scope = null;
-      let spectrogram = null;
-      let timeRuler = null;
+      let requestedItem = playlist[currentIndex];
+      let activeUrl;
+      let loadStartedAt;
+      const scope = new Sonoscope({ audio, followPlayback: "page" });
+      scope.createTimeRuler(canvasRuler, {
+        program: "ticks",
+        tickPosition: "bottom",
+        color: "#94a3b8",
+        tickColor: "#334155",
+        backgroundColor: "#0d1321",
+      });
+      scope.createSpectrogram(canvasSpec, {
+        colorMap: "viridis",
+        frequencyScale: "linear",
+        minDb: -90,
+        maxDb: -10,
+      });
+      scope.attachNavigation(stage);
+      scope.attachPlayhead(rulerContainer);
+      scope.attachPlayhead(specContainer);
+
+      scope.on("clipchange", updateStatus);
+      scope.on("viewportchange", updateStatus);
+      scope.on("timeupdate", (event) => {
+        statPlayhead.innerHTML = `Playhead: <b>${event.currentTime.toFixed(2)}s</b>`;
+      });
+      scope.on("statechange", ({ state }) => {
+        if (state.status === "loading") {
+          statLatency.innerHTML = "Switch latency: <b>loading</b> (new source)";
+        } else if (state.status === "ready" && loadStartedAt !== undefined) {
+          activeUrl = requestedItem.url;
+          const elapsed = performance.now() - loadStartedAt;
+          statLatency.innerHTML = `Switch latency: <b>${elapsed.toFixed(1)} ms</b> (new source)`;
+          loadStartedAt = undefined;
+        } else if (state.status === "error") {
+          statLatency.innerHTML = `Switch failed: <b>${state.error.message}</b>`;
+          loadStartedAt = undefined;
+        }
+        updateStatus();
+      });
 
       // Build UI Playlist Cards
       function renderPlaylistUI() {
@@ -435,24 +470,23 @@
       }
 
       function updateStatus() {
-        if (!scope) return;
         const bounds = scope.getClipBounds();
         const start = bounds.clipStart?.toFixed(2) ?? "0.00";
-        const end = bounds.clipEnd?.toFixed(2) ?? scope.getDuration().toFixed(2);
+        const end = bounds.clipEnd?.toFixed(2) ?? scope.getDuration()?.toFixed(2) ?? "0.00";
         statBounds.innerHTML = `Clip: <b>[${start}s, ${end}s]</b>`;
         statPlayhead.innerHTML = `Playhead: <b>${scope.getCurrentTime().toFixed(2)}s</b>`;
       }
 
-      async function switchClip(targetIndex) {
+      function switchClip(targetIndex) {
         const target = (targetIndex + playlist.length) % playlist.length;
-        const prevItem = playlist[currentIndex];
         const nextItem = playlist[target];
         currentIndex = target;
+        requestedItem = nextItem;
         updateActiveUI();
 
         const startTime = performance.now();
 
-        if (scope && prevItem.url === nextItem.url) {
+        if (scope.state.status === "ready" && activeUrl === nextItem.url) {
           // Fast in-place clip update (same underlying source!)
           scope.setClipBounds({
             clipStart: nextItem.clipStart,
@@ -461,55 +495,14 @@
           const elapsed = performance.now() - startTime;
           statLatency.innerHTML = `Switch latency: <b>${elapsed.toFixed(1)} ms</b> (in-place bounds update)`;
         } else {
-          // Switching recording: decode / stream new range source
-          audio.src = nextItem.url;
-          const nextSource = await createAudioSourceFromUrl(nextItem.url, {
+          // The scope cancels an older load and updates its existing viewers.
+          loadStartedAt = startTime;
+          void scope.setUrl(nextItem.url, {
             clipStart: nextItem.clipStart,
             clipEnd: nextItem.clipEnd,
+          }).catch(() => {
+            // The current load error is reflected by the statechange handler.
           });
-
-          if (!scope) {
-            scope = new Sonoscope({
-              source: nextSource,
-              audio,
-              clipStart: nextItem.clipStart,
-              clipEnd: nextItem.clipEnd,
-            });
-
-            timeRuler = scope.createTimeRuler(canvasRuler, {
-              program: "ticks",
-              tickPosition: "bottom",
-              color: "#94a3b8",
-              tickColor: "#334155",
-              backgroundColor: "#0d1321",
-            });
-
-            spectrogram = scope.createSpectrogram(canvasSpec, {
-              colorMap: "viridis",
-              frequencyScale: "linear",
-              minDb: -90,
-              maxDb: -10,
-            });
-
-            scope.attachNavigation(stage);
-            attachPlayheadOverlay(rulerContainer, scope);
-            attachPlayheadOverlay(specContainer, scope);
-
-            scope.on("clipchange", updateStatus);
-            scope.on("viewportchange", updateStatus);
-            scope.on("timeupdate", (e) => {
-              statPlayhead.innerHTML = `Playhead: <b>${e.currentTime.toFixed(2)}s</b>`;
-            });
-          } else {
-            scope.setSource(nextSource);
-            scope.setClipBounds({
-              clipStart: nextItem.clipStart,
-              clipEnd: nextItem.clipEnd,
-            });
-          }
-
-          const elapsed = performance.now() - startTime;
-          statLatency.innerHTML = `Switch latency: <b>${elapsed.toFixed(1)} ms</b> (new range source)`;
         }
 
         updateStatus();
@@ -547,7 +540,7 @@
       });
 
       renderPlaylistUI();
-      await switchClip(0);
+      switchClip(0);
     </script>
   </body>
 </html>

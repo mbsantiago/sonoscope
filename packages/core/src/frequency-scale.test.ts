@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   canvasToTimeFrequency,
   hzToMel,
+  hzToScale,
   melToHz,
+  scaleToHz,
   timeFrequencyToCanvas,
 } from "./frequency-scale";
 
@@ -17,6 +19,47 @@ const viewport = {
 describe("frequency-scale", () => {
   it("round-trips mel conversion", () => {
     expect(melToHz(hzToMel(1000))).toBeCloseTo(1000, 5);
+  });
+
+  it.each(["linear", "log", "mel"] as const)(
+    "round-trips %s frequency values in both directions",
+    (scale) => {
+      for (const frequency of [20, 440, 1000, 8000]) {
+        expect(scaleToHz(hzToScale(frequency, scale), scale)).toBeCloseTo(
+          frequency,
+          6,
+        );
+        const point = timeFrequencyToCanvas(
+          12.5,
+          frequency,
+          320,
+          200,
+          viewport,
+          scale,
+        );
+        const mapped = canvasToTimeFrequency(
+          point.x,
+          point.y,
+          320,
+          200,
+          viewport,
+          scale,
+        );
+        expect(mapped.time).toBeCloseTo(12.5);
+        expect(mapped.frequency).toBeCloseTo(frequency, 6);
+      }
+    },
+  );
+
+  it("clamps logarithmic zero to the same value used by the ruler", () => {
+    expect(hzToScale(0, "log")).toBe(hzToScale(1, "log"));
+  });
+
+  it("uses the same default frequency bounds in both coordinate directions", () => {
+    const times = { startTime: viewport.startTime, endTime: viewport.endTime };
+    const top = canvasToTimeFrequency(50, 0, 100, 100, times);
+    expect(top.frequency).toBe(24_000);
+    expect(timeFrequencyToCanvas(15, top.frequency, 100, 100, times).y).toBe(0);
   });
 
   it("maps canvas center to viewport center for linear axes", () => {

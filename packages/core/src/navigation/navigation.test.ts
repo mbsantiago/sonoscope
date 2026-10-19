@@ -1003,7 +1003,7 @@ describe("viewer attachNavigation with auto-cleanup", () => {
     sampleRate: 48000,
     duration: 20,
     channelCount: 1,
-    read: () => new Float32Array(48000),
+    read: async () => new Float32Array(48000),
   };
 
   const downEvent =

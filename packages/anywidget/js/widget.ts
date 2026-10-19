@@ -240,7 +240,7 @@ async function render({
         duration: 0.1,
         sampleRate: 44100,
         channelCount: 1,
-        read: () => new Float32Array(0),
+        read: async () => new Float32Array(0),
       },
       followPlayback,
       audio,

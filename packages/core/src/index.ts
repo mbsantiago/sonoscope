@@ -2,6 +2,38 @@
 
 // Auto-Resize Utilities
 export type { AutoResizeOptions } from "./auto-resize";
+// FrequencyRuler Types
+export type {
+  FrequencyFormatMode,
+  FrequencyRulerConfig,
+  FrequencyRulerEvents,
+  FrequencyRulerFrame,
+  FrequencyRulerOptions,
+  FrequencyRulerRenderer,
+  FrequencyRulerRendererName,
+  FrequencyRulerRenderInput,
+  FrequencyRulerStatus,
+  FrequencyRulerViewport,
+  FrequencyTicksResult,
+  IFrequencyRulerLocator,
+  ResolvedFrequencyRulerConfig,
+} from "./locators/frequency-ruler";
+// TimeRuler Types
+export type {
+  ITimeRulerLocator,
+  ResolvedTimeRulerConfig,
+  TimeFormatMode,
+  TimeRulerConfig,
+  TimeRulerEvents,
+  TimeRulerFrame,
+  TimeRulerOptions,
+  TimeRulerRenderer,
+  TimeRulerRendererName,
+  TimeRulerRenderInput,
+  TimeRulerStatus,
+  TimeRulerViewport,
+  TimeTicksResult,
+} from "./locators/time-ruler";
 // Performance Types
 export type {
   FrameStats,
@@ -29,7 +61,7 @@ export type {
   ISonoscope,
   ISonoscopeViewer,
   IViewportController,
-  IViewportViewer,
+  IViewportLocator,
   ModifierKey,
   NavigableViewer,
   NavigationAxis,
@@ -37,6 +69,7 @@ export type {
   Rgba,
   SonoscopeEvents,
   SonoscopeOptions,
+  SourceState,
   TimeBounds,
   ViewportConfig,
   ViewportConstraints,
@@ -45,22 +78,6 @@ export type {
   ViewportState,
   WheelNavigationOptions,
 } from "./types";
-// FrequencyRuler Types
-export type {
-  FrequencyFormatMode,
-  FrequencyRulerConfig,
-  FrequencyRulerEvents,
-  FrequencyRulerFrame,
-  FrequencyRulerOptions,
-  FrequencyRulerRenderer,
-  FrequencyRulerRendererName,
-  FrequencyRulerRenderInput,
-  FrequencyRulerStatus,
-  FrequencyRulerViewport,
-  FrequencyTicksResult,
-  IFrequencyRulerViewer,
-  ResolvedFrequencyRulerConfig,
-} from "./viewers/frequency-ruler";
 export type {
   ComputeTileRequest,
   SpectrogramComputeBackend,
@@ -109,22 +126,6 @@ export type {
   WebGLRendererProgramName,
   WindowName,
 } from "./viewers/spectrogram/types";
-// TimeRuler Types
-export type {
-  ITimeRulerViewer,
-  ResolvedTimeRulerConfig,
-  TimeFormatMode,
-  TimeRulerConfig,
-  TimeRulerEvents,
-  TimeRulerFrame,
-  TimeRulerOptions,
-  TimeRulerRenderer,
-  TimeRulerRendererName,
-  TimeRulerRenderInput,
-  TimeRulerStatus,
-  TimeRulerViewport,
-  TimeTicksResult,
-} from "./viewers/time-ruler";
 // Waveform Types
 export type {
   BarPeakBlock,
@@ -153,6 +154,28 @@ export {
   colorMapToRgb,
   parseColor,
 } from "./colormap";
+export {
+  canvasToTimeFrequency,
+  hzToMel,
+  hzToScale,
+  melToHz,
+  scaleToHz,
+  timeFrequencyToCanvas,
+} from "./frequency-scale";
+export {
+  BoxesFrequencyRulerRenderer,
+  computeFrequencyTicks,
+  FrequencyRulerLocator,
+  formatFrequencyLabel,
+  TicksFrequencyRulerRenderer,
+} from "./locators/frequency-ruler";
+export {
+  BoxesTimeRulerRenderer,
+  computeTimeTicks,
+  formatTimeLabel,
+  TicksTimeRulerRenderer,
+  TimeRulerLocator,
+} from "./locators/time-ruler";
 // Navigation & Coordinate Helpers
 export {
   attachDragNavigation,
@@ -210,6 +233,7 @@ export {
   clipAudioSource,
 } from "./sources/clipped-source";
 export {
+  type AudioSourceOptions,
   createAudioSourceFromBlob,
   createAudioSourceFromBuffer,
   createAudioSourceFromUrl,
@@ -218,13 +242,6 @@ export {
 export { StreamingMp3Source } from "./sources/streaming-mp3-source";
 export { StreamingWavSource } from "./sources/streaming-wav-source";
 export { encodeWavBlob, encodeWavBuffer } from "./sources/wav-encoder";
-export {
-  BoxesFrequencyRulerRenderer,
-  computeFrequencyTicks,
-  FrequencyRulerViewer,
-  formatFrequencyLabel,
-  TicksFrequencyRulerRenderer,
-} from "./viewers/frequency-ruler";
 // Compute Backends & Renderers
 export { MainThreadComputeBackend } from "./viewers/spectrogram/backends/backend";
 export {
@@ -238,14 +255,6 @@ export {
   WasmWorkerComputeBackend,
 } from "./viewers/spectrogram/backends/wasm-backend";
 export { WorkerComputeBackend } from "./viewers/spectrogram/backends/worker-backend";
-export {
-  canvasToTimeFrequency,
-  hzToMel,
-  hzToScale,
-  melToHz,
-  scaleToHz,
-  timeFrequencyToCanvas,
-} from "./viewers/spectrogram/frequency-scale";
 export { SpectrogramProfiler } from "./viewers/spectrogram/profiler";
 export { CanvasSpectrogramRenderer } from "./viewers/spectrogram/renderers/canvas";
 export { createSpectrogramRenderer } from "./viewers/spectrogram/renderers/renderer-factory";
@@ -275,13 +284,6 @@ export {
 export { normalizeValue } from "./viewers/spectrogram/value-scale";
 // Viewers
 export { SpectrogramViewer } from "./viewers/spectrogram/viewer";
-export {
-  BoxesTimeRulerRenderer,
-  computeTimeTicks,
-  formatTimeLabel,
-  TicksTimeRulerRenderer,
-  TimeRulerViewer,
-} from "./viewers/time-ruler";
 export { BarsWaveformRenderer } from "./viewers/waveform/renderers/bars";
 export { CanvasWaveformRenderer } from "./viewers/waveform/renderers/canvas";
 export { createWaveformRenderer } from "./viewers/waveform/renderers/renderer-factory";

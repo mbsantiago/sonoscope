@@ -33,7 +33,7 @@ const dummySource: AudioSource = {
   sampleRate: 1000,
   duration: 10,
   channelCount: 1,
-  read: ({ startTime, endTime }) => {
+  read: async ({ startTime, endTime }) => {
     const start = Math.floor(startTime * 1000);
     const end = Math.floor(endTime * 1000);
     const count = Math.max(0, end - start);
@@ -156,6 +156,19 @@ describe("WaveformViewer", () => {
     viewer.updateConfig({ colorMap: "viridis" });
     const nextConfig = viewer.getConfig();
     expect(nextConfig.color).not.toBe(config.color);
+  });
+
+  it("uses envelope as the default waveform renderer name", () => {
+    const scope = new Sonoscope({ source: dummySource });
+    const viewer = new WaveformViewer(
+      createMockCanvas(),
+      scope.viewport,
+      scope.source,
+    );
+
+    expect(viewer.getConfig().renderer).toBe("envelope");
+    expect(viewer.getRendererKind()).toBe("envelope");
+    viewer.destroy();
   });
 
   it("keeps viewport state outside the waveform configuration", () => {
