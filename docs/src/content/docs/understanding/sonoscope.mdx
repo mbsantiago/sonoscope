@@ -3,36 +3,82 @@ title: The Sonoscope object
 description: How the Sonoscope object keeps a source, viewers, locators, viewport, and playback together.
 ---
 
-You can use an [audio source](/sonoscope/understanding/audio-sources/) on its own. But if you want to show it in several [viewers](/sonoscope/understanding/viewers/) and play it back, you also need to keep track of which source and [viewport](/sonoscope/understanding/viewports/) they share. The `Sonoscope` object does that for you.
+The [concepts](/sonoscope/understanding/concepts/) page introduced the audio sources, viewports, viewers, and locators you can use to build an audio visualization. You can connect these parts yourself, but you don't need to learn how to do that just to get started. The `Sonoscope` object brings them together and is the main entry point to the library.
 
-```text
-audio input ──▶ Sonoscope ──▶ attached viewers
-                    │                 ▲
-                    ├── playback      │
-                    └── viewport ─────┘
+## Creating a Sonoscope object
+
+If your audio is at a URL, the simplest way to create a `Sonoscope` object is with `fromUrl()`:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/recording.mp3");
 ```
 
-## Changing the active source
+`fromUrl()` loads the URL and gives you a `Sonoscope` object with an audio source and a viewport already set up. By default, the viewport shows the beginning of the recording. You can change the viewport or replace the source later. Other ways to create an object, including the [`Sonoscope` constructor](/sonoscope/reference/core/classes/sonoscope/#constructor), are listed in the [API reference](/sonoscope/reference/core/classes/sonoscope/).
 
-An application may need to switch recordings while its viewers stay on screen. `Sonoscope` keeps track of the active source, the one those viewers should use. You can check `scope.state` or listen for `statechange` while it changes:
+## Creating viewers and locators
+
+Once you have a `Sonoscope` object, its `create*` methods let you draw the audio in canvas elements. You can create a waveform viewer and a time ruler, for example, without connecting either one to the viewport yourself:
+
+```ts
+import { Sonoscope } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/recording.mp3");
+const waveformCanvas = document.querySelector<HTMLCanvasElement>("#waveform")!;
+const rulerCanvas = document.querySelector<HTMLCanvasElement>("#time-ruler")!;
+
+scope.createWaveform(waveformCanvas);
+scope.createTimeRuler(rulerCanvas);
+```
+
+Sonoscope keeps viewers created this way up to date when the source changes. The ruler shares the viewport with the waveform, so its time marks move with the waveform when you pan or zoom. See [`createWaveform()`](/sonoscope/reference/core/classes/sonoscope/#createwaveform) and [`createTimeRuler()`](/sonoscope/reference/core/classes/sonoscope/#createtimeruler) for their options.
+
+You can also create a viewer yourself if you want to manage it separately. In that case, you can give it the source and viewport from an existing Sonoscope object:
+
+```ts
+import { Sonoscope, WaveformViewer } from "@sonoscope/core";
+
+const scope = await Sonoscope.fromUrl("/audio/recording.mp3");
+const canvas = document.querySelector<HTMLCanvasElement>("#waveform")!;
+const viewer = new WaveformViewer(canvas, scope.viewport, scope.source);
+```
+
+This viewer uses the same viewport, but Sonoscope does not manage it or update its source when you switch recordings. Use `scope.createWaveform()` when you want Sonoscope to do that work for you.
+
+## Managing the viewport
+
+Sonoscope gives its viewers and locators the same viewport, so their displays stay aligned as you pan or zoom. You can check the visible range with [`getViewport()`](/sonoscope/reference/core/classes/sonoscope/#getviewport), change it with [`setViewport()`](/sonoscope/reference/core/classes/sonoscope/#setviewport), or use [`pan()`](/sonoscope/reference/core/classes/sonoscope/#pan) and [`zoomTime()`](/sonoscope/reference/core/classes/sonoscope/#zoomtime) to move around the recording. Sonoscope keeps the viewport within the recording or any clip you have set.
+
+For example, `scope.setViewport({ startTime: 20, endTime: 30 })` shows ten seconds starting at second 20 in every viewer attached to that object.
+
+If you need two views of the same source with independent navigation, [`fork()`](/sonoscope/reference/core/classes/sonoscope/#fork) creates another Sonoscope object that shares the source but has its own viewport. To keep the two objects aligned instead, pass the original viewport when you fork:
+
+```ts
+const secondScope = scope.fork({ viewport: scope.viewport });
+```
+
+You can also connect sources, viewers, and viewports yourself when you need more control. See [Viewports and clips](/sonoscope/understanding/viewports/) for more on the visible range and its bounds.
+
+## Lifecycle and state
+
+When you create a Sonoscope object without a source, its [`state`](/sonoscope/reference/core/classes/sonoscope/#state) starts as `empty`. Loading or changing a source with a `set*` method moves it through `loading` to `ready`, or to `error` if loading fails. You can read `scope.state` at any time or listen for `statechange` to react as it changes. If you create an object with `await Sonoscope.fromUrl(...)`, it already has a usable source by the time you receive it.
 
 | State | Meaning |
 | --- | --- |
 | `empty` | There is no active source yet. |
-| `loading` | Sonoscope is loading a replacement source. |
+| `loading` | Sonoscope is loading a source. |
 | `ready` | The source is available to the viewers. |
 | `error` | Loading failed. You can try another source. |
 
-Create the object and its viewers once, then load recordings as the user selects them:
+For example, you can create an object without a source and show its state while a recording loads:
 
 ```ts
 import { Sonoscope } from "@sonoscope/core";
 
 const audio = document.querySelector("audio")!;
-const canvas = document.querySelector<HTMLCanvasElement>("#spectrogram")!;
 const status = document.querySelector<HTMLElement>("[data-status]");
 const scope = new Sonoscope({ audio });
-scope.createSpectrogram(canvas, { frequencyScale: "mel" });
 
 scope.on("statechange", ({ state }) => {
   if (!status) return;
@@ -42,22 +88,41 @@ scope.on("statechange", ({ state }) => {
 });
 
 void scope.setUrl("/audio/recording.mp3").catch(() => {
-  // statechange reports the error.
+  // The statechange handler above shows the error.
 });
 ```
 
-You can also start with a recording using `Sonoscope.fromUrl()`, `fromAudio()`, or another [source helper](/sonoscope/demos/sources/). Those methods give you a `Sonoscope` with a source ready to use. The `set*` methods replace the source on an existing object, so you can keep its viewers attached.
+:::note[What does `ready` mean?]
+`ready` means the source can be used, not necessarily that every part of the recording has been decoded. Some [audio sources](/sonoscope/understanding/audio-sources/) make samples available bit by bit and tell Sonoscope when more are ready, so it can update the viewers and viewport as needed.
+:::
 
-If a user picks another recording before the first one finishes loading, Sonoscope uses the newer choice. It stops or ignores work from the old request so the viewers do not show the wrong recording. Call `scope.destroy()` when you are done with the object and its viewers.
+Call [`scope.destroy()`](/sonoscope/reference/core/classes/sonoscope/#destroy) when you are done with the object and its viewers.
 
-## A ready source can still be loading audio
+## Changing the source
 
-`ready` means the source can be used, not necessarily that every part of the recording has been decoded. Some sources make audio available bit by bit. The [source](/sonoscope/understanding/audio-sources/) handles that work and can tell Sonoscope when more samples are ready. Sonoscope then updates the viewers and viewport as needed.
+An application may need to switch recordings while its viewers stay on screen. Instead of creating a new Sonoscope object and new viewers each time, you can use [`setUrl()`](/sonoscope/reference/core/classes/sonoscope/#seturl) to replace the active source. Viewers created by Sonoscope will then show the new recording:
 
-## Clips and the viewport
+```ts
+import { Sonoscope } from "@sonoscope/core";
 
-Sonoscope gives viewers and locators the same viewport, so their displays stay aligned as you pan or zoom. You can set a clip to limit which part of the recording users can view and play. If you change the clip, Sonoscope updates the viewport, so both viewers and locators follow it. It does not need to load the recording again.
+const scope = await Sonoscope.fromUrl("/audio/recording.mp3");
+const canvas = document.querySelector<HTMLCanvasElement>("#spectrogram")!;
+scope.createSpectrogram(canvas, { frequencyScale: "mel" });
 
-See [Viewports, recording duration, and clips](/sonoscope/understanding/viewports/) for how those time ranges differ.
+await scope.setUrl("/audio/another-recording.mp3");
+```
+
+The same object also has other [source-changing methods](/sonoscope/reference/core/classes/sonoscope/) for files and other inputs. If a user picks another recording before the first one finishes loading, Sonoscope uses the newer choice and stops or ignores work from the earlier request.
+
+## Setting clip bounds
+
+A clip limits which part of the recording users can view and play. Once a source is ready, you can set its bounds with [`setClipBounds()`](/sonoscope/reference/core/classes/sonoscope/#setclipbounds) and check them with [`getClipBounds()`](/sonoscope/reference/core/classes/sonoscope/#getclipbounds):
+
+```ts
+scope.setClipBounds({ clipStart: 30, clipEnd: 60 });
+scope.getClipBounds(); // { clipStart: 30, clipEnd: 60 }
+```
+
+When you change the clip, Sonoscope adjusts the viewport, and the viewers and locators follow it without loading the recording again. See [Viewports and clips](/sonoscope/understanding/viewports/) for more on clips and the visible range.
 
 For the methods and events available on the object, see the [`Sonoscope` API reference](/sonoscope/reference/core/classes/sonoscope/).
