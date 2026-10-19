@@ -281,6 +281,7 @@ export class WaveformViewer implements IWaveformViewer {
   }
 
   setSourceState(state: SourceState, generation: number): void {
+    if (this.status.state === "destroyed") return;
     this.sourceGeneration = generation;
     this.renderGeneration += 1;
     this.activeRenderController?.abort();
