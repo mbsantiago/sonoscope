@@ -99,6 +99,7 @@
       scope.attachNavigation(canvas);
       scope.attachPlayhead(canvas.parentElement);
 
+      const status = document.querySelector("[data-status]");
       scope.on("statechange", ({ state }) => {
         if (state.status === "loading") status.textContent = "Loading audio...";
         else if (state.status === "ready") status.textContent = "Audio ready";
