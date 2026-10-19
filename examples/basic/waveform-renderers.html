@@ -725,7 +725,7 @@
 
       // Waveform click-to-seek
       mainWaveCanvas.addEventListener("click", (e) => {
-        if (!waveViewer || !scope) return;
+        if (!waveViewer || scope.state.status !== "ready") return;
         const rect = mainWaveCanvas.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const targetTime = waveViewer.canvasToTime(clickX * mainWaveCanvas.width / rect.width);
